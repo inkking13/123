@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="ext-resource-dependency" content="portraits/0.jpg" data-resource-id="p0" />
+<meta name="ext-resource-dependency" content="portraits/1.jpg" data-resource-id="p1" />
+<meta name="ext-resource-dependency" content="portraits/2.jpg" data-resource-id="p2" />
+<meta name="ext-resource-dependency" content="portraits/3.jpg" data-resource-id="p3" />
+<meta name="ext-resource-dependency" content="portraits/4.jpg" data-resource-id="p4" />
+<meta name="ext-resource-dependency" content="portraits/5.jpg" data-resource-id="p5" />
+<meta name="ext-resource-dependency" content="portraits/6.jpg" data-resource-id="p6" />
+<meta name="ext-resource-dependency" content="portraits/7.jpg" data-resource-id="p7" />
+<meta name="ext-resource-dependency" content="portraits/8.jpg" data-resource-id="p8" />
+<link rel="stylesheet" href="nocturne.css">
+<link rel="stylesheet" href="phosphor.css">
+<style>
+body{margin:0;background:#0f1119;color:#e9e9ed;font-family:Inter,system-ui,sans-serif;}
+a{color:#9184d9;text-decoration:none}a:hover{color:#b5abfc}
+::-webkit-scrollbar{width:0;height:0}
+*{-webkit-tap-highlight-color:transparent}
+@keyframes rcpulse{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes rcglow{0%,100%{box-shadow:0 0 0 0 rgba(145,132,217,0)}50%{box-shadow:0 0 18px 0 rgba(145,132,217,.35)}}
+</style>
+</helmet>
+<template id="__bundler_thumbnail" data-bg-color="#161826">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+    <rect width="240" height="240" fill="#161826"></rect>
+    <circle cx="120" cy="120" r="46" fill="none" stroke="#9184d9" stroke-width="3"></circle>
+    <circle cx="120" cy="120" r="62" fill="none" stroke="#9184d9" stroke-width="1" opacity="0.4"></circle>
+    <path d="M120 92 v56 M96 110 h48" stroke="#d2cefd" stroke-width="4" stroke-linecap="round"></path>
+  </svg>
+</template>
+<div style="min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:28px 16px 40px;background:radial-gradient(ellipse at 50% -10%, #1d2033 0%, #0f1119 60%);">
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ yes }}" hint-size="402px,874px">
+
+<div style="height:874px;display:flex;flex-direction:column;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif;overflow:hidden;">
+
+<sc-if value="{{ isTitle }}" hint-placeholder-val="{{ yes }}">
+<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:0 24px 54px;background:radial-gradient(ellipse at 30% 12%, #262a60 0%, transparent 58%), #161826;">
+  <div style="flex:1"></div>
+  <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9397ab;margin-bottom:16px;">Тёмное подземелье · Сезон I</div>
+  <div style="width:34px;height:3px;background:#9184d9;margin-bottom:18px;"></div>
+  <h1 style="font-size:44px;line-height:.96;letter-spacing:-0.03em;font-weight:500;margin:0;">RAID<br>COMMANDER</h1>
+  <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#b2b6ca;max-width:300px;">Девять наёмников, пять мест в отряде и подземелье, из которого мало кто выходил. Они будут паниковать, жадничать и умирать. Твоя задача — довести их до трона.</p>
+  <button onClick="{{ goHome }}" style="margin-top:34px;height:52px;border-radius:8px;background:transparent;border:1px solid #9184d9;color:#d2cefd;font-family:Inter,sans-serif;font-size:15px;font-weight:500;letter-spacing:.02em;display:flex;align-items:center;justify-content:space-between;padding:0 20px;cursor:pointer;" style-hover="background:rgba(145,132,217,.12)" style-active="border-color:#b5abfc;background:rgba(145,132,217,.2)">
+    <span>Войти в гильдию</span><i class="ph ph-arrow-right" style="font-size:18px"></i>
+  </button>
+  <div style="margin-top:18px;font-size:11px;color:#75798c;">Прототип · портретный режим · 4 комнаты</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ no }}">
+<div style="flex:1;overflow-y:auto;padding:62px 20px 96px;">
+  <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#75798c;">Гильдия</div>
+  <h2 style="font-size:30px;font-weight:500;margin:4px 0 22px;letter-spacing:-0.02em;">Лагерь</h2>
+
+  <div onClick="{{ goRoster }}" style="border:1px solid #3f424d;border-radius:8px;padding:14px;background:#1c1e2c;cursor:pointer;margin-bottom:22px;" style-hover="border-color:#595d6c">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#9397ab;">Текущий отряд</span>
+      <span style="font-size:12px;color:#9184d9;display:flex;align-items:center;gap:4px;">Изменить <i class="ph ph-caret-right" style="font-size:13px"></i></span>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <sc-for list="{{ squadStrip }}" as="m" hint-placeholder-count="5">
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px;align-items:center;">
+          <div role="img" aria-label="{{ m.name }}" style="{{ m.avatarSquad }}"></div>
+          <span style="font-size:10px;color:#b2b6ca;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">{{ m.name }}</span>
+          <span style="width:16px;height:2px;background:{{ m.roleColor }};"></span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#9397ab;margin-bottom:10px;">Походы</div>
+  <sc-for list="{{ dungeons }}" as="d" hint-placeholder-count="3">
+    <div onClick="{{ d.onTap }}" style="border:1px solid {{ d.border }};border-radius:8px;padding:16px;margin-bottom:10px;background:{{ d.bg }};opacity:{{ d.opacity }};cursor:{{ d.cursor }};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+        <div>
+          <div style="font-size:17px;font-weight:500;letter-spacing:-0.01em;">{{ d.name }}</div>
+          <div style="font-size:12px;color:#9397ab;margin-top:4px;">{{ d.meta }}</div>
+        </div>
+        <i class="{{ d.icon }}" style="font-size:20px;color:{{ d.iconColor }}"></i>
+      </div>
+      <div style="font-size:12.5px;line-height:1.5;color:#b2b6ca;margin-top:10px;">{{ d.desc }}</div>
+    </div>
+  </sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ isRoster }}" hint-placeholder-val="{{ no }}">
+<div style="flex:1;overflow-y:auto;padding:62px 16px 150px;">
+  <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#75798c;">Гильдия · 9 наёмников</div>
+  <h2 style="font-size:30px;font-weight:500;margin:4px 0 4px;letter-spacing:-0.02em;">Отряд</h2>
+  <p style="font-size:13px;color:#9397ab;margin:0 0 18px;">Выбери пятерых. Без танка и хилера поход закончится в первой комнате.</p>
+  <sc-for list="{{ rosterRows }}" as="c" hint-placeholder-count="9">
+    <div style="display:flex;gap:12px;padding:12px;border:1px solid {{ c.border }};background:{{ c.bg }};border-radius:8px;margin-bottom:8px;align-items:flex-start;">
+      <div onClick="{{ c.onTap }}" style="position:relative;cursor:pointer;flex-shrink:0;">
+        <div role="img" aria-label="{{ c.name }}" style="{{ c.avatar }}"></div>
+        <span style="position:absolute;inset:auto -4px -4px auto;width:20px;height:20px;border-radius:10px;background:#9184d9;color:#161826;font-size:12px;display:flex;align-items:center;justify-content:center;opacity:{{ c.checkOpacity }};"><i class="ph-fill ph-check"></i></span>
+      </div>
+      <div onClick="{{ c.onTap }}" style="flex:1;min-width:0;cursor:pointer;">
+        <div style="display:flex;align-items:baseline;gap:6px;">
+          <span style="font-size:15px;font-weight:500;">{{ c.name }}</span>
+          <span style="font-size:11px;color:#75798c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.epithet }}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;">
+          <span style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:{{ c.roleColor }};border:1px solid {{ c.roleBorder }};border-radius:4px;padding:1px 6px;">{{ c.roleName }}</span>
+          <span style="font-size:11px;color:#9397ab;">Ур. {{ c.level }}</span>
+          <span style="font-size:11px;color:#9397ab;">{{ c.stats }}</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+          <span style="font-size:10.5px;color:#b2b6ca;border:1px solid #3f424d;border-radius:4px;padding:1px 6px;">{{ c.traitLabel }}</span>
+          <span style="flex:1;height:3px;background:#292b31;border-radius:2px;overflow:hidden;"><span style="display:block;height:100%;width:{{ c.moraleWidth }};background:{{ c.moraleColor }};"></span></span>
+          <span style="font-size:10.5px;color:#75798c;">{{ c.moraleLabel }}</span>
+        </div>
+      </div>
+      <button onClick="{{ c.onInfo }}" aria-label="Персонаж" style="width:44px;height:44px;flex-shrink:0;border:1px solid #3f424d;border-radius:8px;background:transparent;color:#9397ab;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="border-color:#9184d9;color:#d2cefd"><i class="ph ph-scroll" style="font-size:17px"></i></button>
+    </div>
+  </sc-for>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;padding:12px 16px 30px;background:linear-gradient(to top,#161826 62%,rgba(22,24,38,0));">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;">
+    <span style="color:#b2b6ca;">{{ squadCountLabel }}</span>
+    <span style="color:{{ squadWarnColor }};">{{ squadWarn }}</span>
+  </div>
+  <button onClick="{{ goGear }}" disabled="{{ squadNotReady }}" style="width:100%;height:50px;border-radius:8px;background:transparent;border:1px solid #9184d9;color:#d2cefd;font-family:Inter,sans-serif;font-size:15px;font-weight:500;cursor:pointer;opacity:{{ startOpacity }};display:flex;align-items:center;justify-content:center;gap:8px;" style-hover="background:rgba(145,132,217,.12)"><i class="ph ph-shield-chevron" style="font-size:18px"></i> К снаряжению</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ isChar }}" hint-placeholder-val="{{ no }}">
+<div style="flex:1;overflow-y:auto;">
+  <div style="position:relative;height:300px;">
+    <div role="img" aria-label="{{ char.name }}" style="{{ char.hero }}"></div>
+    <div style="position:absolute;inset:0;background:linear-gradient(to top,#161826 4%,rgba(22,24,38,.1) 55%, rgba(22,24,38,.55));"></div>
+    <button onClick="{{ closeChar }}" aria-label="Назад" style="position:absolute;top:56px;left:16px;width:44px;height:44px;border-radius:22px;background:rgba(22,24,38,.6);border:1px solid #3f424d;color:#e9e9ed;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrow-left" style="font-size:18px"></i></button>
+    <div style="position:absolute;left:20px;right:20px;bottom:12px;">
+      <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:{{ char.roleColor }};">{{ char.roleName }} · {{ char.epithet }}</div>
+      <div style="font-size:32px;font-weight:500;letter-spacing:-0.02em;margin-top:2px;">{{ char.name }}</div>
+    </div>
+  </div>
+  <div style="padding:4px 20px 40px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <span style="font-size:12px;color:#b2b6ca;">{{ char.levelLabel }}</span>
+      <span style="flex:1;height:4px;background:#292b31;border-radius:2px;overflow:hidden;"><span style="display:block;height:100%;width:{{ char.xpWidth }};background:#9184d9;"></span></span>
+      <span style="font-size:11px;color:#75798c;">{{ char.xpLabel }}</span>
+    </div>
+    <div style="display:flex;gap:8px;margin:14px 0 16px;">
+      <sc-for list="{{ char.stats }}" as="s" hint-placeholder-count="3">
+        <div style="flex:1;border:1px solid #292b31;border-radius:8px;padding:8px 10px;">
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#75798c;">{{ s.label }}</div>
+          <div style="font-size:17px;font-weight:500;margin-top:2px;">{{ s.value }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="border:1px solid #3f424d;border-radius:8px;padding:12px;margin-bottom:18px;">
+      <div style="font-size:12px;font-weight:500;color:#d2cefd;">{{ char.traitLabel }}</div>
+      <div style="font-size:12.5px;color:#9397ab;margin-top:3px;line-height:1.5;">{{ char.traitDesc }}</div>
+    </div>
+    <p style="font-size:13.5px;line-height:1.7;color:#b2b6ca;margin:0 0 22px;text-wrap:pretty;">{{ char.story }}</p>
+    <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#9397ab;margin-bottom:10px;">Снаряжение</div>
+    <sc-for list="{{ char.slots }}" as="slot" hint-placeholder-count="3">
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;color:#75798c;margin-bottom:6px;">{{ slot.label }}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <sc-for list="{{ slot.options }}" as="o" hint-placeholder-count="4">
+            <button onClick="{{ o.onPick }}" style="border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};border-radius:8px;padding:9px 11px;font-family:Inter,sans-serif;font-size:12px;cursor:pointer;min-height:38px;">{{ o.name }}</button>
+          </sc-for>
+        </div>
+        <div style="font-size:11.5px;color:#75798c;margin-top:6px;">{{ slot.desc }}</div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isGear }}" hint-placeholder-val="{{ no }}">
+<div style="flex:1;overflow-y:auto;padding:62px 16px 110px;">
+  <button onClick="{{ goRoster }}" style="border:none;background:transparent;color:#9397ab;font-family:Inter,sans-serif;font-size:12px;padding:0;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-arrow-left"></i> Отряд</button>
+  <h2 style="font-size:28px;font-weight:500;margin:0 0 4px;letter-spacing:-0.02em;">Снаряжение</h2>
+  <p style="font-size:13px;color:#9397ab;margin:0 0 18px;">Каждый слот меняет баланс между уроном, живучестью и перезарядкой.</p>
+  <sc-for list="{{ gearCards }}" as="g" hint-placeholder-count="5">
+    <div style="border:1px solid #292b31;border-radius:8px;padding:12px;margin-bottom:10px;background:#1c1e2c;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div role="img" aria-label="{{ g.name }}" style="{{ g.avatar }}"></div>
+        <div>
+          <div style="font-size:15px;font-weight:500;">{{ g.name }}</div>
+          <div style="font-size:11px;color:{{ g.roleColor }};letter-spacing:.06em;text-transform:uppercase;">{{ g.roleName }}</div>
+        </div>
+      </div>
+      <sc-for list="{{ g.slots }}" as="slot" hint-placeholder-count="3">
+        <div style="margin-bottom:9px;">
+          <div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#75798c;margin-bottom:5px;">{{ slot.label }}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;">
+            <sc-for list="{{ slot.options }}" as="o" hint-placeholder-count="4">
+              <button onClick="{{ o.onPick }}" style="border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};border-radius:7px;padding:7px 9px;font-family:Inter,sans-serif;font-size:11.5px;cursor:pointer;">{{ o.name }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-for>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;padding:12px 16px 30px;background:linear-gradient(to top,#161826 62%,rgba(22,24,38,0));">
+  <button onClick="{{ goDungeon }}" style="width:100%;height:50px;border-radius:8px;background:transparent;border:1px solid #9184d9;color:#d2cefd;font-family:Inter,sans-serif;font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;" style-hover="background:rgba(145,132,217,.12)"><i class="ph ph-door-open" style="font-size:18px"></i> В подземелье</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDungeon }}" hint-placeholder-val="{{ no }}">
+<div style="flex:1;overflow-y:auto;padding:62px 16px 120px;">
+  <div style="display:flex;gap:4px;margin-bottom:20px;">
+    <sc-for list="{{ steps }}" as="s" hint-placeholder-count="4">
+      <div style="flex:1;">
+        <div style="height:3px;background:{{ s.color }};border-radius:2px;"></div>
+        <div style="font-size:9.5px;color:{{ s.textColor }};margin-top:6px;letter-spacing:.04em;">{{ s.label }}</div>
+      </div>
+    </sc-for>
+  </div>
+  <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#75798c;">Логово Гроблота</div>
+  <h2 style="font-size:28px;font-weight:500;margin:4px 0 8px;letter-spacing:-0.02em;">{{ room.name }}</h2>
+  <p style="font-size:13.5px;line-height:1.6;color:#b2b6ca;margin:0 0 18px;">{{ room.desc }}</p>
+  <div style="border:1px solid #3f424d;border-radius:8px;padding:14px;margin-bottom:18px;background:#1c1e2c;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:15px;font-weight:500;color:#d1685c;">{{ room.enemyName }}</span>
+      <span style="font-size:12px;color:#9397ab;">HP {{ room.enemyHp }}</span>
+    </div>
+  </div>
+  <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#9397ab;margin-bottom:10px;">Состояние отряда</div>
+  <sc-for list="{{ squadHp }}" as="m" hint-placeholder-count="5">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
+      <div role="img" aria-label="{{ m.name }}" style="{{ m.avatarRow }}"></div>
+      <span style="font-size:13px;width:86px;color:{{ m.nameColor }};">{{ m.name }}</span>
+      <span style="flex:1;height:5px;background:#292b31;border-radius:3px;overflow:hidden;"><span style="display:block;height:100%;width:{{ m.width }};background:{{ m.color }};"></span></span>
+      <span style="font-size:11px;color:#75798c;width:38px;text-align:right;">{{ m.label }}</span>
+    </div>
+  </sc-for>
+  <div style="margin-top:16px;font-size:12.5px;color:#75798c;line-height:1.6;font-style:italic;">{{ room.note }}</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;padding:12px 16px 30px;display:flex;gap:8px;background:linear-gradient(to top,#161826 62%,rgba(22,24,38,0));">
+  <sc-if value="{{ canGoBack }}" hint-placeholder-val="{{ no }}">
+    <button onClick="{{ goGear }}" style="height:50px;padding:0 18px;border-radius:8px;background:transparent;border:1px solid #3f424d;color:#b2b6ca;font-family:Inter,sans-serif;font-size:14px;cursor:pointer;">Назад</button>
+  </sc-if>
+  <button onClick="{{ startEncounter }}" style="flex:1;height:50px;border-radius:8px;background:transparent;border:1px solid #9184d9;color:#d2cefd;font-family:Inter,sans-serif;font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;" style-hover="background:rgba(145,132,217,.12)"><i class="{{ room.enterIcon }}" style="font-size:18px"></i> {{ room.enterLabel }}</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ isCombat }}" hint-placeholder-val="{{ no }}">
+<div style="flex:1;display:flex;flex-direction:column;padding-top:52px;">
+  <div style="padding:0 14px 8px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
+      <span style="font-size:12.5px;font-weight:500;color:#e9e9ed;">{{ hud.bossName }}</span>
+      <span style="font-size:11px;color:#9397ab;font-variant-numeric:tabular-nums;">{{ hud.bossPctLabel }}</span>
+    </div>
+    <div style="height:7px;background:#292b31;border-radius:4px;overflow:hidden;"><div style="height:100%;width:{{ hud.bossWidth }};background:linear-gradient(90deg,#8f3a2f,#d1685c);"></div></div>
+    <div style="height:20px;margin-top:5px;">
+      <sc-if value="{{ hud.casting }}" hint-placeholder-val="{{ no }}">
+        <div style="height:20px;border:1px solid #d1685c;border-radius:4px;position:relative;overflow:hidden;">
+          <div style="position:absolute;inset:0 auto 0 0;width:{{ hud.castWidth }};background:rgba(209,104,92,.55);"></div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;letter-spacing:.04em;color:#f3d6d1;">{{ hud.castLabel }}</div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <div style="position:relative;">
+    <canvas ref="{{ canvasRef }}" width="804" height="940" style="width:402px;height:470px;display:block;touch-action:none;cursor:pointer;"></canvas>
+    <div style="position:absolute;left:12px;right:12px;bottom:8px;pointer-events:none;display:flex;flex-direction:column;gap:2px;">
+      <sc-for list="{{ hud.log }}" as="l" hint-placeholder-count="3">
+        <div style="font-size:10.5px;line-height:1.35;color:{{ l.color }};opacity:{{ l.opacity }};text-shadow:0 1px 3px #0b0d14;">{{ l.text }}</div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="padding:10px 14px 0;display:flex;align-items:center;gap:10px;">
+    <span style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#75798c;">Тилт</span>
+    <span style="flex:1;height:5px;background:#292b31;border-radius:3px;overflow:hidden;"><span style="display:block;height:100%;width:{{ hud.tiltWidth }};background:{{ hud.tiltColor }};"></span></span>
+    <span style="font-size:11px;color:#9397ab;width:34px;text-align:right;font-variant-numeric:tabular-nums;">{{ hud.tiltLabel }}</span>
+  </div>
+
+  <div style="padding:10px 10px 0;display:flex;gap:5px;">
+    <sc-for list="{{ hud.chips }}" as="c" hint-placeholder-count="5">
+      <button onClick="{{ c.onTap }}" style="flex:1;min-width:0;border:1px solid {{ c.border }};background:{{ c.bg }};border-radius:8px;padding:7px 3px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;opacity:{{ c.opacity }};font-family:Inter,sans-serif;">
+        <div style="position:relative;">
+          <div role="img" aria-label="{{ c.name }}" style="{{ c.avatar }}"></div>
+          <span style="position:absolute;inset:auto 0 -2px 0;height:3px;background:#292b31;border-radius:2px;overflow:hidden;"><span style="display:block;height:100%;width:{{ c.hpWidth }};background:{{ c.hpColor }};"></span></span>
+        </div>
+        <span style="font-size:9.5px;color:#b2b6ca;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}</span>
+        <span style="font-size:10px;color:{{ c.labelColor }};display:flex;align-items:center;gap:3px;"><i class="{{ c.icon }}"></i>{{ c.cdLabel }}</span>
+      </button>
+    </sc-for>
+  </div>
+
+  <div style="padding:9px 10px 0;display:flex;gap:8px;">
+    <button onClick="{{ onInterrupt }}" style="flex:1;height:46px;border-radius:8px;border:1px solid {{ hud.interruptBorder }};background:{{ hud.interruptBg }};color:{{ hud.interruptColor }};font-family:Inter,sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="ph ph-hand-palm" style="font-size:16px"></i> Прервать</button>
+    <button onClick="{{ onSpeech }}" style="flex:1;height:46px;border-radius:8px;border:1px solid #3f424d;background:transparent;color:{{ hud.speechColor }};font-family:Inter,sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="ph ph-megaphone" style="font-size:16px"></i> {{ hud.speechLabel }}</button>
+    <button onClick="{{ onPause }}" aria-label="Пауза" style="width:52px;height:46px;border-radius:8px;border:1px solid #3f424d;background:transparent;color:#b2b6ca;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="{{ hud.pauseIcon }}" style="font-size:16px"></i></button>
+  </div>
+  <div style="padding:8px 14px 0;font-size:10.5px;color:#595d6c;line-height:1.4;">Тяни бойца, чтобы двигать. Тап по бойцу — фокус лечения, тап по полю — отправить выбранного.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isResults }}" hint-placeholder-val="{{ no }}">
+<div style="flex:1;overflow-y:auto;padding:70px 20px 40px;display:flex;flex-direction:column;">
+  <div style="width:34px;height:3px;background:{{ result.accent }};margin-bottom:16px;"></div>
+  <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#75798c;">{{ result.kicker }}</div>
+  <h2 style="font-size:34px;font-weight:500;margin:6px 0 10px;letter-spacing:-0.02em;color:{{ result.accent }};">{{ result.title }}</h2>
+  <p style="font-size:13.5px;line-height:1.6;color:#b2b6ca;margin:0 0 22px;">{{ result.text }}</p>
+
+  <sc-for list="{{ result.squad }}" as="m" hint-placeholder-count="5">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <div role="img" aria-label="{{ m.name }}" style="{{ m.avatarRow }}"></div>
+      <span style="font-size:13px;flex:1;color:{{ m.nameColor }};">{{ m.name }}</span>
+      <span style="font-size:11.5px;color:#9397ab;">{{ m.note }}</span>
+    </div>
+  </sc-for>
+
+  <sc-if value="{{ result.hasLoot }}" hint-placeholder-val="{{ no }}">
+    <div style="margin-top:22px;">
+      <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#9397ab;margin-bottom:10px;">Дележ добычи</div>
+      <sc-for list="{{ result.loot }}" as="item" hint-placeholder-count="2">
+        <div style="border:1px solid #3f424d;border-radius:8px;padding:12px;margin-bottom:8px;">
+          <div style="font-size:14px;font-weight:500;color:#d2cefd;margin-bottom:8px;">{{ item.name }}</div>
+          <sc-if value="{{ item.assigned }}" hint-placeholder-val="{{ no }}">
+            <div style="font-size:12.5px;color:#9397ab;">Достаётся: {{ item.assignedName }}</div>
+          </sc-if>
+          <sc-if value="{{ item.open }}" hint-placeholder-val="{{ yes }}">
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <sc-for list="{{ item.choices }}" as="ch" hint-placeholder-count="5">
+                <button onClick="{{ ch.onPick }}" style="border:1px solid #3f424d;background:transparent;color:#b2b6ca;border-radius:7px;padding:8px 10px;font-family:Inter,sans-serif;font-size:12px;cursor:pointer;" style-hover="border-color:#9184d9;color:#d2cefd">{{ ch.name }}</button>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <div style="flex:1;min-height:20px"></div>
+  <button onClick="{{ result.onPrimary }}" style="width:100%;height:50px;border-radius:8px;background:transparent;border:1px solid #9184d9;color:#d2cefd;font-family:Inter,sans-serif;font-size:15px;font-weight:500;cursor:pointer;margin-top:20px;" style-hover="background:rgba(145,132,217,.12)">{{ result.primaryLabel }}</button>
+  <sc-if value="{{ result.hasSecondary }}" hint-placeholder-val="{{ no }}">
+    <button onClick="{{ result.onSecondary }}" style="width:100%;height:46px;border-radius:8px;background:transparent;border:1px solid #3f424d;color:#9397ab;font-family:Inter,sans-serif;font-size:14px;cursor:pointer;margin-top:8px;">{{ result.secondaryLabel }}</button>
+  </sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ showTabs }}" hint-placeholder-val="{{ no }}">
+<div style="position:absolute;left:0;right:0;bottom:0;height:76px;display:flex;align-items:flex-start;padding:8px 12px 0;background:rgba(22,24,38,.92);border-top:1px solid #292b31;backdrop-filter:blur(12px);">
+  <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+    <button onClick="{{ t.onTap }}" style="flex:1;background:transparent;border:none;color:{{ t.color }};font-family:Inter,sans-serif;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;cursor:pointer;">
+      <i class="{{ t.icon }}" style="font-size:20px"></i>
+      <span style="font-size:10px;letter-spacing:.02em;">{{ t.label }}</span>
+    </button>
+  </sc-for>
+</div>
+</sc-if>
+
+</div>
+</x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:940}}">
+const AW = 402, AH = 470;
+const CHAIN_MIN = 132, STACK_R = 58;
+const ROLE_COLOR = {tank:'#8aa2d6', heal:'#86b39a', dps:'#c98c6d'};
+const ROLE_NAME = {tank:'Танк', heal:'Хилер', dps:'ДПС'};
+const DANGER = '#d1685c', ACCENT = '#9184d9';
+const TRAITS = {
+  steady:{label:'Стабильный', desc:'Без сюрпризов — делает свою работу.'},
+  novice:{label:'Новичок', desc:'Слабый старт, но разгоняется по ходу боя.'},
+  egoist:{label:'Эгоист', desc:'Выкладывается процентов на 85 — думает в основном о себе.'},
+  clicker:{label:'Кликер', desc:'Иногда жмёт не в ту кнопку — способность может прогореть впустую.'},
+  legend:{label:'Легенда', desc:'+20% к эффективности, но ждёт свою долю лута.'},
+  ninjaLooter:{label:'Хапуга', desc:'Болезненно реагирует, если лут достаётся не ему.'},
+};
+const POOL = [
+  {id:0,name:'Каелен',epithet:'Инквизитор',role:'tank',hp:220,dps:6,gs:82,trait:'steady',morale:70,
+   bio:'Охотник на ведьм, который сам взялся за тёмную магию, чтобы побеждать её.',
+   story:'Каелен держит в руках Librum Tenebris — гримуар, отобранный у колдуньи, которую он сжёг. Он понял: светом тьму не победить. С каждым ритуалом он теряет частицу души, а его факел горит чёрным пламенем, что не согревает — лишь высвечивает грехи.'},
+  {id:1,name:'Борин',epithet:'Воин',role:'tank',hp:180,dps:5,gs:61,trait:'novice',morale:70,
+   bio:'Последний из своего клана, ищущий не славы, а достойного боя.',
+   story:'Борин стоит на поле, где полегли все его братья. Топор и щит покрыты вмятинами сотен сражений. Он не служит ни королю, ни золоту — он не умеет жить в мире. Он ищет демона, уничтожившего его подземное королевство, чтобы умереть в бою, а не в одиночестве от старости.'},
+  {id:2,name:'Фаэлар',epithet:'Хранитель тлена',role:'heal',hp:130,dps:2,healPower:9,gs:75,trait:'steady',morale:70,
+   bio:'Друид Подземья, считающий мёртвых честнее живых.',
+   story:'Фаэлар живёт там, где никогда не бывает света. Он не друид в привычном смысле — он хранитель разложения, уверенный, что жизнь рождается из смерти. Его посох пророс не листьями, а грибами-паразитами. Он охраняет древние гробницы, поднимая кости предков: мёртвые, по его мнению, хранят тайны лучше живых, которые всегда лгут.'},
+  {id:3,name:'Тэдиус',epithet:'Алхимик',role:'heal',hp:110,dps:1,healPower:6,gs:54,trait:'novice',morale:70,
+   bio:'Одержим созданием эликсира, исцеляющего любую болезнь — какой бы ни была цена.',
+   story:'Тэдиус одержим идеей «Эликсира Чистоты». Проблема в том, что ингредиенты требуют жертв: его лаборатория полна банок с органами, а руки покрыты язвами от экспериментов. Он продаёт знати зелья, вызывающие зависимость и безумие, — чтобы финансировать свои настоящие, куда более страшные исследования.'},
+  {id:4,name:'Векс',epithet:'Ассасин',role:'dps',hp:120,dps:14,gs:88,trait:'egoist',morale:70,
+   bio:'Рождён с демонической кровью и обречён гореть на костре — но выжил в тени.',
+   story:'Векс был спасён Гильдией Теней от костра, на который его отправили за демоническую кровь. Его клинки смазаны ядом василиска. Он работает на ту самую Церковь Света, что его ненавидит, убивая её врагов в тёмных переулках, и верит: только тьма способна очистить прогнивший мир.'},
+  {id:5,name:'Громмаш',epithet:'«Кровавый Череп»',role:'dps',hp:120,dps:13,gs:80,trait:'steady',morale:70,
+   bio:'Изгнан своим же кланом за жестокость, которая пугала даже орков.',
+   story:'Громмаш скитается по Ледяным Пикам, где его племя вырезали наёмники «цивилизованных» людей. Его булава украшена зубами тех, кто пытался его убить. Он ищет не славы, а достойной смерти в бою — но проклятие долголетия не позволяет ему умереть легко.'},
+  {id:6,name:'Сильвана',epithet:'Шепчущая',role:'dps',hp:115,dps:12,gs:77,trait:'clicker',morale:70,
+   bio:'Последняя хранительница Проклятого Леса, охотящаяся и на скверну, и на собственный орден.',
+   story:'Когда скверна начала превращать лес в мясные наросты, орден Сильваны решил сжечь его дотла. Она отказалась подчиниться. Теперь она охотится и на заражённых тварей, и на инквизиторов своей же королевы. Её зелёная стрела — концентрированный яд из собственных вен: каждый выстрел медленно убивает и её саму.'},
+  {id:7,name:'Элара',epithet:'Ведьма',role:'dps',hp:100,dps:17,gs:91,trait:'legend',morale:70,
+   bio:'Бывший лекарь, чьё зелёное пламя лечит болезнь, выжигая вместе с ней и жизнь.',
+   story:'Элара была лекарем, пока не поняла: спасти всех невозможно. «Огонь Душ» в её руках сжигает хвори ценой самой жизни. Она бродит по руинам старых замков, собирая армию скелетов — не для войны, а чтобы построить мир, где никто не болеет, потому что никто не жив.'},
+  {id:8,name:'Родерик',epithet:'Паладин',role:'dps',hp:140,dps:9,gs:60,trait:'ninjaLooter',morale:70,
+   bio:'Герой войны, чья вера пошатнулась, когда он увидел, кого на самом деле карает.',
+   story:'Сияющий меч и щит Родерика — дар бога, что требует крови еретиков. Но всё чаще «еретики» оказываются просто бедняками, восставшими против гнёта церкви. Тяжёлые доспехи скрывают не только тело в бою, но и шрамы от пыток, которым его подвергло собственное начальство за сомнения.'},
+];
+const GEAR = {
+  weapon:[{id:'none',name:'Без оружия',mult:1,desc:'Никаких бонусов.'},
+    {id:'w1',name:'Верный клинок',mult:1.10,desc:'+10% к урону/лечению.'},
+    {id:'w2',name:'Клинок павшего чемпиона',mult:1.20,desc:'+20% к урону/лечению.'},
+    {id:'w3',name:'Кровопийца Гроблота',mult:1.32,hpMult:0.90,desc:'+32% к урону/лечению, но -10% к HP.'}],
+  armor:[{id:'none',name:'Без брони',hpMult:1,desc:'Никаких бонусов.'},
+    {id:'a1',name:'Кожаный нагрудник',hpMult:1.10,desc:'+10% к HP.'},
+    {id:'a2',name:'Кольчуга ветерана',hpMult:1.20,desc:'+20% к HP.'},
+    {id:'a3',name:'Плита Несокрушимости',hpMult:1.32,mult:0.90,desc:'+32% к HP, но -10% к урону/лечению.'}],
+  trinket:[{id:'none',name:'Без амулета',desc:'Никаких бонусов.'},
+    {id:'t1',name:'Оберег стойкости',wardMult:0.88,desc:'-12% к получаемому урону.'},
+    {id:'t2',name:'Часы мага',cdMult:0.85,desc:'-15% к перезарядке способности.'},
+    {id:'t3',name:'Кровавый гранат',mult:1.08,wardMult:1.10,desc:'+8% к урону/лечению, но +10% к получаемому урону.'}],
+};
+const SLOT_LABEL = {weapon:'Оружие', armor:'Броня', trinket:'Амулет'};
+const LOOT_NAMES = ['Эпический меч Гроблота','Тяжёлый шлем Пожирателя','Кольцо Пепла','Плащ Затмения'];
+const ENCOUNTERS = [
+  {type:'room',name:'Коридор костей',enemyName:'Скелеты-стражи',hp:320,r:30,desc:'Ожившие кости стерегут проход — лёгкая разминка перед боссом.'},
+  {type:'room',name:'Зал испытаний',enemyName:'Пробуждённые химеры',hp:520,r:34,desc:'Пробуждённые химеры бросаются из теней зала.'},
+  {type:'room',name:'Преддверие трона',enemyName:'Стража Гроблота',hp:680,r:37,desc:'Элитная стража Гроблота — последний рубеж перед троном.'},
+  {type:'boss',name:'Гроблот Пожиратель',enemyName:'Гроблот Пожиратель',hp:2600,r:44,desc:'Сам Гроблот Пожиратель. Здесь решается судьба пула.'},
+];
+const XP_PER_LEVEL = 100, MAX_LEVEL = 5;
+const avatar = (id, extra) => 'background:#232532 url("' + portrait(id) + '") center 22%/cover no-repeat;flex-shrink:0;' + extra;
+const portrait = (id) => {
+  const res = (typeof window !== 'undefined' && window.__resources) || null;
+  return (res && res['p' + id]) || ('portraits/' + id + '.jpg');
+};
+
+class Component extends DCLogic {
+  state = {screen:'title', charId:null, v:0};
+  canvasRef = React.createRef();
+
+  constructor(props){
+    super(props);
+    this.pool = POOL.map(c => ({...c, level:1, xp:0, equipment:{weapon:'none',armor:'none',trinket:'none'}}));
+    this.selected = new Set([0,2,4,5,6]);
+    this.encIdx = 0;
+    this.sim = null;
+    this.result = null;
+    this.imgs = {};
+    this.paused = false;
+  }
+
+  componentDidMount(){
+    for(const c of this.pool){ const im = new Image(); im.src = portrait(c.id); this.imgs[c.id] = im; }
+  }
+  componentWillUnmount(){ if(this.raf) cancelAnimationFrame(this.raf); }
+
+  go(screen){ if(screen !== 'combat' && this.raf){ cancelAnimationFrame(this.raf); this.raf = null; } this.setState({screen}); }
+  bump(){ this.setState(s => ({v:s.v+1})); }
+
+  squad(){ return this.pool.filter(c => this.selected.has(c.id)); }
+  gearMults(c){
+    const w = GEAR.weapon.find(x=>x.id===c.equipment.weapon)||GEAR.weapon[0];
+    const a = GEAR.armor.find(x=>x.id===c.equipment.armor)||GEAR.armor[0];
+    const t = GEAR.trinket.find(x=>x.id===c.equipment.trinket)||GEAR.trinket[0];
+    return {outputMult:(w.mult||1)*(a.mult||1)*(t.mult||1), hpMult:(w.hpMult||1)*(a.hpMult||1), wardMult:(t.wardMult||1), cdMult:(t.cdMult||1)};
+  }
+  gainXp(cid, amount){
+    const c = this.pool.find(x=>x.id===cid); if(!c || c.level>=MAX_LEVEL) return;
+    c.xp += amount;
+    while(c.xp >= XP_PER_LEVEL && c.level < MAX_LEVEL){ c.xp -= XP_PER_LEVEL; c.level++; }
+    if(c.level >= MAX_LEVEL) c.xp = XP_PER_LEVEL;
+  }
+  adjustMorale(cid, d){ const c = this.pool.find(x=>x.id===cid); if(c) c.morale = Math.max(0, Math.min(100, c.morale + d)); }
+
+  log(text, kind){
+    const s = this.sim; if(!s) return;
+    s.log.push({text, kind});
+    while(s.log.length > 3) s.log.shift();
+  }
+
+  // ── combat ────────────────────────────────────────────────
+  makeAbility(role, cdMult){
+    let a;
+    if(role==='tank') a = {type:'shield', icon:'ph ph-shield', cd:0, cdMax:16, active:false, activeT:0, activeMax:4};
+    else if(role==='heal') a = {type:'rescue', icon:'ph ph-first-aid-kit', cd:0, cdMax:14, active:false, activeT:0, activeMax:0};
+    else a = {type:'burst', icon:'ph ph-sword', cd:0, cdMax:18, active:false, activeT:0, activeMax:5};
+    a.cdMax *= cdMult;
+    return a;
+  }
+  makeRaiders(squad){
+    const cx = AW*0.5, cy = AH*0.74;
+    return squad.map((d,i)=>{
+      const gm = this.gearMults(d);
+      const lvl = 1 + (d.level-1)*0.05;
+      const maxHp = Math.round(d.hp * gm.hpMult * lvl);
+      return {id:i, name:d.name, role:d.role, candidateId:d.id, trait:d.trait, level:d.level,
+        maxHp, hp:maxHp, alive:true, dps:d.dps, healPower:d.healPower||9,
+        gearOutputMult:gm.outputMult, gearWardMult:gm.wardMult, levelMult:lvl,
+        x: cx + (i-2)*62, y: cy + (i%2===0?0:16), r:16,
+        beamTarget:false, chainPartner:null, ability:this.makeAbility(d.role, gm.cdMult),
+        atkTimer: Math.random()*0.8, atkInterval: d.role==='heal'?1.8:d.role==='tank'?1.3:0.9};
+    });
+  }
+  freshSim(enc, keepRaiders){
+    const raiders = keepRaiders || this.makeRaiders(this.squad());
+    for(const r of raiders){ r.beamTarget=false; r.chainPartner=null; if(r.ability){r.ability.active=false; r.ability.cd=0;} r.atkTimer=Math.random()*0.5; }
+    return {
+      boss:{x:AW*0.5, y:AH*0.27, r:enc.r, maxHp:enc.hp, hp:enc.hp},
+      name:enc.name, raiders, encounterType:enc.type, enableBeam:enc.type==='boss',
+      zones:[], cast:null, chain:null, stackCast:null, fx:[], shake:{t:0,dur:0,mag:0},
+      embers: Array.from({length:18}, ()=>({x:Math.random()*AW, y:Math.random()*AH, vy:6+Math.random()*10, drift:(Math.random()*2-1)*5, size:0.8+Math.random()*1.5, alpha:0.12+Math.random()*0.3, phase:Math.random()*Math.PI*2})),
+      cds:{meteor:4.5, beam:7, poison:3, chains:9, stack:13},
+      elapsed:0, tilt:0, phase:1, speechCd:0, selected:null, log:[], over:false,
+    };
+  }
+  startEncounter = () => {
+    const enc = ENCOUNTERS[this.encIdx];
+    const keep = this.sim && this.sim.raiders.some(r=>r.alive) ? this.sim.raiders : null;
+    this.sim = this.freshSim(enc, keep);
+    this.paused = false;
+    this.log(enc.type==='boss' ? 'Пул начался. Рейд-лидер, командуй!' : 'Отряд входит в бой: ' + enc.name + '.');
+    this.setState({screen:'combat'}, ()=>{ this.attachCanvas(); this.loop(); });
+  };
+  attachCanvas(){
+    const cv = this.canvasRef.current; if(!cv || cv._rc) return;
+    cv._rc = true;
+    const pos = (e)=>{ const b = cv.getBoundingClientRect(); return {x:(e.clientX-b.left)*AW/b.width, y:(e.clientY-b.top)*AH/b.height}; };
+    cv.addEventListener('pointerdown', (e)=>{
+      const s = this.sim; if(!s || s.over) return;
+      const p = pos(e); let hit = null;
+      for(const r of s.raiders){ if(r.alive && Math.hypot(r.x-p.x, r.y-p.y) <= r.r+10) hit = r; }
+      if(hit){ this.drag = {id:hit.id, moved:false}; s.selected = hit.id; cv.setPointerCapture(e.pointerId); }
+      else if(s.selected != null){
+        const r = s.raiders.find(x=>x.id===s.selected);
+        if(r && r.alive){ r.tx = Math.max(20, Math.min(AW-20, p.x)); r.ty = Math.max(AH*0.34, Math.min(AH-24, p.y)); }
+      }
+    });
+    cv.addEventListener('pointermove', (e)=>{
+      const s = this.sim; if(!s || !this.drag) return;
+      const p = pos(e); const r = s.raiders.find(x=>x.id===this.drag.id); if(!r || !r.alive) return;
+      r.tx = null;
+      r.x = Math.max(20, Math.min(AW-20, p.x));
+      r.y = Math.max(AH*0.34, Math.min(AH-24, p.y));
+      this.drag.moved = true;
+    });
+    const up = ()=>{ this.drag = null; };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  }
+  loop = () => {
+    this.raf = requestAnimationFrame(this.loop);
+    const now = performance.now();
+    const dt = Math.min(0.05, (now - (this.lastT||now))/1000);
+    this.lastT = now;
+    if(this.sim && !this.sim.over && !this.paused) this.update(dt);
+    this.draw();
+    if(now - (this.lastHud||0) > 90){ this.lastHud = now; this.bump(); }
+  };
+
+  alive(){ return this.sim.raiders.filter(r=>r.alive); }
+  dpsMult(){ const t=this.sim.tilt; return t>=70?0.55:t>=40?0.8:1; }
+  healMult(){ const t=this.sim.tilt; return t>=70?0.5:t>=40?0.75:1; }
+  addTilt(a){ this.sim.tilt = Math.min(100, Math.max(0, this.sim.tilt + a)); }
+  hurt(r, amount){
+    let d = amount;
+    if(r.ability && r.ability.type==='shield' && r.ability.active) d *= 0.5;
+    d *= r.gearWardMult || 1;
+    r.hp -= d;
+  }
+  outMult(r){
+    let m = 1;
+    if(r.trait==='legend') m *= 1.2;
+    if(r.trait==='egoist') m *= 0.85;
+    if(r.trait==='novice'){ const t = Math.min(12, this.sim.elapsed); m *= 0.7 + 0.3*(t/12); }
+    return m * (r.gearOutputMult||1) * (r.levelMult||1);
+  }
+  shake(mag, dur){ const s=this.sim; if(!s.shake || s.shake.mag < mag) s.shake = {t:0, dur, mag}; }
+  fxText(x,y,text,color,delay,big){ this.sim.fx.push({type:'text',x,y,text,color,t:0,delay:delay||0,life:(delay||0)+(big?0.9:0.65),big}); }
+  fxImpact(x,y,color,maxR,life){ this.sim.fx.push({type:'impact',x,y,color,maxR:maxR||24,t:0,delay:0,life:life||0.4}); }
+  fxSparks(x,y,color,n,delay){
+    for(let i=0;i<(n||8);i++){ const a=Math.random()*Math.PI*2, sp=30+Math.random()*70;
+      this.sim.fx.push({type:'spark',x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,color,size:1+Math.random()*1.4,t:0,delay:delay||0,life:(delay||0)+0.3}); }
+  }
+  bolt(x1,y1,x2,y2,disp,depth,max){
+    depth=depth||0; max=max||3;
+    if(depth>=max) return [{x1,y1,x2,y2}];
+    const mx=(x1+x2)/2, my=(y1+y2)/2, dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy)||1;
+    const off=(Math.random()-0.5)*disp, fx=mx-dy/len*off, fy=my+dx/len*off;
+    return this.bolt(x1,y1,fx,fy,disp*0.55,depth+1,max).concat(this.bolt(fx,fy,x2,y2,disp*0.55,depth+1,max));
+  }
+  attackFx(r){
+    const s = this.sim, crit = Math.random() < 0.14;
+    let dmg = Math.max(1, Math.round(r.dps * this.outMult(r) * this.dpsMult() * r.atkInterval));
+    if(crit) dmg = Math.round(dmg*1.8);
+    const segs = this.bolt(r.x, r.y-6, s.boss.x, s.boss.y, 22);
+    s.fx.push({type:'lightning', segments:segs, color:ROLE_COLOR[r.role], t:0, delay:0, life:0.18});
+    this.fxSparks(s.boss.x, s.boss.y, ROLE_COLOR[r.role], crit?11:6, 0.14);
+    this.fxText(s.boss.x + (Math.random()*30-15), s.boss.y-8, (crit?'КРИТ -':'-')+dmg, crit?'#e0d5a3':DANGER, 0.14, crit);
+    if(crit) this.shake(2.5, 0.16);
+  }
+  healFx(h, t, amt){
+    this.sim.fx.push({type:'bolt', x1:h.x, y1:h.y-6, x2:t.x, y2:t.y-6, color:'#86b39a', t:0, delay:0, life:0.26});
+    this.fxText(t.x + (Math.random()*18-9), t.y - t.r - 8, '+'+Math.max(1,Math.round(amt)), '#86b39a', 0.22);
+  }
+  healTarget(healer){
+    const s = this.sim;
+    if(s.selected != null){
+      const sel = s.raiders.find(r=>r.id===s.selected);
+      if(sel && sel.alive && sel!==healer && sel.hp < sel.maxHp) return sel;
+    }
+    const injured = this.alive().filter(x=>x!==healer && x.hp<x.maxHp);
+    const pool = injured.filter(x=>x.trait!=='egoist').length ? injured.filter(x=>x.trait!=='egoist') : injured;
+    let t = null;
+    for(const x of pool){ if(!t || x.hp/x.maxHp < t.hp/t.maxHp) t = x; }
+    if(!t && healer.hp < healer.maxHp) t = healer;
+    return t;
+  }
+  useAbility = (id) => {
+    const s = this.sim; if(!s || s.over) return;
+    const r = s.raiders.find(x=>x.id===id);
+    if(!r || !r.alive || r.ability.cd > 0) return;
+    const a = r.ability;
+    if(r.trait==='clicker' && Math.random() < 0.2){ a.cd = a.cdMax; this.log(r.name+' тыкает не туда — способность прогорела впустую.','warn'); return; }
+    if(a.type==='shield'){ a.active=true; a.activeT=0; a.cd=a.cdMax; this.fxImpact(r.x,r.y,'rgba(138,162,214,.85)',34,0.4); this.log(r.name+' поднимает щит — урон по нему снижен.','ok'); }
+    else if(a.type==='burst'){ a.active=true; a.activeT=0; a.cd=a.cdMax; this.fxImpact(r.x,r.y,'rgba(201,140,109,.85)',34,0.4); this.log(r.name+' входит в раж — урон удвоен.','ok'); }
+    else { a.cd=a.cdMax; const t = this.healTarget(r) || r; t.hp = Math.min(t.maxHp, t.hp+70); this.healFx(r,t,70); this.log(r.name+' экстренно лечит: '+t.name,'ok'); }
+  };
+  onInterrupt = () => {
+    const s = this.sim; if(!s || !s.cast || s.cast.interrupted) return;
+    s.cast.interrupted = true;
+    const t = s.raiders.find(r=>r.id===s.cast.targetId); if(t) t.beamTarget = false;
+    s.cast = null; this.addTilt(-5); this.log('Каст прерван! Чисто сработано.','ok');
+  };
+  onSpeech = () => {
+    const s = this.sim; if(!s || s.over || s.speechCd > 0) return;
+    s.tilt = Math.max(0, s.tilt - 40); s.speechCd = 20;
+    this.log('Рейд-лидер: «Так, все выдохнули! Добиваем!»','ok');
+  };
+  onPause = () => { this.paused = !this.paused; this.bump(); };
+
+  update(dt){
+    const s = this.sim;
+    s.elapsed += dt;
+    for(const fx of s.fx) fx.t += dt;
+    s.fx = s.fx.filter(f => f.t < f.life);
+    if(s.shake.t < s.shake.dur) s.shake.t += dt;
+    for(const em of s.embers){ em.y -= em.vy*dt; em.x += Math.sin(em.phase + s.elapsed*1.2)*em.drift*dt; if(em.y < -6){ em.y = AH+6; em.x = Math.random()*AW; } }
+
+    for(const r of s.raiders){
+      const a = r.ability; if(!a) continue;
+      if(a.cd > 0) a.cd = Math.max(0, a.cd - dt);
+      if(a.active){ a.activeT += dt; if(a.activeT >= a.activeMax) a.active = false; }
+      if(r.tx != null && r.alive){
+        const dx = r.tx - r.x, dy = r.ty - r.y, d = Math.hypot(dx,dy);
+        if(d < 3){ r.tx = null; } else { const sp = Math.min(d, 150*dt); r.x += dx/d*sp; r.y += dy/d*sp; }
+      }
+    }
+    if(s.speechCd > 0) s.speechCd = Math.max(0, s.speechCd - dt);
+
+    for(const r of this.alive()){
+      r.atkTimer -= dt;
+      if(r.atkTimer <= 0){
+        r.atkTimer = r.atkInterval + Math.random()*0.25;
+        if(r.role==='heal'){ const t = this.healTarget(r); if(t) this.healFx(r, t, r.healPower*this.outMult(r)*this.healMult()*r.atkInterval); }
+        else this.attackFx(r);
+      }
+    }
+
+    if(!s.cast){
+      s.cds.meteor -= dt;
+      if(s.cds.meteor <= 0){ this.spawnMeteor(); s.cds.meteor = (s.phase>=3?5.5:8.5) + Math.random()*2; }
+    }
+    if(s.enableBeam){
+      s.cds.beam -= dt;
+      if(s.cds.beam <= 0 && !s.cast){ this.spawnBeam(); s.cds.beam = 13 + Math.random()*3; }
+    }
+    if(s.encounterType==='boss' && s.phase >= 2){
+      s.cds.poison -= dt;
+      if(s.cds.poison <= 0){ this.spawnPoison(); s.cds.poison = 7 + Math.random()*2; }
+      if(!s.chain){ s.cds.chains -= dt; if(s.cds.chains <= 0){ this.spawnChain(); s.cds.chains = 17 + Math.random()*4; } }
+      if(!s.stackCast){ s.cds.stack -= dt; if(s.cds.stack <= 0){ this.spawnStack(); s.cds.stack = 19 + Math.random()*4; } }
+    }
+
+    if(s.chain){
+      const c = s.chain; c.t += dt;
+      const a = s.raiders.find(r=>r.id===c.aId), b = s.raiders.find(r=>r.id===c.bId);
+      if(a && b && a.alive && b.alive && Math.hypot(a.x-b.x, a.y-b.y) < CHAIN_MIN){
+        c.tickAcc = (c.tickAcc||0) + dt;
+        if(c.tickAcc >= 1){ c.tickAcc -= 1; this.hurt(a,18); this.hurt(b,18); this.addTilt(6);
+          this.fxImpact(a.x,a.y,'rgba(160,120,220,.8)',18,0.3); this.fxImpact(b.x,b.y,'rgba(160,120,220,.8)',18,0.3);
+          this.log('Цепь бьёт током — ' + a.name + ' и ' + b.name + ' слишком близко!','warn'); }
+      }
+      if(!a || !a.alive || !b || !b.alive || c.t >= c.dur){ if(a) a.chainPartner=null; if(b) b.chainPartner=null; s.chain = null; }
+    }
+    if(s.stackCast){
+      s.stackCast.t += dt;
+      if(s.stackCast.t >= s.stackCast.dur){ this.resolveStack(); s.stackCast = null; }
+    }
+
+    for(const z of s.zones){
+      if(z.type==='meteor'){
+        if(z.exploded) continue;
+        z.warn += dt;
+        if(z.warn >= z.warnMax){
+          z.exploded = true; this.fxImpact(z.x,z.y,'rgba(209,104,92,.85)',z.radius,0.45); this.shake(5,0.3);
+          let hit = false;
+          for(const r of this.alive()){
+            if(Math.hypot(r.x-z.x, r.y-z.y) <= z.radius){ this.hurt(r,55); this.addTilt(8); hit = true;
+              this.fxText(r.x, r.y-r.r-10, '-55', DANGER); this.log(r.name + ': «Я стою в огне!»','warn'); }
+          }
+          if(!hit){ this.addTilt(-3); this.log('Метеориты упали в пустоту — рейд увернулся.','ok'); }
+        }
+      } else {
+        if(!z.exploded){ z.warn += dt; if(z.warn >= z.warnMax) z.exploded = true; }
+        else {
+          z.duration -= dt; z.tickAcc += dt;
+          if(z.tickAcc >= 1){ z.tickAcc -= 1;
+            for(const r of this.alive()){
+              if(Math.hypot(r.x-z.x, r.y-z.y) <= z.radius){ this.hurt(r,14); this.addTilt(3);
+                this.fxImpact(r.x,r.y,'rgba(150,200,90,.7)',20,0.3); this.fxText(r.x, r.y-r.r-10, '-14', '#9fd47a'); }
+            }
+          }
+        }
+      }
+    }
+    s.zones = s.zones.filter(z => z.type==='meteor' ? !z.exploded : (!z.exploded || z.duration > 0));
+
+    if(s.cast && !s.cast.interrupted){
+      s.cast.t += dt;
+      if(s.cast.t >= s.cast.dur){
+        const t = s.raiders.find(r=>r.id===s.cast.targetId);
+        if(t && t.alive){ this.hurt(t,140); this.addTilt(15); t.beamTarget=false;
+          this.fxImpact(t.x,t.y,'rgba(209,104,92,.9)',30,0.4); this.shake(6,0.35);
+          this.fxText(t.x, t.y-t.r-12, '-140', DANGER);
+          this.log(t.name + ' получает полный луч смерти в лицо.','warn'); }
+        s.cast = null;
+      }
+    }
+
+    let dpsSum = 0;
+    for(const r of this.alive()){
+      let d = r.dps;
+      if(r.ability.type==='burst' && r.ability.active) d *= 2;
+      dpsSum += d * this.outMult(r);
+    }
+    s.boss.hp = Math.max(0, s.boss.hp - dpsSum*this.dpsMult()*dt);
+
+    if(s.encounterType==='boss'){
+      if(s.phase===1 && s.boss.hp <= s.boss.maxHp*0.5){ s.phase=2; this.fxImpact(s.boss.x,s.boss.y,'rgba(209,104,92,.8)',150,0.7); this.shake(8,0.5); this.log('Босс: «Вы недооцениваете меня!» Земля исходит ядом.','warn'); }
+      else if(s.phase===2 && s.boss.hp <= s.boss.maxHp*0.25){ s.phase=3; this.fxImpact(s.boss.x,s.boss.y,'rgba(226,60,50,.85)',180,0.8); this.shake(11,0.6); this.log('Босс впадает в ярость! Аура жжёт весь рейд.','warn'); }
+      if(s.phase >= 3) for(const r of this.alive()) this.hurt(r, 3*dt);
+    }
+
+    const healer = s.raiders.find(r=>r.role==='heal' && r.alive);
+    if(healer){
+      const t = this.healTarget(healer);
+      if(t) t.hp = Math.min(t.maxHp, t.hp + healer.healPower*dt*this.healMult()*this.outMult(healer));
+    }
+
+    for(const r of s.raiders){
+      if(r.alive && r.hp <= 0){
+        r.alive = false; r.hp = 0; r.chainPartner = null;
+        if(s.selected === r.id) s.selected = null;
+        this.addTilt(20); this.shake(4,0.3);
+        this.fxImpact(r.x, r.y, ROLE_COLOR[r.role], 26, 0.5);
+        this.log(r.name + ' погиб(ла).','warn');
+      }
+    }
+    const dead = s.raiders.filter(r=>!r.alive).length;
+    const tank = s.raiders.find(r=>r.role==='tank' && r.alive);
+    if(dead >= 3 || !tank) return this.endGame(false);
+    if(s.boss.hp <= 0) return this.endGame(true);
+  }
+
+  spawnMeteor(){
+    const s = this.sim, targets = this.alive(); if(!targets.length) return;
+    const t = targets[Math.floor(Math.random()*targets.length)];
+    s.zones.push({x:Math.min(AW-30, Math.max(30, t.x + (Math.random()*2-1)*40)),
+      y:Math.min(AH-20, Math.max(AH*0.42, t.y + (Math.random()*2-1)*40)),
+      radius:50, warn:0, warnMax:2.4, exploded:false, type:'meteor'});
+    this.log('Босс: «Чувствую вашу боль!» — метеориты идут на землю.','warn');
+  }
+  spawnBeam(){
+    const s = this.sim, targets = this.alive(); if(!targets.length) return;
+    const t = targets[Math.floor(Math.random()*targets.length)];
+    t.beamTarget = true;
+    s.cast = {type:'beam', targetId:t.id, t:0, dur:3.2, interrupted:false, name:t.name};
+    this.log(t.name + ': «Рейд-лидер, на мне луч, СНИМИ ЕГО!»','warn');
+  }
+  spawnPoison(){
+    const s = this.sim, targets = this.alive(); if(!targets.length) return;
+    const t = targets[Math.floor(Math.random()*targets.length)];
+    s.zones.push({x:t.x, y:t.y, radius:44, warn:0, warnMax:1.0, exploded:false, type:'poison', duration:6, tickAcc:0});
+    this.log('Босс изрыгает ядовитую лужу — стоять в ней опасно.','warn');
+  }
+  spawnChain(){
+    const s = this.sim, alive = this.alive(); if(alive.length < 2) return;
+    const a = alive[Math.floor(Math.random()*alive.length)];
+    let b; do { b = alive[Math.floor(Math.random()*alive.length)]; } while(b===a);
+    a.chainPartner = b.id; b.chainPartner = a.id;
+    s.chain = {aId:a.id, bId:b.id, t:0, dur:7, tickAcc:0};
+    this.log('Цепи сковали ' + a.name + ' и ' + b.name + ' — разбегитесь!','warn');
+  }
+  spawnStack(){
+    const s = this.sim, alive = this.alive(); if(!alive.length) return;
+    const anchor = alive[Math.floor(Math.random()*alive.length)];
+    s.stackCast = {t:0, dur:3.2, x:anchor.x, y:anchor.y};
+    this.log('«Кровавый прилив» у ' + anchor.name + ' — соберитесь у метки!','warn');
+  }
+  resolveStack(){
+    const sc = this.sim.stackCast;
+    let count = 0;
+    for(const r of this.alive()) if(Math.hypot(r.x-sc.x, r.y-sc.y) <= STACK_R) count++;
+    const soaked = count >= 3, dmg = soaked ? 38 : 100;
+    for(const r of this.alive()) this.hurt(r, dmg);
+    this.addTilt(soaked ? 4 : 16);
+    this.fxImpact(sc.x, sc.y, 'rgba(160,80,200,.85)', 62, 0.5);
+    this.shake(soaked ? 3 : 7, soaked ? 0.2 : 0.4);
+    this.log(soaked ? 'Рейд стянулся вовремя — урон смягчён.' : 'Никто не собрался — Прилив ударил в полную силу!', soaked ? 'ok' : 'warn');
+  }
+
+  endGame(win){
+    const s = this.sim; s.over = true;
+    if(this.raf){ cancelAnimationFrame(this.raf); this.raf = null; }
+    const isBoss = s.encounterType === 'boss';
+    let loot = [];
+    if(win && isBoss){
+      for(const r of s.raiders) this.gainXp(r.candidateId, 40);
+      const shuffled = [...LOOT_NAMES].sort(()=>Math.random()-0.5);
+      loot = shuffled.slice(0, 1 + Math.floor(Math.random()*2)).map(n=>({name:n, assigned:null}));
+    } else if(win){
+      for(const r of s.raiders) this.gainXp(r.candidateId, 15);
+    }
+    this.result = {win, isBoss, loot};
+    this.setState({screen:'results'});
+  }
+  assignLoot(idx, raiderId){
+    const item = this.result.loot[idx]; if(!item || item.assigned !== null) return;
+    const raider = this.sim.raiders.find(r=>r.id===raiderId); if(!raider) return;
+    item.assigned = raiderId;
+    this.adjustMorale(raider.candidateId, raider.trait==='legend' ? 20 : 15);
+    for(const o of this.sim.raiders){
+      if(o.id === raider.id) continue;
+      let p = 5;
+      if(o.trait==='egoist') p = 10;
+      if(o.trait==='ninjaLooter') p = 12;
+      if(o.trait==='legend') p = 8;
+      this.adjustMorale(o.candidateId, -p);
+    }
+    this.bump();
+  }
+
+  // ── canvas ────────────────────────────────────────────────
+  draw(){
+    const cv = this.canvasRef.current, s = this.sim;
+    if(!cv || !s) return;
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(2,0,0,2,0,0);
+    ctx.clearRect(0,0,AW,AH);
+    const g = ctx.createRadialGradient(AW*0.5, AH*0.3, 20, AW*0.5, AH*0.5, AH*0.85);
+    g.addColorStop(0,'#232743'); g.addColorStop(1,'#101220');
+    ctx.fillStyle = g; ctx.fillRect(0,0,AW,AH);
+
+    let sx=0, sy=0;
+    if(s.shake.t < s.shake.dur){ const d = 1 - s.shake.t/s.shake.dur; sx=(Math.random()*2-1)*s.shake.mag*d; sy=(Math.random()*2-1)*s.shake.mag*d; }
+    ctx.save(); ctx.translate(sx, sy);
+
+    ctx.strokeStyle = 'rgba(145,132,217,0.07)'; ctx.lineWidth = 1;
+    for(let rr=60; rr<420; rr+=60){ ctx.beginPath(); ctx.arc(s.boss.x, s.boss.y+40, rr, 0, Math.PI*2); ctx.stroke(); }
+
+    for(const em of s.embers){
+      ctx.globalAlpha = em.alpha*(0.6+0.4*Math.sin(em.phase + s.elapsed*2));
+      ctx.fillStyle = '#a7a1db';
+      ctx.beginPath(); ctx.arc(em.x, em.y, em.size, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    for(const z of s.zones){
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.radius, 0, Math.PI*2);
+      if(z.type==='poison'){
+        const p = z.exploded ? 1 : z.warn/z.warnMax;
+        ctx.fillStyle = z.exploded ? 'rgba(110,170,60,0.26)' : 'rgba(120,180,70,' + (0.08+0.18*p) + ')';
+        ctx.fill(); ctx.strokeStyle = 'rgba(150,200,90,0.7)'; ctx.lineWidth = 1.5; ctx.stroke();
+      } else {
+        const p = z.warn/z.warnMax;
+        ctx.fillStyle = 'rgba(209,104,92,' + (0.08+0.22*p) + ')'; ctx.fill();
+        ctx.strokeStyle = 'rgba(226,120,100,' + (0.4+0.6*p) + ')'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(z.x, z.y, z.radius*p, 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(255,190,150,0.75)'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+    }
+
+    if(s.stackCast){
+      const p = s.stackCast.t/s.stackCast.dur;
+      ctx.beginPath(); ctx.arc(s.stackCast.x, s.stackCast.y, STACK_R, 0, Math.PI*2);
+      ctx.setLineDash([6,6]); ctx.strokeStyle = 'rgba(170,100,220,0.85)'; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(s.stackCast.x, s.stackCast.y, STACK_R*p, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(170,100,220,0.16)'; ctx.fill();
+    }
+
+    if(s.chain){
+      const a = s.raiders.find(r=>r.id===s.chain.aId), b = s.raiders.find(r=>r.id===s.chain.bId);
+      if(a && b && a.alive && b.alive){
+        const close = Math.hypot(a.x-b.x, a.y-b.y) < CHAIN_MIN;
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = close ? 'rgba(226,90,90,0.9)' : 'rgba(160,120,220,0.5)';
+        ctx.lineWidth = close ? 3 : 1.5; ctx.setLineDash([4,5]); ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+
+    // boss
+    const bp = s.boss.hp/s.boss.maxHp;
+    const bg2 = ctx.createRadialGradient(s.boss.x, s.boss.y, 2, s.boss.x, s.boss.y, s.boss.r*2.2);
+    bg2.addColorStop(0, s.phase>=3 ? 'rgba(226,70,60,0.4)' : 'rgba(209,104,92,0.28)');
+    bg2.addColorStop(1, 'rgba(209,104,92,0)');
+    ctx.fillStyle = bg2; ctx.beginPath(); ctx.arc(s.boss.x, s.boss.y, s.boss.r*2.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(s.boss.x, s.boss.y, s.boss.r, 0, Math.PI*2);
+    ctx.fillStyle = '#2a1d23'; ctx.fill();
+    ctx.strokeStyle = DANGER; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(s.boss.x, s.boss.y, s.boss.r - 6, -Math.PI/2, -Math.PI/2 + Math.PI*2*bp);
+    ctx.strokeStyle = 'rgba(226,120,100,0.55)'; ctx.lineWidth = 3; ctx.stroke();
+
+    // raiders
+    for(const r of s.raiders){
+      if(!r.alive){
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = '#595d6c'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(r.x-7, r.y-7); ctx.lineTo(r.x+7, r.y+7); ctx.moveTo(r.x+7, r.y-7); ctx.lineTo(r.x-7, r.y+7); ctx.stroke();
+        ctx.globalAlpha = 1; continue;
+      }
+      const img = this.imgs[r.candidateId];
+      ctx.save();
+      ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI*2); ctx.clip();
+      if(img && img.complete && img.naturalWidth){
+        const sc = (r.r*2)/Math.min(img.naturalWidth, img.naturalHeight);
+        const w = img.naturalWidth*sc, h = img.naturalHeight*sc;
+        ctx.drawImage(img, r.x-w/2, r.y-h/2 - r.r*0.25, w, h);
+      } else { ctx.fillStyle = '#232532'; ctx.fillRect(r.x-r.r, r.y-r.r, r.r*2, r.r*2); }
+      ctx.restore();
+      ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI*2);
+      ctx.strokeStyle = ROLE_COLOR[r.role]; ctx.lineWidth = 2; ctx.stroke();
+      if(r.ability.type==='shield' && r.ability.active){
+        ctx.beginPath(); ctx.arc(r.x, r.y, r.r+4, 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(138,162,214,0.8)'; ctx.lineWidth = 2; ctx.stroke();
+      }
+      if(r.ability.type==='burst' && r.ability.active){
+        ctx.beginPath(); ctx.arc(r.x, r.y, r.r+4, 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(201,140,109,0.85)'; ctx.lineWidth = 2; ctx.stroke();
+      }
+      if(s.selected === r.id){
+        ctx.beginPath(); ctx.arc(r.x, r.y, r.r+7, 0, Math.PI*2);
+        ctx.strokeStyle = ACCENT; ctx.lineWidth = 1.5; ctx.setLineDash([3,4]); ctx.stroke(); ctx.setLineDash([]);
+      }
+      if(r.beamTarget){
+        const pulse = 0.5 + 0.5*Math.sin(s.elapsed*10);
+        ctx.beginPath(); ctx.arc(r.x, r.y, r.r+9, 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(226,90,70,' + (0.35+0.6*pulse) + ')'; ctx.lineWidth = 2.5; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(s.boss.x, s.boss.y); ctx.lineTo(r.x, r.y);
+        ctx.strokeStyle = 'rgba(226,90,70,' + (0.15+0.3*pulse) + ')'; ctx.lineWidth = 2; ctx.stroke();
+      }
+      const hp = Math.max(0, r.hp/r.maxHp);
+      ctx.fillStyle = 'rgba(20,22,34,0.85)'; ctx.fillRect(r.x-r.r, r.y+r.r+3, r.r*2, 4);
+      ctx.fillStyle = hp > 0.6 ? '#86b39a' : hp > 0.3 ? '#c9b06d' : DANGER;
+      ctx.fillRect(r.x-r.r, r.y+r.r+3, r.r*2*hp, 4);
+      ctx.fillStyle = 'rgba(233,233,237,0.75)'; ctx.font = '600 8px Inter, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(r.name, r.x, r.y+r.r+17);
+    }
+
+    // fx
+    for(const f of s.fx){
+      if(f.t < f.delay) continue;
+      const p = (f.t - f.delay)/(f.life - f.delay || 1);
+      ctx.globalAlpha = Math.max(0, 1-p);
+      if(f.type==='lightning'){
+        ctx.strokeStyle = f.color; ctx.lineWidth = 1.4; ctx.beginPath();
+        for(const sg of f.segments){ ctx.moveTo(sg.x1, sg.y1); ctx.lineTo(sg.x2, sg.y2); }
+        ctx.stroke();
+      } else if(f.type==='bolt'){
+        ctx.strokeStyle = f.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(f.x1,f.y1); ctx.lineTo(f.x2,f.y2); ctx.stroke();
+      } else if(f.type==='spark'){
+        ctx.fillStyle = f.color;
+        ctx.beginPath(); ctx.arc(f.x + f.vx*p*0.35, f.y + f.vy*p*0.35, f.size*(1-p), 0, Math.PI*2); ctx.fill();
+      } else if(f.type==='impact'){
+        ctx.strokeStyle = f.color; ctx.lineWidth = 2*(1-p);
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.maxR*p, 0, Math.PI*2); ctx.stroke();
+      } else if(f.type==='text'){
+        ctx.fillStyle = f.color; ctx.textAlign = 'center';
+        ctx.font = (f.big ? '700 14px' : '600 11px') + ' Inter, sans-serif';
+        ctx.fillText(f.text, f.x, f.y - p*16);
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    if(this.paused){
+      ctx.fillStyle = 'rgba(16,18,32,0.72)'; ctx.fillRect(0,0,AW,AH);
+      ctx.fillStyle = '#d2cefd'; ctx.textAlign = 'center'; ctx.font = '500 15px Inter, sans-serif';
+      ctx.fillText('ПАУЗА', AW/2, AH/2);
+    }
+  }
+
+  // ── view models ───────────────────────────────────────────
+  gearSlotsFor(c){
+    return ['weapon','armor','trinket'].map(slot => {
+      const cur = GEAR[slot].find(x=>x.id===c.equipment[slot]) || GEAR[slot][0];
+      return {
+        label: SLOT_LABEL[slot], desc: cur.desc,
+        options: GEAR[slot].map(o => ({
+          name: o.name,
+          border: o.id===cur.id ? ACCENT : '#3f424d',
+          bg: o.id===cur.id ? 'rgba(145,132,217,0.14)' : 'transparent',
+          color: o.id===cur.id ? '#d2cefd' : '#9397ab',
+          onPick: () => { c.equipment[slot] = o.id; this.bump(); },
+        })),
+      };
+    });
+  }
+
+  renderVals(){
+    const screen = this.state.screen;
+    const v = {
+      yes: true, no: false,
+      isTitle: screen==='title', isHome: screen==='home', isRoster: screen==='roster',
+      isChar: screen==='char', isGear: screen==='gear', isDungeon: screen==='dungeon',
+      isCombat: screen==='combat', isResults: screen==='results',
+      showTabs: screen==='home' || screen==='roster',
+      goHome: ()=>this.go('home'), goRoster: ()=>this.go('roster'),
+      goGear: ()=>{ if(this.selected.size===5) this.go('gear'); },
+      goDungeon: ()=>{ this.encIdx = 0; this.sim = null; this.go('dungeon'); },
+      closeChar: ()=>this.go('roster'),
+      startEncounter: this.startEncounter,
+      canvasRef: this.canvasRef,
+      onInterrupt: this.onInterrupt, onSpeech: this.onSpeech, onPause: this.onPause,
+      canGoBack: this.encIdx === 0,
+    };
+
+    v.tabs = [
+      {label:'Лагерь', icon:'ph ph-campfire', color: screen==='home' ? ACCENT : '#75798c', onTap:()=>this.go('home')},
+      {label:'Отряд', icon:'ph ph-users-three', color: screen==='roster' ? ACCENT : '#75798c', onTap:()=>this.go('roster')},
+      {label:'Поход', icon:'ph ph-path', color:'#75798c', onTap:()=>{ if(this.selected.size===5){ this.encIdx=0; this.sim=null; this.go('dungeon'); } }},
+    ];
+
+    v.squadStrip = this.squad().map(c => ({name:c.name, roleColor:ROLE_COLOR[c.role],
+      avatarSquad: avatar(c.id, 'width:100%;aspect-ratio:1;border-radius:8px;filter:saturate(.75) contrast(1.05);')}));
+    const ready = this.selected.size === 5;
+    v.dungeons = [
+      {name:'Логово Гроблота', meta:'4 комнаты · рекоменд. ГС 75', desc:'Три зачистки и тронный зал. Раны между комнатами не лечатся.',
+       icon:'ph ph-skull', iconColor:DANGER, border:'#3f424d', bg:'#1c1e2c', opacity:1, cursor:'pointer',
+       onTap:()=>{ if(ready){ this.encIdx=0; this.sim=null; this.go('dungeon'); } else this.go('roster'); }},
+      {name:'Ледяные Пики', meta:'Требуется 8 уровень отряда', desc:'Открывается после первой победы над Гроблотом.',
+       icon:'ph ph-lock-simple', iconColor:'#595d6c', border:'#292b31', bg:'transparent', opacity:0.5, cursor:'default', onTap:()=>{}},
+      {name:'Собор Пепла', meta:'Требуется 12 уровень отряда', desc:'Рейд на 10 бойцов. Пока закрыт.',
+       icon:'ph ph-lock-simple', iconColor:'#595d6c', border:'#292b31', bg:'transparent', opacity:0.5, cursor:'default', onTap:()=>{}},
+    ];
+
+    v.rosterRows = this.pool.map(c => {
+      const sel = this.selected.has(c.id);
+      return {
+        name:c.name, epithet:'· '+c.epithet, level:c.level,
+        avatar: avatar(c.id, 'width:56px;height:56px;border-radius:8px;filter:saturate(.75) contrast(1.05);'),
+        roleName:ROLE_NAME[c.role], roleColor:ROLE_COLOR[c.role], roleBorder:ROLE_COLOR[c.role]+'55',
+        stats: c.role==='heal' ? ('HP '+c.hp+' · хил '+c.healPower+'/с · ГС '+c.gs) : ('HP '+c.hp+' · урон '+c.dps+'/с · ГС '+c.gs),
+        traitLabel: TRAITS[c.trait].label,
+        moraleWidth: c.morale + '%', moraleLabel: c.morale + '%',
+        moraleColor: c.morale>=60 ? '#86b39a' : c.morale>=30 ? '#c9b06d' : DANGER,
+        border: sel ? ACCENT : '#292b31', bg: sel ? 'rgba(145,132,217,0.08)' : 'transparent',
+        checkOpacity: sel ? 1 : 0,
+        onTap: ()=>{ if(sel) this.selected.delete(c.id); else if(this.selected.size < 5) this.selected.add(c.id); this.bump(); },
+        onInfo: ()=>this.setState({screen:'char', charId:c.id}),
+      };
+    });
+    const chosen = this.squad();
+    const tanks = chosen.filter(c=>c.role==='tank').length, heals = chosen.filter(c=>c.role==='heal').length;
+    v.squadCountLabel = this.selected.size + '/5 · Танк ' + tanks + ' · Хилер ' + heals + ' · ДПС ' + chosen.filter(c=>c.role==='dps').length;
+    v.squadWarn = !ready ? '' : (tanks===0 ? 'Нет танка' : heals===0 ? 'Нет хилера' : 'Состав готов');
+    v.squadWarnColor = (ready && (tanks===0 || heals===0)) ? DANGER : '#86b39a';
+    v.squadNotReady = !ready;
+    v.startOpacity = ready ? 1 : 0.4;
+
+    const cc = this.pool.find(c=>c.id===this.state.charId) || this.pool[0];
+    v.char = {
+      name:cc.name, epithet:cc.epithet, story:cc.story,
+      hero: avatar(cc.id, 'width:100%;height:300px;'),
+      roleName:ROLE_NAME[cc.role], roleColor:ROLE_COLOR[cc.role],
+      levelLabel:'Уровень ' + cc.level + (cc.level>=MAX_LEVEL ? ' (макс.)' : ''),
+      xpWidth:(cc.level>=MAX_LEVEL ? 100 : cc.xp/XP_PER_LEVEL*100) + '%',
+      xpLabel: cc.level>=MAX_LEVEL ? 'макс.' : cc.xp + '/' + XP_PER_LEVEL,
+      traitLabel:TRAITS[cc.trait].label, traitDesc:TRAITS[cc.trait].desc,
+      stats:[{label:'HP', value:cc.hp},
+             {label: cc.role==='heal' ? 'Хил/с' : 'Урон/с', value: cc.role==='heal' ? cc.healPower : cc.dps},
+             {label:'ГС', value:cc.gs}],
+      slots:this.gearSlotsFor(cc),
+    };
+
+    v.gearCards = chosen.map(c => ({
+      name:c.name, roleName:ROLE_NAME[c.role], roleColor:ROLE_COLOR[c.role],
+      avatar: avatar(c.id, 'width:38px;height:38px;border-radius:8px;filter:saturate(.75);'),
+      slots:this.gearSlotsFor(c),
+    }));
+
+    const enc = ENCOUNTERS[this.encIdx];
+    v.steps = ENCOUNTERS.map((e,i)=>({
+      label: e.type==='boss' ? 'Трон' : (i+1)+'. '+e.name,
+      color: i < this.encIdx ? '#595d6c' : i===this.encIdx ? ACCENT : '#292b31',
+      textColor: i===this.encIdx ? '#d2cefd' : '#595d6c',
+    }));
+    v.room = {
+      name:enc.name, desc:enc.desc, enemyName:enc.enemyName, enemyHp:enc.hp,
+      enterLabel: enc.type==='boss' ? 'В тронный зал' : 'Войти в бой',
+      enterIcon: enc.type==='boss' ? 'ph ph-crown-simple' : 'ph ph-sword',
+      note: this.encIdx===0 ? 'Отряд входит в подземелье Гроблота.' : 'Раны прошлой схватки никуда не делись — отряд идёт дальше потрёпанным.',
+    };
+    v.squadHp = chosen.map(c => {
+      const r = this.sim ? this.sim.raiders.find(x=>x.candidateId===c.id) : null;
+      const pct = r ? Math.max(0, Math.round(r.hp/r.maxHp*100)) : 100;
+      const alive = r ? r.alive : true;
+      return {name:c.name, avatarRow: avatar(c.id, 'width:30px;height:30px;border-radius:6px;filter:saturate(.7);opacity:' + (alive?1:0.35) + ';'),
+        nameColor: alive ? '#e9e9ed' : '#595d6c',
+        width:(alive?pct:0)+'%', label:(alive?pct:0)+'%',
+        color: pct>60 ? '#86b39a' : pct>30 ? '#c9b06d' : DANGER};
+    });
+
+    const s = this.sim;
+    if(s){
+      const pct = Math.max(0, s.boss.hp/s.boss.maxHp*100);
+      v.hud = {
+        bossName: s.name + (s.encounterType==='boss' ? ' · фаза ' + s.phase : ''),
+        bossWidth: pct + '%', bossPctLabel: Math.round(pct) + '%',
+        casting: !!s.cast, castWidth: s.cast ? (s.cast.t/s.cast.dur*100)+'%' : '0%',
+        castLabel: s.cast ? 'Луч смерти: ' + s.cast.name : '',
+        tiltWidth: s.tilt + '%', tiltLabel: Math.round(s.tilt) + '%',
+        tiltColor: s.tilt>=70 ? DANGER : s.tilt>=40 ? '#c9b06d' : '#86b39a',
+        interruptBorder: s.cast ? DANGER : '#3f424d',
+        interruptBg: s.cast ? 'rgba(209,104,92,0.14)' : 'transparent',
+        interruptColor: s.cast ? '#f0c3bc' : '#595d6c',
+        speechLabel: s.speechCd > 0 ? 'Речь ' + Math.ceil(s.speechCd) + 'с' : 'Речь',
+        speechColor: s.speechCd > 0 ? '#595d6c' : '#b2b6ca',
+        pauseIcon: this.paused ? 'ph ph-play' : 'ph ph-pause',
+        log: s.log.map((l,i)=>({text:l.text, opacity: 0.5 + 0.25*i,
+          color: l.kind==='warn' ? '#e59a8e' : l.kind==='ok' ? '#9ec7b1' : '#b2b6ca'})),
+        chips: s.raiders.map(r => {
+          const a = r.ability, cd = a.cd > 0;
+          return {
+            name:r.name, icon:a.icon,
+            avatar: avatar(r.candidateId, 'width:38px;height:38px;border-radius:19px;filter:' + (r.alive ? 'saturate(.8)' : 'grayscale(1)') + ';'),
+            cdLabel: !r.alive ? '—' : cd ? Math.ceil(a.cd) + 'с' : a.active ? 'вкл' : 'готов',
+            labelColor: !r.alive ? '#595d6c' : cd ? '#75798c' : a.active ? ROLE_COLOR[r.role] : '#d2cefd',
+            border: !r.alive ? '#292b31' : cd ? '#292b31' : ROLE_COLOR[r.role]+'66',
+            bg: s.selected===r.id ? 'rgba(145,132,217,0.10)' : 'transparent',
+            opacity: r.alive ? (cd ? 0.55 : 1) : 0.3,
+            filter: r.alive ? 'saturate(.8)' : 'grayscale(1)',
+            hpWidth: Math.max(0, r.hp/r.maxHp*100) + '%',
+            hpColor: r.hp/r.maxHp > 0.6 ? '#86b39a' : r.hp/r.maxHp > 0.3 ? '#c9b06d' : DANGER,
+            onTap: ()=>{ s.selected = r.id; this.useAbility(r.id); },
+          };
+        }),
+      };
+    } else {
+      v.hud = {bossName:'', bossWidth:'0%', bossPctLabel:'', casting:false, castWidth:'0%', castLabel:'',
+        tiltWidth:'0%', tiltLabel:'0%', tiltColor:'#86b39a', interruptBorder:'#3f424d', interruptBg:'transparent',
+        interruptColor:'#595d6c', speechLabel:'Речь', speechColor:'#b2b6ca', pauseIcon:'ph ph-pause', log:[], chips:[]};
+    }
+
+    const res = this.result;
+    if(res && s){
+      const isLast = this.encIdx >= ENCOUNTERS.length-1;
+      v.result = {
+        accent: res.win ? ACCENT : DANGER,
+        kicker: res.win ? (res.isBoss ? 'Логово Гроблота' : 'Комната ' + (this.encIdx+1) + ' из 4') : 'Поход окончен',
+        title: res.win ? (res.isBoss ? 'Победа' : 'Комната зачищена') : 'Вайп',
+        text: res.win
+          ? (res.isBoss ? 'Босс повержен. Раздели добычу, пока гильдия не разошлась.' : 'Отряд идёт дальше. Раны остаются с вами до конца похода.')
+          : (res.isBoss ? 'Рейд не пережил этот пул. Чиним броню и пробуем снова.' : 'Отряд полёг ещё до трона. Придётся начать путь заново.'),
+        squad: s.raiders.map(r => ({
+          name:r.name, avatarRow: avatar(r.candidateId, 'width:30px;height:30px;border-radius:6px;filter:saturate(.7);opacity:' + (r.alive?1:0.35) + ';'),
+          nameColor: r.alive ? '#e9e9ed' : '#595d6c',
+          note: r.alive ? Math.max(0, Math.round(r.hp/r.maxHp*100)) + '% HP' + (res.win ? ' · +' + (res.isBoss?40:15) + ' XP' : '') : 'погиб(ла)',
+        })),
+        hasLoot: res.loot.length > 0,
+        loot: res.loot.map((item, i) => ({
+          name:item.name,
+          assigned: item.assigned !== null,
+          open: item.assigned === null,
+          assignedName: item.assigned !== null ? (s.raiders.find(r=>r.id===item.assigned)||{}).name : '',
+          choices: this.alive().map(r => ({name:r.name, onPick: ()=>this.assignLoot(i, r.id)})),
+        })),
+        primaryLabel: res.win ? (res.isBoss ? 'Вернуться в лагерь' : 'Дальше') : 'Начать поход заново',
+        onPrimary: ()=>{
+          if(res.win && !res.isBoss){ this.encIdx = Math.min(ENCOUNTERS.length-1, this.encIdx+1); this.go('dungeon'); }
+          else { this.encIdx = 0; this.sim = null; this.result = null; this.go('home'); }
+        },
+        hasSecondary: !res.win,
+        secondaryLabel: 'Сменить отряд',
+        onSecondary: ()=>{ this.encIdx = 0; this.sim = null; this.result = null; this.go('roster'); },
+      };
+    } else {
+      v.result = {accent:ACCENT, kicker:'', title:'', text:'', squad:[], hasLoot:false, loot:[],
+        primaryLabel:'В лагерь', onPrimary:()=>this.go('home'), hasSecondary:false, secondaryLabel:'', onSecondary:()=>{}};
+    }
+    return v;
+  }
+}
+</script>
+</body>
+</html>
