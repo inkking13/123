@@ -32,6 +32,9 @@ export interface Candidate extends CandidateDef {
   classId: string | null;
   /** Chosen profession id (independent of role/class), or null while unpicked. */
   professionId: string | null;
+  /** Profession skill level (1..PROFESSION_MAX_LEVEL) — the profession's bonus scales with it. */
+  professionLevel: number;
+  professionXp: number;
 }
 
 export interface GearOption {

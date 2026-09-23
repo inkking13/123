@@ -7,6 +7,7 @@ import { colors, font, roleColor, roleName } from '../theme/theme';
 import { TRAITS } from '../data/traits';
 import { ABILITY_BY_CANDIDATE } from '../data/abilities';
 import { MAX_LEVEL, XP_PER_LEVEL } from '../data/characters';
+import { PROFESSION_MAX_LEVEL } from '../data/professions';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { ItemIcon } from '../components/ItemIcon';
@@ -119,7 +120,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
 
           <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 6, fontFamily: font.regular }}>Профессия</Text>
           <Text style={{ fontSize: 11.5, color: colors.textFaint, marginBottom: 10, lineHeight: 16, fontFamily: font.regular }}>
-            {cc.professionId ? 'Выбор сделан навсегда — небольшой пассивный бонус на весь поход.' : 'Выберите ремесло один раз, навсегда — даёт небольшой пассивный бонус.'}
+            {cc.professionId ? 'Выбор сделан навсегда — прокачивайте мастерство на отдельном экране.' : 'Выберите ремесло один раз, навсегда — его можно будет прокачивать за золото.'}
           </Text>
           <View style={{ gap: 6, marginBottom: 18 }}>
             {engine.professionOptionsVM(cc).map((o) => (
@@ -145,6 +146,24 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
               </Pressable>
             ))}
           </View>
+
+          {cc.professionId ? (
+            <Pressable
+              onPress={() => engine.go('profession')}
+              style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 18,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Icon name="chart-line-up" size={15} color={colors.accent} />
+                <Text style={{ fontSize: 13, fontFamily: font.medium, color: colors.accentSoft }}>
+                  Прокачать профессию · {cc.professionLevel}/{PROFESSION_MAX_LEVEL} ур.
+                </Text>
+              </View>
+              <Icon name="caret-right" size={14} color={colors.accent} />
+            </Pressable>
+          ) : null}
 
           {(() => {
             const tiers = engine.talentVM(cc);

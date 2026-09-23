@@ -7,7 +7,7 @@ import { DUNGEONS, DungeonDef } from '../data/dungeons';
 import { ABILITY_BY_CANDIDATE } from '../data/abilities';
 import { TALENT_TREE, TalentTier } from '../data/talents';
 import { CLASSES } from '../data/classes';
-import { PROFESSIONS } from '../data/professions';
+import { PROFESSIONS, PROFESSION_MAX_LEVEL, PROFESSION_XP_PER_LEVEL, professionTrainCost, scaledMult } from '../data/professions';
 import { QUESTS } from '../data/quests';
 import { DailyMetric, pickDailyTemplates } from '../data/dailyQuests';
 import { ARENA_RIVALS, arenaRankName } from '../data/arena';
@@ -22,7 +22,7 @@ import {
   Ability, AbilityIcon, BossMoveTimers, Raider, Sim, TurnEntry, LogKind,
 } from '../combat/types';
 
-export type Screen = 'title' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena';
+export type Screen = 'title' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession';
 
 const SAVE_KEY = 'raid-commander.save.v1';
 const STARTING_GOLD = 60;
@@ -52,7 +52,7 @@ export interface DepartedEntry {
 }
 
 interface SaveData {
-  pool: { id: number; level: number; xp: number; equipment: Record<GearSlotKey, string>; talents: (string | null)[]; classId: string | null; professionId: string | null; morale: number }[];
+  pool: { id: number; level: number; xp: number; equipment: Record<GearSlotKey, string>; talents: (string | null)[]; classId: string | null; professionId: string | null; professionLevel: number; professionXp: number; morale: number }[];
   selected: number[];
   inventoryCounts: Record<string, number>;
   gold: number;
@@ -291,7 +291,7 @@ export class GameEngine {
   private loaded = false;
 
   constructor() {
-    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null }));
+    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
     this.selected = new Set([0, 2, 4, 5, 6]);
     this.inventoryCounts = { ...STARTING_INVENTORY };
   }
@@ -301,7 +301,7 @@ export class GameEngine {
   // restart always resumes at the title screen, out of combat.
   private serialize(): SaveData {
     return {
-      pool: this.pool.map((c) => ({ id: c.id, level: c.level, xp: c.xp, equipment: c.equipment, talents: c.talents, classId: c.classId, professionId: c.professionId, morale: c.morale })),
+      pool: this.pool.map((c) => ({ id: c.id, level: c.level, xp: c.xp, equipment: c.equipment, talents: c.talents, classId: c.classId, professionId: c.professionId, professionLevel: c.professionLevel, professionXp: c.professionXp, morale: c.morale })),
       selected: Array.from(this.selected),
       inventoryCounts: this.inventoryCounts,
       gold: this.gold,
@@ -337,7 +337,8 @@ export class GameEngine {
           if (!def) return null;
           return {
             ...def, level: saved.level, xp: saved.xp, equipment: saved.equipment,
-            talents: saved.talents, classId: saved.classId ?? null, professionId: saved.professionId ?? null, morale: saved.morale,
+            talents: saved.talents, classId: saved.classId ?? null, professionId: saved.professionId ?? null,
+            professionLevel: saved.professionLevel ?? 1, professionXp: saved.professionXp ?? 0, morale: saved.morale,
           };
         })
         .filter((c): c is Candidate => c != null);
@@ -383,7 +384,7 @@ export class GameEngine {
   }
   async resetProgress() {
     if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
-    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null }));
+    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
     this.selected = new Set([0, 2, 4, 5, 6]);
     this.inventoryCounts = { ...STARTING_INVENTORY };
     this.gold = STARTING_GOLD;
@@ -688,11 +689,12 @@ export class GameEngine {
   // ── profession ───────────────────────────────────────────
   professionMults(c: Candidate) {
     const opt = c.professionId ? PROFESSIONS.find((o) => o.id === c.professionId) : null;
+    if (!opt) return { outputMult: 1, hpMult: 1, wardMult: 1, cdMult: 1 };
     return {
-      outputMult: opt?.outputMult || 1,
-      hpMult: opt?.hpMult || 1,
-      wardMult: opt?.wardMult || 1,
-      cdMult: opt?.cdMult || 1,
+      outputMult: scaledMult(opt.outputMult, c.professionLevel),
+      hpMult: scaledMult(opt.hpMult, c.professionLevel),
+      wardMult: scaledMult(opt.wardMult, c.professionLevel),
+      cdMult: scaledMult(opt.cdMult, c.professionLevel),
     };
   }
   chooseProfession(candidateId: number, professionId: string) {
@@ -700,6 +702,8 @@ export class GameEngine {
     if (!c || c.professionId != null) return;
     if (!PROFESSIONS.some((o) => o.id === professionId)) return;
     c.professionId = professionId;
+    c.professionLevel = 1;
+    c.professionXp = 0;
     this.notify();
   }
   professionOptionsVM(c: Candidate) {
@@ -712,6 +716,51 @@ export class GameEngine {
       disabled: c.professionId != null,
       onPick: () => this.chooseProfession(c.id, o.id),
     }));
+  }
+  private professionBonusLines(opt: { outputMult?: number; hpMult?: number; wardMult?: number; cdMult?: number }, level: number): string[] {
+    const lines: string[] = [];
+    const pct = (v: number) => Math.round(Math.abs(v - 1) * 100);
+    if (opt.hpMult !== undefined) lines.push(`${opt.hpMult >= 1 ? '+' : '-'}${pct(scaledMult(opt.hpMult, level))}% к максимальному HP`);
+    if (opt.outputMult !== undefined) lines.push(`${opt.outputMult >= 1 ? '+' : '-'}${pct(scaledMult(opt.outputMult, level))}% к урону/лечению`);
+    if (opt.wardMult !== undefined) lines.push(`${opt.wardMult <= 1 ? '-' : '+'}${pct(scaledMult(opt.wardMult, level))}% к получаемому урону`);
+    if (opt.cdMult !== undefined) lines.push(`${opt.cdMult <= 1 ? '-' : '+'}${pct(scaledMult(opt.cdMult, level))}% к перезарядке способности`);
+    return lines;
+  }
+  professionVM(c: Candidate) {
+    const opt = c.professionId ? PROFESSIONS.find((o) => o.id === c.professionId) : null;
+    if (!opt) return null;
+    const atMax = c.professionLevel >= PROFESSION_MAX_LEVEL;
+    const cost = professionTrainCost(c.professionLevel);
+    return {
+      id: opt.id,
+      name: opt.name,
+      desc: opt.desc,
+      icon: opt.icon,
+      level: c.professionLevel,
+      maxLevel: PROFESSION_MAX_LEVEL,
+      xp: c.professionXp,
+      xpPerLevel: PROFESSION_XP_PER_LEVEL,
+      atMax,
+      currentBonusLines: this.professionBonusLines(opt, c.professionLevel),
+      nextBonusLines: atMax ? null : this.professionBonusLines(opt, c.professionLevel + 1),
+      trainCost: atMax ? null : cost,
+      canAffordTrain: !atMax && this.gold >= cost,
+      onTrain: () => this.trainProfession(c.id),
+    };
+  }
+  trainProfession(candidateId: number) {
+    const c = this.pool.find((x) => x.id === candidateId);
+    if (!c || !c.professionId || c.professionLevel >= PROFESSION_MAX_LEVEL) return;
+    const cost = professionTrainCost(c.professionLevel);
+    if (this.gold < cost) return;
+    this.gold -= cost;
+    c.professionXp += 15 + Math.floor(Math.random() * 11);
+    while (c.professionXp >= PROFESSION_XP_PER_LEVEL && c.professionLevel < PROFESSION_MAX_LEVEL) {
+      c.professionXp -= PROFESSION_XP_PER_LEVEL;
+      c.professionLevel++;
+    }
+    if (c.professionLevel >= PROFESSION_MAX_LEVEL) c.professionXp = 0;
+    this.notify();
   }
 
   // ── analytics ────────────────────────────────────────────
@@ -870,7 +919,7 @@ export class GameEngine {
     const cost = def.hireCost ?? 0;
     if (this.gold < cost) return;
     this.gold -= cost;
-    this.pool.push({ ...def, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null });
+    this.pool.push({ ...def, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 });
     this.notify();
   }
 
