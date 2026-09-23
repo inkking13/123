@@ -8,6 +8,9 @@ on:
       - 'app/**'
       - '.github/workflows/build-apk.yml'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -41,3 +44,10 @@ jobs:
         with:
           name: raid-commander-debug-apk
           path: app/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish APK as a release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-build-${{ github.run_number }}
+          name: Debug APK build ${{ github.run_number }}
+          files: app/android/app/build/outputs/apk/debug/app-debug.apk
