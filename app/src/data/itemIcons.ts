@@ -71,7 +71,25 @@ export type ItemIconId =
   | 'sklyanka-rtuti'
   | 'drevnyaya-karta'
   | 'oskolok-dushi'
-  | 'zabytaya-kniga';
+  | 'zabytaya-kniga'
+  | 'drevniy-klyuch-zabytogo-sklepa'
+  | 'mehanicheskiy-cherep-oskvernennogo-inzhenera'
+  | 'oskolok-luny-zatmeniya-dushi'
+  | 'kniga-tayn-bezlikogo-shepota'
+  | 'krovavaya-chasha-kulta-krovi'
+  | 'otravlennaya-perchatka-tenevogo-ubiytsy'
+  | 'maska-mora-chumnogo-vestnika'
+  | 'sosud-dush-zhatvy-smerti'
+  | 'schit-pantsir-bolotnoy-tvari'
+  | 'glaz-nablyudatelya-bezglazoy-natsii'
+  | 'kostyanoy-krest-padshego-klirika'
+  | 'drevnyaya-lovushka-ohotnika-na-vedm'
+  | 'utrachennyy-gerb-razrushennoy-tsitadeli'
+  | 'kristall-groma-razrushennoy-stihii'
+  | 'adskoe-pero-kontrakta-dush'
+  | 'proklyataya-kukla-mesti-i-boli'
+  | 'zabytyy-ukaz-lorda-haosa'
+  | 'runnyy-topor-vladyki-krovi';
 
 export const ITEM_ICONS: Record<ItemIconId, any> = {
   'proklyatyy-mech': require('../../assets/items/proklyatyy-mech.jpg'),
@@ -146,6 +164,24 @@ export const ITEM_ICONS: Record<ItemIconId, any> = {
   'drevnyaya-karta': require('../../assets/items/drevnyaya-karta.jpg'),
   'oskolok-dushi': require('../../assets/items/oskolok-dushi.jpg'),
   'zabytaya-kniga': require('../../assets/items/zabytaya-kniga.jpg'),
+  'drevniy-klyuch-zabytogo-sklepa': require('../../assets/items/drevniy-klyuch-zabytogo-sklepa.jpg'),
+  'mehanicheskiy-cherep-oskvernennogo-inzhenera': require('../../assets/items/mehanicheskiy-cherep-oskvernennogo-inzhenera.jpg'),
+  'oskolok-luny-zatmeniya-dushi': require('../../assets/items/oskolok-luny-zatmeniya-dushi.jpg'),
+  'kniga-tayn-bezlikogo-shepota': require('../../assets/items/kniga-tayn-bezlikogo-shepota.jpg'),
+  'krovavaya-chasha-kulta-krovi': require('../../assets/items/krovavaya-chasha-kulta-krovi.jpg'),
+  'otravlennaya-perchatka-tenevogo-ubiytsy': require('../../assets/items/otravlennaya-perchatka-tenevogo-ubiytsy.jpg'),
+  'maska-mora-chumnogo-vestnika': require('../../assets/items/maska-mora-chumnogo-vestnika.jpg'),
+  'sosud-dush-zhatvy-smerti': require('../../assets/items/sosud-dush-zhatvy-smerti.jpg'),
+  'schit-pantsir-bolotnoy-tvari': require('../../assets/items/schit-pantsir-bolotnoy-tvari.jpg'),
+  'glaz-nablyudatelya-bezglazoy-natsii': require('../../assets/items/glaz-nablyudatelya-bezglazoy-natsii.jpg'),
+  'kostyanoy-krest-padshego-klirika': require('../../assets/items/kostyanoy-krest-padshego-klirika.jpg'),
+  'drevnyaya-lovushka-ohotnika-na-vedm': require('../../assets/items/drevnyaya-lovushka-ohotnika-na-vedm.jpg'),
+  'utrachennyy-gerb-razrushennoy-tsitadeli': require('../../assets/items/utrachennyy-gerb-razrushennoy-tsitadeli.jpg'),
+  'kristall-groma-razrushennoy-stihii': require('../../assets/items/kristall-groma-razrushennoy-stihii.jpg'),
+  'adskoe-pero-kontrakta-dush': require('../../assets/items/adskoe-pero-kontrakta-dush.jpg'),
+  'proklyataya-kukla-mesti-i-boli': require('../../assets/items/proklyataya-kukla-mesti-i-boli.jpg'),
+  'zabytyy-ukaz-lorda-haosa': require('../../assets/items/zabytyy-ukaz-lorda-haosa.jpg'),
+  'runnyy-topor-vladyki-krovi': require('../../assets/items/runnyy-topor-vladyki-krovi.jpg'),
 };
 
 export const ITEM_ICON_NAMES: Record<ItemIconId, string> = {
@@ -221,4 +257,22 @@ export const ITEM_ICON_NAMES: Record<ItemIconId, string> = {
   'drevnyaya-karta': 'Древняя Карта',
   'oskolok-dushi': 'Осколок Души',
   'zabytaya-kniga': 'Забытая Книга',
+  'drevniy-klyuch-zabytogo-sklepa': 'Древний Ключ Забытого Склепа',
+  'mehanicheskiy-cherep-oskvernennogo-inzhenera': 'Механический Череп Оскверненного Инженера',
+  'oskolok-luny-zatmeniya-dushi': 'Осколок Луны Затмения Души',
+  'kniga-tayn-bezlikogo-shepota': 'Книга Тайн Безликого Шепота',
+  'krovavaya-chasha-kulta-krovi': 'Кровавая Чаша Культа Крови',
+  'otravlennaya-perchatka-tenevogo-ubiytsy': 'Отравленная Перчатка Теневого Убийцы',
+  'maska-mora-chumnogo-vestnika': 'Маска Мора Чумного Вестника',
+  'sosud-dush-zhatvy-smerti': 'Сосуд Душ Жатвы Смерти',
+  'schit-pantsir-bolotnoy-tvari': 'Щит-Панцирь Болотной Твари',
+  'glaz-nablyudatelya-bezglazoy-natsii': 'Глаз Наблюдателя Безглазой Нации',
+  'kostyanoy-krest-padshego-klirika': 'Костяной Крест Падшего Клирика',
+  'drevnyaya-lovushka-ohotnika-na-vedm': 'Древняя Ловушка Охотника на Ведьм',
+  'utrachennyy-gerb-razrushennoy-tsitadeli': 'Утраченный Герб Разрушенной Цитадели',
+  'kristall-groma-razrushennoy-stihii': 'Кристалл Грома Разрушенной Стихии',
+  'adskoe-pero-kontrakta-dush': 'Адское Перо Контракта Душ',
+  'proklyataya-kukla-mesti-i-boli': 'Проклятая Кукла Мести и Боли',
+  'zabytyy-ukaz-lorda-haosa': 'Забытый Указ Лорда Хаоса',
+  'runnyy-topor-vladyki-krovi': 'Рунный Топор Владыки Крови',
 };
