@@ -1092,6 +1092,34 @@ export class GameEngine {
     return { kind: def.kind, icon: def.icon, cd: 0, cdMax: Math.max(1, Math.round(def.cdMax * cdMult)), active: false, activeRounds: 0, activeMax: def.activeMax };
   }
 
+  // Classic RPG attributes, purely a flavorful read-out of the same combat
+  // math makeRaiders() uses — they grow with level/gear/talents/profession
+  // exactly like real combat power does, but touch no balance numbers of
+  // their own, so there's nothing new to tune or break.
+  attributesFor(c: Candidate) {
+    const gm = this.gearMults(c);
+    const tm = this.talentMults(c);
+    const cm = this.classMults(c);
+    const pm = this.professionMults(c);
+    const moraleMult = c.morale >= 80 ? 1.05 : c.morale < 30 ? 0.90 : 1;
+    const lvl = 1 + (c.level - 1) * 0.02;
+    const outputMult = gm.outputMult * tm.outputMult * cm.outputMult * pm.outputMult * moraleMult;
+    const hpMult = gm.hpMult * tm.hpMult * cm.hpMult * pm.hpMult;
+    const effDps = c.dps * outputMult * lvl;
+    const effHeal = (c.healPower || 0) * outputMult * lvl;
+    const effHp = c.hp * hpMult * lvl;
+    const baseSpeed: Record<Role, number> = { dps: 12, heal: 9, tank: 6 };
+    const speed = baseSpeed[c.role] + (c.id % 5) * 0.1;
+    const melee = c.attackRange === 'melee';
+    return {
+      strength: Math.round(effDps * (melee ? 2.5 : 0.8) + (c.role === 'tank' ? 20 : 0)),
+      agility: Math.round(effDps * (melee ? 0.8 : 2.5) + (c.attackRange === 'ranged' ? 5 : 0)),
+      intellect: Math.round(effHeal * 10 + lvl * 6),
+      stamina: Math.round(effHp / 8),
+      initiative: Math.round(speed * 10),
+    };
+  }
+
   makeRaiders(squad: Candidate[]): Raider[] {
     const baseSpeed: Record<Role, number> = { dps: 12, heal: 9, tank: 6 };
     return squad.map((d, i) => {

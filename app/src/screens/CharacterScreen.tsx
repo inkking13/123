@@ -29,6 +29,14 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
     { label: 'ГС', value: String(cc.gs) },
   ];
   const ability = ABILITY_BY_CANDIDATE[cc.id];
+  const attrs = engine.attributesFor(cc);
+  const attrRows: { label: string; value: number; icon: 'sword' | 'shield' | 'scroll' | 'target' | 'path' }[] = [
+    { label: 'Сила', value: attrs.strength, icon: 'sword' },
+    { label: 'Ловкость', value: attrs.agility, icon: 'target' },
+    { label: 'Интеллект', value: attrs.intellect, icon: 'scroll' },
+    { label: 'Выносливость', value: attrs.stamina, icon: 'shield' },
+    { label: 'Инициатива', value: attrs.initiative, icon: 'path' },
+  ];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -74,6 +82,19 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
               <View key={s.label} style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10 }}>
                 <Text style={{ fontSize: 10, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>{s.label}</Text>
                 <Text style={{ fontSize: 17, fontFamily: font.medium, color: colors.text, marginTop: 2 }}>{s.value}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 8, fontFamily: font.regular }}>Характеристики</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
+            {attrRows.map((a) => (
+              <View key={a.label} style={{ width: '31.3%', borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Icon name={a.icon} size={15} color={colors.accent} />
+                <View>
+                  <Text style={{ fontSize: 15, fontFamily: font.medium, color: colors.text }}>{a.value}</Text>
+                  <Text style={{ fontSize: 9.5, color: colors.textFaint, fontFamily: font.regular }}>{a.label}</Text>
+                </View>
               </View>
             ))}
           </View>
