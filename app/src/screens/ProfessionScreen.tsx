@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
 import { colors, font } from '../theme/theme';
 import { Icon } from '../components/Icon';
+import { ItemIcon } from '../components/ItemIcon';
 import { ProgressBar } from '../components/ProgressBar';
 import { GhostLink } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
@@ -28,6 +29,7 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
   }
 
   const xpPct = vm.atMax ? 100 : (vm.xp / vm.xpPerLevel) * 100;
+  const recipes = engine.recipesVM(cc);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -100,6 +102,58 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
             ) : null}
           </>
         ) : null}
+
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginTop: 28, marginBottom: 10, fontFamily: font.regular }}>
+          Рецепты крафта
+        </Text>
+        {recipes.map((r) => (
+          <View
+            key={r.id}
+            style={{
+              borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 10,
+              borderColor: r.craftable ? colors.accent : colors.borderStrong,
+              backgroundColor: r.craftable ? colors.accentWash : colors.surface,
+              opacity: r.unlocked ? 1 : 0.5,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <ItemIcon id={r.resultIcon} size={40} radius={7} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13.5, fontFamily: font.medium, color: colors.text }}>{r.name}</Text>
+                <Text style={{ fontSize: 10.5, letterSpacing: 0.5, textTransform: 'uppercase', color: colors.textFaint, marginTop: 2, fontFamily: font.regular }}>{r.slotLabel}</Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 11.5, color: colors.textDim, marginBottom: 8, lineHeight: 16, fontFamily: font.regular }}>{r.resultDesc}</Text>
+
+            {!r.unlocked ? (
+              <Text style={{ fontSize: 12, color: colors.textFaint, fontFamily: font.regular }}>
+                Открывается на {r.unlockLevel} уровне мастерства.
+              </Text>
+            ) : (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <ItemIcon id={r.reagentIcon} size={24} radius={5} />
+                  <Text style={{ fontSize: 12, color: r.reagentOwned >= r.reagentNeeded ? colors.textMuted : colors.danger, fontFamily: font.regular }}>
+                    {r.reagentName} · {r.reagentOwned}/{r.reagentNeeded}
+                  </Text>
+                  <View style={{ flex: 1 }} />
+                  <Icon name="coins" size={13} color={colors.warn} />
+                  <Text style={{ fontSize: 12, color: colors.warn, fontFamily: font.regular }}>{r.goldCost}</Text>
+                </View>
+                <Pressable
+                  onPress={r.onCraft}
+                  disabled={!r.craftable}
+                  style={{
+                    height: 40, borderRadius: 7, borderWidth: 1, alignItems: 'center', justifyContent: 'center',
+                    borderColor: r.craftable ? colors.accent : colors.border, opacity: r.craftable ? 1 : 0.45,
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontFamily: font.medium, color: colors.accentSoft }}>Скрафтить</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        ))}
       </ScrollView>
     </View>
   );

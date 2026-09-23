@@ -8,6 +8,8 @@ import { ABILITY_BY_CANDIDATE } from '../data/abilities';
 import { TALENT_TREE, TalentTier } from '../data/talents';
 import { CLASSES } from '../data/classes';
 import { PROFESSIONS, PROFESSION_MAX_LEVEL, PROFESSION_XP_PER_LEVEL, professionTrainCost, scaledMult } from '../data/professions';
+import { REAGENTS, REAGENT_BY_LOCATION, ROOM_REAGENT_CHANCE } from '../data/reagents';
+import { RECIPES } from '../data/recipes';
 import { QUESTS } from '../data/quests';
 import { DailyMetric, pickDailyTemplates } from '../data/dailyQuests';
 import { ARENA_RIVALS, arenaRankName } from '../data/arena';
@@ -55,6 +57,7 @@ interface SaveData {
   pool: { id: number; level: number; xp: number; equipment: Record<GearSlotKey, string>; talents: (string | null)[]; classId: string | null; professionId: string | null; professionLevel: number; professionXp: number; morale: number }[];
   selected: number[];
   inventoryCounts: Record<string, number>;
+  reagentCounts: Record<string, number>;
   gold: number;
   dungeonId: string;
   defeatedDungeons: string[];
@@ -98,12 +101,18 @@ export interface LootItem {
   name: string;
   assigned: number | null;
 }
+export interface ReagentDrop {
+  name: string;
+  icon: ItemIconId;
+  qty: number;
+}
 export interface CombatResult {
   win: boolean;
   isBoss: boolean;
   loot: LootItem[];
   curioFound: string | null;
   goldFound: number;
+  reagentFound: ReagentDrop | null;
 }
 
 export interface TalentOptionVM {
@@ -255,6 +264,7 @@ export class GameEngine {
   pool: Candidate[];
   selected: Set<number>;
   inventoryCounts: Record<string, number>;
+  reagentCounts: Record<string, number> = {};
   gold = STARTING_GOLD;
   dungeonId = 'wastes';
   defeatedDungeons = new Set<string>();
@@ -304,6 +314,7 @@ export class GameEngine {
       pool: this.pool.map((c) => ({ id: c.id, level: c.level, xp: c.xp, equipment: c.equipment, talents: c.talents, classId: c.classId, professionId: c.professionId, professionLevel: c.professionLevel, professionXp: c.professionXp, morale: c.morale })),
       selected: Array.from(this.selected),
       inventoryCounts: this.inventoryCounts,
+      reagentCounts: this.reagentCounts,
       gold: this.gold,
       dungeonId: this.dungeonId,
       defeatedDungeons: Array.from(this.defeatedDungeons),
@@ -345,6 +356,7 @@ export class GameEngine {
     }
     if (data.selected) this.selected = new Set(data.selected);
     if (data.inventoryCounts) this.inventoryCounts = data.inventoryCounts;
+    if (data.reagentCounts) this.reagentCounts = data.reagentCounts;
     if (typeof data.gold === 'number') this.gold = data.gold;
     if (data.dungeonId) this.dungeonId = data.dungeonId;
     if (data.defeatedDungeons) this.defeatedDungeons = new Set(data.defeatedDungeons);
@@ -387,6 +399,7 @@ export class GameEngine {
     this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
     this.selected = new Set([0, 2, 4, 5, 6]);
     this.inventoryCounts = { ...STARTING_INVENTORY };
+    this.reagentCounts = {};
     this.gold = STARTING_GOLD;
     this.dungeonId = 'wastes';
     this.defeatedDungeons = new Set();
@@ -760,6 +773,53 @@ export class GameEngine {
       c.professionLevel++;
     }
     if (c.professionLevel >= PROFESSION_MAX_LEVEL) c.professionXp = 0;
+    this.notify();
+  }
+
+  // ── crafting ─────────────────────────────────────────────
+  reagentOwned(reagentId: string): number {
+    return this.reagentCounts[reagentId] || 0;
+  }
+  reagentInventoryVM() {
+    return REAGENTS.map((r) => ({ id: r.id, name: r.name, desc: r.desc, icon: r.icon, owned: this.reagentOwned(r.id) })).filter((r) => r.owned > 0);
+  }
+  recipesVM(c: Candidate) {
+    if (!c.professionId) return [];
+    return RECIPES.filter((r) => r.professionId === c.professionId).map((r) => {
+      const reagent = REAGENTS.find((x) => x.id === r.reagentId)!;
+      const owned = this.reagentOwned(r.reagentId);
+      const unlocked = c.professionLevel >= r.unlockLevel;
+      const gearOpt = GEAR[r.slot].find((o) => o.id === r.gearId)!;
+      const craftable = unlocked && owned >= r.reagentQty && this.gold >= r.goldCost;
+      return {
+        id: r.id,
+        name: r.name,
+        slot: r.slot,
+        slotLabel: SLOT_LABEL[r.slot],
+        resultDesc: gearOpt.desc,
+        resultIcon: gearOpt.icon,
+        unlocked,
+        unlockLevel: r.unlockLevel,
+        reagentName: reagent.name,
+        reagentIcon: reagent.icon,
+        reagentOwned: owned,
+        reagentNeeded: r.reagentQty,
+        goldCost: r.goldCost,
+        craftable,
+        onCraft: () => this.craftItem(c.id, r.id),
+      };
+    });
+  }
+  craftItem(candidateId: number, recipeId: string) {
+    const c = this.pool.find((x) => x.id === candidateId);
+    const r = RECIPES.find((x) => x.id === recipeId);
+    if (!c || !r || c.professionId !== r.professionId) return;
+    if (c.professionLevel < r.unlockLevel) return;
+    if (this.reagentOwned(r.reagentId) < r.reagentQty) return;
+    if (this.gold < r.goldCost) return;
+    this.reagentCounts[r.reagentId] -= r.reagentQty;
+    this.gold -= r.goldCost;
+    this.inventoryCounts[r.gearId] = (this.inventoryCounts[r.gearId] || 0) + 1;
     this.notify();
   }
 
@@ -1149,7 +1209,7 @@ export class GameEngine {
       this.arenaLosses++;
       this.arenaRating = Math.max(600, this.arenaRating - opp.ratingLoss);
     }
-    this.result = { win, isBoss: true, loot: [], curioFound: null, goldFound };
+    this.result = { win, isBoss: true, loot: [], curioFound: null, goldFound, reagentFound: null };
     this.screen = 'results';
     this.notify();
   }
@@ -1714,6 +1774,8 @@ export class GameEngine {
     let loot: LootItem[] = [];
     let curioFound: string | null = null;
     let goldFound = 0;
+    let reagentFound: ReagentDrop | null = null;
+    const reagentDef = REAGENT_BY_LOCATION[this.currentDungeon().locationId];
     if (win && isBoss) {
       for (const r of s.raiders) this.gainXp(r.candidateId, 40);
       const shuffled = [...BOSS_LOOT_TABLE].sort(() => Math.random() - 0.5);
@@ -1737,6 +1799,11 @@ export class GameEngine {
       goldFound = 70 + Math.floor(Math.random() * 41);
       this.statsBossWins++;
       this.bumpDaily('bossWin');
+      if (reagentDef) {
+        const qty = 2 + Math.floor(Math.random() * 2);
+        this.reagentCounts[reagentDef.id] = (this.reagentCounts[reagentDef.id] || 0) + qty;
+        reagentFound = { name: reagentDef.name, icon: reagentDef.icon, qty };
+      }
     } else if (win) {
       for (const r of s.raiders) this.gainXp(r.candidateId, 15);
       this.everClearedRoom = true;
@@ -1753,12 +1820,16 @@ export class GameEngine {
       }
       curioFound = this.rollCurio(0.2);
       goldFound = 12 + Math.floor(Math.random() * 11);
+      if (reagentDef && Math.random() < ROOM_REAGENT_CHANCE) {
+        this.reagentCounts[reagentDef.id] = (this.reagentCounts[reagentDef.id] || 0) + 1;
+        reagentFound = { name: reagentDef.name, icon: reagentDef.icon, qty: 1 };
+      }
     } else {
       this.statsWipes++;
     }
     this.gold += goldFound;
     if (goldFound > 0) this.bumpDaily('goldEarned', goldFound);
-    this.result = { win, isBoss, loot, curioFound, goldFound };
+    this.result = { win, isBoss, loot, curioFound, goldFound, reagentFound };
     this.screen = 'results';
     this.notify();
   }

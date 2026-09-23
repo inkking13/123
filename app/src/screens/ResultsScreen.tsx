@@ -94,6 +94,15 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
           </View>
         ) : null}
 
+        {res.reagentFound ? (
+          <View style={{ marginTop: 12, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 10, flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+            <ItemIcon id={res.reagentFound.icon} size={32} radius={6} />
+            <Text style={{ fontSize: 12.5, color: colors.textMuted, fontFamily: font.regular }}>
+              +{res.reagentFound.qty} · {res.reagentFound.name}
+            </Text>
+          </View>
+        ) : null}
+
         {res.loot.length > 0 ? (
           <View style={{ marginTop: 22 }}>
             <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Дележ добычи</Text>

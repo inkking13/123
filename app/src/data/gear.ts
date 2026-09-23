@@ -21,6 +21,10 @@ export const GEAR: Record<GearSlotKey, GearOption[]> = {
     { id: 'uw-unmarkedgraves', name: 'Заступ-Реликвия Могильщика', mult: 1.90, desc: '+90% к урону/лечению. Трофей с Могильщика Легиона.', icon: 'oskolki-posoha-haosa' },
     { id: 'uw-burntcliffs', name: 'Коготь Ящера-Патриарха', mult: 2.05, desc: '+105% к урону/лечению. Трофей с Ящера-Патриарха.', icon: 'kogot-tvari-bezdny' },
     { id: 'uw-shareholderfloor', name: 'Гримуар Директора по Персоналу', mult: 2.25, desc: '+125% к урону/лечению. Трофей с Директора по Персоналу Бездны.', icon: 'grimuar-proklyatyh-klyuchey' },
+    { id: 'rw-blacksmith1', name: 'Клинок из Металлолома', mult: 1.50, desc: '+50% к урону/лечению. Скован кузнецом из металлолома.', icon: 'boevoy-topor' },
+    { id: 'rw-blacksmith2', name: 'Демонический Тесак', mult: 2.15, desc: '+115% к урону/лечению. Скован из демонического сплава.', icon: 'topor-bezumnogo-vozhdya' },
+    { id: 'rw-enchant1', name: 'Зачарованный Клинок Тьмы', mult: 1.10, cdMult: 0.85, desc: '+10% к урону/лечению и -15% к перезарядке способности.', icon: 'oskolki-posoha-haosa' },
+    { id: 'rw-enchant2', name: 'Зачарованный Клинок Пепла', mult: 1.20, cdMult: 0.75, desc: '+20% к урону/лечению и -25% к перезарядке способности.', icon: 'grimuar-teney' },
   ],
   armor: [
     { id: 'none', name: 'Без брони', hpMult: 1, desc: 'Никаких бонусов.' },
@@ -37,6 +41,10 @@ export const GEAR: Record<GearSlotKey, GearOption[]> = {
     { id: 'ua-desertersfort', name: 'Герб Полковника-Отступника', hpMult: 1.92, desc: '+92% к HP. Трофей с Полковника-Отступника.', icon: 'gerb-bessmertnogo-rytsarya' },
     { id: 'ua-wyvernlair', name: 'Чешуя Королевы Виверн', hpMult: 2.05, desc: '+105% к HP. Трофей с Королевы Виверн.', icon: 'golova-drevnego-drakona' },
     { id: 'ua-councilantechamber', name: 'Маска Спикера Совета', hpMult: 2.25, desc: '+125% к HP. Трофей со Спикера Совета.', icon: 'maska-kultista' },
+    { id: 'ra-leather1', name: 'Доспех из Волчьей Шкуры', hpMult: 1.50, desc: '+50% к HP. Выделан из шкуры ледяного волка.', icon: 'voroniy-plasch' },
+    { id: 'ra-leather2', name: 'Доспех из Чешуи Виверны', hpMult: 2.10, desc: '+110% к HP. Выделан из чешуи виверны.', icon: 'golova-drevnego-drakona' },
+    { id: 'ra-engineer1', name: 'Механический Наплечник', hpMult: 1.45, cdMult: 0.90, desc: '+45% к HP и -10% к перезарядке способности.', icon: 'shlem-vozhdya-orkov' },
+    { id: 'ra-engineer2', name: 'Осадный Экзоскелет', hpMult: 2.00, cdMult: 0.80, desc: '+100% к HP и -20% к перезарядке способности.', icon: 'gerb-bessmertnogo-rytsarya' },
   ],
   trinket: [
     { id: 'none', name: 'Без амулета', desc: 'Никаких бонусов.' },
@@ -53,6 +61,10 @@ export const GEAR: Record<GearSlotKey, GearOption[]> = {
     { id: 'ut-deadlegion', name: 'Стяг Генерала без Имени', mult: 1.28, wardMult: 1.06, desc: '+28% к урону/лечению, но +6% к получаемому урону. Трофей с Генерала без Имени.', icon: 'styag-armii-mertyh' },
     { id: 'ut-ancientpeak', name: 'Рога Пирокластона', cdMult: 0.68, desc: '-32% к перезарядке способности. Трофей с Пирокластона.', icon: 'roga-povelitelya-ada' },
     { id: 'ut-boardroom', name: 'Ядро Держателя Контрольного Пакета', mult: 1.35, wardMult: 1.08, desc: '+35% к урону/лечению, но +8% к получаемому урону. Трофей с Держателя Контрольного Пакета.', icon: 'yadro-zhertvennogo-altarya' },
+    { id: 'rt-jewel1', name: 'Серебряное Кольцо', wardMult: 0.85, desc: '-15% к получаемому урону. Огранено из конфискованного серебра.', icon: 'kamen-runy' },
+    { id: 'rt-jewel2', name: 'Кольцо из Демонического Сплава', wardMult: 0.72, desc: '-28% к получаемому урону. Огранено из демонического сплава.', icon: 'oko-leviafana' },
+    { id: 'rt-alchemy1', name: 'Костяной Оберег', mult: 1.12, wardMult: 1.04, desc: '+12% к урону/лечению, но +4% к получаемому урону.', icon: 'filakteriya-proklyatogo-nekromanta' },
+    { id: 'rt-alchemy2', name: 'Эликсир из Чешуи Виверны', mult: 1.22, wardMult: 1.08, desc: '+22% к урону/лечению, но +8% к получаемому урону.', icon: 'sklyanka-rtuti' },
   ],
 };
 

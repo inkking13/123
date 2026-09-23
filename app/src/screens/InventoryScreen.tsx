@@ -7,7 +7,7 @@ import { GhostLink } from '../components/Buttons';
 import { ItemIcon } from '../components/ItemIcon';
 import { useEngineVersion } from '../engine/useEngine';
 
-type Tab = 'gear' | 'curios';
+type Tab = 'gear' | 'curios' | 'reagents';
 
 export function InventoryScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -16,6 +16,7 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
   const rows = engine.inventoryVM();
   const curios = engine.curioVM();
   const foundCount = curios.filter((c) => c.owned).length;
+  const reagents = engine.reagentInventoryVM();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -24,7 +25,7 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
         <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 10, marginBottom: 14, letterSpacing: -0.5 }}>Инвентарь</Text>
 
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
-          {(['gear', 'curios'] as Tab[]).map((t) => (
+          {(['gear', 'reagents', 'curios'] as Tab[]).map((t) => (
             <Pressable
               key={t}
               onPress={() => setTab(t)}
@@ -35,7 +36,7 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
               }}
             >
               <Text style={{ fontSize: 12.5, fontFamily: font.medium, color: tab === t ? colors.accentSoft : colors.textDim }}>
-                {t === 'gear' ? 'Снаряжение' : `Реликвии (${foundCount}/${curios.length})`}
+                {t === 'gear' ? 'Снаряжение' : t === 'reagents' ? 'Материалы' : `Реликвии (${foundCount}/${curios.length})`}
               </Text>
             </Pressable>
           ))}
@@ -72,6 +73,30 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
                       Носят: {row.wornBy.join(', ')}
                     </Text>
                   ) : null}
+                </View>
+              ))
+            )}
+          </>
+        ) : tab === 'reagents' ? (
+          <>
+            <Text style={{ fontSize: 13, color: colors.textDim, marginBottom: 18, fontFamily: font.regular }}>
+              Материалы для крафта — падают с врагов в подземельях, каждая земля даёт свой вид сырья.
+            </Text>
+            {reagents.length === 0 ? (
+              <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 20, alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, color: colors.textFaint, fontFamily: font.regular, textAlign: 'center' }}>
+                  Материалов пока нет — они падают с побеждённых врагов в походах.
+                </Text>
+              </View>
+            ) : (
+              reagents.map((r) => (
+                <View key={r.id} style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 10, backgroundColor: colors.surface, flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                  <ItemIcon id={r.icon} size={44} radius={8} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontFamily: font.medium, color: colors.text }}>{r.name}</Text>
+                    <Text style={{ fontSize: 12, color: colors.textDim, marginTop: 3, lineHeight: 17, fontFamily: font.regular }}>{r.desc}</Text>
+                  </View>
+                  <Text style={{ fontSize: 17, fontFamily: font.medium, color: colors.accentSoft }}>{r.owned}</Text>
                 </View>
               ))
             )}
