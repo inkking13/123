@@ -117,6 +117,35 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
             ))}
           </View>
 
+          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 6, fontFamily: font.regular }}>Профессия</Text>
+          <Text style={{ fontSize: 11.5, color: colors.textFaint, marginBottom: 10, lineHeight: 16, fontFamily: font.regular }}>
+            {cc.professionId ? 'Выбор сделан навсегда — небольшой пассивный бонус на весь поход.' : 'Выберите ремесло один раз, навсегда — даёт небольшой пассивный бонус.'}
+          </Text>
+          <View style={{ gap: 6, marginBottom: 18 }}>
+            {engine.professionOptionsVM(cc).map((o) => (
+              <Pressable
+                key={o.id}
+                onPress={o.onPick}
+                disabled={o.disabled}
+                style={{
+                  flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+                  borderWidth: 1, borderRadius: 8, padding: 10,
+                  borderColor: o.selected ? colors.accent : colors.borderStrong,
+                  backgroundColor: o.selected ? colors.accentWash : 'transparent',
+                  opacity: cc.professionId && !o.selected ? 0.4 : 1,
+                }}
+              >
+                <View style={{ width: 24, height: 24, borderRadius: 12, marginTop: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(145,132,217,0.14)' }}>
+                  <Icon name={o.icon} size={13} color={o.selected ? colors.accentSoft : colors.textDim} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12.5, fontFamily: font.medium, color: o.selected ? colors.accentSoft : colors.text }}>{o.name}</Text>
+                  <Text style={{ fontSize: 11.5, color: colors.textFaint, marginTop: 2, fontFamily: font.regular }}>{o.desc}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+
           {(() => {
             const tiers = engine.talentVM(cc);
             const learned = tiers.filter((t) => t.chosen).length;

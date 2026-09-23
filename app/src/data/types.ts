@@ -30,6 +30,8 @@ export interface Candidate extends CandidateDef {
   talents: (string | null)[];
   /** Chosen subclass id within the character's fixed role, or null while unpicked. */
   classId: string | null;
+  /** Chosen profession id (independent of role/class), or null while unpicked. */
+  professionId: string | null;
 }
 
 export interface GearOption {

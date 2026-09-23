@@ -7,6 +7,7 @@ import { DUNGEONS, DungeonDef } from '../data/dungeons';
 import { ABILITY_BY_CANDIDATE } from '../data/abilities';
 import { TALENT_TREE, TalentTier } from '../data/talents';
 import { CLASSES } from '../data/classes';
+import { PROFESSIONS } from '../data/professions';
 import { QUESTS } from '../data/quests';
 import { DailyMetric, pickDailyTemplates } from '../data/dailyQuests';
 import { ARENA_RIVALS, arenaRankName } from '../data/arena';
@@ -51,7 +52,7 @@ export interface DepartedEntry {
 }
 
 interface SaveData {
-  pool: { id: number; level: number; xp: number; equipment: Record<GearSlotKey, string>; talents: (string | null)[]; classId: string | null; morale: number }[];
+  pool: { id: number; level: number; xp: number; equipment: Record<GearSlotKey, string>; talents: (string | null)[]; classId: string | null; professionId: string | null; morale: number }[];
   selected: number[];
   inventoryCounts: Record<string, number>;
   gold: number;
@@ -223,6 +224,7 @@ export interface PersonnelRosterEntry {
   epithet: string;
   role: Role;
   className: string | null;
+  professionName: string | null;
   level: number;
   morale: number;
   story: string;
@@ -289,7 +291,7 @@ export class GameEngine {
   private loaded = false;
 
   constructor() {
-    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null }));
+    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null }));
     this.selected = new Set([0, 2, 4, 5, 6]);
     this.inventoryCounts = { ...STARTING_INVENTORY };
   }
@@ -299,7 +301,7 @@ export class GameEngine {
   // restart always resumes at the title screen, out of combat.
   private serialize(): SaveData {
     return {
-      pool: this.pool.map((c) => ({ id: c.id, level: c.level, xp: c.xp, equipment: c.equipment, talents: c.talents, classId: c.classId, morale: c.morale })),
+      pool: this.pool.map((c) => ({ id: c.id, level: c.level, xp: c.xp, equipment: c.equipment, talents: c.talents, classId: c.classId, professionId: c.professionId, morale: c.morale })),
       selected: Array.from(this.selected),
       inventoryCounts: this.inventoryCounts,
       gold: this.gold,
@@ -335,7 +337,7 @@ export class GameEngine {
           if (!def) return null;
           return {
             ...def, level: saved.level, xp: saved.xp, equipment: saved.equipment,
-            talents: saved.talents, classId: saved.classId ?? null, morale: saved.morale,
+            talents: saved.talents, classId: saved.classId ?? null, professionId: saved.professionId ?? null, morale: saved.morale,
           };
         })
         .filter((c): c is Candidate => c != null);
@@ -381,7 +383,7 @@ export class GameEngine {
   }
   async resetProgress() {
     if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
-    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null }));
+    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null }));
     this.selected = new Set([0, 2, 4, 5, 6]);
     this.inventoryCounts = { ...STARTING_INVENTORY };
     this.gold = STARTING_GOLD;
@@ -683,6 +685,35 @@ export class GameEngine {
     }));
   }
 
+  // ── profession ───────────────────────────────────────────
+  professionMults(c: Candidate) {
+    const opt = c.professionId ? PROFESSIONS.find((o) => o.id === c.professionId) : null;
+    return {
+      outputMult: opt?.outputMult || 1,
+      hpMult: opt?.hpMult || 1,
+      wardMult: opt?.wardMult || 1,
+      cdMult: opt?.cdMult || 1,
+    };
+  }
+  chooseProfession(candidateId: number, professionId: string) {
+    const c = this.pool.find((x) => x.id === candidateId);
+    if (!c || c.professionId != null) return;
+    if (!PROFESSIONS.some((o) => o.id === professionId)) return;
+    c.professionId = professionId;
+    this.notify();
+  }
+  professionOptionsVM(c: Candidate) {
+    return PROFESSIONS.map((o) => ({
+      id: o.id,
+      name: o.name,
+      desc: o.desc,
+      icon: o.icon,
+      selected: c.professionId === o.id,
+      disabled: c.professionId != null,
+      onPick: () => this.chooseProfession(c.id, o.id),
+    }));
+  }
+
   // ── analytics ────────────────────────────────────────────
   analyticsVM(): AnalyticsVM {
     const roomWins = this.statsRoomWins, bossWins = this.statsBossWins, wipes = this.statsWipes;
@@ -709,6 +740,7 @@ export class GameEngine {
         epithet: c.epithet,
         role: c.role,
         className: c.classId ? (CLASSES[c.role].find((cl) => cl.id === c.classId)?.name ?? null) : null,
+        professionName: c.professionId ? (PROFESSIONS.find((p) => p.id === c.professionId)?.name ?? null) : null,
         level: c.level,
         morale: c.morale,
         story: c.story,
@@ -838,7 +870,7 @@ export class GameEngine {
     const cost = def.hireCost ?? 0;
     if (this.gold < cost) return;
     this.gold -= cost;
-    this.pool.push({ ...def, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null });
+    this.pool.push({ ...def, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null });
     this.notify();
   }
 
@@ -957,19 +989,21 @@ export class GameEngine {
       const gm = this.gearMults(d);
       const tm = this.talentMults(d);
       const cm = this.classMults(d);
+      const pm = this.professionMults(d);
       // A satisfied employee performs better — an unhappy one phones it in.
       const moraleMult = d.morale >= 80 ? 1.05 : d.morale < 30 ? 0.90 : 1;
       // Spread over the full 30-level track rather than the old 5-level one —
       // +2%/level caps at +58% instead of the old +20%, so a maxed veteran is
       // meaningfully stronger without trivialising the early campaign.
       const lvl = 1 + (d.level - 1) * 0.02;
-      const maxHp = Math.round(d.hp * gm.hpMult * tm.hpMult * cm.hpMult * lvl);
+      const maxHp = Math.round(d.hp * gm.hpMult * tm.hpMult * cm.hpMult * pm.hpMult * lvl);
       return {
         id: i, name: d.name, role: d.role, attackRange: d.attackRange, candidateId: d.id, trait: d.trait, level: d.level,
         maxHp, hp: maxHp, alive: true, dps: d.dps, healPower: d.healPower || 9,
-        outputMult: gm.outputMult * tm.outputMult * cm.outputMult * moraleMult, wardMult: gm.wardMult * tm.wardMult * cm.wardMult, levelMult: lvl,
+        outputMult: gm.outputMult * tm.outputMult * cm.outputMult * pm.outputMult * moraleMult,
+        wardMult: gm.wardMult * tm.wardMult * cm.wardMult * pm.wardMult, levelMult: lvl,
         speed: baseSpeed[d.role] + (d.id % 5) * 0.1,
-        chainPartner: null, ability: this.makeAbility(d.id, gm.cdMult * tm.cdMult),
+        chainPartner: null, ability: this.makeAbility(d.id, gm.cdMult * tm.cdMult * pm.cdMult),
         row: BACK_ROW, col: i,
       };
     });

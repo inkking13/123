@@ -26,7 +26,7 @@ function RosterCard({ c }: { c: PersonnelRosterEntry }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: roleColor[c.role] }} />
           <Text style={{ fontSize: 11.5, color: colors.textMuted, fontFamily: font.regular }}>
-            {roleName[c.role]}{c.className ? ` · ${c.className}` : ''} · мораль {c.morale}%
+            {roleName[c.role]}{c.className ? ` · ${c.className}` : ''}{c.professionName ? ` · ${c.professionName}` : ''} · мораль {c.morale}%
           </Text>
         </View>
         <Text style={{ fontSize: 12, lineHeight: 17.5, color: colors.textMuted, marginTop: 8, fontFamily: font.regular }}>{c.story}</Text>
