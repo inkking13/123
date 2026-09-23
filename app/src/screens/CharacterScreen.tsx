@@ -30,6 +30,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
   ];
   const ability = ABILITY_BY_CANDIDATE[cc.id];
   const attrs = engine.attributesFor(cc);
+  const setProgress = engine.setProgressVM(cc);
   const attrRows: { label: string; value: number; icon: 'sword' | 'shield' | 'scroll' | 'target' | 'path' }[] = [
     { label: 'Сила', value: attrs.strength, icon: 'sword' },
     { label: 'Ловкость', value: attrs.agility, icon: 'target' },
@@ -247,6 +248,33 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
               </>
             );
           })()}
+
+          {setProgress.length > 0 ? (
+            <>
+              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Комплект</Text>
+              {setProgress.map((s) => (
+                <View
+                  key={s.name}
+                  style={{
+                    borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 10,
+                    borderColor: s.active2 ? colors.accent : colors.borderStrong,
+                    backgroundColor: s.active2 ? colors.accentWash : colors.surface,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={{ fontSize: 13.5, fontFamily: font.medium, color: colors.text }}>{s.name}</Text>
+                    <Text style={{ fontSize: 11.5, color: colors.textFaint, fontFamily: font.regular }}>{s.count}/3</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, marginBottom: 3, color: s.active2 ? colors.accentSoft : colors.textFaint, fontFamily: font.regular }}>
+                    2 предмета: {s.bonus2Desc}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: s.active3 ? colors.accentSoft : colors.textFaint, fontFamily: font.regular }}>
+                    3 предмета: {s.bonus3Desc}
+                  </Text>
+                </View>
+              ))}
+            </>
+          ) : null}
 
           <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Снаряжение</Text>
           {slots.map((slot) => (

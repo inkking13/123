@@ -10,7 +10,9 @@ import { CLASSES } from '../data/classes';
 import { PROFESSIONS, PROFESSION_MAX_LEVEL, PROFESSION_XP_PER_LEVEL, professionTrainCost, scaledMult } from '../data/professions';
 import { REAGENTS, REAGENT_BY_LOCATION, ROOM_REAGENT_CHANCE } from '../data/reagents';
 import { RECIPES } from '../data/recipes';
+import { GEAR_SETS, GearSetDef, SetBonusDef } from '../data/gearSets';
 import { QUESTS } from '../data/quests';
+import { ACHIEVEMENTS } from '../data/achievements';
 import { DailyMetric, pickDailyTemplates } from '../data/dailyQuests';
 import { ARENA_RIVALS, arenaRankName } from '../data/arena';
 import { CURIOS } from '../data/curios';
@@ -24,7 +26,7 @@ import {
   Ability, AbilityIcon, BossMoveTimers, Raider, Sim, TurnEntry, LogKind,
 } from '../combat/types';
 
-export type Screen = 'title' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession';
+export type Screen = 'title' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession' | 'achievements';
 
 const SAVE_KEY = 'raid-commander.save.v1';
 const STARTING_GOLD = 60;
@@ -63,6 +65,8 @@ interface SaveData {
   defeatedDungeons: string[];
   claimedQuestIds: string[];
   curiosOwned: string[];
+  claimedAchievementIds: string[];
+  everCrafted: boolean;
   settings: { haptics: boolean };
   statsRoomWins: number;
   statsBossWins: number;
@@ -277,8 +281,10 @@ export class GameEngine {
   everInterrupted = false;
   everUsedAbility = false;
   everAssignedLoot = false;
+  everCrafted = false;
   claimedQuestIds = new Set<string>();
   curiosOwned = new Set<string>();
+  claimedAchievementIds = new Set<string>();
 
   // daily quests — reset whenever the wall-clock date rolls over
   dailyDate = '';
@@ -320,6 +326,8 @@ export class GameEngine {
       defeatedDungeons: Array.from(this.defeatedDungeons),
       claimedQuestIds: Array.from(this.claimedQuestIds),
       curiosOwned: Array.from(this.curiosOwned),
+      claimedAchievementIds: Array.from(this.claimedAchievementIds),
+      everCrafted: this.everCrafted,
       settings: this.settings,
       statsRoomWins: this.statsRoomWins,
       statsBossWins: this.statsBossWins,
@@ -362,6 +370,8 @@ export class GameEngine {
     if (data.defeatedDungeons) this.defeatedDungeons = new Set(data.defeatedDungeons);
     if (data.claimedQuestIds) this.claimedQuestIds = new Set(data.claimedQuestIds);
     if (data.curiosOwned) this.curiosOwned = new Set(data.curiosOwned);
+    if (data.claimedAchievementIds) this.claimedAchievementIds = new Set(data.claimedAchievementIds);
+    if (typeof data.everCrafted === 'boolean') this.everCrafted = data.everCrafted;
     if (data.settings) this.settings = { ...this.settings, ...data.settings };
     if (typeof data.statsRoomWins === 'number') this.statsRoomWins = data.statsRoomWins;
     if (typeof data.statsBossWins === 'number') this.statsBossWins = data.statsBossWins;
@@ -410,8 +420,10 @@ export class GameEngine {
     this.everInterrupted = false;
     this.everUsedAbility = false;
     this.everAssignedLoot = false;
+    this.everCrafted = false;
     this.claimedQuestIds = new Set();
     this.curiosOwned = new Set();
+    this.claimedAchievementIds = new Set();
     this.statsRoomWins = 0; this.statsBossWins = 0; this.statsWipes = 0;
     this.history = [];
     this.campReturns = 0;
@@ -699,6 +711,39 @@ export class GameEngine {
     }));
   }
 
+  // ── gear sets ────────────────────────────────────────────
+  setBonusesFor(c: Candidate): { set: GearSetDef; count: number }[] {
+    return GEAR_SETS.map((set) => {
+      let count = 0;
+      if (c.equipment.weapon === set.weapon) count++;
+      if (c.equipment.armor === set.armor) count++;
+      if (c.equipment.trinket === set.trinket) count++;
+      return { set, count };
+    }).filter((x) => x.count > 0);
+  }
+  setBonusMults(c: Candidate) {
+    let outputMult = 1, hpMult = 1, wardMult = 1, cdMult = 1;
+    for (const { set, count } of this.setBonusesFor(c)) {
+      if (count < 2) continue;
+      const apply = (b: SetBonusDef) => {
+        outputMult *= b.outputMult ?? 1; hpMult *= b.hpMult ?? 1; wardMult *= b.wardMult ?? 1; cdMult *= b.cdMult ?? 1;
+      };
+      apply(set.bonus2);
+      if (count >= 3) apply(set.bonus3);
+    }
+    return { outputMult, hpMult, wardMult, cdMult };
+  }
+  setProgressVM(c: Candidate) {
+    return this.setBonusesFor(c).map(({ set, count }) => ({
+      name: set.name,
+      count,
+      bonus2Desc: set.bonus2.desc,
+      bonus3Desc: set.bonus3.desc,
+      active2: count >= 2,
+      active3: count >= 3,
+    }));
+  }
+
   // ── profession ───────────────────────────────────────────
   professionMults(c: Candidate) {
     const opt = c.professionId ? PROFESSIONS.find((o) => o.id === c.professionId) : null;
@@ -820,6 +865,7 @@ export class GameEngine {
     this.reagentCounts[r.reagentId] -= r.reagentQty;
     this.gold -= r.goldCost;
     this.inventoryCounts[r.gearId] = (this.inventoryCounts[r.gearId] || 0) + 1;
+    this.everCrafted = true;
     this.notify();
   }
 
@@ -876,6 +922,27 @@ export class GameEngine {
     if (!q || !q.check(this)) return;
     this.claimedQuestIds.add(id);
     for (const c of this.pool) this.adjustMorale(c.id, q.rewardMorale);
+    this.notify();
+  }
+
+  // ── achievements ─────────────────────────────────────────
+  achievementVM() {
+    return ACHIEVEMENTS.map((a) => ({
+      id: a.id,
+      name: a.name,
+      desc: a.desc,
+      rewardDesc: `+${a.rewardGold} золота`,
+      achieved: a.check(this),
+      claimed: this.claimedAchievementIds.has(a.id),
+      onClaim: () => this.claimAchievement(a.id),
+    }));
+  }
+  claimAchievement(id: string) {
+    if (this.claimedAchievementIds.has(id)) return;
+    const a = ACHIEVEMENTS.find((x) => x.id === id);
+    if (!a || !a.check(this)) return;
+    this.claimedAchievementIds.add(id);
+    this.gold += a.rewardGold;
     this.notify();
   }
 
@@ -1101,10 +1168,11 @@ export class GameEngine {
     const tm = this.talentMults(c);
     const cm = this.classMults(c);
     const pm = this.professionMults(c);
+    const sm = this.setBonusMults(c);
     const moraleMult = c.morale >= 80 ? 1.05 : c.morale < 30 ? 0.90 : 1;
     const lvl = 1 + (c.level - 1) * 0.02;
-    const outputMult = gm.outputMult * tm.outputMult * cm.outputMult * pm.outputMult * moraleMult;
-    const hpMult = gm.hpMult * tm.hpMult * cm.hpMult * pm.hpMult;
+    const outputMult = gm.outputMult * tm.outputMult * cm.outputMult * pm.outputMult * sm.outputMult * moraleMult;
+    const hpMult = gm.hpMult * tm.hpMult * cm.hpMult * pm.hpMult * sm.hpMult;
     const effDps = c.dps * outputMult * lvl;
     const effHeal = (c.healPower || 0) * outputMult * lvl;
     const effHp = c.hp * hpMult * lvl;
@@ -1127,20 +1195,21 @@ export class GameEngine {
       const tm = this.talentMults(d);
       const cm = this.classMults(d);
       const pm = this.professionMults(d);
+      const sm = this.setBonusMults(d);
       // A satisfied employee performs better — an unhappy one phones it in.
       const moraleMult = d.morale >= 80 ? 1.05 : d.morale < 30 ? 0.90 : 1;
       // Spread over the full 30-level track rather than the old 5-level one —
       // +2%/level caps at +58% instead of the old +20%, so a maxed veteran is
       // meaningfully stronger without trivialising the early campaign.
       const lvl = 1 + (d.level - 1) * 0.02;
-      const maxHp = Math.round(d.hp * gm.hpMult * tm.hpMult * cm.hpMult * pm.hpMult * lvl);
+      const maxHp = Math.round(d.hp * gm.hpMult * tm.hpMult * cm.hpMult * pm.hpMult * sm.hpMult * lvl);
       return {
         id: i, name: d.name, role: d.role, attackRange: d.attackRange, candidateId: d.id, trait: d.trait, level: d.level,
         maxHp, hp: maxHp, alive: true, dps: d.dps, healPower: d.healPower || 9,
-        outputMult: gm.outputMult * tm.outputMult * cm.outputMult * pm.outputMult * moraleMult,
-        wardMult: gm.wardMult * tm.wardMult * cm.wardMult * pm.wardMult, levelMult: lvl,
+        outputMult: gm.outputMult * tm.outputMult * cm.outputMult * pm.outputMult * sm.outputMult * moraleMult,
+        wardMult: gm.wardMult * tm.wardMult * cm.wardMult * pm.wardMult * sm.wardMult, levelMult: lvl,
         speed: baseSpeed[d.role] + (d.id % 5) * 0.1,
-        chainPartner: null, ability: this.makeAbility(d.id, gm.cdMult * tm.cdMult * pm.cdMult),
+        chainPartner: null, ability: this.makeAbility(d.id, gm.cdMult * tm.cdMult * pm.cdMult * sm.cdMult),
         row: BACK_ROW, col: i,
       };
     });

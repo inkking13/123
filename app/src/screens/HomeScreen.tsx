@@ -230,6 +230,23 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
           <Icon name="identification-card" size={18} color={colors.textDim} />
         </Pressable>
 
+        <Pressable
+          onPress={() => engine.go('achievements')}
+          style={({ pressed }) => ({
+            borderWidth: 1, borderColor: pressed ? colors.borderHover : colors.borderStrong,
+            borderRadius: 8, padding: 14, backgroundColor: colors.surface, marginBottom: 22,
+            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+          })}
+        >
+          <View>
+            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Достижения</Text>
+            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>
+              {engine.achievementVM().filter((a) => a.claimed).length}/{engine.achievementVM().length} получено
+            </Text>
+          </View>
+          <Icon name="trophy" size={18} color={colors.textDim} />
+        </Pressable>
+
         <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Походы</Text>
         {locationGroups.map(({ loc, dungeons }) => {
           const locUnlocked = dungeons.some((d) => !d.locked);
