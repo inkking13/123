@@ -15,6 +15,7 @@ export function TabBar({ engine }: { engine: GameEngine }) {
     { label: 'Лагерь', icon: 'campfire', active: screen === 'home', onTap: () => engine.go('home') },
     { label: 'Отряд', icon: 'users-three', active: screen === 'roster', onTap: () => engine.go('roster') },
     { label: 'Поход', icon: 'path', active: screen === 'levelmap', onTap: () => engine.go('levelmap') },
+    { label: 'Арена', icon: 'sword', active: screen === 'arena', onTap: () => engine.go('arena') },
     { label: 'KPI', icon: 'scroll', active: screen === 'quests', badge: hasReward, onTap: () => engine.go('quests') },
   ];
   return (

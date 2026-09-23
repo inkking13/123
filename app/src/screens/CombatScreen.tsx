@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine, TurnActionKey } from '../engine/GameEngine';
 import { colors, font, roleColor } from '../theme/theme';
@@ -257,9 +257,25 @@ function GridToken({ r, isActive, poisoned }: { r: Raider; isActive: boolean; po
   const hpPct = Math.max(0, (r.hp / r.maxHp) * 100);
   const hpColor = hpPct > 60 ? colors.good : hpPct > 30 ? colors.warn : colors.danger;
   const chained = r.chainPartner != null;
+  const shake = useRef(new Animated.Value(0)).current;
+  const prevHp = useRef(r.hp);
+  useEffect(() => {
+    if (r.hp < prevHp.current) {
+      shake.setValue(0);
+      Animated.sequence([
+        Animated.timing(shake, { toValue: 1, duration: 45, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: -1, duration: 45, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 1, duration: 45, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 0, duration: 45, useNativeDriver: true }),
+      ]).start();
+    }
+    prevHp.current = r.hp;
+  }, [r.hp, shake]);
   return (
     <View style={{ alignItems: 'center', width: '100%' }}>
-      <Avatar id={r.candidateId} size={30} radius={6} grayscale={!r.alive} style={isActive ? { borderWidth: 2, borderColor: roleColor[r.role] } : undefined} />
+      <Animated.View style={{ transform: [{ translateX: shake.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] }) }] }}>
+        <Avatar id={r.candidateId} size={30} radius={6} grayscale={!r.alive} style={isActive ? { borderWidth: 2, borderColor: roleColor[r.role] } : undefined} />
+      </Animated.View>
       <View style={{ width: '78%', marginTop: 3 }}>
         <ProgressBar pct={hpPct} color={hpColor} height={3} />
       </View>

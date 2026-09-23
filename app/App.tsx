@@ -25,6 +25,7 @@ import { AnalyticsScreen } from './src/screens/AnalyticsScreen';
 import { PersonnelScreen } from './src/screens/PersonnelScreen';
 import { LevelMapScreen } from './src/screens/LevelMapScreen';
 import { HireScreen } from './src/screens/HireScreen';
+import { ArenaScreen } from './src/screens/ArenaScreen';
 
 function Root({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -46,6 +47,7 @@ function Root({ engine }: { engine: GameEngine }) {
     case 'personnel': return <PersonnelScreen engine={engine} />;
     case 'levelmap': return <LevelMapScreen engine={engine} />;
     case 'hire': return <HireScreen engine={engine} />;
+    case 'arena': return <ArenaScreen engine={engine} />;
     default: return null;
   }
 }

@@ -12,6 +12,8 @@ export function QuestsScreen({ engine }: { engine: GameEngine }) {
   const insets = useSafeAreaInsets();
   const quests = engine.questVM();
   const doneCount = quests.filter((q) => q.claimed).length;
+  const dailies = engine.dailyQuestVM();
+  const dailyDoneCount = dailies.filter((q) => q.claimed).length;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -22,6 +24,50 @@ export function QuestsScreen({ engine }: { engine: GameEngine }) {
           Выполнено {doneCount}/{quests.length} · каждый закрытый показатель поднимает мораль всей гильдии.
         </Text>
 
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
+          Ежедневные задачи · {dailyDoneCount}/{dailies.length}
+        </Text>
+        {dailies.map((q) => (
+          <View
+            key={q.id}
+            style={{
+              borderWidth: 1, borderRadius: 8, padding: 14, marginBottom: 10,
+              borderColor: q.claimed ? colors.border : q.achieved ? colors.warn : colors.borderStrong,
+              backgroundColor: q.claimed ? 'transparent' : q.achieved ? 'rgba(201,176,109,0.12)' : colors.surface,
+              opacity: q.claimed ? 0.55 : 1,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+              <View style={{
+                width: 26, height: 26, borderRadius: 13, marginTop: 1, alignItems: 'center', justifyContent: 'center',
+                backgroundColor: q.claimed ? 'transparent' : 'rgba(201,176,109,0.14)',
+                borderWidth: q.claimed ? 1 : 0, borderColor: colors.borderStrong,
+              }}>
+                <Icon name={q.claimed ? 'check' : 'coins'} size={13} color={q.claimed ? colors.textFaint : colors.warn} weight={q.claimed ? 'fill' : 'regular'} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontFamily: font.medium, color: q.claimed ? colors.textFaint : colors.text }}>{q.name}</Text>
+                <Text style={{ fontSize: 12.5, color: colors.textDim, marginTop: 3, lineHeight: 18, fontFamily: font.regular }}>{q.desc}</Text>
+                <Text style={{ fontSize: 11.5, color: q.claimed ? colors.textFaint : colors.warn, marginTop: 6, fontFamily: font.regular }}>
+                  {q.claimed ? 'Награда получена' : `${q.progress}/${q.target} · ${q.rewardDesc}`}
+                </Text>
+              </View>
+            </View>
+            {q.achieved && !q.claimed ? (
+              <Pressable
+                onPress={q.onClaim}
+                style={{ marginTop: 12, height: 40, borderRadius: 8, borderWidth: 1, borderColor: colors.warn, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ fontSize: 13, fontFamily: font.medium, color: colors.warn }}>Забрать награду</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ))}
+
+        <View style={{ height: 10 }} />
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
+          Постоянные KPI
+        </Text>
         {quests.map((q) => (
           <View
             key={q.id}

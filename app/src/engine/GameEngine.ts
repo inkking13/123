@@ -2,12 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { POOL, RECRUITS, ALL_CANDIDATES, XP_PER_LEVEL, MAX_LEVEL } from '../data/characters';
-import { GEAR, SLOT_LABEL, SLOT_ORDER, STARTING_INVENTORY, BOSS_LOOT_TABLE, TRASH_LOOT_TABLE, TRASH_LOOT_CHANCE, SELL_RATIO } from '../data/gear';
+import { GEAR, SLOT_LABEL, SLOT_ORDER, STARTING_INVENTORY, BOSS_LOOT_TABLE, TRASH_LOOT_TABLE, TRASH_LOOT_CHANCE, SELL_RATIO, UNIQUE_BOSS_LOOT } from '../data/gear';
 import { DUNGEONS, DungeonDef } from '../data/dungeons';
 import { ABILITY_BY_CANDIDATE } from '../data/abilities';
 import { TALENT_TREE, TalentTier } from '../data/talents';
 import { CLASSES } from '../data/classes';
 import { QUESTS } from '../data/quests';
+import { DailyMetric, pickDailyTemplates } from '../data/dailyQuests';
+import { ARENA_RIVALS, arenaRankName } from '../data/arena';
 import { CURIOS } from '../data/curios';
 import { EventOption, OFFICE_EVENTS } from '../data/events';
 import { ItemIconId } from '../data/itemIcons';
@@ -19,7 +21,7 @@ import {
   Ability, AbilityIcon, BossMoveTimers, Raider, Sim, TurnEntry, LogKind,
 } from '../combat/types';
 
-export type Screen = 'title' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire';
+export type Screen = 'title' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena';
 
 const SAVE_KEY = 'raid-commander.save.v1';
 const STARTING_GOLD = 60;
@@ -64,6 +66,12 @@ interface SaveData {
   history: HistoryPoint[];
   campReturns: number;
   departedLog: DepartedEntry[];
+  dailyDate: string;
+  dailyProgress: Record<string, number>;
+  dailyClaimedIds: string[];
+  arenaRating: number;
+  arenaWins: number;
+  arenaLosses: number;
 }
 
 export interface GearSlotOption {
@@ -260,6 +268,18 @@ export class GameEngine {
   claimedQuestIds = new Set<string>();
   curiosOwned = new Set<string>();
 
+  // daily quests — reset whenever the wall-clock date rolls over
+  dailyDate = '';
+  dailyProgress: Record<string, number> = {};
+  dailyClaimedIds = new Set<string>();
+
+  // arena (offline PvP) — rating persists, the live opponent/flag do not
+  arenaRating = 1000;
+  arenaWins = 0;
+  arenaLosses = 0;
+  inArena = false;
+  arenaOpponent: { name: string; hp: number; dmgMult: number; goldReward: number; ratingWin: number; ratingLoss: number } | null = null;
+
   settings = { haptics: true };
 
   private turnTimer: ReturnType<typeof setTimeout> | null = null;
@@ -294,6 +314,12 @@ export class GameEngine {
       history: this.history,
       campReturns: this.campReturns,
       departedLog: this.departedLog,
+      dailyDate: this.dailyDate,
+      dailyProgress: this.dailyProgress,
+      dailyClaimedIds: Array.from(this.dailyClaimedIds),
+      arenaRating: this.arenaRating,
+      arenaWins: this.arenaWins,
+      arenaLosses: this.arenaLosses,
     };
   }
   private applySave(data: SaveData) {
@@ -328,6 +354,12 @@ export class GameEngine {
     if (Array.isArray(data.history)) this.history = data.history;
     if (typeof data.campReturns === 'number') this.campReturns = data.campReturns;
     if (Array.isArray(data.departedLog)) this.departedLog = data.departedLog;
+    if (typeof data.dailyDate === 'string') this.dailyDate = data.dailyDate;
+    if (data.dailyProgress) this.dailyProgress = data.dailyProgress;
+    if (data.dailyClaimedIds) this.dailyClaimedIds = new Set(data.dailyClaimedIds);
+    if (typeof data.arenaRating === 'number') this.arenaRating = data.arenaRating;
+    if (typeof data.arenaWins === 'number') this.arenaWins = data.arenaWins;
+    if (typeof data.arenaLosses === 'number') this.arenaLosses = data.arenaLosses;
   }
   async load() {
     try {
@@ -368,6 +400,8 @@ export class GameEngine {
     this.history = [];
     this.campReturns = 0;
     this.departedLog = [];
+    this.dailyDate = ''; this.dailyProgress = {}; this.dailyClaimedIds = new Set();
+    this.arenaRating = 1000; this.arenaWins = 0; this.arenaLosses = 0; this.inArena = false; this.arenaOpponent = null;
     this.payrollNotice = null; this.resignationNotice = null; this.activeEvent = null; this.employeeOfMonthNotice = null;
     try { await AsyncStorage.removeItem(SAVE_KEY); } catch {}
     this.screen = 'title';
@@ -480,6 +514,7 @@ export class GameEngine {
     if (!o || !o.price || this.gold < o.price) return;
     this.gold -= o.price;
     this.inventoryCounts[gearId] = (this.inventoryCounts[gearId] || 0) + 1;
+    this.bumpDaily('gearChange');
     this.notify();
   }
   sellItem(slot: GearSlotKey, gearId: string) {
@@ -561,6 +596,7 @@ export class GameEngine {
             stockLabel: o.id === 'none' ? '' : `в наличии: ${Math.max(0, free)}`,
             onPick: () => {
               if (!this.itemAvailable(c, slot, o.id)) return;
+              if (c.equipment[slot as GearSlotKey] !== o.id) this.bumpDaily('gearChange');
               c.equipment[slot as GearSlotKey] = o.id;
               this.notify();
             },
@@ -702,6 +738,49 @@ export class GameEngine {
     this.notify();
   }
 
+  // ── daily quests ─────────────────────────────────────────
+  private todayKey(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+  private ensureDailyFresh() {
+    const today = this.todayKey();
+    if (this.dailyDate !== today) {
+      this.dailyDate = today;
+      this.dailyProgress = {};
+      this.dailyClaimedIds = new Set();
+    }
+  }
+  private bumpDaily(metric: DailyMetric, amount = 1) {
+    this.ensureDailyFresh();
+    this.dailyProgress[metric] = (this.dailyProgress[metric] || 0) + amount;
+  }
+  dailyQuestVM(): (QuestVM & { progress: number; target: number })[] {
+    this.ensureDailyFresh();
+    return pickDailyTemplates(this.dailyDate).map((t) => {
+      const progress = Math.min(t.target, this.dailyProgress[t.metric] || 0);
+      return {
+        id: t.id,
+        name: t.name,
+        desc: t.desc,
+        rewardDesc: `+${t.rewardGold} золота`,
+        achieved: progress >= t.target,
+        claimed: this.dailyClaimedIds.has(t.id),
+        progress,
+        target: t.target,
+        onClaim: () => this.claimDailyQuest(t.id),
+      };
+    });
+  }
+  claimDailyQuest(id: string) {
+    this.ensureDailyFresh();
+    if (this.dailyClaimedIds.has(id)) return;
+    const t = pickDailyTemplates(this.dailyDate).find((x) => x.id === id);
+    if (!t || (this.dailyProgress[t.metric] || 0) < t.target) return;
+    this.dailyClaimedIds.add(id);
+    this.gold += t.rewardGold;
+    this.notify();
+  }
+
   gainXp(cid: number, amount: number) {
     const c = this.pool.find((x) => x.id === cid);
     if (!c || c.level >= MAX_LEVEL) return;
@@ -709,6 +788,7 @@ export class GameEngine {
     while (c.xp >= XP_PER_LEVEL && c.level < MAX_LEVEL) {
       c.xp -= XP_PER_LEVEL;
       c.level++;
+      this.bumpDaily('levelUp');
     }
     if (c.level >= MAX_LEVEL) c.xp = XP_PER_LEVEL;
   }
@@ -897,7 +977,7 @@ export class GameEngine {
 
   freshSim(enc: EncounterDef, keepRaiders: Raider[] | null): Sim {
     const raiders = keepRaiders || this.makeRaiders(this.squad());
-    const dmgMult = this.currentDungeon().dmgMult ?? 1;
+    const dmgMult = this.inArena ? (this.arenaOpponent?.dmgMult ?? 1) : (this.currentDungeon().dmgMult ?? 1);
     raiders.forEach((r, i) => {
       r.chainPartner = null;
       r.row = BACK_ROW; r.col = i;
@@ -924,6 +1004,72 @@ export class GameEngine {
     if (!this.sim.over) this.advanceTurn();
     this.notify();
   };
+
+  // ── arena (offline PvP) ──────────────────────────────────
+  arenaRankName(): string {
+    return arenaRankName(this.arenaRating);
+  }
+  private generateArenaOpponent() {
+    const raiders = this.makeRaiders(this.squad());
+    const totalMaxHp = raiders.reduce((s, r) => s + r.maxHp, 0);
+    const totalDps = raiders.reduce((s, r) => s + r.dps * (r.outputMult || 1) * (r.levelMult || 1), 0);
+    const ratingFactor = Math.max(0.6, Math.min(2.2, 1 + (this.arenaRating - 1000) / 600));
+    const hp = Math.max(200, Math.round(totalDps * 16 * ratingFactor));
+    const dmgMult = Math.max(0.55, Math.min(1.8, 0.85 * ratingFactor));
+    const name = ARENA_RIVALS[Math.floor(Math.random() * ARENA_RIVALS.length)];
+    return {
+      name, hp, dmgMult,
+      goldReward: 25 + Math.round(18 * ratingFactor),
+      ratingWin: 22, ratingLoss: 14,
+      totalMaxHpHint: totalMaxHp,
+    };
+  }
+  arenaVM() {
+    if (!this.arenaOpponent && this.squadReady()) this.arenaOpponent = this.generateArenaOpponent();
+    return {
+      rating: this.arenaRating,
+      rank: this.arenaRankName(),
+      wins: this.arenaWins,
+      losses: this.arenaLosses,
+      opponent: this.arenaOpponent,
+      ready: this.squadReady(),
+      onReroll: () => { this.arenaOpponent = this.squadReady() ? this.generateArenaOpponent() : null; this.notify(); },
+      onFight: () => this.startArenaFight(),
+    };
+  }
+  startArenaFight() {
+    if (!this.squadReady()) return;
+    if (!this.arenaOpponent) this.arenaOpponent = this.generateArenaOpponent();
+    this.inArena = true;
+    const opp = this.arenaOpponent;
+    const enc: EncounterDef = { type: 'boss', name: 'Арена', enemyName: opp.name, hp: opp.hp, desc: '' };
+    this.sim = this.freshSim(enc, null);
+    this.log('Отряд выходит на арену против ' + opp.name + '.');
+    this.screen = 'combat';
+    this.beginRound();
+    if (!this.sim.over) this.advanceTurn();
+    this.notify();
+  }
+  private endArenaGame(win: boolean) {
+    const s = this.sim!; s.over = true;
+    this.clearTurnTimer();
+    this.haptic(() => Haptics.notificationAsync(win ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error));
+    const opp = this.arenaOpponent!;
+    let goldFound = 0;
+    if (win) {
+      this.arenaWins++;
+      this.arenaRating += opp.ratingWin;
+      goldFound = opp.goldReward;
+      this.gold += goldFound;
+      this.bumpDaily('goldEarned', goldFound);
+    } else {
+      this.arenaLosses++;
+      this.arenaRating = Math.max(600, this.arenaRating - opp.ratingLoss);
+    }
+    this.result = { win, isBoss: true, loot: [], curioFound: null, goldFound };
+    this.screen = 'results';
+    this.notify();
+  }
 
   goDungeon() {
     this.encIdx = 0;
@@ -1287,6 +1433,7 @@ export class GameEngine {
       return;
     }
     this.everUsedAbility = true;
+    this.bumpDaily('abilityUsed');
     this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
     switch (a.kind) {
       case 'selfShield':
@@ -1476,6 +1623,7 @@ export class GameEngine {
   }
 
   endGame(win: boolean) {
+    if (this.inArena) { this.endArenaGame(win); return; }
     const s = this.sim!; s.over = true;
     this.clearTurnTimer();
     const isBoss = s.encounterType === 'boss';
@@ -1492,13 +1640,25 @@ export class GameEngine {
         name: GEAR[drop.slot].find((o) => o.id === drop.gearId)?.name || drop.gearId,
         assigned: null,
       }));
+      // Every boss's signature trophy is guaranteed on the dungeon's first-ever clear.
+      const unique = UNIQUE_BOSS_LOOT[this.dungeonId];
+      if (unique && !this.defeatedDungeons.has(this.dungeonId)) {
+        loot.push({
+          slot: unique.slot,
+          gearId: unique.gearId,
+          name: GEAR[unique.slot].find((o) => o.id === unique.gearId)?.name || unique.gearId,
+          assigned: null,
+        });
+      }
       curioFound = this.rollCurio(0.6);
       goldFound = 70 + Math.floor(Math.random() * 41);
       this.statsBossWins++;
+      this.bumpDaily('bossWin');
     } else if (win) {
       for (const r of s.raiders) this.gainXp(r.candidateId, 15);
       this.everClearedRoom = true;
       this.statsRoomWins++;
+      this.bumpDaily('roomWin');
       if (Math.random() < TRASH_LOOT_CHANCE) {
         const drop = TRASH_LOOT_TABLE[Math.floor(Math.random() * TRASH_LOOT_TABLE.length)];
         loot = [{
@@ -1514,6 +1674,7 @@ export class GameEngine {
       this.statsWipes++;
     }
     this.gold += goldFound;
+    if (goldFound > 0) this.bumpDaily('goldEarned', goldFound);
     this.result = { win, isBoss, loot, curioFound, goldFound };
     this.screen = 'results';
     this.notify();
@@ -1540,6 +1701,13 @@ export class GameEngine {
 
   resultPrimary = () => {
     const res = this.result!;
+    if (this.inArena) {
+      this.inArena = false;
+      this.arenaOpponent = null;
+      this.encIdx = 0; this.sim = null; this.result = null;
+      this.returnToCamp('arena');
+      return;
+    }
     if (res.win && !res.isBoss) {
       this.encIdx = Math.min(this.currentDungeon().encounters.length - 1, this.encIdx + 1);
       this.go('dungeon');
@@ -1550,7 +1718,10 @@ export class GameEngine {
     }
   };
   resultSecondary = () => {
+    const wasArena = this.inArena;
+    this.inArena = false;
+    this.arenaOpponent = null;
     this.encIdx = 0; this.sim = null; this.result = null;
-    this.returnToCamp('roster');
+    this.returnToCamp(wasArena ? 'arena' : 'roster');
   };
 }
