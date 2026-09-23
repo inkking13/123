@@ -28,6 +28,7 @@ import { HireScreen } from './src/screens/HireScreen';
 import { ArenaScreen } from './src/screens/ArenaScreen';
 import { ProfessionScreen } from './src/screens/ProfessionScreen';
 import { AchievementsScreen } from './src/screens/AchievementsScreen';
+import { WeeklyChallengeScreen } from './src/screens/WeeklyChallengeScreen';
 
 function Root({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -52,6 +53,7 @@ function Root({ engine }: { engine: GameEngine }) {
     case 'arena': return <ArenaScreen engine={engine} />;
     case 'profession': return <ProfessionScreen engine={engine} />;
     case 'achievements': return <AchievementsScreen engine={engine} />;
+    case 'weekly': return <WeeklyChallengeScreen engine={engine} />;
     default: return null;
   }
 }

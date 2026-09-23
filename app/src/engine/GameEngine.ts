@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { POOL, RECRUITS, ALL_CANDIDATES, XP_PER_LEVEL, MAX_LEVEL } from '../data/characters';
 import { GEAR, SLOT_LABEL, SLOT_ORDER, STARTING_INVENTORY, BOSS_LOOT_TABLE, TRASH_LOOT_TABLE, TRASH_LOOT_CHANCE, SELL_RATIO, UNIQUE_BOSS_LOOT } from '../data/gear';
-import { DUNGEONS, DungeonDef } from '../data/dungeons';
+import { DUNGEONS, DungeonDef, LOCATIONS } from '../data/dungeons';
 import { ABILITY_BY_CANDIDATE } from '../data/abilities';
 import { TALENT_TREE, TalentTier } from '../data/talents';
 import { CLASSES } from '../data/classes';
@@ -15,6 +15,7 @@ import { QUESTS } from '../data/quests';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { DailyMetric, pickDailyTemplates } from '../data/dailyQuests';
 import { ARENA_RIVALS, arenaRankName } from '../data/arena';
+import { WeeklyModifierDef, pickWeeklyModifier, pickWeeklyDungeonId } from '../data/weeklyChallenge';
 import { CURIOS } from '../data/curios';
 import { EventOption, OFFICE_EVENTS } from '../data/events';
 import { ItemIconId } from '../data/itemIcons';
@@ -26,7 +27,7 @@ import {
   Ability, AbilityIcon, BossMoveTimers, Raider, Sim, TurnEntry, LogKind,
 } from '../combat/types';
 
-export type Screen = 'title' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession' | 'achievements';
+export type Screen = 'title' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession' | 'achievements' | 'weekly';
 
 const SAVE_KEY = 'raid-commander.save.v1';
 const STARTING_GOLD = 60;
@@ -80,6 +81,8 @@ interface SaveData {
   arenaRating: number;
   arenaWins: number;
   arenaLosses: number;
+  weeklyChallengeWeek: string;
+  weeklyClaimed: boolean;
 }
 
 export interface GearSlotOption {
@@ -298,6 +301,12 @@ export class GameEngine {
   inArena = false;
   arenaOpponent: { name: string; hp: number; dmgMult: number; goldReward: number; ratingWin: number; ratingLoss: number } | null = null;
 
+  // weekly challenge — a boss re-fight with a rotating modifier, replayable once its reward is claimed for the week
+  weeklyChallengeWeek = '';
+  weeklyClaimed = false;
+  inWeeklyChallenge = false;
+  private weeklyModifierDmgMult = 1;
+
   settings = { haptics: true };
 
   private turnTimer: ReturnType<typeof setTimeout> | null = null;
@@ -341,6 +350,8 @@ export class GameEngine {
       arenaRating: this.arenaRating,
       arenaWins: this.arenaWins,
       arenaLosses: this.arenaLosses,
+      weeklyChallengeWeek: this.weeklyChallengeWeek,
+      weeklyClaimed: this.weeklyClaimed,
     };
   }
   private applySave(data: SaveData) {
@@ -385,6 +396,8 @@ export class GameEngine {
     if (typeof data.arenaRating === 'number') this.arenaRating = data.arenaRating;
     if (typeof data.arenaWins === 'number') this.arenaWins = data.arenaWins;
     if (typeof data.arenaLosses === 'number') this.arenaLosses = data.arenaLosses;
+    if (typeof data.weeklyChallengeWeek === 'string') this.weeklyChallengeWeek = data.weeklyChallengeWeek;
+    if (typeof data.weeklyClaimed === 'boolean') this.weeklyClaimed = data.weeklyClaimed;
   }
   async load() {
     try {
@@ -430,6 +443,7 @@ export class GameEngine {
     this.departedLog = [];
     this.dailyDate = ''; this.dailyProgress = {}; this.dailyClaimedIds = new Set();
     this.arenaRating = 1000; this.arenaWins = 0; this.arenaLosses = 0; this.inArena = false; this.arenaOpponent = null;
+    this.weeklyChallengeWeek = ''; this.weeklyClaimed = false; this.inWeeklyChallenge = false; this.weeklyModifierDmgMult = 1;
     this.payrollNotice = null; this.resignationNotice = null; this.activeEvent = null; this.employeeOfMonthNotice = null;
     try { await AsyncStorage.removeItem(SAVE_KEY); } catch {}
     this.screen = 'title';
@@ -1217,7 +1231,9 @@ export class GameEngine {
 
   freshSim(enc: EncounterDef, keepRaiders: Raider[] | null): Sim {
     const raiders = keepRaiders || this.makeRaiders(this.squad());
-    const dmgMult = this.inArena ? (this.arenaOpponent?.dmgMult ?? 1) : (this.currentDungeon().dmgMult ?? 1);
+    const dmgMult = this.inArena
+      ? (this.arenaOpponent?.dmgMult ?? 1)
+      : (this.currentDungeon().dmgMult ?? 1) * (this.inWeeklyChallenge ? this.weeklyModifierDmgMult : 1);
     raiders.forEach((r, i) => {
       r.chainPartner = null;
       r.row = BACK_ROW; r.col = i;
@@ -1315,6 +1331,104 @@ export class GameEngine {
     this.encIdx = 0;
     this.sim = null;
     this.go('dungeon');
+  }
+
+  // ── weekly challenge (boss re-fight with a rotating modifier) ────
+  private weekKey(): string {
+    const days = Math.floor(Date.now() / 86400000);
+    return 'w' + Math.floor(days / 7);
+  }
+  private ensureWeeklyFresh() {
+    const wk = this.weekKey();
+    if (this.weeklyChallengeWeek !== wk) {
+      this.weeklyChallengeWeek = wk;
+      this.weeklyClaimed = false;
+    }
+  }
+  private currentWeeklyChallenge(): { dungeon: DungeonDef; encounter: EncounterDef; modifier: WeeklyModifierDef } | null {
+    this.ensureWeeklyFresh();
+    const cleared = DUNGEONS.filter((d) => this.defeatedDungeons.has(d.id));
+    const dungeonId = pickWeeklyDungeonId(this.weeklyChallengeWeek, cleared.map((d) => d.id));
+    if (!dungeonId) return null;
+    const dungeon = DUNGEONS.find((d) => d.id === dungeonId)!;
+    const modifier = pickWeeklyModifier(this.weeklyChallengeWeek);
+    const encounter = dungeon.encounters[dungeon.encounters.length - 1];
+    return { dungeon, encounter, modifier };
+  }
+  weeklyChallengeVM() {
+    const cur = this.currentWeeklyChallenge();
+    if (!cur) {
+      return {
+        available: false as const,
+        claimed: this.weeklyClaimed,
+        ready: this.squadReady(),
+      };
+    }
+    const loc = LOCATIONS.find((l) => l.id === cur.dungeon.locationId);
+    return {
+      available: true as const,
+      dungeonName: cur.dungeon.name,
+      locationName: loc?.name ?? '',
+      bossName: cur.encounter.enemyName,
+      modifierName: cur.modifier.name,
+      modifierDesc: cur.modifier.desc,
+      claimed: this.weeklyClaimed,
+      ready: this.squadReady(),
+      onFight: () => this.startWeeklyChallenge(),
+    };
+  }
+  startWeeklyChallenge() {
+    const cur = this.currentWeeklyChallenge();
+    if (!cur || !this.squadReady() || this.weeklyClaimed) return;
+    this.inWeeklyChallenge = true;
+    this.weeklyModifierDmgMult = cur.modifier.dmgMult;
+    this.dungeonId = cur.dungeon.id;
+    const enc: EncounterDef = { ...cur.encounter, hp: Math.round(cur.encounter.hp * cur.modifier.hpMult) };
+    this.sim = this.freshSim(enc, null);
+    this.log('Отряд выходит на испытание недели: ' + cur.dungeon.name + ' (' + cur.modifier.name + ').');
+    this.screen = 'combat';
+    this.beginRound();
+    if (!this.sim.over) this.advanceTurn();
+    this.notify();
+  }
+  private endWeeklyChallenge(win: boolean) {
+    const s = this.sim!; s.over = true;
+    this.clearTurnTimer();
+    this.haptic(() => Haptics.notificationAsync(win ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error));
+    const cur = this.currentWeeklyChallenge();
+    let loot: LootItem[] = [];
+    let curioFound: string | null = null;
+    let goldFound = 0;
+    let reagentFound: ReagentDrop | null = null;
+    if (win && cur) {
+      for (const r of s.raiders) this.gainXp(r.candidateId, 40);
+      this.weeklyClaimed = true;
+      this.statsBossWins++;
+      this.bumpDaily('bossWin');
+      goldFound = Math.round((70 + Math.floor(Math.random() * 41)) * cur.modifier.goldMult);
+      const reagentDef = REAGENT_BY_LOCATION[cur.dungeon.locationId];
+      if (reagentDef) {
+        const qty = 2 + Math.floor(Math.random() * 2) + cur.modifier.bonusReagentQty;
+        this.reagentCounts[reagentDef.id] = (this.reagentCounts[reagentDef.id] || 0) + qty;
+        reagentFound = { name: reagentDef.name, icon: reagentDef.icon, qty };
+      }
+      curioFound = this.rollCurio(cur.modifier.guaranteedCurio ? 1 : 0.6);
+      const rollCount = 1 + Math.floor(Math.random() * 2) + (cur.modifier.extraLootRoll ? 1 : 0);
+      const shuffled = [...BOSS_LOOT_TABLE].sort(() => Math.random() - 0.5);
+      loot = shuffled.slice(0, rollCount).map((drop) => ({
+        slot: drop.slot,
+        gearId: drop.gearId,
+        name: GEAR[drop.slot].find((o) => o.id === drop.gearId)?.name || drop.gearId,
+        assigned: null,
+      }));
+    } else {
+      this.statsWipes++;
+    }
+    this.gold += goldFound;
+    if (goldFound > 0) this.bumpDaily('goldEarned', goldFound);
+    this.result = { win, isBoss: true, loot, curioFound, goldFound, reagentFound };
+    this.screen = 'results';
+    this.notify();
   }
 
   // ── turn engine ──────────────────────────────────────────
@@ -1864,6 +1978,7 @@ export class GameEngine {
 
   endGame(win: boolean) {
     if (this.inArena) { this.endArenaGame(win); return; }
+    if (this.inWeeklyChallenge) { this.endWeeklyChallenge(win); return; }
     const s = this.sim!; s.over = true;
     this.clearTurnTimer();
     const isBoss = s.encounterType === 'boss';
@@ -1959,6 +2074,13 @@ export class GameEngine {
       this.returnToCamp('arena');
       return;
     }
+    if (this.inWeeklyChallenge) {
+      this.inWeeklyChallenge = false;
+      this.weeklyModifierDmgMult = 1;
+      this.encIdx = 0; this.sim = null; this.result = null;
+      this.returnToCamp('home');
+      return;
+    }
     if (res.win && !res.isBoss) {
       this.encIdx = Math.min(this.currentDungeon().encounters.length - 1, this.encIdx + 1);
       this.go('dungeon');
@@ -1972,6 +2094,7 @@ export class GameEngine {
     const wasArena = this.inArena;
     this.inArena = false;
     this.arenaOpponent = null;
+    if (this.inWeeklyChallenge) { this.inWeeklyChallenge = false; this.weeklyModifierDmgMult = 1; }
     this.encIdx = 0; this.sim = null; this.result = null;
     this.returnToCamp(wasArena ? 'arena' : 'roster');
   };

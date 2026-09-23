@@ -28,6 +28,7 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
   const inventory = engine.inventoryVM();
   const freeItems = inventory.reduce((sum, r) => sum + Math.max(0, r.free), 0);
   const hireCount = engine.hireVM().length;
+  const weeklyVM = engine.weeklyChallengeVM();
 
   const locationGroups = LOCATIONS.map((loc) => ({
     loc,
@@ -245,6 +246,23 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
             </Text>
           </View>
           <Icon name="trophy" size={18} color={colors.textDim} />
+        </Pressable>
+
+        <Pressable
+          onPress={() => engine.go('weekly')}
+          style={({ pressed }) => ({
+            borderWidth: 1, borderColor: pressed ? colors.borderHover : colors.borderStrong,
+            borderRadius: 8, padding: 14, backgroundColor: colors.surface, marginBottom: 22,
+            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+          })}
+        >
+          <View>
+            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Испытание недели</Text>
+            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>
+              {weeklyVM.available ? (weeklyVM.claimed ? 'Награда уже получена' : weeklyVM.modifierName) : 'Откроется после первого босса'}
+            </Text>
+          </View>
+          <Icon name="chart-line-up" size={18} color={colors.textDim} />
         </Pressable>
 
         <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Походы</Text>
