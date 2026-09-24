@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, ScrollView, Text, View } from 'react-native';
+import { Animated, Easing, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine, TurnActionKey } from '../engine/GameEngine';
 import { colors, font, roleColor } from '../theme/theme';
@@ -10,6 +10,7 @@ import { SkillIcon } from '../components/SkillIcon';
 import { ProgressBar } from '../components/ProgressBar';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
+import { BOSS_ART, MONSTER_ART, ROOM_ART } from '../data/monsterArt';
 import { ActivePulse, AuraRing, Crosshair, DangerPulse, DebtCoin, DefendBadge, FoeCell, Floaters, FrozenOverlay, ImpactBurst, IceShellOverlay, LavaGlow, PoisonBubbles, Projectile, RallyWave, Tether, impactDelay, useActorMotion, useHpFloaters, useSlideIn } from '../components/CombatFx';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
@@ -63,6 +64,10 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const isBossFight = s.encounterType === 'boss';
   const enemyCenter = Math.floor(GRID_COLS / 2);
   const enemySlots = ENEMY_SLOTS[s.enemies.length] ?? [];
+  // Arena rivals are other guilds' squads, not monsters, so they keep the plain skull.
+  const dungeonForArt = engine.inArena ? null : engine.currentDungeon();
+  const bossArt = dungeonForArt && BOSS_ART[dungeonForArt.id] ? MONSTER_ART[BOSS_ART[dungeonForArt.id]] : undefined;
+  const roomArt = dungeonForArt ? ROOM_ART[dungeonForArt.locationId] : undefined;
   const focusId = engine.focusEnemy()?.id;
   const stunnedNow = s.stunned || s.vulnerableRounds > 0;
   const enraged = s.round >= s.enrageAt;
@@ -132,11 +137,18 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 14, paddingBottom: 16 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-          <Text style={{ fontSize: 13, fontFamily: font.medium, color: colors.text }}>{bossLabel}</Text>
-          <Text style={{ fontSize: 11, color: colors.textDim, fontVariant: ['tabular-nums'], fontFamily: font.regular }}>{Math.round(bossPct)}%</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {isBossFight && bossArt ? (
+            <Image source={bossArt} style={{ width: 46, height: 46, borderRadius: 8, borderWidth: 1.5, borderColor: colors.danger }} />
+          ) : null}
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
+              <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, fontFamily: font.medium, color: colors.text }}>{bossLabel}</Text>
+              <Text style={{ fontSize: 11, color: colors.textDim, fontVariant: ['tabular-nums'], fontFamily: font.regular }}>{Math.round(bossPct)}%</Text>
+            </View>
+            <ProgressBar pct={bossPct} color={colors.danger} height={8} />
+          </View>
         </View>
-        <ProgressBar pct={bossPct} color={colors.danger} height={8} />
 
         {/* Stagger meter + enrage clock */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 7 }}>
@@ -243,7 +255,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                   <FoeCell
                     key={col} icon="skull" hp={s.boss.hp} maxHp={s.boss.maxHp} alive={s.boss.hp > 0}
                     focused={false} isBoss poisoned={!!s.bossPoison} stunned={stunnedFoes} phase={s.phase} fx={s.fx}
-                    overlay={s.iceShell ? <IceShellOverlay /> : null}
+                    overlay={s.iceShell ? <IceShellOverlay /> : null} art={bossArt}
                   />
                 );
               }
@@ -257,6 +269,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                   key={col} testID={'enemy-' + e.id} icon={ENEMY_ICON[e.role]} name={e.name}
                   hp={e.hp} maxHp={e.maxHp} alive={e.alive} focused={e.alive && e.id === focusId} isBoss={false}
                   poisoned={s.bossPoison?.enemyId === e.id} stunned={stunnedFoes} fx={s.fx} onPress={() => engine.setFocus(e.id)}
+                  art={roomArt ? MONSTER_ART[roomArt[e.role]] : undefined}
                 />
               );
             })}

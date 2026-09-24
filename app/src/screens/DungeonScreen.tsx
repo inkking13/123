@@ -1,8 +1,9 @@
 import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Image, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GameEngine } from '../engine/GameEngine';
+import { GameEngine, roomGroupRoles } from '../engine/GameEngine';
+import { BOSS_ART, MONSTER_ART, ROOM_ART } from '../data/monsterArt';
 import { colors, font } from '../theme/theme';
 import { Avatar } from '../components/Avatar';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
@@ -40,8 +41,20 @@ export function DungeonScreen({ engine }: { engine: GameEngine }) {
 
         <View style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 14, marginBottom: 18, backgroundColor: colors.surface }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 15, fontFamily: font.medium, color: colors.danger }}>{enc.enemyName}</Text>
+            <Text style={{ flex: 1, fontSize: 15, fontFamily: font.medium, color: colors.danger }}>{enc.enemyName}</Text>
             <Text style={{ fontSize: 12, color: colors.textDim, fontFamily: font.regular }}>HP {enc.hp}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            {enc.type === 'boss'
+              ? (BOSS_ART[dungeon.id] ? <Image source={MONSTER_ART[BOSS_ART[dungeon.id]]} style={{ width: 96, height: 96, borderRadius: 8, borderWidth: 1.5, borderColor: colors.danger }} /> : null)
+              : ROOM_ART[dungeon.locationId]
+                ? roomGroupRoles(engine.encIdx).map((role) => (
+                  <View key={role} style={{ alignItems: 'center', gap: 4 }}>
+                    <Image source={MONSTER_ART[ROOM_ART[dungeon.locationId][role]]} style={{ width: 64, height: 64, borderRadius: 8, borderWidth: 1, borderColor: colors.borderStrong }} />
+                    <Text style={{ fontSize: 10, color: colors.textDim, fontFamily: font.regular }}>{{ brute: 'Громила', archer: 'Стрелок', shaman: 'Шаман' }[role]}</Text>
+                  </View>
+                ))
+                : null}
           </View>
           {enc.type === 'boss' && dungeon.signature ? (
             <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>

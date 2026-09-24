@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, Text, View } from 'react-native';
+import { Animated, Easing, Image, Pressable, Text, View } from 'react-native';
 import { CombatFx } from '../combat/types';
 import { colors, font } from '../theme/theme';
 import { Icon, IconName } from './Icon';
@@ -135,10 +135,12 @@ export function useActorMotion(fx: CombatFx, isActor: (fx: CombatFx) => boolean,
 }
 
 export function FoeCell({
-  icon, name, hp, maxHp, alive, focused, isBoss, poisoned, stunned, phase = 1, fx, onPress, testID, overlay,
+  icon, name, hp, maxHp, alive, focused, isBoss, poisoned, stunned, phase = 1, fx, onPress, testID, overlay, art,
 }: {
   icon: IconName; name?: string; hp: number; maxHp: number; alive: boolean; focused: boolean; isBoss: boolean;
   poisoned: boolean; stunned: boolean; phase?: number; fx: CombatFx; onPress?: () => void; testID?: string; overlay?: React.ReactNode;
+  /** Monster portrait; without it the cell falls back to the plain icon. */
+  art?: any;
 }) {
   const delay = () => (fx.actor !== 'enemy' ? impactDelay(fx) : 0);
   const { shake, flash } = useHitReaction(hp, delay);
@@ -196,11 +198,32 @@ export function FoeCell({
           ],
         }}
       >
+        {art ? (
+          <>
+            <Image source={art} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', borderRadius: 6 }} />
+            {!isBoss ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '46%', borderBottomLeftRadius: 6, borderBottomRightRadius: 6, backgroundColor: 'rgba(10,10,18,0.62)' }} /> : null}
+          </>
+        ) : null}
         {alive ? overlay : null}
         <Animated.View
           pointerEvents="none"
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 7, backgroundColor: fx.crit ? 'rgba(201,176,109,0.55)' : 'rgba(255,235,225,0.45)', opacity: flash }}
         />
+        {art ? (
+          <View style={{ position: 'absolute', left: 3, right: 3, bottom: 3, alignItems: 'center', gap: 2 }}>
+            {name ? <Text numberOfLines={1} style={{ fontSize: 9, color: focused ? colors.warn : '#e9e6f2', fontFamily: font.medium, textShadowColor: '#000', textShadowRadius: 2 }}>{name}</Text> : null}
+            {!isBoss ? <View style={{ width: '86%' }}><ProgressBar pct={(hp / maxHp) * 100} color={colors.danger} height={3} /></View> : null}
+          </View>
+        ) : null}
+        {art && !isBoss ? (
+          <View style={{ position: 'absolute', top: 3, left: 3, width: 16, height: 16, borderRadius: 8, backgroundColor: 'rgba(10,10,18,0.75)', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={alive ? icon : 'skull'} size={10} color={alive ? colors.danger : colors.textFaint} />
+          </View>
+        ) : null}
+        {art && poisoned ? (
+          <View style={{ position: 'absolute', top: 3, right: 3 }}><Icon name="drop" size={11} color={colors.good} weight="fill" /></View>
+        ) : null}
+        {art ? null : <>
         <View>
           <Icon name={alive ? icon : 'skull'} size={isBoss ? 26 : 17} color={alive ? colors.danger : colors.textFaint} weight={isBoss ? 'fill' : 'regular'} />
           {poisoned ? (
@@ -213,6 +236,7 @@ export function FoeCell({
             <ProgressBar pct={(hp / maxHp) * 100} color={colors.danger} height={3} />
           </View>
         ) : null}
+        </>}
       </Animated.View>
       <Animated.View
         pointerEvents="none"

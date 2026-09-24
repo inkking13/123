@@ -64,6 +64,9 @@ const DEFEND_MULT = 0.6;
 // leads (it carries the boss-style move kit); the others take a fixed share
 // of the room's HP pool, the brute gets the rest.
 const ROOM_GROUPS: EnemyRole[][] = [['brute', 'archer'], ['brute', 'shaman'], ['brute', 'archer', 'shaman']];
+export function roomGroupRoles(roomIdx: number): EnemyRole[] {
+  return ROOM_GROUPS[Math.min(roomIdx, ROOM_GROUPS.length - 1)];
+}
 const ENEMY_HP_SHARE: Record<Exclude<EnemyRole, 'brute'>, number> = { archer: 0.28, shaman: 0.25 };
 const ENEMY_NAME: Record<EnemyRole, string> = { brute: 'Громила', archer: 'Стрелок', shaman: 'Шаман' };
 const ENEMY_NAME_ACC: Record<EnemyRole, string> = { brute: 'громилу', archer: 'стрелка', shaman: 'шамана' };
@@ -1276,7 +1279,7 @@ export class GameEngine {
   }
 
   private buildRoomGroup(totalHp: number, roomIdx: number): Enemy[] {
-    const roles = ROOM_GROUPS[Math.min(roomIdx, ROOM_GROUPS.length - 1)];
+    const roles = roomGroupRoles(roomIdx);
     const hps = roles.map((r) => (r === 'brute' ? 0 : Math.round(totalHp * ENEMY_HP_SHARE[r])));
     hps[0] = totalHp - hps.reduce((a, b) => a + b, 0);
     return roles.map((role, i) => ({ id: i, role, name: ENEMY_NAME[role], maxHp: hps[i], hp: hps[i], alive: true }));
