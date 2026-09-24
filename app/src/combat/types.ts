@@ -55,6 +55,8 @@ export interface Raider {
   speed: number;
   chainPartner: number | null;
   ability: Ability;
+  /** Took the "Оборона" action — reduced damage until their own next turn. */
+  defending: boolean;
   row: number;
   col: number;
 }
@@ -119,6 +121,14 @@ export interface BossMoveTimers {
   brace: number;
   freeze: number;
   curse: number;
+  cleave: number;
+}
+
+/** A telegraphed area attack — marked on the grid on one boss turn, lands on the next on whoever is still standing in it. Cells are "row,col" keys. */
+export interface DangerZone {
+  kind: 'meteor' | 'cleave';
+  cells: string[];
+  cols: number[];
 }
 
 /** Ярл Ледяного Пепла's signature move: a raider frozen solid skips their own turns until it thaws or someone shatters the ice. */
@@ -156,6 +166,16 @@ export interface Sim {
   braceCall: BraceCall | null;
   frozen: FrozenState | null;
   ashCurse: AshCurseState | null;
+  danger: DangerZone | null;
+
+  /** Builds up from sustained hits; at 100 the boss is stunned (skips its next turn, loses whatever it was winding up) and stays vulnerable for a couple of rounds. */
+  stagger: number;
+  stunned: boolean;
+  vulnerableRounds: number;
+  /** Round from which the boss starts hitting harder every round, so stalling a fight out has a cost. */
+  enrageAt: number;
+  /** Rounds left of the post-rally boost to healing. */
+  inspiredRounds: number;
 
   rallyCd: number;
   tilt: number;

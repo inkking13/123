@@ -20,6 +20,7 @@ const ACTION_ICON: Record<TurnActionKey, IconName> = {
   breakIce: 'snowflake',
   brace: 'shield',
   rally: 'megaphone',
+  defend: 'shield',
 };
 
 export function CombatScreen({ engine }: { engine: GameEngine }) {
@@ -38,6 +39,9 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const isBossFight = s.encounterType === 'boss';
   const enemyCenter = Math.floor(GRID_COLS / 2);
   const enemyCols = isBossFight ? [enemyCenter] : [enemyCenter - 1, enemyCenter, enemyCenter + 1];
+  const stunnedNow = s.stunned || s.vulnerableRounds > 0;
+  const enraged = s.round >= s.enrageAt;
+  const dangerCells = new Set(s.danger?.cells ?? []);
 
   const onPickAction = (key: TurnActionKey, needsTarget: boolean) => {
     if (needsTarget) { setPickingTarget(key); return; }
@@ -57,6 +61,19 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
           <Text style={{ fontSize: 11, color: colors.textDim, fontVariant: ['tabular-nums'], fontFamily: font.regular }}>{Math.round(bossPct)}%</Text>
         </View>
         <ProgressBar pct={bossPct} color={colors.danger} height={8} />
+
+        {/* Stagger meter + enrage clock */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 7 }}>
+          <Text style={{ fontSize: 10, letterSpacing: 0.6, textTransform: 'uppercase', color: stunnedNow ? colors.warn : colors.textFaint, width: 58, fontFamily: font.regular }}>
+            {stunnedNow ? 'Оглушён' : 'Натиск'}
+          </Text>
+          <View style={{ flex: 1 }}>
+            <ProgressBar pct={stunnedNow ? 100 : s.stagger} color={stunnedNow ? colors.warn : colors.accent} height={4} />
+          </View>
+          <Text style={{ fontSize: 10.5, color: enraged ? colors.danger : colors.textFaint, fontFamily: enraged ? font.medium : font.regular, fontVariant: ['tabular-nums'] }}>
+            {enraged ? 'Ярость · урон ×' + engine.enrageMult().toFixed(2) : 'Раунд ' + s.round + ' · ярость через ' + (s.enrageAt - s.round)}
+          </Text>
+        </View>
 
         {/* Turn queue */}
         <View style={{ flexDirection: 'row', gap: 5, marginTop: 12, marginBottom: 4 }}>
@@ -90,6 +107,18 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
             <Text style={{ fontSize: 11, color: colors.textDim, marginTop: 2, fontFamily: font.regular }}>Прервите его на своём ходу, иначе он ударит на следующем ходу босса.</Text>
           </View>
         ) : null}
+        {s.danger ? (
+          <View style={{ marginTop: 10, borderWidth: 1, borderColor: colors.danger, borderRadius: 8, padding: 10, backgroundColor: 'rgba(209,104,92,0.1)' }}>
+            <Text style={{ fontSize: 12, color: '#f0c3bc', fontFamily: font.medium }}>
+              {s.danger.kind === 'meteor'
+                ? 'Огненный дождь по колоннам ' + s.danger.cols.map((c) => c + 1).join(' и ')
+                : 'Сокрушающий взмах по переднему ряду'}
+            </Text>
+            <Text style={{ fontSize: 11, color: colors.textDim, marginTop: 2, fontFamily: font.regular }}>
+              Ударит на следующем ходу противника по всем, кто останется на красных клетках.
+            </Text>
+          </View>
+        ) : null}
         {s.chain ? (
           <View style={{ marginTop: 10, borderWidth: 1, borderColor: colors.accent, borderRadius: 8, padding: 10, backgroundColor: colors.accentWash }}>
             <Text style={{ fontSize: 12, color: colors.accentSoft, fontFamily: font.medium }}>
@@ -120,7 +149,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
         <View style={{ marginTop: 14 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
             <Text style={{ fontSize: 10.5, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Поле боя</Text>
-            <Text style={{ fontSize: 10.5, color: colors.textFaint, fontFamily: font.regular }}>Ближний бой — только с переднего края</Text>
+            <Text style={{ fontSize: 10.5, color: colors.textFaint, fontFamily: font.regular }}>Передний край: ближний бой, строй, танк прикрывает</Text>
           </View>
           {/* Enemy row — same column grid as the party, so the whole thing reads as one battlefield */}
           <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
@@ -150,20 +179,24 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                 const isSelfCell = !!current && current.row === row && current.col === col;
                 const reachable = s.movePhase && reachableCells.some((c) => c.row === row && c.col === col);
                 const tappable = reachable || (s.movePhase && isSelfCell);
+                const danger = dangerCells.has(row + ',' + col);
                 return (
                   <Pressable
                     key={col}
+                    testID={'cell-' + row + '-' + col}
                     disabled={!tappable}
                     onPress={() => (isSelfCell ? engine.skipMove() : engine.moveRaider(row, col))}
                     style={{
                       flex: 1, aspectRatio: 1, borderRadius: 8,
                       borderWidth: reachable || (isSelfCell && s.movePhase) ? 2 : 1,
-                      borderColor: reachable ? colors.accent : isSelfCell ? colors.accentSoft : colors.border,
-                      backgroundColor: reachable ? colors.accentWash : colors.surface,
+                      borderColor: reachable ? colors.accent : isSelfCell ? colors.accentSoft : danger ? colors.danger : colors.border,
+                      backgroundColor: danger ? 'rgba(209,104,92,0.2)' : reachable ? colors.accentWash : colors.surface,
                       alignItems: 'center', justifyContent: 'center',
                     }}
                   >
-                    {raider ? <GridToken r={raider} isActive={current?.id === raider.id} poisoned={s.poison?.targetId === raider.id} /> : null}
+                    {raider
+                      ? <GridToken r={raider} isActive={current?.id === raider.id} poisoned={s.poison?.targetId === raider.id} />
+                      : danger ? <Icon name={s.danger?.kind === 'meteor' ? 'fire' : 'warning'} size={16} color={colors.danger} /> : null}
                   </Pressable>
                 );
               })}

@@ -40,6 +40,28 @@ const PAYROLL_PER_LEVEL = 1;
 const RESIGNATION_MORALE_THRESHOLD = 15;
 const RESIGNATION_CHANCE = 0.5;
 const HISTORY_LIMIT = 30;
+
+// Combat tuning for the stagger / enrage / combo layer.
+const STAGGER_MAX = 100;
+const STAGGER_ATTACK = 5;
+const STAGGER_FRONT_MELEE = 3;
+const STAGGER_CRIT = 5;
+const STAGGER_NUKE = 10;
+const STAGGER_DECAY = 5;
+const VULNERABLE_ROUNDS = 2;
+const VULNERABLE_MULT = 1.5;
+const ENRAGE_ROUND_BOSS = 14;
+const ENRAGE_ROUND_ROOM = 10;
+const ENRAGE_STEP = 0.12;
+const POISONED_BOSS_MULT = 1.15;
+const FORMATION_BONUS = 0.08;
+const INSPIRED_ROUNDS = 2;
+const INSPIRED_HEAL_MULT = 1.3;
+const TANK_GUARD_MULT = 0.85;
+const DEFEND_MULT = 0.6;
+const BERSERK_TAKEN_MULT = 1.25;
+// Offsets the counterplay the positional layer adds (dodgeable area hits, a tank soaking the front) — tuned by simulation against the pre-rework difficulty.
+const BOSS_DMG_SCALE = 1.6;
 const EMPLOYEE_OF_MONTH_CYCLE = 3;
 const DEPARTED_LOG_LIMIT = 20;
 
@@ -139,7 +161,7 @@ export interface TalentTierVM {
   options: TalentOptionVM[];
 }
 
-export type TurnActionKey = 'attack' | 'heal' | 'ability' | 'interrupt' | 'breakChain' | 'brace' | 'rally' | 'breakIce';
+export type TurnActionKey = 'attack' | 'heal' | 'ability' | 'interrupt' | 'breakChain' | 'brace' | 'rally' | 'breakIce' | 'defend';
 export interface TurnActionVM {
   key: TurnActionKey;
   label: string;
@@ -1225,7 +1247,7 @@ export class GameEngine {
         outputMult: gm.outputMult * tm.outputMult * cm.outputMult * pm.outputMult * sm.outputMult * moraleMult,
         wardMult: gm.wardMult * tm.wardMult * cm.wardMult * pm.wardMult * sm.wardMult, levelMult: lvl,
         speed: baseSpeed[d.role] + (d.id % 5) * 0.1,
-        chainPartner: null, ability: this.makeAbility(d.id, gm.cdMult * tm.cdMult * pm.cdMult * sm.cdMult),
+        chainPartner: null, defending: false, ability: this.makeAbility(d.id, gm.cdMult * tm.cdMult * pm.cdMult * sm.cdMult),
         row: BACK_ROW, col: i,
       };
     });
@@ -1238,6 +1260,7 @@ export class GameEngine {
       : (this.currentDungeon().dmgMult ?? 1) * (this.inWeeklyChallenge ? this.weeklyModifierDmgMult : 1);
     raiders.forEach((r, i) => {
       r.chainPartner = null;
+      r.defending = false;
       r.row = BACK_ROW; r.col = i;
       if (r.ability) { r.ability.active = false; r.ability.activeRounds = 0; r.ability.cd = 0; }
     });
@@ -1245,9 +1268,11 @@ export class GameEngine {
       boss: { name: enc.enemyName, maxHp: enc.hp, hp: enc.hp },
       name: enc.name, raiders, encounterType: enc.type, dmgMult,
       round: 1, order: [], turnPos: -1, awaitingPlayer: false, movePhase: false, bossCyclePos: 0,
-      bossMoveTimers: { beam: 1, meteor: 2, poison: 3, chain: 3, brace: 3, freeze: 2, curse: 2 },
+      bossMoveTimers: { beam: 1, meteor: 2, poison: 3, chain: 3, brace: 3, freeze: 2, curse: 2, cleave: 2 },
       pendingCast: null, chain: null, poison: null, bossPoison: null, partyWard: null, braceCall: null,
-      frozen: null, ashCurse: null,
+      frozen: null, ashCurse: null, danger: null,
+      stagger: 0, stunned: false, vulnerableRounds: 0, inspiredRounds: 0,
+      enrageAt: enc.type === 'boss' ? ENRAGE_ROUND_BOSS : ENRAGE_ROUND_ROOM,
       rallyCd: 0, tilt: 0, phase: 1, log: [], over: false, selected: null,
     };
   }
@@ -1457,19 +1482,28 @@ export class GameEngine {
     s.order = this.buildOrder();
     s.turnPos = -1;
     s.rallyCd = Math.max(0, s.rallyCd - 1);
+    if (s.partyWard && --s.partyWard.roundsLeft <= 0) s.partyWard = null;
+    if (s.inspiredRounds > 0) s.inspiredRounds--;
+    if (s.vulnerableRounds > 0 && --s.vulnerableRounds === 0) {
+      this.log(s.boss.name + ' приходит в себя.', 'warn');
+    }
+    if (s.round === s.enrageAt) {
+      this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
+      this.log(s.boss.name + ' впадает в ярость — с каждым раундом бьёт всё сильнее!', 'warn');
+    }
 
     if (s.phase >= 3) {
-      const dmg = Math.round(10 * s.dmgMult);
+      const dmg = Math.round(10 * this.bossDmgMult());
       if (this.alive().length) {
         for (const r of this.alive()) this.hurt(r, dmg);
-        this.log('Аура ярости обжигает весь рейд (-' + dmg + ').', 'warn');
+        this.log('Раскалённая аура обжигает весь рейд (-' + dmg + ').', 'warn');
       }
     }
     if (s.chain) {
       const a = s.raiders.find((r) => r.id === s.chain!.aId);
       const b = s.raiders.find((r) => r.id === s.chain!.bId);
       if (a && b && a.alive && b.alive) {
-        const dmg = Math.round(22 * s.dmgMult);
+        const dmg = Math.round(22 * this.bossDmgMult());
         this.hurt(a, dmg); this.hurt(b, dmg); this.addTilt(6);
         this.log('Цепь бьёт током — ' + a.name + ' и ' + b.name + ' страдают (-' + dmg + ').', 'warn');
         s.chain.roundsLeft--;
@@ -1504,6 +1538,7 @@ export class GameEngine {
     if (entry.kind === 'raider') {
       const r = s.raiders.find((x) => x.id === entry.id);
       if (!r || !r.alive) { this.advanceTurn(); return; }
+      this.tickAbility(r);
       if (s.poison && s.poison.targetId === r.id) {
         const dmg = Math.round(s.poison.dmgPerTick);
         this.hurt(r, dmg);
@@ -1575,7 +1610,7 @@ export class GameEngine {
     } else if (s.phase === 2 && s.boss.hp <= s.boss.maxHp * 0.25) {
       s.phase = 3;
       this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
-      this.log('Босс впадает в ярость! Аура жжёт весь рейд.', 'warn');
+      this.log('Босс звереет! Раскалённая аура жжёт весь рейд.', 'warn');
     }
   }
 
@@ -1601,6 +1636,9 @@ export class GameEngine {
     if (pw) d *= pw.mult;
     const curse = this.sim?.ashCurse;
     if (curse) d *= 1 + 0.15 * curse.stacks;
+    if (r.role === 'tank' && r.row === FRONT_ROW) d *= TANK_GUARD_MULT;
+    if (r.defending) d *= DEFEND_MULT;
+    if (r.ability && r.ability.kind === 'berserk' && r.ability.active) d *= BERSERK_TAKEN_MULT;
     d *= r.wardMult || 1;
     r.hp -= d;
   }
@@ -1613,6 +1651,49 @@ export class GameEngine {
       m *= 0.7 + 0.3 * (t / 4);
     }
     return m * (r.outputMult || 1) * (r.levelMult || 1);
+  }
+  enrageMult() {
+    const s = this.sim!;
+    return 1 + ENRAGE_STEP * Math.max(0, s.round - s.enrageAt + 1);
+  }
+  /** Avoidable (telegraphed) hits skip BOSS_DMG_SCALE, so a missed dodge stings without wiping a new player. */
+  bossDmgMult(avoidable = false) {
+    return this.sim!.dmgMult * this.enrageMult() * (avoidable ? 1 : BOSS_DMG_SCALE);
+  }
+  private tickAbility(r: Raider) {
+    r.defending = false;
+    const a = r.ability;
+    if (a.cd > 0) a.cd--;
+    if (a.active && --a.activeRounds <= 0) { a.active = false; a.activeRounds = 0; }
+  }
+  private frontAllies(r: Raider): number {
+    if (r.attackRange !== 'melee' || r.row !== FRONT_ROW) return 0;
+    return this.alive().filter((x) => x.id !== r.id && x.row === FRONT_ROW && Math.abs(x.col - r.col) === 1).length;
+  }
+  /** Every hit on the boss goes through here so combos, the stun window and the stagger meter apply consistently. */
+  private hitBoss(r: Raider, raw: number, staggerGain: number): { dmg: number; note: string } {
+    const s = this.sim!;
+    const tags: string[] = [];
+    let m = 1;
+    if (r.ability.kind === 'berserk' && r.ability.active) { m *= 2; tags.push('берсерк'); }
+    const allies = this.frontAllies(r);
+    if (allies > 0) { m *= 1 + FORMATION_BONUS * allies; tags.push('строй'); }
+    if (s.bossPoison) { m *= POISONED_BOSS_MULT; tags.push('яд'); }
+    if (s.vulnerableRounds > 0) { m *= VULNERABLE_MULT; tags.push('оглушён'); }
+    const dmg = Math.max(1, Math.round(raw * m));
+    s.boss.hp = Math.max(0, s.boss.hp - dmg);
+    if (s.vulnerableRounds === 0 && !s.stunned && staggerGain > 0 && s.boss.hp > 0) {
+      s.stagger = Math.min(STAGGER_MAX, s.stagger + staggerGain);
+      if (s.stagger >= STAGGER_MAX) {
+        s.stagger = 0;
+        s.stunned = true;
+        s.vulnerableRounds = VULNERABLE_ROUNDS + 1;
+        this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
+        this.log('Натиск сломил защиту — ' + s.boss.name + ' оглушён! Бейте, пока открыт.', 'ok');
+      }
+    }
+    this.checkPhase();
+    return { dmg, note: tags.length ? ' (' + tags.join(', ') + ')' : '' };
   }
   healTarget(healer: Raider): Raider | null {
     const injured = this.alive().filter((x) => x !== healer && x.hp < x.maxHp);
@@ -1694,6 +1775,7 @@ export class GameEngine {
       disabled: r.ability.cd > 0, sub: r.ability.cd > 0 ? `КД: ${r.ability.cd}` : undefined,
     });
     if (s.rallyCd <= 0) actions.push({ key: 'rally', label: 'Сплотить отряд', needsTarget: false, disabled: false });
+    actions.push({ key: 'defend', label: 'Оборона', sub: '−40% урона до след. хода', needsTarget: false, disabled: false });
     return actions;
   }
   healTargetsVM(): HealTargetVM[] {
@@ -1715,6 +1797,10 @@ export class GameEngine {
       case 'breakIce': this.doBreakIce(r); break;
       case 'brace': this.doBrace(r); break;
       case 'rally': this.doRally(r); break;
+      case 'defend':
+        r.defending = true;
+        this.log(r.name + ' уходит в оборону.');
+        break;
     }
     this.checkDeaths();
     this.notify();
@@ -1722,21 +1808,22 @@ export class GameEngine {
   };
 
   private doAttack(r: Raider) {
-    const s = this.sim!;
     const crit = Math.random() < 0.14;
-    let dmg = Math.max(1, Math.round(r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE));
-    if (crit) dmg = Math.round(dmg * 1.8);
-    s.boss.hp = Math.max(0, s.boss.hp - dmg);
-    this.log(r.name + (crit ? ' наносит критический удар: -' : ' атакует: -') + dmg, crit ? 'ok' : undefined);
+    let raw = r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE;
+    if (crit) raw *= 1.8;
+    const frontMelee = r.attackRange === 'melee' && r.row === FRONT_ROW;
+    const stagger = STAGGER_ATTACK + (frontMelee ? STAGGER_FRONT_MELEE : 0) + (crit ? STAGGER_CRIT : 0);
+    const { dmg, note } = this.hitBoss(r, raw, stagger);
+    this.log(r.name + (crit ? ' наносит критический удар: -' : ' атакует: -') + dmg + note, crit ? 'ok' : undefined);
     if (crit) this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
-    this.checkPhase();
   }
   private doHeal(r: Raider, targetId?: number) {
     let t = targetId != null ? this.sim!.raiders.find((x) => x.id === targetId && x.alive) || null : null;
     if (!t) t = this.healTarget(r) || r;
-    const amt = Math.max(1, Math.round(r.healPower * this.outMult(r) * this.healMult() * HEAL_TURN_SCALE));
+    const inspired = this.sim!.inspiredRounds > 0;
+    const amt = Math.max(1, Math.round(r.healPower * this.outMult(r) * this.healMult() * HEAL_TURN_SCALE * (inspired ? INSPIRED_HEAL_MULT : 1)));
     t.hp = Math.min(t.maxHp, t.hp + amt);
-    this.log(r.name + ' лечит ' + t.name + ': +' + amt, 'ok');
+    this.log(r.name + ' лечит ' + t.name + ': +' + amt + (inspired ? ' (воодушевление)' : ''), 'ok');
   }
   private doInterrupt(r: Raider) {
     const s = this.sim!;
@@ -1775,9 +1862,10 @@ export class GameEngine {
     if (s.rallyCd > 0) return;
     this.addTilt(-30);
     s.rallyCd = 4;
+    s.inspiredRounds = INSPIRED_ROUNDS + 1;
     const hadCurse = !!s.ashCurse;
     s.ashCurse = null;
-    this.log(r.name + ': «Так, все выдохнули! Добиваем!»' + (hadCurse ? ' Пепел стряхнут с плеч отряда.' : ''), 'ok');
+    this.log(r.name + ': «Так, все выдохнули! Добиваем!» Лечение усилено на 2 раунда.' + (hadCurse ? ' Пепел стряхнут с плеч отряда.' : ''), 'ok');
   }
   private doAbility(r: Raider) {
     const s = this.sim!;
@@ -1829,31 +1917,29 @@ export class GameEngine {
         this.log(r.name + ' смазывает клинки ядом василиска.', 'ok');
         break;
       case 'berserk':
-        a.active = true; a.activeRounds = a.activeMax; a.cd = a.cdMax;
+        // +1 because the casting turn itself is spent — the buff should cover the next activeMax attacks.
+        a.active = true; a.activeRounds = a.activeMax + 1; a.cd = a.cdMax;
         this.log(r.name + ' впадает в кровавую ярость — урон удвоен, но и сам он уязвим.', 'ok');
         break;
       case 'nukeSelfDamage': {
         a.cd = a.cdMax;
-        const dmg = Math.round(r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE * 0.9);
-        s.boss.hp = Math.max(0, s.boss.hp - dmg);
+        const { dmg, note } = this.hitBoss(r, r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE * 0.9, STAGGER_NUKE);
         this.hurt(r, 10);
-        this.log(r.name + ' бьёт зелёной стрелой (-' + dmg + ') — яд ранит и её саму.', 'ok');
+        this.log(r.name + ' бьёт зелёной стрелой (-' + dmg + note + ') — яд ранит и её саму.', 'ok');
         break;
       }
       case 'nukeHeal': {
         a.cd = a.cdMax;
-        const dmg = Math.round(r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE * 0.9);
-        s.boss.hp = Math.max(0, s.boss.hp - dmg);
+        const { dmg, note } = this.hitBoss(r, r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE * 0.9, STAGGER_NUKE);
         for (const x of this.alive()) x.hp = Math.min(x.maxHp, x.hp + 20);
-        this.log(r.name + ' выпускает Огонь Душ (-' + dmg + ') — обжигает врага и лечит отряд.', 'ok');
+        this.log(r.name + ' выпускает Огонь Душ (-' + dmg + note + ') — обжигает врага и лечит отряд.', 'ok');
         break;
       }
       case 'nukeTilt': {
         a.cd = a.cdMax;
-        const dmg = Math.round(r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE * 1.3);
-        s.boss.hp = Math.max(0, s.boss.hp - dmg);
+        const { dmg, note } = this.hitBoss(r, r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE * 1.3, STAGGER_NUKE);
         this.addTilt(6);
-        this.log(r.name + ' карает врага именем бога (-' + dmg + '), в которого уже не верит.', 'warn');
+        this.log(r.name + ' карает врага именем бога (-' + dmg + note + '), в которого уже не верит.', 'warn');
         break;
       }
     }
@@ -1863,10 +1949,18 @@ export class GameEngine {
   // ── boss turn ────────────────────────────────────────────
   private bossTurn() {
     const s = this.sim!;
+    if (s.stunned) {
+      s.stunned = false;
+      const interrupted = !!(s.pendingCast || s.braceCall || s.danger);
+      s.pendingCast = null; s.braceCall = null; s.danger = null;
+      this.log(s.boss.name + ' оглушён и пропускает ход' + (interrupted ? ' — заготовленная атака сорвана.' : '.'), 'ok');
+      return;
+    }
+    if (s.vulnerableRounds === 0) s.stagger = Math.max(0, s.stagger - STAGGER_DECAY);
     if (s.pendingCast) {
       const t = s.raiders.find((r) => r.id === s.pendingCast!.targetId);
       if (t && t.alive) {
-        const dmg = Math.round(140 * s.dmgMult);
+        const dmg = Math.round(140 * this.bossDmgMult());
         this.hurt(t, dmg);
         this.addTilt(15);
         this.log(t.name + ' получает полный луч смерти в лицо (-' + dmg + ').', 'warn');
@@ -1876,18 +1970,30 @@ export class GameEngine {
     }
     if (s.braceCall) {
       const soaked = s.braceCall.braced.size >= 3;
-      const dmg = Math.round((soaked ? 38 : 100) * s.dmgMult);
+      const dmg = Math.round((soaked ? 38 : 100) * this.bossDmgMult());
       for (const r of this.alive()) this.hurt(r, dmg);
       this.addTilt(soaked ? 4 : 16);
       this.log(soaked ? 'Рейд приготовился вовремя — «Кровавый прилив» смягчён.' : 'Никто толком не приготовился — Прилив ударил в полную силу!', soaked ? 'ok' : 'warn');
       s.braceCall = null;
       return;
     }
+    if (s.danger) {
+      const zone = s.danger;
+      s.danger = null;
+      const dmg = Math.round((zone.kind === 'meteor' ? 55 : 45) * this.bossDmgMult(true));
+      const hit = this.alive().filter((r) => zone.cells.includes(r.row + ',' + r.col));
+      for (const r of hit) { this.hurt(r, dmg); this.addTilt(6); }
+      const what = zone.kind === 'meteor' ? 'Огненный дождь' : 'Сокрушающий взмах';
+      if (hit.length) this.log(what + ' накрывает: ' + hit.map((r) => r.name).join(', ') + ' (-' + dmg + ').', 'warn');
+      else this.log(what + ' бьёт в пустоту — отряд вовремя сменил позицию.', 'ok');
+      return;
+    }
 
     const alive = this.alive();
     if (!alive.length) return;
     const t = s.bossMoveTimers;
-    const moves: (keyof BossMoveTimers)[] = this.currentDungeon().bossKit ?? ['beam', 'meteor', 'poison', 'chain', 'brace'];
+    // Every enemy can cleave the front line, on top of its own signature kit.
+    const moves: (keyof BossMoveTimers)[] = [...(this.currentDungeon().bossKit ?? ['beam', 'meteor', 'poison', 'chain', 'brace']), 'cleave'];
     for (const k of moves) t[k] = Math.max(0, t[k] - 1);
 
     const eligible = (k: keyof BossMoveTimers): boolean => {
@@ -1898,6 +2004,7 @@ export class GameEngine {
       if (k === 'brace') return s.phase >= 2;
       if (k === 'freeze') return !s.frozen;
       if (k === 'curse') return true;
+      if (k === 'cleave') return alive.some((r) => r.row === FRONT_ROW);
       return true; // meteor
     };
 
@@ -1909,10 +2016,7 @@ export class GameEngine {
     s.bossCyclePos = (s.bossCyclePos + 1) % moves.length;
 
     if (!chosen) {
-      const target = alive[Math.floor(Math.random() * alive.length)];
-      const dmg = Math.round((20 + Math.random() * 12) * s.dmgMult);
-      this.hurt(target, dmg);
-      this.log(s.name + ' обрушивается на ' + target.name + ' (-' + dmg + ').', 'warn');
+      this.basicStrike();
       return;
     }
 
@@ -1925,22 +2029,34 @@ export class GameEngine {
         break;
       }
       case 'meteor': {
-        const n = Math.min(alive.length, 2);
-        const pool = [...alive];
-        const dmg = Math.round(55 * s.dmgMult);
-        for (let i = 0; i < n; i++) {
-          const idx = Math.floor(Math.random() * pool.length);
-          const target = pool.splice(idx, 1)[0];
-          this.hurt(target, dmg);
-          this.addTilt(8);
-          this.log(target.name + ': «Я стою в огне!» (-' + dmg + ')', 'warn');
+        // Aimed at columns people are actually standing in, so it always demands a move.
+        const occupied = [...new Set(alive.map((r) => r.col))].sort(() => Math.random() - 0.5);
+        const cols = occupied.slice(0, 2);
+        while (cols.length < 2) {
+          const c = Math.floor(Math.random() * GRID_COLS);
+          if (!cols.includes(c)) cols.push(c);
         }
+        cols.sort((a, b) => a - b);
+        const cells: string[] = [];
+        for (const c of cols) for (let row = 0; row < GRID_ROWS; row++) cells.push(row + ',' + c);
+        s.danger = { kind: 'meteor', cells, cols };
+        this.log('Небо над колоннами ' + cols.map((c) => c + 1).join(' и ') + ' наливается огнём — уйдите с отмеченных клеток!', 'warn');
+        this.basicStrike();
         t.meteor = 3;
+        break;
+      }
+      case 'cleave': {
+        const cells: string[] = [];
+        for (let col = 0; col < GRID_COLS; col++) cells.push(FRONT_ROW + ',' + col);
+        s.danger = { kind: 'cleave', cells, cols: [] };
+        this.log(s.boss.name + ' замахивается на передний ряд — отступите или примите удар!', 'warn');
+        this.basicStrike();
+        t.cleave = 4;
         break;
       }
       case 'poison': {
         const target = alive[Math.floor(Math.random() * alive.length)];
-        s.poison = { targetId: target.id, roundsLeft: 3, dmgPerTick: Math.round(16 * s.dmgMult) };
+        s.poison = { targetId: target.id, roundsLeft: 3, dmgPerTick: Math.round(16 * this.bossDmgMult()) };
         this.log('Босс отравляет ' + target.name + ' — яд будет разъедать её каждый ход.', 'warn');
         t.poison = 4;
         break;
@@ -1976,6 +2092,21 @@ export class GameEngine {
         break;
       }
     }
+  }
+
+  /** Plain strikes go for whoever is standing in front, tanks first; an empty front line lets the boss reach anyone, harder. */
+  private basicStrike() {
+    const s = this.sim!;
+    const alive = this.alive();
+    if (!alive.length) return;
+    const front = alive.filter((r) => r.row === FRONT_ROW);
+    const tanks = front.filter((r) => r.role === 'tank');
+    const pool = tanks.length ? tanks : front.length ? front : alive;
+    const target = pool[Math.floor(Math.random() * pool.length)];
+    const exposed = front.length === 0;
+    const dmg = Math.round((20 + Math.random() * 12) * (exposed ? 1.3 : 1) * this.bossDmgMult());
+    this.hurt(target, dmg);
+    this.log(s.boss.name + ' обрушивается на ' + target.name + ' (-' + dmg + ')' + (exposed ? ' — передний край пуст, никто не прикрыл.' : '.'), 'warn');
   }
 
   endGame(win: boolean) {
