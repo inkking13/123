@@ -135,12 +135,14 @@ export function useActorMotion(fx: CombatFx, isActor: (fx: CombatFx) => boolean,
 }
 
 export function FoeCell({
-  icon, name, hp, maxHp, alive, focused, isBoss, poisoned, stunned, phase = 1, fx, onPress, testID, overlay, art,
+  icon, name, hp, maxHp, alive, focused, isBoss, poisoned, stunned, phase = 1, fx, onPress, testID, overlay, art, windup = false,
 }: {
   icon: IconName; name?: string; hp: number; maxHp: number; alive: boolean; focused: boolean; isBoss: boolean;
   poisoned: boolean; stunned: boolean; phase?: number; fx: CombatFx; onPress?: () => void; testID?: string; overlay?: React.ReactNode;
   /** Monster portrait; without it the cell falls back to the plain icon. */
   art?: any;
+  /** Rearing back for a heavy blow that lands this turn. */
+  windup?: boolean;
 }) {
   const delay = () => (fx.actor !== 'enemy' ? impactDelay(fx) : 0);
   const { shake, flash } = useHitReaction(hp, delay);
@@ -166,6 +168,27 @@ export function FoeCell({
     return () => loop.stop();
   }, [stunned, alive, wobble]);
 
+  // Wind-up: rears back and swells, glowing red, then snaps back as the blow lands.
+  const rear = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (windup && alive) {
+      rear.setValue(0);
+      Animated.timing(rear, { toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    } else {
+      Animated.timing(rear, { toValue: 0, duration: 110, easing: Easing.in(Easing.quad), useNativeDriver: true }).start();
+    }
+  }, [windup, alive, rear]);
+  const tremble = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!windup || !alive) { tremble.stopAnimation(); tremble.setValue(0); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(tremble, { toValue: 1, duration: 40, useNativeDriver: true }),
+      Animated.timing(tremble, { toValue: -1, duration: 40, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [windup, alive, tremble]);
+
   // Boss phase change: a shockwave ring.
   const ring = useRef(new Animated.Value(0)).current;
   const prevPhase = useRef(phase);
@@ -184,6 +207,16 @@ export function FoeCell({
       style={{ flex: 1, aspectRatio: 1, zIndex: 2 }}
     >
       <Animated.View
+        pointerEvents="none"
+        style={{
+          position: 'absolute', top: '-12%', left: '-12%', right: '-12%', bottom: '-12%', borderRadius: 999,
+          backgroundColor: 'rgba(230,70,50,0.45)',
+          shadowColor: '#ff4a2a', shadowOpacity: 1, shadowRadius: 24, shadowOffset: { width: 0, height: 0 },
+          opacity: rear.interpolate({ inputRange: [0, 1], outputRange: [0, 0.9] }),
+          transform: [{ scale: rear.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.1] }) }],
+        }}
+      />
+      <Animated.View
         style={{
           flex: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center', gap: 2,
           borderWidth: focused ? 2.5 : 1.5,
@@ -191,9 +224,12 @@ export function FoeCell({
           backgroundColor: alive ? 'rgba(209,104,92,0.12)' : 'transparent',
           opacity: life.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }),
           transform: [
-            { translateX: shake.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] }) },
-            { translateY: motion.translateY },
-            { scale: life.interpolate({ inputRange: [0, 1], outputRange: [0.78, 1] }) },
+            { translateX: Animated.add(
+              shake.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] }),
+              Animated.multiply(tremble, rear.interpolate({ inputRange: [0, 1], outputRange: [0, 2] })),
+            ) },
+            { translateY: Animated.add(motion.translateY, rear.interpolate({ inputRange: [0, 1], outputRange: [0, isBoss ? -16 : -8] })) },
+            { scale: Animated.multiply(life.interpolate({ inputRange: [0, 1], outputRange: [0.78, 1] }), rear.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] })) },
             { rotate: wobble.interpolate({ inputRange: [-1, 1], outputRange: ['-7deg', '7deg'] }) },
           ],
         }}

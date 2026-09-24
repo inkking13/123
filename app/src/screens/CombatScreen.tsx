@@ -160,6 +160,28 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
     return () => loop.stop();
   }, [drift]);
 
+  // Camera follows the turn: eases toward whoever acts and leans in harder on a wind-up.
+  const camX = useRef(new Animated.Value(0)).current;
+  const camY = useRef(new Animated.Value(0)).current;
+  const camZ = useRef(new Animated.Value(1)).current;
+  const enemyTurn = s.order[s.turnPos]?.kind === 'boss';
+  let focus: { x: number; y: number } | null = null;
+  let zoom = 1;
+  let pull = 0;
+  if (geo && s.windup) { focus = foePoint(-1); zoom = 1.1; pull = 0.3; }
+  else if (geo && enemyTurn) { focus = foePoint(-1); zoom = 1.04; pull = 0.15; }
+  else if (geo && current) { focus = raiderPoint(current.row, current.col); zoom = 1.05; pull = 0.15; }
+  const camTx = geo && focus ? -zoom * (focus.x - geo.width / 2) * pull : 0;
+  const camTy = geo && focus ? -zoom * (focus.y - geo.height / 2) * pull : 0;
+  useEffect(() => {
+    const ease = { duration: s.windup ? 600 : 420, easing: Easing.inOut(Easing.quad), useNativeDriver: true };
+    Animated.parallel([
+      Animated.timing(camX, { toValue: camTx, ...ease }),
+      Animated.timing(camY, { toValue: camTy, ...ease }),
+      Animated.timing(camZ, { toValue: zoom, ...ease }),
+    ]).start();
+  }, [camTx, camTy, zoom, s.windup, camX, camY, camZ]);
+
   const onPickAction = (key: TurnActionKey, needsTarget: boolean) => {
     if (needsTarget) { setPickingTarget(key); return; }
     engine.raiderAction(key);
@@ -303,9 +325,9 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                   style={{
                     position: 'absolute', left: 0, top: 0, width: geo.width, height: geo.height,
                     transform: [
-                      { translateX: Animated.add(fieldShake.interpolate({ inputRange: [-1, 1], outputRange: [-7, 7] }), drift.interpolate({ inputRange: [-1, 1], outputRange: [-3, 3] })) },
-                      { translateY: drift.interpolate({ inputRange: [-1, 0, 1], outputRange: [1.5, 0, 1.5] }) },
-                      { scale: punch.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) },
+                      { translateX: Animated.add(Animated.add(fieldShake.interpolate({ inputRange: [-1, 1], outputRange: [-7, 7] }), drift.interpolate({ inputRange: [-1, 1], outputRange: [-3, 3] })), camX) },
+                      { translateY: Animated.add(drift.interpolate({ inputRange: [-1, 0, 1], outputRange: [1.5, 0, 1.5] }), camY) },
+                      { scale: Animated.multiply(punch.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }), camZ) },
                     ],
                   }}
                 >
@@ -365,7 +387,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                           <FoeCell
                             icon="skull" hp={s.boss.hp} maxHp={s.boss.maxHp} alive={s.boss.hp > 0}
                             focused={false} isBoss poisoned={!!s.bossPoison} stunned={stunnedFoes} phase={s.phase} fx={s.fx}
-                            overlay={s.iceShell ? <IceShellOverlay /> : null} art={bossArt}
+                            overlay={s.iceShell ? <IceShellOverlay /> : null} art={bossArt} windup={s.windup}
                           />
                         </View>
                       ) });
@@ -380,7 +402,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                               testID={'enemy-' + e.id} icon={ENEMY_ICON[e.role]} name={e.name}
                               hp={e.hp} maxHp={e.maxHp} alive={e.alive} focused={e.alive && e.id === focusId} isBoss={false}
                               poisoned={s.bossPoison?.enemyId === e.id} stunned={stunnedFoes} fx={s.fx} onPress={() => engine.setFocus(e.id)}
-                              art={roomArt ? MONSTER_ART[roomArt[e.role]] : undefined}
+                              art={roomArt ? MONSTER_ART[roomArt[e.role]] : undefined} windup={s.windup}
                             />
                           </View>
                         ) });
@@ -451,7 +473,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
       <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg, paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(14, insets.bottom + 10) }}>
         {!current ? (
           <View style={{ height: 46, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 13, color: colors.textFaint, fontFamily: font.regular }}>{s.order[s.turnPos]?.kind === 'boss' ? 'Ход противника…' : '…'}</Text>
+            <Text style={{ fontSize: 13, color: colors.textFaint, fontFamily: font.regular }}>{s.windup ? 'Противник замахивается для мощного удара!' : s.order[s.turnPos]?.kind === 'boss' ? 'Ход противника…' : '…'}</Text>
           </View>
         ) : s.movePhase ? (
           <>

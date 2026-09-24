@@ -80,6 +80,7 @@ const FEAST_HEAL_SHARE = 0.004;
 const FEAST_THRESHOLD = 0.4;
 const LAVA_MAX_CELLS = 4;
 // Quota is set against the party's raw per-round damage; crits, combos and abilities are what push a focused round past it.
+const WINDUP_MS = 750;
 const GEAR_SLOT_COMP_HP = 0.1;
 const GEAR_SLOT_COMP_DMG = 0.2;
 const QUOTA_SHARE = 2.3;
@@ -1391,7 +1392,7 @@ export class GameEngine {
       boss: { name: enc.enemyName, maxHp: enemies.length ? enemies.reduce((a, e) => a + e.maxHp, 0) : encHp, hp: enemies.length ? enemies.reduce((a, e) => a + e.hp, 0) : encHp },
       enemies, focusId: enemies.length ? enemies[0].id : null,
       fx: { seq: 0, actor: null, kind: null, crit: false, targetEnemy: null, targetRaider: null },
-      impact: { seq: 0, cells: [], kind: null }, shakeSeq: 0, moveFx: null,
+      impact: { seq: 0, cells: [], kind: null }, shakeSeq: 0, windup: false, moveFx: null,
       signature: enc.type === 'boss' && !this.inArena ? this.currentDungeon().signature ?? null : null,
       sigTimer: 2, iceShell: false, debt: null, execution: null, quota: null, lava: [],
       name: enc.name, raiders, encounterType: enc.type, dmgMult,
@@ -1706,12 +1707,26 @@ export class GameEngine {
       s.selected = r.id;
       s.awaitingPlayer = true;
       s.movePhase = true;
+    } else if (this.heavyBlowPending()) {
+      // Give the heavy blow a beat of wind-up the UI can show before it lands.
+      s.windup = true;
+      this.clearTurnTimer();
+      this.turnTimer = setTimeout(() => { this.turnTimer = null; this.resolveBossTurn(); this.notify(); }, WINDUP_MS);
     } else {
-      this.bossTurn();
-      this.checkDeaths();
-      if (this.checkOutcome()) return;
-      this.scheduleAdvance(900);
+      this.resolveBossTurn();
     }
+  }
+  private heavyBlowPending(): boolean {
+    const s = this.sim!;
+    return !!(s.danger || s.pendingCast || s.execution || s.braceCall);
+  }
+  private resolveBossTurn() {
+    const s = this.sim; if (!s || s.over) return;
+    s.windup = false;
+    this.bossTurn();
+    this.checkDeaths();
+    if (this.checkOutcome()) return;
+    this.scheduleAdvance(900);
   }
 
   private checkDeaths() {

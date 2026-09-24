@@ -181,6 +181,8 @@ export interface Sim {
   impact: { seq: number; cells: string[]; kind: DangerZone['kind'] | null };
   /** Bumped on heavy moments (big hits, deaths, phase changes) to shake the battlefield. */
   shakeSeq: number;
+  /** The enemy is rearing back for a heavy, telegraphed blow that lands this turn. */
+  windup: boolean;
   /** Last grid move, so the token can glide from its old cell instead of teleporting. */
   moveFx: { seq: number; id: number; fromRow: number; fromCol: number } | null;
   name: string;
