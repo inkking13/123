@@ -25,7 +25,7 @@ import { AttackRange, Candidate, EncounterDef, GearSlotKey, Role } from '../data
 import {
   ACCENT, ATTACK_TURN_SCALE, HEAL_TURN_SCALE,
   GRID_ROWS, GRID_COLS, FRONT_ROW, BACK_ROW, MOVE_RANGE,
-  Ability, AbilityIcon, BossMoveTimers, Raider, Sim, TurnEntry, LogKind,
+  Ability, AbilityIcon, BossMoveTimers, Enemy, EnemyRole, Raider, Sim, TurnEntry, LogKind,
 } from '../combat/types';
 
 export type Screen = 'title' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession' | 'achievements' | 'weekly';
@@ -59,6 +59,19 @@ const INSPIRED_ROUNDS = 2;
 const INSPIRED_HEAL_MULT = 1.3;
 const TANK_GUARD_MULT = 0.85;
 const DEFEND_MULT = 0.6;
+
+// Room enemy groups, by the room's position in its dungeon. The brute always
+// leads (it carries the boss-style move kit); the others take a fixed share
+// of the room's HP pool, the brute gets the rest.
+const ROOM_GROUPS: EnemyRole[][] = [['brute', 'archer'], ['brute', 'shaman'], ['brute', 'archer', 'shaman']];
+const ENEMY_HP_SHARE: Record<Exclude<EnemyRole, 'brute'>, number> = { archer: 0.28, shaman: 0.25 };
+const ENEMY_NAME: Record<EnemyRole, string> = { brute: 'Громила', archer: 'Стрелок', shaman: 'Шаман' };
+const ENEMY_NAME_ACC: Record<EnemyRole, string> = { brute: 'громилу', archer: 'стрелка', shaman: 'шамана' };
+const ARCHER_DMG = 8;
+const SHAMAN_HEAL_SHARE = 0.07;
+// Splitting one HP pool into several targets loses damage to overkill and to
+// venom dying with its carrier, so the group gets a slightly smaller pool.
+const ROOM_GROUP_HP_MULT = 0.9;
 const BERSERK_TAKEN_MULT = 1.25;
 // Offsets the counterplay the positional layer adds (dodgeable area hits, a tank soaking the front) — tuned by simulation against the pre-rework difficulty.
 const BOSS_DMG_SCALE = 1.6;
@@ -1253,7 +1266,14 @@ export class GameEngine {
     });
   }
 
-  freshSim(enc: EncounterDef, keepRaiders: Raider[] | null): Sim {
+  private buildRoomGroup(totalHp: number, roomIdx: number): Enemy[] {
+    const roles = ROOM_GROUPS[Math.min(roomIdx, ROOM_GROUPS.length - 1)];
+    const hps = roles.map((r) => (r === 'brute' ? 0 : Math.round(totalHp * ENEMY_HP_SHARE[r])));
+    hps[0] = totalHp - hps.reduce((a, b) => a + b, 0);
+    return roles.map((role, i) => ({ id: i, role, name: ENEMY_NAME[role], maxHp: hps[i], hp: hps[i], alive: true }));
+  }
+
+  freshSim(enc: EncounterDef, keepRaiders: Raider[] | null, roomIdx = 0): Sim {
     const raiders = keepRaiders || this.makeRaiders(this.squad());
     const dmgMult = this.inArena
       ? (this.arenaOpponent?.dmgMult ?? 1)
@@ -1264,8 +1284,10 @@ export class GameEngine {
       r.row = BACK_ROW; r.col = i;
       if (r.ability) { r.ability.active = false; r.ability.activeRounds = 0; r.ability.cd = 0; }
     });
+    const enemies = enc.type === 'room' ? this.buildRoomGroup(Math.round(enc.hp * ROOM_GROUP_HP_MULT), roomIdx) : [];
     return {
-      boss: { name: enc.enemyName, maxHp: enc.hp, hp: enc.hp },
+      boss: { name: enc.enemyName, maxHp: enemies.length ? enemies.reduce((a, e) => a + e.maxHp, 0) : enc.hp, hp: enemies.length ? enemies.reduce((a, e) => a + e.hp, 0) : enc.hp },
+      enemies, focusId: enemies.length ? enemies[0].id : null,
       name: enc.name, raiders, encounterType: enc.type, dmgMult,
       round: 1, order: [], turnPos: -1, awaitingPlayer: false, movePhase: false, bossCyclePos: 0,
       bossMoveTimers: { beam: 1, meteor: 2, poison: 3, chain: 3, brace: 3, freeze: 2, curse: 2, cleave: 2 },
@@ -1280,8 +1302,8 @@ export class GameEngine {
   startEncounter = () => {
     const enc = this.currentDungeon().encounters[this.encIdx];
     const keep = this.sim && this.sim.raiders.some((r) => r.alive) ? this.sim.raiders : null;
-    this.sim = this.freshSim(enc, keep);
-    this.log(enc.type === 'boss' ? 'Пул начался. Рейд-лидер, командуй!' : 'Отряд входит в бой: ' + enc.name + '.');
+    this.sim = this.freshSim(enc, keep, this.encIdx);
+    this.log(enc.type === 'boss' ? 'Пул начался. Рейд-лидер, командуй!' : 'Отряд входит в бой: ' + enc.name + ' — ' + enc.enemyName.toLowerCase() + '. Выберите цель, нажав на врага.');
     this.screen = 'combat';
     this.beginRound();
     if (!this.sim.over) this.advanceTurn();
@@ -1485,11 +1507,11 @@ export class GameEngine {
     if (s.partyWard && --s.partyWard.roundsLeft <= 0) s.partyWard = null;
     if (s.inspiredRounds > 0) s.inspiredRounds--;
     if (s.vulnerableRounds > 0 && --s.vulnerableRounds === 0) {
-      this.log(s.boss.name + ' приходит в себя.', 'warn');
+      this.log(s.enemies.length ? 'Враги приходят в себя.' : s.boss.name + ' приходит в себя.', 'warn');
     }
     if (s.round === s.enrageAt) {
       this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
-      this.log(s.boss.name + ' впадает в ярость — с каждым раундом бьёт всё сильнее!', 'warn');
+      this.log(s.enemies.length ? 'Враги звереют — с каждым раундом бьют всё сильнее!' : s.boss.name + ' впадает в ярость — с каждым раундом бьёт всё сильнее!', 'warn');
     }
 
     if (s.phase >= 3) {
@@ -1513,11 +1535,16 @@ export class GameEngine {
       }
     }
     if (s.bossPoison) {
-      const dmg = Math.round(s.bossPoison.dmgPerTick);
-      s.boss.hp = Math.max(0, s.boss.hp - dmg);
-      this.log('Яд василиска продолжает разъедать босса (-' + dmg + ').', 'ok');
-      s.bossPoison.roundsLeft--;
-      if (s.bossPoison.roundsLeft <= 0) s.bossPoison = null;
+      const carrier = s.bossPoison.enemyId == null ? null : s.enemies.find((e) => e.id === s.bossPoison!.enemyId && e.alive);
+      if (s.bossPoison.enemyId != null && !carrier) {
+        s.bossPoison = null;
+      } else {
+        const dmg = Math.round(s.bossPoison.dmgPerTick);
+        this.damageFoe(dmg, carrier ? carrier.id : null);
+        this.log('Яд василиска продолжает разъедать ' + (carrier ? ENEMY_NAME_ACC[carrier.role] : 'босса') + ' (-' + dmg + ').', 'ok');
+        s.bossPoison.roundsLeft--;
+        if (s.bossPoison.roundsLeft <= 0) s.bossPoison = null;
+      }
     }
     this.checkDeaths();
     this.checkOutcome();
@@ -1656,7 +1683,7 @@ export class GameEngine {
     const s = this.sim!;
     return 1 + ENRAGE_STEP * Math.max(0, s.round - s.enrageAt + 1);
   }
-  /** Avoidable (telegraphed) hits skip BOSS_DMG_SCALE, so a missed dodge stings without wiping a new player. */
+  /** Counterable damage (telegraphed hits, room archers/shamans you can kill first) skips BOSS_DMG_SCALE, so a mistake stings without wiping a new player. */
   bossDmgMult(avoidable = false) {
     return this.sim!.dmgMult * this.enrageMult() * (avoidable ? 1 : BOSS_DMG_SCALE);
   }
@@ -1678,10 +1705,12 @@ export class GameEngine {
     if (r.ability.kind === 'berserk' && r.ability.active) { m *= 2; tags.push('берсерк'); }
     const allies = this.frontAllies(r);
     if (allies > 0) { m *= 1 + FORMATION_BONUS * allies; tags.push('строй'); }
-    if (s.bossPoison) { m *= POISONED_BOSS_MULT; tags.push('яд'); }
+    const target = this.focusEnemy();
+    if (s.bossPoison && (s.bossPoison.enemyId == null || s.bossPoison.enemyId === target?.id)) { m *= POISONED_BOSS_MULT; tags.push('яд'); }
     if (s.vulnerableRounds > 0) { m *= VULNERABLE_MULT; tags.push('оглушён'); }
     const dmg = Math.max(1, Math.round(raw * m));
-    s.boss.hp = Math.max(0, s.boss.hp - dmg);
+    this.damageFoe(dmg, target ? target.id : null);
+    if (target) tags.unshift('→ ' + target.name);
     if (s.vulnerableRounds === 0 && !s.stunned && staggerGain > 0 && s.boss.hp > 0) {
       s.stagger = Math.min(STAGGER_MAX, s.stagger + staggerGain);
       if (s.stagger >= STAGGER_MAX) {
@@ -1689,11 +1718,44 @@ export class GameEngine {
         s.stunned = true;
         s.vulnerableRounds = VULNERABLE_ROUNDS + 1;
         this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
-        this.log('Натиск сломил защиту — ' + s.boss.name + ' оглушён! Бейте, пока открыт.', 'ok');
+        this.log(s.enemies.length ? 'Натиск смял строй врагов — они оглушены! Бейте, пока открыты.' : 'Натиск сломил защиту — ' + s.boss.name + ' оглушён! Бейте, пока открыт.', 'ok');
       }
     }
     this.checkPhase();
     return { dmg, note: tags.length ? ' (' + tags.join(', ') + ')' : '' };
+  }
+  focusEnemy(): Enemy | null {
+    const s = this.sim!;
+    if (!s.enemies.length) return null;
+    return s.enemies.find((e) => e.id === s.focusId && e.alive) || s.enemies.find((e) => e.alive) || null;
+  }
+  setFocus(enemyId: number) {
+    const s = this.sim;
+    if (!s || !s.enemies.some((e) => e.id === enemyId && e.alive)) return;
+    s.focusId = enemyId;
+    this.notify();
+  }
+  /** Applies damage to a room enemy (or the boss), handles deaths and keeps the group total in s.boss in sync. */
+  private damageFoe(dmg: number, enemyId: number | null) {
+    const s = this.sim!;
+    if (!s.enemies.length) { s.boss.hp = Math.max(0, s.boss.hp - dmg); return; }
+    const e = s.enemies.find((x) => x.id === enemyId && x.alive) || s.enemies.find((x) => x.alive);
+    if (!e) return;
+    e.hp = Math.max(0, e.hp - dmg);
+    if (e.hp === 0) {
+      e.alive = false;
+      this.log(e.name + ' повержен.', 'ok');
+      if (e.role === 'brute' && (s.danger || s.pendingCast || s.braceCall)) {
+        s.danger = null; s.pendingCast = null; s.braceCall = null;
+        this.log('Заготовленный удар громилы так и не состоялся.', 'ok');
+      }
+      if (s.focusId === e.id) s.focusId = s.enemies.find((x) => x.alive)?.id ?? null;
+    }
+    this.syncGroupHp();
+  }
+  private syncGroupHp() {
+    const s = this.sim!;
+    s.boss.hp = s.enemies.reduce((sum, e) => sum + (e.alive ? e.hp : 0), 0);
   }
   healTarget(healer: Raider): Raider | null {
     const injured = this.alive().filter((x) => x !== healer && x.hp < x.maxHp);
@@ -1762,9 +1824,10 @@ export class GameEngine {
       actions.push({ key: 'brace', label: 'Приготовиться', needsTarget: false, disabled: false });
     }
     const inMeleeRange = r.attackRange === 'ranged' || r.row === FRONT_ROW;
+    const focus = this.focusEnemy();
     actions.push({
       key: 'attack', label: 'Атаковать', needsTarget: false, disabled: !inMeleeRange,
-      sub: inMeleeRange ? undefined : 'нужен передний край',
+      sub: !inMeleeRange ? 'нужен передний край' : focus ? 'цель: ' + focus.name : undefined,
     });
     if (r.role === 'heal') {
       actions.push({ key: 'heal', label: 'Лечить', needsTarget: true, disabled: false });
@@ -1913,7 +1976,7 @@ export class GameEngine {
       }
       case 'venom':
         a.cd = a.cdMax;
-        s.bossPoison = { roundsLeft: 3, dmgPerTick: Math.round(9 * this.outMult(r) * ATTACK_TURN_SCALE * 0.5) };
+        s.bossPoison = { roundsLeft: 3, dmgPerTick: Math.round(9 * this.outMult(r) * ATTACK_TURN_SCALE * 0.5), enemyId: this.focusEnemy()?.id ?? null };
         this.log(r.name + ' смазывает клинки ядом василиска.', 'ok');
         break;
       case 'berserk':
@@ -1953,10 +2016,55 @@ export class GameEngine {
       s.stunned = false;
       const interrupted = !!(s.pendingCast || s.braceCall || s.danger);
       s.pendingCast = null; s.braceCall = null; s.danger = null;
-      this.log(s.boss.name + ' оглушён и пропускает ход' + (interrupted ? ' — заготовленная атака сорвана.' : '.'), 'ok');
+      this.log((s.enemies.length ? 'Враги оглушены и пропускают ход' : s.boss.name + ' оглушён и пропускает ход') + (interrupted ? ' — заготовленная атака сорвана.' : '.'), 'ok');
       return;
     }
     if (s.vulnerableRounds === 0) s.stagger = Math.max(0, s.stagger - STAGGER_DECAY);
+    if (!s.enemies.length) { this.leaderTurn(); return; }
+    const has = (role: EnemyRole) => s.enemies.some((e) => e.role === role && e.alive);
+    if (has('brute')) this.leaderTurn();
+    if (has('archer')) this.archerShot();
+    if (has('shaman')) this.shamanTurn();
+  }
+
+  /** Picks off the back line — healers and ranged — which a front-row tank can't cover. */
+  private archerShot() {
+    const alive = this.alive();
+    if (!alive.length) return;
+    const backRow = Math.max(...alive.map((r) => r.row));
+    const pool = alive.filter((r) => r.row === backRow);
+    const t = pool[Math.floor(Math.random() * pool.length)];
+    const dmg = Math.round((ARCHER_DMG + Math.random() * 8) * this.bossDmgMult(true));
+    this.hurt(t, dmg);
+    this.log('Стрелок бьёт по ' + t.name + ' (-' + dmg + ').', 'warn');
+  }
+  /** Patches up the most battered ally; with nobody hurt it jabs the party instead. */
+  private shamanTurn() {
+    const s = this.sim!;
+    const hurtFoes = s.enemies.filter((e) => e.alive && e.hp < e.maxHp).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
+    if (hurtFoes.length) {
+      const e = hurtFoes[0];
+      const amt = Math.min(e.maxHp - e.hp, Math.round(s.boss.maxHp * SHAMAN_HEAL_SHARE));
+      e.hp += amt;
+      this.syncGroupHp();
+      this.log('Шаман латает ' + ENEMY_NAME_ACC[e.role] + ' (+' + amt + ').', 'warn');
+      return;
+    }
+    const alive = this.alive();
+    const t = alive[Math.floor(Math.random() * alive.length)];
+    const dmg = Math.round((10 + Math.random() * 5) * this.bossDmgMult(true));
+    this.hurt(t, dmg);
+    this.log('Шаман насылает порчу на ' + t.name + ' (-' + dmg + ').', 'warn');
+  }
+
+  private leaderName(): string {
+    const s = this.sim!;
+    return s.enemies.length ? ENEMY_NAME.brute : s.boss.name;
+  }
+
+  /** The boss (or a room's brute): resolves whatever it telegraphed last turn, otherwise picks its next move. */
+  private leaderTurn() {
+    const s = this.sim!;
     if (s.pendingCast) {
       const t = s.raiders.find((r) => r.id === s.pendingCast!.targetId);
       if (t && t.alive) {
@@ -2049,7 +2157,7 @@ export class GameEngine {
         const cells: string[] = [];
         for (let col = 0; col < GRID_COLS; col++) cells.push(FRONT_ROW + ',' + col);
         s.danger = { kind: 'cleave', cells, cols: [] };
-        this.log(s.boss.name + ' замахивается на передний ряд — отступите или примите удар!', 'warn');
+        this.log(this.leaderName() + ' замахивается на передний ряд — отступите или примите удар!', 'warn');
         this.basicStrike();
         t.cleave = 4;
         break;
@@ -2106,7 +2214,7 @@ export class GameEngine {
     const exposed = front.length === 0;
     const dmg = Math.round((20 + Math.random() * 12) * (exposed ? 1.3 : 1) * this.bossDmgMult());
     this.hurt(target, dmg);
-    this.log(s.boss.name + ' обрушивается на ' + target.name + ' (-' + dmg + ')' + (exposed ? ' — передний край пуст, никто не прикрыл.' : '.'), 'warn');
+    this.log(this.leaderName() + ' обрушивается на ' + target.name + ' (-' + dmg + ')' + (exposed ? ' — передний край пуст, никто не прикрыл.' : '.'), 'warn');
   }
 
   endGame(win: boolean) {

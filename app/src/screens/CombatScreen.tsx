@@ -3,7 +3,7 @@ import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine, TurnActionKey } from '../engine/GameEngine';
 import { colors, font, roleColor } from '../theme/theme';
-import { GRID_ROWS, GRID_COLS, FRONT_ROW, Raider } from '../combat/types';
+import { GRID_ROWS, GRID_COLS, FRONT_ROW, EnemyRole, Raider } from '../combat/types';
 import { Avatar } from '../components/Avatar';
 import { Icon, IconName } from '../components/Icon';
 import { SkillIcon } from '../components/SkillIcon';
@@ -23,6 +23,10 @@ const ACTION_ICON: Record<TurnActionKey, IconName> = {
   defend: 'shield',
 };
 
+const ENEMY_ICON: Record<EnemyRole, IconName> = { brute: 'shield', archer: 'target', shaman: 'flask' };
+// Room groups sit centred in the enemy row, spread out so each stays easy to tap.
+const ENEMY_SLOTS: Record<number, number[]> = { 1: [2], 2: [1, 3], 3: [1, 2, 3] };
+
 export function CombatScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
   const insets = useSafeAreaInsets();
@@ -38,7 +42,8 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const reachableCells = engine.reachableCells();
   const isBossFight = s.encounterType === 'boss';
   const enemyCenter = Math.floor(GRID_COLS / 2);
-  const enemyCols = isBossFight ? [enemyCenter] : [enemyCenter - 1, enemyCenter, enemyCenter + 1];
+  const enemySlots = ENEMY_SLOTS[s.enemies.length] ?? [];
+  const focusId = engine.focusEnemy()?.id;
   const stunnedNow = s.stunned || s.vulnerableRounds > 0;
   const enraged = s.round >= s.enrageAt;
   const dangerCells = new Set(s.danger?.cells ?? []);
@@ -149,25 +154,61 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
         <View style={{ marginTop: 14 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
             <Text style={{ fontSize: 10.5, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Поле боя</Text>
-            <Text style={{ fontSize: 10.5, color: colors.textFaint, fontFamily: font.regular }}>Передний край: ближний бой, строй, танк прикрывает</Text>
+            <Text style={{ fontSize: 10.5, color: colors.textFaint, fontFamily: font.regular }}>
+              {isBossFight ? 'Передний край: ближний бой, строй, танк прикрывает' : 'Нажмите на врага, чтобы выбрать цель'}
+            </Text>
           </View>
           {/* Enemy row — same column grid as the party, so the whole thing reads as one battlefield */}
           <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
             {Array.from({ length: GRID_COLS }).map((_, col) => {
-              const isEnemyCol = enemyCols.includes(col);
+              if (isBossFight) {
+                const isBossCol = col === enemyCenter;
+                return (
+                  <View
+                    key={col}
+                    style={{
+                      flex: 1, aspectRatio: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+                      borderWidth: isBossCol ? 1.5 : 1,
+                      borderColor: isBossCol ? colors.danger : colors.border,
+                      backgroundColor: isBossCol ? 'rgba(209,104,92,0.12)' : 'transparent',
+                      opacity: isBossCol ? 1 : 0.4,
+                    }}
+                  >
+                    {isBossCol ? <Icon name="skull" size={26} color={colors.danger} weight="fill" /> : null}
+                  </View>
+                );
+              }
+              const slot = enemySlots.indexOf(col);
+              const e = slot >= 0 ? s.enemies[slot] : null;
+              if (!e) {
+                return <View key={col} style={{ flex: 1, aspectRatio: 1, borderRadius: 8, borderWidth: 1, borderColor: colors.border, opacity: 0.4 }} />;
+              }
+              const focused = e.alive && e.id === focusId;
               return (
-                <View
+                <Pressable
                   key={col}
+                  testID={'enemy-' + e.id}
+                  disabled={!e.alive}
+                  onPress={() => engine.setFocus(e.id)}
                   style={{
-                    flex: 1, aspectRatio: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
-                    borderWidth: isEnemyCol ? 1.5 : 1,
-                    borderColor: isEnemyCol ? colors.danger : colors.border,
-                    backgroundColor: isEnemyCol ? 'rgba(209,104,92,0.12)' : 'transparent',
-                    opacity: isEnemyCol ? 1 : 0.4,
+                    flex: 1, aspectRatio: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center', gap: 2,
+                    borderWidth: focused ? 2.5 : 1.5,
+                    borderColor: focused ? colors.warn : e.alive ? colors.danger : colors.border,
+                    backgroundColor: e.alive ? 'rgba(209,104,92,0.12)' : 'transparent',
+                    opacity: e.alive ? 1 : 0.35,
                   }}
                 >
-                  {isEnemyCol ? <Icon name="skull" size={isBossFight ? 26 : 17} color={colors.danger} weight={isBossFight ? 'fill' : 'regular'} /> : null}
-                </View>
+                  <View>
+                    <Icon name={e.alive ? ENEMY_ICON[e.role] : 'skull'} size={17} color={e.alive ? colors.danger : colors.textFaint} />
+                    {s.bossPoison?.enemyId === e.id ? (
+                      <View style={{ position: 'absolute', right: -9, top: -3 }}><Icon name="drop" size={9} color={colors.good} /></View>
+                    ) : null}
+                  </View>
+                  <Text numberOfLines={1} style={{ fontSize: 9, color: focused ? colors.warn : colors.textDim, fontFamily: font.medium }}>{e.name}</Text>
+                  <View style={{ width: '72%' }}>
+                    <ProgressBar pct={(e.hp / e.maxHp) * 100} color={colors.danger} height={3} />
+                  </View>
+                </Pressable>
               );
             })}
           </View>

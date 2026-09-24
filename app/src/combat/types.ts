@@ -67,6 +67,17 @@ export interface Boss {
   hp: number;
 }
 
+/** Room encounters field a small group instead of one HP pool — each role pressures the party differently, so kill order matters. */
+export type EnemyRole = 'brute' | 'archer' | 'shaman';
+export interface Enemy {
+  id: number;
+  role: EnemyRole;
+  name: string;
+  maxHp: number;
+  hp: number;
+  alive: boolean;
+}
+
 /** An announced, interruptible beam cast — resolves on the boss's next turn unless a raider spends their turn to interrupt it. */
 export interface PendingCast {
   targetId: number;
@@ -91,6 +102,8 @@ export interface PoisonState {
 export interface BossPoisonState {
   roundsLeft: number;
   dmgPerTick: number;
+  /** Which room enemy carries the venom; null in boss fights. */
+  enemyId: number | null;
 }
 
 export interface PartyWardState {
@@ -144,7 +157,10 @@ export interface AshCurseState {
 }
 
 export interface Sim {
+  /** In room fights this mirrors the group's combined HP, so the header bar and win check work unchanged. */
   boss: Boss;
+  enemies: Enemy[];
+  focusId: number | null;
   name: string;
   raiders: Raider[];
   encounterType: EncounterType;
