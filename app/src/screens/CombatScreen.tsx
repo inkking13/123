@@ -3,14 +3,14 @@ import { Animated, Easing, Pressable, ScrollView, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine, TurnActionKey } from '../engine/GameEngine';
 import { colors, font, roleColor } from '../theme/theme';
-import { GRID_ROWS, GRID_COLS, FRONT_ROW, CombatFx, EnemyRole, Raider } from '../combat/types';
+import { GRID_ROWS, GRID_COLS, FRONT_ROW, CombatFx, EnemyRole, Raider, Sim } from '../combat/types';
 import { Avatar } from '../components/Avatar';
 import { Icon, IconName } from '../components/Icon';
 import { SkillIcon } from '../components/SkillIcon';
 import { ProgressBar } from '../components/ProgressBar';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
-import { ActivePulse, DangerPulse, FoeCell, Floaters, ImpactBurst, Projectile, impactDelay, useActorMotion, useHpFloaters } from '../components/CombatFx';
+import { ActivePulse, AuraRing, Crosshair, DangerPulse, DebtCoin, DefendBadge, FoeCell, Floaters, FrozenOverlay, ImpactBurst, IceShellOverlay, LavaGlow, PoisonBubbles, Projectile, RallyWave, Tether, impactDelay, useActorMotion, useHpFloaters, useSlideIn } from '../components/CombatFx';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
   attack: 'sword',
@@ -79,6 +79,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   };
   const raiderPoint = (row: number, col: number) => ({ x: colX(col), y: cell + 10 + row * (cell + 6) + cell / 2 });
 
+  const [waves, setWaves] = useState<{ key: number; at: { x: number; y: number } }[]>([]);
   // One projectile per ranged/ability/heal action, flying from the actor to its target.
   const [shots, setShots] = useState<{ key: number; from: { x: number; y: number }; to: { x: number; y: number }; color: string }[]>([]);
   useEffect(() => {
@@ -96,6 +97,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
       const t = s.raiders.find((r) => r.id === fx.targetRaider);
       if (t) { to = raiderPoint(t.row, t.col); color = colors.good; }
     }
+    if (fx.kind === 'rally') setWaves((xs) => [...xs, { key: fx.seq, at: from }]);
     if (to) setShots((xs) => [...xs, { key: fx.seq, from, to: to!, color }]);
     // Fires once per action; positions are read from the state that action produced.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -241,6 +243,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                   <FoeCell
                     key={col} icon="skull" hp={s.boss.hp} maxHp={s.boss.maxHp} alive={s.boss.hp > 0}
                     focused={false} isBoss poisoned={!!s.bossPoison} stunned={stunnedFoes} phase={s.phase} fx={s.fx}
+                    overlay={s.iceShell ? <IceShellOverlay /> : null}
                   />
                 );
               }
@@ -282,11 +285,11 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                       alignItems: 'center', justifyContent: 'center',
                     }}
                   >
-                    {danger ? <DangerPulse /> : null}
+                    {danger ? <DangerPulse /> : lava ? <LavaGlow /> : null}
                     {current && current.row === row && current.col === col ? <ActivePulse color={roleColor[current.role]} /> : null}
                     <ImpactBurst seq={s.impact.seq} active={s.impact.cells.includes(row + ',' + col)} kind={s.impact.kind === 'meteor' || s.impact.kind === 'devour' ? 'meteor' : 'cleave'} />
                     {raider
-                      ? <GridToken r={raider} isActive={current?.id === raider.id} poisoned={s.poison?.targetId === raider.id} fx={s.fx} />
+                      ? <GridToken r={raider} isActive={current?.id === raider.id} poisoned={s.poison?.targetId === raider.id} fx={s.fx} sim={s} pitch={cell + 6} />
                       : danger ? <Icon name={s.danger?.kind === 'meteor' ? 'fire' : 'warning'} size={16} color={colors.danger} />
                       : lava ? <Icon name="flame" size={15} color="#d9803f" /> : null}
                   </Pressable>
@@ -298,6 +301,15 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
             {shots.map((p) => (
               <Projectile key={p.key} from={p.from} to={p.to} color={p.color} onDone={() => setShots((xs) => xs.filter((x) => x.key !== p.key))} />
             ))}
+            {cell && s.pendingCast ? (() => {
+              const t = s.raiders.find((r) => r.id === s.pendingCast!.targetId && r.alive);
+              return t ? <Tether from={foePoint(-1)} to={raiderPoint(t.row, t.col)} color={colors.danger} thickness={3} /> : null;
+            })() : null}
+            {cell && s.chain ? (() => {
+              const a = s.raiders.find((r) => r.id === s.chain!.aId); const b = s.raiders.find((r) => r.id === s.chain!.bId);
+              return a && b ? <Tether from={raiderPoint(a.row, a.col)} to={raiderPoint(b.row, b.col)} color={colors.accent} /> : null;
+            })() : null}
+            {waves.map((w) => <RallyWave key={w.key} at={w.at} onDone={() => setWaves((xs) => xs.filter((x) => x.key !== w.key))} />)}
           </View>
           </Animated.View>
         </View>
@@ -389,7 +401,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   );
 }
 
-function GridToken({ r, isActive, poisoned, fx }: { r: Raider; isActive: boolean; poisoned: boolean; fx: CombatFx }) {
+function GridToken({ r, isActive, poisoned, fx, sim, pitch }: { r: Raider; isActive: boolean; poisoned: boolean; fx: CombatFx; sim: Sim; pitch: number }) {
   const hpPct = Math.max(0, (r.hp / r.maxHp) * 100);
   const hpColor = hpPct > 60 ? colors.good : hpPct > 30 ? colors.warn : colors.danger;
   const chained = r.chainPartner != null;
@@ -413,9 +425,16 @@ function GridToken({ r, isActive, poisoned, fx }: { r: Raider; isActive: boolean
     Animated.timing(slump, { toValue: r.alive ? 0 : 1, duration: r.alive ? 0 : 500, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
   }, [r.alive, slump]);
   const motion = useActorMotion(fx, (f) => f.actor === r.id, -1);
-  const glowColor = fx.kind === 'heal' ? colors.good : fx.kind === 'ability' ? colors.accent : roleColor[r.role];
+  const glowColor = fx.kind === 'heal' ? colors.good : fx.kind === 'ability' ? colors.accent : fx.kind === 'rally' ? colors.warn : roleColor[r.role];
+  const slide = useSlideIn(sim.moveFx, r.id, r.row, r.col, pitch);
+  const alive = r.alive;
+  const frozen = alive && sim.frozen?.targetId === r.id;
+  const shielded = alive && ((r.ability.kind === 'selfShield' && r.ability.active) || !!sim.partyWard);
+  const berserk = alive && r.ability.kind === 'berserk' && r.ability.active;
+  const doomed = alive && sim.execution?.targetId === r.id;
+  const indebted = alive && sim.debt?.targetId === r.id && !sim.debt.paid;
   return (
-    <View style={{ alignItems: 'center', width: '100%', zIndex: 3 }}>
+    <Animated.View style={{ alignItems: 'center', width: '100%', zIndex: 3, transform: [{ translateX: slide.x }, { translateY: slide.y }] }}>
       <Animated.View style={{ opacity: slump.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] }), transform: [
         { translateX: shake.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] }) },
         { translateY: Animated.add(motion.translateY, slump.interpolate({ inputRange: [0, 1], outputRange: [0, 6] })) },
@@ -427,6 +446,13 @@ function GridToken({ r, isActive, poisoned, fx }: { r: Raider; isActive: boolean
           style={{ position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 10, borderWidth: 2, borderColor: glowColor, opacity: motion.glow }}
         />
         <Avatar id={r.candidateId} size={30} radius={6} grayscale={!r.alive} style={isActive ? { borderWidth: 2, borderColor: roleColor[r.role] } : undefined} />
+        {shielded ? <AuraRing color="#8fb8ff" /> : null}
+        {berserk ? <AuraRing color={colors.danger} fast /> : null}
+        {poisoned && alive ? <PoisonBubbles /> : null}
+        {frozen ? <FrozenOverlay /> : null}
+        {doomed ? <Crosshair /> : null}
+        {indebted ? <DebtCoin /> : null}
+        {alive && r.defending ? <DefendBadge /> : null}
       </Animated.View>
       <Floaters items={floaters.items} remove={floaters.remove} />
       <View style={{ width: '78%', marginTop: 3 }}>
@@ -439,6 +465,6 @@ function GridToken({ r, isActive, poisoned, fx }: { r: Raider; isActive: boolean
           {r.ability.active ? <Icon name={r.ability.icon} size={9} color={roleColor[r.role]} /> : null}
         </View>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }

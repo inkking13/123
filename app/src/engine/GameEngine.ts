@@ -1298,7 +1298,7 @@ export class GameEngine {
       boss: { name: enc.enemyName, maxHp: enemies.length ? enemies.reduce((a, e) => a + e.maxHp, 0) : enc.hp, hp: enemies.length ? enemies.reduce((a, e) => a + e.hp, 0) : enc.hp },
       enemies, focusId: enemies.length ? enemies[0].id : null,
       fx: { seq: 0, actor: null, kind: null, crit: false, targetEnemy: null, targetRaider: null },
-      impact: { seq: 0, cells: [], kind: null }, shakeSeq: 0,
+      impact: { seq: 0, cells: [], kind: null }, shakeSeq: 0, moveFx: null,
       signature: enc.type === 'boss' && !this.inArena ? this.currentDungeon().signature ?? null : null,
       sigTimer: 2, iceShell: false, debt: null, execution: null, quota: null, lava: [],
       name: enc.name, raiders, encounterType: enc.type, dmgMult,
@@ -1824,6 +1824,7 @@ export class GameEngine {
     const s = this.sim; const r = this.currentRaider();
     if (!s || !r || !s.movePhase) return;
     if (!this.reachableCells().some((c) => c.row === row && c.col === col)) return;
+    s.moveFx = { seq: (s.moveFx?.seq ?? 0) + 1, id: r.id, fromRow: r.row, fromCol: r.col };
     r.row = row; r.col = col;
     s.movePhase = false;
     this.log(r.name + (row === FRONT_ROW ? ' выходит на передний край.' : ' меняет позицию на поле.'));
@@ -1881,7 +1882,7 @@ export class GameEngine {
     const s = this.sim; const r = this.currentRaider();
     if (!s || !r || s.over) return;
     s.awaitingPlayer = false;
-    const fxKind = key === 'attack' ? (r.attackRange === 'melee' ? 'melee' : 'ranged') : key === 'heal' ? 'heal' : key === 'ability' ? 'ability' : null;
+    const fxKind = key === 'attack' ? (r.attackRange === 'melee' ? 'melee' : 'ranged') : key === 'heal' ? 'heal' : key === 'ability' ? 'ability' : key === 'rally' ? 'rally' : null;
     const aimsAtEnemy = key === 'attack' || key === 'ability';
     s.fx = { seq: s.fx.seq + 1, actor: fxKind ? r.id : null, kind: fxKind, crit: false, targetEnemy: aimsAtEnemy ? (this.focusEnemy()?.id ?? -1) : null, targetRaider: null };
     switch (key) {

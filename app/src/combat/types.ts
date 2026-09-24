@@ -122,7 +122,7 @@ export type LogKind = 'info' | 'ok' | 'warn';
 export interface CombatFx {
   seq: number;
   actor: number | 'enemy' | null;
-  kind: 'melee' | 'ranged' | 'heal' | 'ability' | 'enemy' | null;
+  kind: 'melee' | 'ranged' | 'heal' | 'ability' | 'enemy' | 'rally' | null;
   crit: boolean;
   /** Where a projectile should fly: a room enemy id, -1 for the boss, or null. */
   targetEnemy: number | null;
@@ -181,6 +181,8 @@ export interface Sim {
   impact: { seq: number; cells: string[]; kind: DangerZone['kind'] | null };
   /** Bumped on heavy moments (big hits, deaths, phase changes) to shake the battlefield. */
   shakeSeq: number;
+  /** Last grid move, so the token can glide from its old cell instead of teleporting. */
+  moveFx: { seq: number; id: number; fromRow: number; fromCol: number } | null;
   name: string;
   raiders: Raider[];
   encounterType: EncounterType;
