@@ -25,7 +25,7 @@ import { AttackRange, Candidate, EncounterDef, GearSlotKey, Role } from '../data
 import {
   ACCENT, ATTACK_TURN_SCALE, HEAL_TURN_SCALE,
   GRID_ROWS, GRID_COLS, FRONT_ROW, BACK_ROW, MOVE_RANGE,
-  Ability, AbilityIcon, BossMoveTimers, Enemy, EnemyRole, Raider, Sim, TurnEntry, LogKind,
+  Ability, AbilityIcon, BossMoveTimers, Enemy, EnemyRole, Raider, SignatureKind, Sim, TurnEntry, LogKind,
 } from '../combat/types';
 
 export type Screen = 'title' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession' | 'achievements' | 'weekly';
@@ -68,6 +68,15 @@ const ENEMY_HP_SHARE: Record<Exclude<EnemyRole, 'brute'>, number> = { archer: 0.
 const ENEMY_NAME: Record<EnemyRole, string> = { brute: 'Громила', archer: 'Стрелок', shaman: 'Шаман' };
 const ENEMY_NAME_ACC: Record<EnemyRole, string> = { brute: 'громилу', archer: 'стрелка', shaman: 'шамана' };
 const ARCHER_DMG = 8;
+
+// Location-final boss signatures: boss turns between casts (the first comes on the 2nd boss turn).
+const SIG_COOLDOWN: Record<SignatureKind, number> = { devour: 4, iceShell: 5, feast: 0, debt: 4, backstab: 3, execution: 5, lava: 4, quota: 5 };
+const ICE_SHELL_MULT = 0.25;
+const FEAST_HEAL_SHARE = 0.004;
+const FEAST_THRESHOLD = 0.4;
+const LAVA_MAX_CELLS = 4;
+// Quota is set against the party's raw per-round damage; crits, combos and abilities are what push a focused round past it.
+const QUOTA_SHARE = 2.3;
 const SHAMAN_HEAL_SHARE = 0.07;
 // Splitting one HP pool into several targets loses damage to overkill and to
 // venom dying with its carrier, so the group gets a slightly smaller pool.
@@ -174,7 +183,7 @@ export interface TalentTierVM {
   options: TalentOptionVM[];
 }
 
-export type TurnActionKey = 'attack' | 'heal' | 'ability' | 'interrupt' | 'breakChain' | 'brace' | 'rally' | 'breakIce' | 'defend';
+export type TurnActionKey = 'attack' | 'heal' | 'ability' | 'interrupt' | 'breakChain' | 'brace' | 'rally' | 'breakIce' | 'defend' | 'breakShell';
 export interface TurnActionVM {
   key: TurnActionKey;
   label: string;
@@ -1289,7 +1298,9 @@ export class GameEngine {
       boss: { name: enc.enemyName, maxHp: enemies.length ? enemies.reduce((a, e) => a + e.maxHp, 0) : enc.hp, hp: enemies.length ? enemies.reduce((a, e) => a + e.hp, 0) : enc.hp },
       enemies, focusId: enemies.length ? enemies[0].id : null,
       fx: { seq: 0, actor: null, kind: null, crit: false, targetEnemy: null, targetRaider: null },
-      impact: { seq: 0, cells: [] }, shakeSeq: 0,
+      impact: { seq: 0, cells: [], kind: null }, shakeSeq: 0,
+      signature: enc.type === 'boss' && !this.inArena ? this.currentDungeon().signature ?? null : null,
+      sigTimer: 2, iceShell: false, debt: null, execution: null, quota: null, lava: [],
       name: enc.name, raiders, encounterType: enc.type, dmgMult,
       round: 1, order: [], turnPos: -1, awaitingPlayer: false, movePhase: false, bossCyclePos: 0,
       bossMoveTimers: { beam: 1, meteor: 2, poison: 3, chain: 3, brace: 3, freeze: 2, curse: 2, cleave: 2 },
@@ -1508,6 +1519,16 @@ export class GameEngine {
     s.rallyCd = Math.max(0, s.rallyCd - 1);
     if (s.partyWard && --s.partyWard.roundsLeft <= 0) s.partyWard = null;
     if (s.inspiredRounds > 0) s.inspiredRounds--;
+    if (s.signature === 'feast' && s.boss.hp > 0 && this.alive().some((r) => r.hp < r.maxHp * FEAST_THRESHOLD)) {
+      const amt = Math.min(s.boss.maxHp - s.boss.hp, Math.round(s.boss.maxHp * FEAST_HEAL_SHARE));
+      if (amt > 0) { s.boss.hp += amt; this.log(s.boss.name + ' питается ранами отряда (+' + amt + ').', 'warn'); }
+    }
+    if (s.lava.length) {
+      const burned = this.alive().filter((r) => s.lava.includes(r.row + ',' + r.col));
+      const dmg = Math.round(7 * this.bossDmgMult(true));
+      for (const r of burned) this.hurt(r, dmg);
+      if (burned.length) this.log('Лава жжёт: ' + burned.map((r) => r.name).join(', ') + ' (-' + dmg + ').', 'warn');
+    }
     if (s.vulnerableRounds > 0 && --s.vulnerableRounds === 0) {
       this.log(s.enemies.length ? 'Враги приходят в себя.' : s.boss.name + ' приходит в себя.', 'warn');
     }
@@ -1713,8 +1734,11 @@ export class GameEngine {
     const target = this.focusEnemy();
     if (s.bossPoison && (s.bossPoison.enemyId == null || s.bossPoison.enemyId === target?.id)) { m *= POISONED_BOSS_MULT; tags.push('яд'); }
     if (s.vulnerableRounds > 0) { m *= VULNERABLE_MULT; tags.push('оглушён'); }
+    if (s.iceShell) { m *= ICE_SHELL_MULT; tags.push('панцирь'); }
     const dmg = Math.max(1, Math.round(raw * m));
     this.damageFoe(dmg, target ? target.id : null);
+    if (s.debt && s.debt.targetId === r.id) s.debt.paid = true;
+    if (s.quota) s.quota.dealt += dmg;
     if (target) tags.unshift('→ ' + target.name);
     if (s.vulnerableRounds === 0 && !s.stunned && staggerGain > 0 && s.boss.hp > 0) {
       s.stagger = Math.min(STAGGER_MAX, s.stagger + staggerGain);
@@ -1842,6 +1866,7 @@ export class GameEngine {
       key: 'ability', label: def.name, abilityIcon: def.icon, abilityArt: ABILITY_ART[r.candidateId], needsTarget: false,
       disabled: r.ability.cd > 0, sub: r.ability.cd > 0 ? `КД: ${r.ability.cd}` : undefined,
     });
+    if (s.iceShell) actions.push({ key: 'breakShell', label: 'Расколоть панцирь', needsTarget: false, disabled: false });
     if (s.rallyCd <= 0) actions.push({ key: 'rally', label: 'Сплотить отряд', needsTarget: false, disabled: false });
     actions.push({ key: 'defend', label: 'Оборона', sub: '−40% урона до след. хода', needsTarget: false, disabled: false });
     return actions;
@@ -1868,6 +1893,10 @@ export class GameEngine {
       case 'breakIce': this.doBreakIce(r); break;
       case 'brace': this.doBrace(r); break;
       case 'rally': this.doRally(r); break;
+      case 'breakShell':
+        s.iceShell = false;
+        this.log(r.name + ' раскалывает ледяной панцирь!', 'ok');
+        break;
       case 'defend':
         r.defending = true;
         this.log(r.name + ' уходит в оборону.');
@@ -2029,8 +2058,8 @@ export class GameEngine {
     const s = this.sim!;
     if (s.stunned) {
       s.stunned = false;
-      const interrupted = !!(s.pendingCast || s.braceCall || s.danger);
-      s.pendingCast = null; s.braceCall = null; s.danger = null;
+      const interrupted = !!(s.pendingCast || s.braceCall || s.danger || s.debt || s.execution || s.quota);
+      s.pendingCast = null; s.braceCall = null; s.danger = null; s.debt = null; s.execution = null; s.quota = null;
       this.log((s.enemies.length ? 'Враги оглушены и пропускают ход' : s.boss.name + ' оглушён и пропускает ход') + (interrupted ? ' — заготовленная атака сорвана.' : '.'), 'ok');
       return;
     }
@@ -2106,15 +2135,54 @@ export class GameEngine {
     if (s.danger) {
       const zone = s.danger;
       s.danger = null;
-      const dmg = Math.round((zone.kind === 'meteor' ? 55 : 45) * this.bossDmgMult(true));
+      const base = { meteor: 55, cleave: 45, devour: 75, backstab: 50 }[zone.kind];
+      const dmg = Math.round(base * this.bossDmgMult(true));
       const hit = this.alive().filter((r) => zone.cells.includes(r.row + ',' + r.col));
       for (const r of hit) { this.hurt(r, dmg); this.addTilt(6); }
-      s.impact = { seq: s.impact.seq + 1, cells: zone.cells };
+      s.impact = { seq: s.impact.seq + 1, cells: zone.cells, kind: zone.kind };
       if (hit.length) s.shakeSeq++;
-      const what = zone.kind === 'meteor' ? 'Огненный дождь' : 'Сокрушающий взмах';
+      const what = { meteor: 'Огненный дождь', cleave: 'Сокрушающий взмах', devour: 'Пасть', backstab: 'Удар в спину' }[zone.kind];
       if (hit.length) this.log(what + ' накрывает: ' + hit.map((r) => r.name).join(', ') + ' (-' + dmg + ').', 'warn');
-      else this.log(what + ' бьёт в пустоту — отряд вовремя сменил позицию.', 'ok');
-      return;
+      else this.log(what + ' — мимо: отряд вовремя сменил позицию.', 'ok');
+      if (zone.kind === 'devour' && hit.length) {
+        const heal = Math.min(s.boss.maxHp - s.boss.hp, dmg * 2 * hit.length);
+        s.boss.hp += heal;
+        this.log(s.boss.name + ' проглатывает добычу и восстанавливает силы (+' + heal + ').', 'warn');
+      }
+      // Signature zones land on top of a normal turn; the shared meteor/cleave ones spend it (tuned that way).
+      if (zone.kind === 'meteor' || zone.kind === 'cleave') return;
+    }
+    if (s.debt) {
+      const d = s.debt; s.debt = null;
+      const t = s.raiders.find((r) => r.id === d.targetId && r.alive);
+      if (d.paid) this.log('Долг ' + d.targetName + ' погашен — Ростовщик недовольно прячет расписку.', 'ok');
+      else if (t) {
+        const dmg = Math.round(95 * this.bossDmgMult(true));
+        this.hurt(t, dmg); this.addTilt(10); s.shakeSeq++;
+        this.log('Взыскание! ' + t.name + ' не заплатил по расписке (-' + dmg + ').', 'warn');
+      }
+    }
+    if (s.execution) {
+      const ex = s.execution; s.execution = null;
+      const t = s.raiders.find((r) => r.id === ex.targetId && r.alive);
+      if (t) {
+        const covered = t.defending || t.hp >= t.maxHp * 0.6;
+        const dmg = Math.round((covered ? 15 : 70) * this.bossDmgMult(true));
+        this.hurt(t, dmg); s.shakeSeq++;
+        this.log(covered ? 'Залп по ' + t.name + ' — но приговорённый успел укрыться (-' + dmg + ').' : 'Залп! Приказ о расстреле ' + t.name + ' исполнен (-' + dmg + ').', covered ? 'ok' : 'warn');
+      }
+    }
+    if (s.quota) {
+      const q = s.quota; s.quota = null;
+      if (q.dealt >= q.need) {
+        s.stagger = 0; s.vulnerableRounds = 2;
+        this.log('План перевыполнен (' + q.dealt + '/' + q.need + ') — Держатель пакета в замешательстве! Бейте, пока открыт.', 'ok');
+      } else {
+        const dmg = Math.round(60 * this.bossDmgMult(true));
+        for (const r of this.alive()) this.hurt(r, dmg);
+        this.addTilt(12); s.shakeSeq++;
+        this.log('План провален (' + q.dealt + '/' + q.need + ') — штраф всему отряду (-' + dmg + ').', 'warn');
+      }
     }
 
     const alive = this.alive();
@@ -2123,6 +2191,10 @@ export class GameEngine {
     // Every enemy can cleave the front line, on top of its own signature kit.
     const moves: (keyof BossMoveTimers)[] = [...(this.currentDungeon().bossKit ?? ['beam', 'meteor', 'poison', 'chain', 'brace']), 'cleave'];
     for (const k of moves) t[k] = Math.max(0, t[k] - 1);
+    // The signature comes on top of the boss's normal move, never instead of it.
+    if (s.signature && s.signature !== 'feast' && --s.sigTimer <= 0 && this.castSignature(s.signature)) {
+      s.sigTimer = SIG_COOLDOWN[s.signature];
+    }
 
     const eligible = (k: keyof BossMoveTimers): boolean => {
       if (t[k] > 0) return false;
@@ -2132,8 +2204,9 @@ export class GameEngine {
       if (k === 'brace') return s.phase >= 2;
       if (k === 'freeze') return !s.frozen;
       if (k === 'curse') return true;
-      if (k === 'cleave') return alive.some((r) => r.row === FRONT_ROW);
-      return true; // meteor
+      if (k === 'cleave') return !s.danger && alive.some((r) => r.row === FRONT_ROW);
+      if (k === 'meteor') return !s.danger;
+      return true;
     };
 
     let chosen: keyof BossMoveTimers | null = null;
@@ -2219,6 +2292,69 @@ export class GameEngine {
         t.curse = 4;
         break;
       }
+    }
+  }
+
+  /** Location-final boss's own move. Returns false when it has nothing sensible to do this turn (the kit acts instead). */
+  private castSignature(sig: SignatureKind): boolean {
+    const s = this.sim!;
+    const alive = this.alive();
+    if (!alive.length) return false;
+    const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
+    switch (sig) {
+      case 'devour': {
+        const front = alive.filter((r) => r.row === FRONT_ROW);
+        const t = pick(front.length ? front : alive);
+        s.danger = { kind: 'devour', cells: [t.row + ',' + t.col], cols: [t.col] };
+        this.log(s.boss.name + ' раскрывает пасть над ' + t.name + ' — уведите с этой клетки!', 'warn');
+        return true;
+      }
+      case 'backstab': {
+        const back = GRID_ROWS - 1;
+        const cells: string[] = [];
+        for (let col = 0; col < GRID_COLS; col++) cells.push(back + ',' + col);
+        s.danger = { kind: 'backstab', cells, cols: [] };
+        this.log(s.boss.name + ' растворяется в тенях и заходит в тыл — задний ряд под ударом!', 'warn');
+        return true;
+      }
+      case 'iceShell': {
+        if (s.iceShell) return false;
+        s.iceShell = true;
+        this.log(s.boss.name + ' покрывается ледяным панцирем — урон по нему −75%, пока его не расколют.', 'warn');
+        return true;
+      }
+      case 'debt': {
+        const t = pick(alive.filter((r) => r.role !== 'heal').length ? alive.filter((r) => r.role !== 'heal') : alive);
+        s.debt = { targetId: t.id, targetName: t.name, paid: false };
+        this.log(s.boss.name + ' выписывает долговую расписку на ' + t.name + ': ударь его до следующего хода — или взыскание!', 'warn');
+        return true;
+      }
+      case 'execution': {
+        const t = alive.reduce((a, b) => (b.hp / b.maxHp < a.hp / a.maxHp ? b : a));
+        s.execution = { targetId: t.id, targetName: t.name };
+        this.log(s.boss.name + ': «Расстрелять ' + t.name + '!» — подлечите выше 60% или прикройте обороной.', 'warn');
+        return true;
+      }
+      case 'lava': {
+        if (s.lava.length >= LAVA_MAX_CELLS) return false;
+        const free: string[] = [];
+        for (let row = 0; row < GRID_ROWS; row++) for (let col = 0; col < GRID_COLS; col++) {
+          const k = row + ',' + col;
+          if (!s.lava.includes(k)) free.push(k);
+        }
+        const added = free.sort(() => Math.random() - 0.5).slice(0, 2);
+        s.lava = [...s.lava, ...added];
+        this.log('Извержение! Лава растекается по полю — стоять на ней больно.', 'warn');
+        return true;
+      }
+      case 'quota': {
+        const est = alive.reduce((sum, r) => sum + r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE, 0);
+        s.quota = { need: Math.max(1, Math.round(est * QUOTA_SHARE)), dealt: 0 };
+        this.log(s.boss.name + ' требует квартальный отчёт: нанесите ' + s.quota.need + ' урона до его следующего хода!', 'warn');
+        return true;
+      }
+      case 'feast':
+        return false;
     }
   }
 

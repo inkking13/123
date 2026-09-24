@@ -7,6 +7,7 @@ import { colors, font } from '../theme/theme';
 import { Avatar } from '../components/Avatar';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
+import { SIGNATURE_INFO } from '../data/dungeons';
 
 export function DungeonScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -42,6 +43,14 @@ export function DungeonScreen({ engine }: { engine: GameEngine }) {
             <Text style={{ fontSize: 15, fontFamily: font.medium, color: colors.danger }}>{enc.enemyName}</Text>
             <Text style={{ fontSize: 12, color: colors.textDim, fontFamily: font.regular }}>HP {enc.hp}</Text>
           </View>
+          {enc.type === 'boss' && dungeon.signature ? (
+            <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <Text style={{ fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.warn, fontFamily: font.medium }}>
+                Особый приём · {SIGNATURE_INFO[dungeon.signature].name}
+              </Text>
+              <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>{SIGNATURE_INFO[dungeon.signature].desc}</Text>
+            </View>
+          ) : null}
         </View>
 
         <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Состояние отряда</Text>

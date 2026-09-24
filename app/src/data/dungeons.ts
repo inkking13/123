@@ -1,5 +1,5 @@
 import { EncounterDef } from './types';
-import { BossMoveTimers } from '../combat/types';
+import { BossMoveTimers, SignatureKind } from '../combat/types';
 
 export interface LocationDef {
   id: string;
@@ -29,8 +29,21 @@ export interface DungeonDef {
   dmgMult?: number;
   /** Which boss moves this dungeon's boss can cast. Defaults to the classic beam/meteor/poison/chain/brace kit. */
   bossKit?: (keyof BossMoveTimers)[];
+  /** The location-final boss's own mechanic, on top of its kit. */
+  signature?: SignatureKind;
   encounters: EncounterDef[];
 }
+
+export const SIGNATURE_INFO: Record<SignatureKind, { name: string; desc: string }> = {
+  devour: { name: 'Пожирание', desc: 'Раскрывает пасть над бойцом и на следующем ходу съедает его кусок, восстанавливая себе силы. Уведите бойца с клетки.' },
+  iceShell: { name: 'Ледяной панцирь', desc: 'Покрывается льдом и получает на 75% меньше урона, пока кто-то не потратит ход, чтобы расколоть панцирь.' },
+  feast: { name: 'Пир на ранах', desc: 'Каждый раунд лечится, пока хоть один боец ниже 50% HP. Держите отряд здоровым.' },
+  debt: { name: 'Долговая расписка', desc: 'Помечает бойца: тот должен ударить босса своим ходом, иначе получит «взыскание».' },
+  backstab: { name: 'Удар в спину', desc: 'Уходит в тени и бьёт по заднему ряду — там тоже небезопасно.' },
+  execution: { name: 'Приказ о расстреле', desc: 'Приговаривает самого раненого бойца. Подлечите его выше 60% HP или уведите в оборону.' },
+  lava: { name: 'Извержение', desc: 'Лава постепенно заливает поле. Стоять на ней больно — места для манёвра всё меньше.' },
+  quota: { name: 'Квартальный план', desc: 'Требует нанести заданный урон до его следующего хода. Выполните — растеряется; провал — штраф всему отряду.' },
+};
 
 export const DUNGEONS: DungeonDef[] = [
   // Окраины Гильдии
@@ -65,6 +78,7 @@ export const DUNGEONS: DungeonDef[] = [
   },
   {
     id: 'groblot',
+    signature: 'devour',
     locationId: 'outskirts',
     name: 'Логово Гроблота',
     recommendedGs: 80,
@@ -110,6 +124,7 @@ export const DUNGEONS: DungeonDef[] = [
   },
   {
     id: 'icepeaks',
+    signature: 'iceShell',
     locationId: 'icefrontier',
     name: 'Ледяные Пики',
     recommendedGs: 105,
@@ -157,6 +172,7 @@ export const DUNGEONS: DungeonDef[] = [
   },
   {
     id: 'ashen',
+    signature: 'feast',
     locationId: 'ashlands',
     name: 'Собор Пепла',
     recommendedGs: 135,
@@ -204,6 +220,7 @@ export const DUNGEONS: DungeonDef[] = [
   },
   {
     id: 'mines',
+    signature: 'debt',
     locationId: 'debtprovince',
     name: 'Шахты Должников',
     recommendedGs: 160,
@@ -250,6 +267,7 @@ export const DUNGEONS: DungeonDef[] = [
   },
   {
     id: 'nightsyndicate',
+    signature: 'backstab',
     locationId: 'shadowguild',
     name: 'Логово Ночного Синдиката',
     recommendedGs: 214,
@@ -297,6 +315,7 @@ export const DUNGEONS: DungeonDef[] = [
   },
   {
     id: 'deadlegion',
+    signature: 'execution',
     locationId: 'forgottenlegion',
     name: 'Ставка Мёртвого Легиона',
     recommendedGs: 268,
@@ -344,6 +363,7 @@ export const DUNGEONS: DungeonDef[] = [
   },
   {
     id: 'ancientpeak',
+    signature: 'lava',
     locationId: 'dragonwastes',
     name: 'Пик Древнего Ужаса',
     recommendedGs: 312,
@@ -391,6 +411,7 @@ export const DUNGEONS: DungeonDef[] = [
   },
   {
     id: 'boardroom',
+    signature: 'quota',
     locationId: 'hierarchy',
     name: 'Совет Гильдии',
     recommendedGs: 340,

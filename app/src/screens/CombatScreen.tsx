@@ -22,7 +22,26 @@ const ACTION_ICON: Record<TurnActionKey, IconName> = {
   brace: 'shield',
   rally: 'megaphone',
   defend: 'shield',
+  breakShell: 'snowflake',
 };
+
+const DANGER_TITLE = {
+  meteor: (cols: number[]) => 'Огненный дождь по колоннам ' + cols.map((c) => c + 1).join(' и '),
+  cleave: () => 'Сокрушающий взмах по переднему ряду',
+  devour: () => 'Пасть раскрыта над отмеченной клеткой',
+  backstab: () => 'Удар в спину по заднему ряду',
+};
+
+function Banner({ tone, title, text }: { tone: 'danger' | 'warn' | 'accent'; title: string; text: string }) {
+  const c = tone === 'danger' ? colors.danger : tone === 'warn' ? colors.warn : colors.accent;
+  const bg = tone === 'danger' ? 'rgba(209,104,92,0.1)' : tone === 'warn' ? 'rgba(201,176,109,0.1)' : colors.accentWash;
+  return (
+    <View style={{ marginTop: 10, borderWidth: 1, borderColor: c, borderRadius: 8, padding: 10, backgroundColor: bg }}>
+      <Text style={{ fontSize: 12, color: tone === 'danger' ? '#f0c3bc' : c, fontFamily: font.medium }}>{title}</Text>
+      <Text style={{ fontSize: 11, color: colors.textDim, marginTop: 2, fontFamily: font.regular }}>{text}</Text>
+    </View>
+  );
+}
 
 const ENEMY_ICON: Record<EnemyRole, IconName> = { brute: 'shield', archer: 'target', shaman: 'flask' };
 // Room groups sit centred in the enemy row, spread out so each stays easy to tap.
@@ -164,16 +183,17 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
         ) : null}
         {s.danger ? (
           <View style={{ marginTop: 10, borderWidth: 1, borderColor: colors.danger, borderRadius: 8, padding: 10, backgroundColor: 'rgba(209,104,92,0.1)' }}>
-            <Text style={{ fontSize: 12, color: '#f0c3bc', fontFamily: font.medium }}>
-              {s.danger.kind === 'meteor'
-                ? 'Огненный дождь по колоннам ' + s.danger.cols.map((c) => c + 1).join(' и ')
-                : 'Сокрушающий взмах по переднему ряду'}
-            </Text>
+            <Text style={{ fontSize: 12, color: '#f0c3bc', fontFamily: font.medium }}>{DANGER_TITLE[s.danger.kind](s.danger.cols)}</Text>
             <Text style={{ fontSize: 11, color: colors.textDim, marginTop: 2, fontFamily: font.regular }}>
               Ударит на следующем ходу противника по всем, кто останется на красных клетках.
             </Text>
           </View>
         ) : null}
+        {s.iceShell ? <Banner tone="accent" title="Ледяной панцирь" text="Урон по боссу −75%. Любой боец может потратить ход и расколоть его." /> : null}
+        {s.debt ? <Banner tone="warn" title={'Долговая расписка: ' + s.debt.targetName + (s.debt.paid ? ' — погашено' : '')} text={s.debt.paid ? 'Взыскания не будет.' : 'Этот боец должен ударить босса своим ходом, иначе получит «взыскание».'} /> : null}
+        {s.execution ? <Banner tone="danger" title={'Приказ о расстреле: ' + s.execution.targetName} text="Подлечите приговорённого выше 60% HP или пусть уйдёт в оборону — иначе залп на следующем ходу босса." /> : null}
+        {s.quota ? <Banner tone={s.quota.dealt >= s.quota.need ? 'accent' : 'warn'} title={'Квартальный план: ' + Math.min(s.quota.dealt, s.quota.need) + ' / ' + s.quota.need + ' урона'} text="Выполните до хода босса — он растеряется. Провал — штраф всему отряду." /> : null}
+        {s.signature === 'feast' ? <Banner tone="warn" title="Пир на ранах" text="Пока хоть кто-то в отряде ниже 50% HP, Кардинал лечится каждый раунд." /> : null}
         {s.chain ? (
           <View style={{ marginTop: 10, borderWidth: 1, borderColor: colors.accent, borderRadius: 8, padding: 10, backgroundColor: colors.accentWash }}>
             <Text style={{ fontSize: 12, color: colors.accentSoft, fontFamily: font.medium }}>
@@ -247,6 +267,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                 const reachable = s.movePhase && reachableCells.some((c) => c.row === row && c.col === col);
                 const tappable = reachable || (s.movePhase && isSelfCell);
                 const danger = dangerCells.has(row + ',' + col);
+                const lava = s.lava.includes(row + ',' + col);
                 return (
                   <Pressable
                     key={col}
@@ -256,17 +277,18 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                     style={{
                       flex: 1, aspectRatio: 1, borderRadius: 8,
                       borderWidth: reachable || (isSelfCell && s.movePhase) ? 2 : 1,
-                      borderColor: reachable ? colors.accent : isSelfCell ? colors.accentSoft : danger ? colors.danger : colors.border,
-                      backgroundColor: danger ? 'rgba(209,104,92,0.2)' : reachable ? colors.accentWash : colors.surface,
+                      borderColor: reachable ? colors.accent : isSelfCell ? colors.accentSoft : danger ? colors.danger : lava ? '#d9803f' : colors.border,
+                      backgroundColor: danger ? 'rgba(209,104,92,0.2)' : lava ? 'rgba(217,128,63,0.28)' : reachable ? colors.accentWash : colors.surface,
                       alignItems: 'center', justifyContent: 'center',
                     }}
                   >
                     {danger ? <DangerPulse /> : null}
                     {current && current.row === row && current.col === col ? <ActivePulse color={roleColor[current.role]} /> : null}
-                    <ImpactBurst seq={s.impact.seq} active={s.impact.cells.includes(row + ',' + col)} kind={s.impact.cells.length === GRID_COLS ? 'cleave' : 'meteor'} />
+                    <ImpactBurst seq={s.impact.seq} active={s.impact.cells.includes(row + ',' + col)} kind={s.impact.kind === 'meteor' || s.impact.kind === 'devour' ? 'meteor' : 'cleave'} />
                     {raider
                       ? <GridToken r={raider} isActive={current?.id === raider.id} poisoned={s.poison?.targetId === raider.id} fx={s.fx} />
-                      : danger ? <Icon name={s.danger?.kind === 'meteor' ? 'fire' : 'warning'} size={16} color={colors.danger} /> : null}
+                      : danger ? <Icon name={s.danger?.kind === 'meteor' ? 'fire' : 'warning'} size={16} color={colors.danger} />
+                      : lava ? <Icon name="flame" size={15} color="#d9803f" /> : null}
                   </Pressable>
                 );
               })}

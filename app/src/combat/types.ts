@@ -136,6 +136,9 @@ export interface LogEntry {
 
 export type EncounterType = 'room' | 'boss';
 
+/** One per location-final boss — each asks the party to respond in a different way. */
+export type SignatureKind = 'devour' | 'iceShell' | 'feast' | 'debt' | 'backstab' | 'execution' | 'lava' | 'quota';
+
 export type TurnEntry = { kind: 'raider'; id: number } | { kind: 'boss' };
 
 export interface BossMoveTimers {
@@ -151,7 +154,7 @@ export interface BossMoveTimers {
 
 /** A telegraphed area attack — marked on the grid on one boss turn, lands on the next on whoever is still standing in it. Cells are "row,col" keys. */
 export interface DangerZone {
-  kind: 'meteor' | 'cleave';
+  kind: 'meteor' | 'cleave' | 'devour' | 'backstab';
   cells: string[];
   cols: number[];
 }
@@ -175,7 +178,7 @@ export interface Sim {
   focusId: number | null;
   fx: CombatFx;
   /** Bumped when a telegraphed zone lands, so the cells it covered can burst. */
-  impact: { seq: number; cells: string[] };
+  impact: { seq: number; cells: string[]; kind: DangerZone['kind'] | null };
   /** Bumped on heavy moments (big hits, deaths, phase changes) to shake the battlefield. */
   shakeSeq: number;
   name: string;
@@ -209,6 +212,15 @@ export interface Sim {
   enrageAt: number;
   /** Rounds left of the post-rally boost to healing. */
   inspiredRounds: number;
+
+  /** Location-final bosses each have one signature mechanic (see SignatureKind). */
+  signature: SignatureKind | null;
+  sigTimer: number;
+  iceShell: boolean;
+  debt: { targetId: number; targetName: string; paid: boolean } | null;
+  execution: { targetId: number; targetName: string } | null;
+  quota: { need: number; dealt: number } | null;
+  lava: string[];
 
   rallyCd: number;
   tilt: number;
