@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
 import { colors, font, roleColor, roleName } from '../theme/theme';
 import { Avatar } from '../components/Avatar';
-import { ItemIcon } from '../components/ItemIcon';
+import { EquipmentPanel } from '../components/EquipmentPanel';
 import { GhostLink, PrimaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
 
@@ -13,6 +13,8 @@ export function GearScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
   const insets = useSafeAreaInsets();
   const chosen = engine.squad();
+  const [pickId, setPickId] = useState<number | null>(null);
+  const cur = chosen.find((c) => c.id === pickId) || chosen[0];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -26,45 +28,21 @@ export function GearScreen({ engine }: { engine: GameEngine }) {
           Каждый слот меняет баланс между уроном, живучестью и перезарядкой. Предметы берутся из общего инвентаря гильдии — они не бесконечны.
         </Text>
 
-        {chosen.map((c) => {
-          const slots = engine.gearSlotsFor(c);
-          return (
-            <View key={c.id} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 10, backgroundColor: colors.surface }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <Avatar id={c.id} size={38} radius={8} />
-                <View>
-                  <Text style={{ fontSize: 15, fontFamily: font.medium, color: colors.text }}>{c.name}</Text>
-                  <Text style={{ fontSize: 11, color: roleColor[c.role], letterSpacing: 0.6, textTransform: 'uppercase', fontFamily: font.regular }}>{roleName[c.role]}</Text>
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+          {chosen.map((c) => {
+            const on = c.id === cur?.id;
+            return (
+              <Pressable key={c.id} testID={`gear-tab-${c.id}`} onPress={() => setPickId(c.id)} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                <View style={{ borderWidth: on ? 2 : 1, borderColor: on ? '#c9a36b' : colors.border, borderRadius: 8, padding: 1, opacity: on ? 1 : 0.6 }}>
+                  <Avatar id={c.id} size={46} radius={6} />
                 </View>
-              </View>
-              {slots.map((slot) => (
-                <View key={slot.label} style={{ marginBottom: 9 }}>
-                  <Text style={{ fontSize: 10.5, letterSpacing: 0.5, textTransform: 'uppercase', color: colors.textFaint, marginBottom: 5, fontFamily: font.regular }}>{slot.label}</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
-                    {slot.options.map((o) => (
-                      <Pressable
-                        key={o.id}
-                        onPress={o.onPick}
-                        disabled={o.disabled}
-                        style={{
-                          flexDirection: 'row', alignItems: 'center', gap: 6,
-                          borderWidth: 1, borderColor: o.border, backgroundColor: o.bg, borderRadius: 7,
-                          paddingHorizontal: 8, paddingVertical: 6, opacity: o.disabled ? 0.45 : 1,
-                        }}
-                      >
-                        {o.icon ? <ItemIcon id={o.icon} size={26} radius={5} /> : null}
-                        <View>
-                          <Text style={{ fontSize: 11.5, color: o.color, fontFamily: font.regular }}>{o.name}</Text>
-                          {o.stockLabel ? <Text style={{ fontSize: 9, color: colors.textFaint, marginTop: 1, fontFamily: font.regular }}>{o.stockLabel}</Text> : null}
-                        </View>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              ))}
-            </View>
-          );
-        })}
+                <Text numberOfLines={1} style={{ fontSize: 10.5, color: on ? colors.text : colors.textFaint, fontFamily: font.regular }}>{c.name}</Text>
+                <Text style={{ fontSize: 9, color: roleColor[c.role], textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: font.regular }}>{roleName[c.role]}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {cur ? <EquipmentPanel key={cur.id} engine={engine} c={cur} /> : null}
       </ScrollView>
 
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>

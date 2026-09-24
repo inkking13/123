@@ -12,6 +12,7 @@ import { PROFESSIONS, PROFESSION_MAX_LEVEL, PROFESSION_XP_PER_LEVEL, professionT
 import { REAGENTS, REAGENT_BY_LOCATION, ROOM_REAGENT_CHANCE } from '../data/reagents';
 import { RECIPES } from '../data/recipes';
 import { GEAR_SETS, GearSetDef, SetBonusDef } from '../data/gearSets';
+import { Rarity, StatLine, compareLines, rarityOf, setNameOf, statLines } from '../data/gearInfo';
 import { QUESTS } from '../data/quests';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { DailyMetric, pickDailyTemplates } from '../data/dailyQuests';
@@ -21,7 +22,7 @@ import { CURIOS } from '../data/curios';
 import { EventOption, OFFICE_EVENTS } from '../data/events';
 import { ItemIconId } from '../data/itemIcons';
 import { IconName } from '../components/Icon';
-import { AttackRange, Candidate, EncounterDef, GearSlotKey, Role } from '../data/types';
+import { AttackRange, Candidate, EncounterDef, GearOption, GearSlotKey, Role } from '../data/types';
 import {
   ACCENT, ATTACK_TURN_SCALE, HEAL_TURN_SCALE,
   GRID_ROWS, GRID_COLS, FRONT_ROW, BACK_ROW, MOVE_RANGE,
@@ -148,6 +149,33 @@ export interface GearSlotVM {
   label: string;
   desc: string;
   options: GearSlotOption[];
+}
+
+export interface EquipItemVM {
+  id: string;
+  name: string;
+  icon?: ItemIconId;
+  rarity: Rarity;
+  desc: string;
+  stats: StatLine[];
+  compare: StatLine[];
+  setName: string | null;
+  free: number;
+  worn: boolean;
+  available: boolean;
+  wornBy: string[];
+  onEquip: () => void;
+}
+export interface EquipSlotVM {
+  slot: GearSlotKey;
+  label: string;
+  equipped: EquipItemVM | null;
+  stash: EquipItemVM[];
+  onUnequip: () => void;
+}
+export interface EquipmentVM {
+  slots: EquipSlotVM[];
+  totals: StatLine[];
 }
 
 export interface LootItem {
@@ -695,6 +723,54 @@ export class GameEngine {
         }),
       };
     });
+  }
+
+  private equipSlot(c: Candidate, slot: GearSlotKey, gearId: string) {
+    if (!this.itemAvailable(c, slot, gearId)) return;
+    if (c.equipment[slot] !== gearId) this.bumpDaily('gearChange');
+    c.equipment[slot] = gearId;
+    this.notify();
+  }
+  // Paperdoll view: what each slot wears plus the guild stash for that slot,
+  // each piece carrying its rarity, stats and a diff against the worn one.
+  equipmentVM(c: Candidate): EquipmentVM {
+    const slots = SLOT_ORDER.map((slot): EquipSlotVM => {
+      const worn = GEAR[slot].find((x) => x.id === c.equipment[slot]) || GEAR[slot][0];
+      const item = (o: GearOption): EquipItemVM => {
+        const isWorn = o.id === worn.id;
+        const wornBy = this.pool.filter((p) => p.id !== c.id && p.equipment[slot] === o.id).map((p) => p.name);
+        return {
+          id: o.id,
+          name: o.name,
+          icon: o.icon,
+          rarity: rarityOf(o),
+          desc: o.desc,
+          stats: statLines(o),
+          compare: isWorn ? [] : compareLines(o, worn),
+          setName: setNameOf(o.id),
+          free: Math.max(0, this.itemOwned(o.id) - wornBy.length - (isWorn ? 1 : 0)),
+          worn: isWorn,
+          available: this.itemAvailable(c, slot, o.id),
+          wornBy,
+          onEquip: () => this.equipSlot(c, slot, o.id),
+        };
+      };
+      return {
+        slot,
+        label: SLOT_LABEL[slot],
+        equipped: worn.id === 'none' ? null : item(worn),
+        stash: GEAR[slot].filter((o) => o.id !== 'none' && this.itemOwned(o.id) > 0).map(item),
+        onUnequip: () => this.equipSlot(c, slot, 'none'),
+      };
+    });
+    const g = this.gearMults(c);
+    const sb = this.setBonusMults(c);
+    const totals = statLines({
+      id: 'total', name: '', desc: '',
+      mult: g.outputMult * sb.outputMult, hpMult: g.hpMult * sb.hpMult,
+      wardMult: g.wardMult * sb.wardMult, cdMult: g.cdMult * sb.cdMult,
+    });
+    return { slots, totals };
   }
 
   talentTiersFor(c: Candidate): TalentTier[] {

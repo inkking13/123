@@ -12,7 +12,7 @@ import { MAX_LEVEL, XP_PER_LEVEL } from '../data/characters';
 import { PROFESSION_MAX_LEVEL } from '../data/professions';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
-import { ItemIcon } from '../components/ItemIcon';
+import { EquipmentPanel } from '../components/EquipmentPanel';
 import { ProgressBar } from '../components/ProgressBar';
 import { useEngineVersion } from '../engine/useEngine';
 
@@ -21,7 +21,6 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
   const insets = useSafeAreaInsets();
   const [confirmFire, setConfirmFire] = useState(false);
   const cc = engine.pool.find((c) => c.id === engine.charId) || engine.pool[0];
-  const slots = engine.gearSlotsFor(cc);
   const atMax = cc.level >= MAX_LEVEL;
   const xpPct = atMax ? 100 : (cc.xp / XP_PER_LEVEL) * 100;
   const xpLabel = atMax ? 'макс.' : `${cc.xp}/${XP_PER_LEVEL}`;
@@ -101,6 +100,35 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
               </View>
             ))}
           </View>
+
+          <EquipmentPanel key={cc.id} engine={engine} c={cc} />
+
+          {setProgress.length > 0 ? (
+            <>
+              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Комплект</Text>
+              {setProgress.map((s) => (
+                <View
+                  key={s.name}
+                  style={{
+                    borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 10,
+                    borderColor: s.active2 ? colors.accent : colors.borderStrong,
+                    backgroundColor: s.active2 ? colors.accentWash : colors.surface,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={{ fontSize: 13.5, fontFamily: font.medium, color: colors.text }}>{s.name}</Text>
+                    <Text style={{ fontSize: 11.5, color: colors.textFaint, fontFamily: font.regular }}>{s.count}/3</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, marginBottom: 3, color: s.active2 ? colors.accentSoft : colors.textFaint, fontFamily: font.regular }}>
+                    2 предмета: {s.bonus2Desc}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: s.active3 ? colors.accentSoft : colors.textFaint, fontFamily: font.regular }}>
+                    3 предмета: {s.bonus3Desc}
+                  </Text>
+                </View>
+              ))}
+            </>
+          ) : null}
 
           <View style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 10, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
             <SkillIcon id={ABILITY_ART[cc.id]} size={44} radius={8} style={{ borderWidth: 1, borderColor: roleColor[cc.role] + '88' }} />
@@ -252,61 +280,6 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
               </>
             );
           })()}
-
-          {setProgress.length > 0 ? (
-            <>
-              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Комплект</Text>
-              {setProgress.map((s) => (
-                <View
-                  key={s.name}
-                  style={{
-                    borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 10,
-                    borderColor: s.active2 ? colors.accent : colors.borderStrong,
-                    backgroundColor: s.active2 ? colors.accentWash : colors.surface,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <Text style={{ fontSize: 13.5, fontFamily: font.medium, color: colors.text }}>{s.name}</Text>
-                    <Text style={{ fontSize: 11.5, color: colors.textFaint, fontFamily: font.regular }}>{s.count}/3</Text>
-                  </View>
-                  <Text style={{ fontSize: 12, marginBottom: 3, color: s.active2 ? colors.accentSoft : colors.textFaint, fontFamily: font.regular }}>
-                    2 предмета: {s.bonus2Desc}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: s.active3 ? colors.accentSoft : colors.textFaint, fontFamily: font.regular }}>
-                    3 предмета: {s.bonus3Desc}
-                  </Text>
-                </View>
-              ))}
-            </>
-          ) : null}
-
-          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Снаряжение</Text>
-          {slots.map((slot) => (
-            <View key={slot.label} style={{ marginBottom: 14 }}>
-              <Text style={{ fontSize: 11, color: colors.textFaint, marginBottom: 6, fontFamily: font.regular }}>{slot.label}</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {slot.options.map((o) => (
-                  <Pressable
-                    key={o.id}
-                    onPress={o.onPick}
-                    disabled={o.disabled}
-                    style={{
-                      flexDirection: 'row', alignItems: 'center', gap: 8,
-                      borderWidth: 1, borderColor: o.border, backgroundColor: o.bg, borderRadius: 8,
-                      paddingHorizontal: 10, paddingVertical: 8, minHeight: 38, opacity: o.disabled ? 0.45 : 1,
-                    }}
-                  >
-                    {o.icon ? <ItemIcon id={o.icon} size={28} radius={6} /> : null}
-                    <View>
-                      <Text style={{ fontSize: 12, color: o.color, fontFamily: font.regular }}>{o.name}</Text>
-                      {o.stockLabel ? <Text style={{ fontSize: 9.5, color: colors.textFaint, marginTop: 1, fontFamily: font.regular }}>{o.stockLabel}</Text> : null}
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={{ fontSize: 11.5, color: colors.textFaint, marginTop: 6, fontFamily: font.regular }}>{slot.desc}</Text>
-            </View>
-          ))}
 
           <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, marginTop: 8, fontFamily: font.regular }}>Кадровые решения</Text>
           {!engine.canFire() ? (

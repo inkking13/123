@@ -87,6 +87,7 @@ export function RosterScreen({ engine }: { engine: GameEngine }) {
                 </View>
               </Pressable>
               <Pressable
+                testID={`open-char-${c.id}`}
                 onPress={() => engine.openChar(c.id)}
                 style={{ width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center' }}
               >
