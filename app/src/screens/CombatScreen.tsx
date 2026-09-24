@@ -11,7 +11,10 @@ import { ProgressBar } from '../components/ProgressBar';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
 import { BOSS_ART, MONSTER_ART, ROOM_ART } from '../data/monsterArt';
-import { ActivePulse, AuraRing, Crosshair, DangerPulse, DebtCoin, DefendBadge, FoeCell, Floaters, FrozenOverlay, ImpactBurst, IceShellOverlay, LavaGlow, PoisonBubbles, Projectile, RallyWave, Tether, impactDelay, useActorMotion, useHpFloaters, useSlideIn } from '../components/CombatFx';
+import { AuraRing, Crosshair, DebtCoin, DefendBadge, FoeCell, Floaters, FrozenOverlay, IceShellOverlay, PoisonBubbles, Projectile, RallyWave, Tether, impactDelay, useActorMotion, useHpFloaters, useSlideIn } from '../components/CombatFx';
+import { FootShadow, Floor, TileGlow, TileImpact } from '../components/Stage25D';
+import { fieldGeometry } from '../combat/perspective';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
   attack: 'sword',
@@ -74,42 +77,61 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const dangerCells = new Set(s.danger?.cells ?? []);
   const stunnedFoes = s.stunned || s.vulnerableRounds > 0;
 
-  // Battlefield geometry, derived from its measured width (cells are square, 6px gaps, 10px under the enemy row).
+  // 2.5D battlefield geometry, derived from its measured width: the grid is a
+  // floor seen from behind the party, enemies stand beyond its far edge.
   const [fieldW, setFieldW] = useState(0);
-  const cell = fieldW ? (fieldW - 6 * (GRID_COLS - 1)) / GRID_COLS : 0;
-  const colX = (col: number) => col * (cell + 6) + cell / 2;
+  const bossSize = fieldW * 0.4;
+  const roomFoeSize = fieldW * 0.2 * 1.5 * 0.56;
+  const geo = fieldW ? fieldGeometry(fieldW, (isBossFight ? bossSize : roomFoeSize) + 12) : null;
+  const enemyZ = geo ? (geo.rowSpan(-1)[0] + geo.rowSpan(-1)[1]) / 2 : 0;
+  const foeSize = isBossFight ? bossSize : geo ? fieldW * 0.2 * 1.5 * geo.scale(enemyZ) : 0;
+  // Room groups stand a little wider than the tiles so their cards don't pile up.
+  const foeFoot = (col: number) => geo!.project(0.5 + ((col - enemyCenter) / GRID_COLS) * 1.3, enemyZ);
   const foePoint = (enemyId: number) => {
     const col = enemyId < 0 ? enemyCenter : enemySlots[s.enemies.findIndex((e) => e.id === enemyId)] ?? enemyCenter;
-    return { x: colX(col), y: cell / 2 };
+    const f = foeFoot(col);
+    return { x: f.x, y: f.y - foeSize / 2 };
   };
-  const raiderPoint = (row: number, col: number) => ({ x: colX(col), y: cell + 10 + row * (cell + 6) + cell / 2 });
+  const figureSize = (row: number) => (geo ? Math.round(60 * geo.tileScale(row, 0)) : 30);
+  const raiderPoint = (row: number, col: number) => {
+    const f = geo!.foot(row, col);
+    return { x: f.x, y: f.y - figureSize(row) * 0.6 };
+  };
+  const slideOffset = (toRow: number, toCol: number) => (fromRow: number, fromCol: number) => {
+    const a = geo!.foot(fromRow, fromCol); const b = geo!.foot(toRow, toCol);
+    return { dx: a.x - b.x, dy: a.y - b.y };
+  };
 
   const [waves, setWaves] = useState<{ key: number; at: { x: number; y: number } }[]>([]);
   // One projectile per ranged/ability/heal action, flying from the actor to its target.
-  const [shots, setShots] = useState<{ key: number; from: { x: number; y: number }; to: { x: number; y: number }; color: string }[]>([]);
+  const [shots, setShots] = useState<{ key: number; from: { x: number; y: number }; to: { x: number; y: number }; color: string; arc: number }[]>([]);
   useEffect(() => {
     const fx = s.fx;
-    if (!cell || fx.seq === 0 || typeof fx.actor !== 'number') return;
+    if (!geo || fx.seq === 0 || typeof fx.actor !== 'number') return;
     const actor = s.raiders.find((r) => r.id === fx.actor);
     if (!actor) return;
     const from = raiderPoint(actor.row, actor.col);
     let to: { x: number; y: number } | null = null;
     let color: string = colors.warn;
+    let arc = 0;
     if ((fx.kind === 'ranged' || fx.kind === 'ability') && fx.targetEnemy != null) {
       to = foePoint(fx.targetEnemy);
       color = fx.kind === 'ability' ? colors.accent : '#ffb35c';
+      arc = 34;
     } else if (fx.targetRaider != null && fx.targetRaider !== actor.id) {
       const t = s.raiders.find((r) => r.id === fx.targetRaider);
-      if (t) { to = raiderPoint(t.row, t.col); color = colors.good; }
+      if (t) { to = raiderPoint(t.row, t.col); color = colors.good; arc = 22; }
     }
-    if (fx.kind === 'rally') setWaves((xs) => [...xs, { key: fx.seq, at: from }]);
-    if (to) setShots((xs) => [...xs, { key: fx.seq, from, to: to!, color }]);
+    if (fx.kind === 'rally') setWaves((xs) => [...xs, { key: fx.seq, at: geo.foot(actor.row, actor.col) }]);
+    if (to) setShots((xs) => [...xs, { key: fx.seq, from, to: to!, color, arc }]);
     // Fires once per action; positions are read from the state that action produced.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.fx.seq]);
 
-  // Heavy moments shake the whole battlefield.
+  // Camera: a slow idle drift, and heavy moments shake and punch in.
   const fieldShake = useRef(new Animated.Value(0)).current;
+  const punch = useRef(new Animated.Value(0)).current;
+  const drift = useRef(new Animated.Value(0)).current;
   const prevShake = useRef(s.shakeSeq);
   useEffect(() => {
     if (s.shakeSeq === prevShake.current) return;
@@ -122,7 +144,21 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
       Animated.timing(fieldShake, { toValue: -0.3, duration: 50, useNativeDriver: true }),
       Animated.timing(fieldShake, { toValue: 0, duration: 50, useNativeDriver: true }),
     ]).start();
-  }, [s.shakeSeq, fieldShake]);
+    punch.setValue(0);
+    Animated.sequence([
+      Animated.timing(punch, { toValue: 1, duration: 70, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(punch, { toValue: 0, duration: 380, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]).start();
+  }, [s.shakeSeq, fieldShake, punch]);
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(drift, { toValue: 1, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(drift, { toValue: -1, duration: 6400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(drift, { toValue: 0, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [drift]);
 
   const onPickAction = (key: TurnActionKey, needsTarget: boolean) => {
     if (needsTarget) { setPickingTarget(key); return; }
@@ -242,89 +278,153 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               {isBossFight ? 'Передний край: ближний бой, строй, танк прикрывает' : 'Нажмите на врага, чтобы выбрать цель'}
             </Text>
           </View>
-          <Animated.View
+          <View
             onLayout={(e) => setFieldW(e.nativeEvent.layout.width)}
-            style={{ transform: [{ translateX: fieldShake.interpolate({ inputRange: [-1, 1], outputRange: [-7, 7] }) }] }}
+            style={{ height: geo ? geo.height : 240, borderRadius: 10, overflow: 'hidden', backgroundColor: '#12131d' }}
           >
-          {/* Enemy row — same column grid as the party, so the whole thing reads as one battlefield */}
-          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10, zIndex: s.fx.actor === 'enemy' ? 5 : 0 }}>
-            {Array.from({ length: GRID_COLS }).map((_, col) => {
-              if (isBossFight) {
-                if (col !== enemyCenter) return <View key={col} style={{ flex: 1, aspectRatio: 1, borderRadius: 8, borderWidth: 1, borderColor: colors.border, opacity: 0.4 }} />;
-                return (
-                  <FoeCell
-                    key={col} icon="skull" hp={s.boss.hp} maxHp={s.boss.maxHp} alive={s.boss.hp > 0}
-                    focused={false} isBoss poisoned={!!s.bossPoison} stunned={stunnedFoes} phase={s.phase} fx={s.fx}
-                    overlay={s.iceShell ? <IceShellOverlay /> : null} art={bossArt}
+            {geo ? (
+              <>
+                {/* Far wall: the location's art, blurred into the dark */}
+                {(isBossFight ? bossArt : roomArt ? MONSTER_ART[roomArt.brute] : undefined) ? (
+                  <Image
+                    source={isBossFight ? bossArt : MONSTER_ART[roomArt!.brute]}
+                    blurRadius={14}
+                    resizeMode="cover"
+                    style={{ position: 'absolute', left: 0, top: 0, width: geo.width, height: geo.height * 0.75, opacity: 0.32 }}
                   />
-                );
-              }
-              const slot = enemySlots.indexOf(col);
-              const e = slot >= 0 ? s.enemies[slot] : null;
-              if (!e) {
-                return <View key={col} style={{ flex: 1, aspectRatio: 1, borderRadius: 8, borderWidth: 1, borderColor: colors.border, opacity: 0.4 }} />;
-              }
-              return (
-                <FoeCell
-                  key={col} testID={'enemy-' + e.id} icon={ENEMY_ICON[e.role]} name={e.name}
-                  hp={e.hp} maxHp={e.maxHp} alive={e.alive} focused={e.alive && e.id === focusId} isBoss={false}
-                  poisoned={s.bossPoison?.enemyId === e.id} stunned={stunnedFoes} fx={s.fx} onPress={() => engine.setFocus(e.id)}
-                  art={roomArt ? MONSTER_ART[roomArt[e.role]] : undefined}
+                ) : null}
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={['rgba(18,19,29,0.1)', 'rgba(18,19,29,0.55)', '#12131d']}
+                  locations={[0, 0.45, 0.8]}
+                  style={{ position: 'absolute', left: 0, right: 0, top: 0, height: geo.height }}
                 />
-              );
-            })}
-          </View>
-          {Array.from({ length: GRID_ROWS }).map((_, row) => (
-            <View key={row} style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
-              {Array.from({ length: GRID_COLS }).map((_, col) => {
-                const raider = s.raiders.find((x) => x.alive && x.row === row && x.col === col)
-                  || s.raiders.find((x) => !x.alive && x.row === row && x.col === col);
-                const isSelfCell = !!current && current.row === row && current.col === col;
-                const reachable = s.movePhase && reachableCells.some((c) => c.row === row && c.col === col);
-                const tappable = reachable || (s.movePhase && isSelfCell);
-                const danger = dangerCells.has(row + ',' + col);
-                const lava = s.lava.includes(row + ',' + col);
-                return (
-                  <Pressable
-                    key={col}
-                    testID={'cell-' + row + '-' + col}
-                    disabled={!tappable}
-                    onPress={() => (isSelfCell ? engine.skipMove() : engine.moveRaider(row, col))}
-                    style={{
-                      flex: 1, aspectRatio: 1, borderRadius: 8,
-                      borderWidth: reachable || (isSelfCell && s.movePhase) ? 2 : 1,
-                      borderColor: reachable ? colors.accent : isSelfCell ? colors.accentSoft : danger ? colors.danger : lava ? '#d9803f' : colors.border,
-                      backgroundColor: danger ? 'rgba(209,104,92,0.2)' : lava ? 'rgba(217,128,63,0.28)' : reachable ? colors.accentWash : colors.surface,
-                      alignItems: 'center', justifyContent: 'center',
+                <Animated.View
+                  style={{
+                    position: 'absolute', left: 0, top: 0, width: geo.width, height: geo.height,
+                    transform: [
+                      { translateX: Animated.add(fieldShake.interpolate({ inputRange: [-1, 1], outputRange: [-7, 7] }), drift.interpolate({ inputRange: [-1, 1], outputRange: [-3, 3] })) },
+                      { translateY: drift.interpolate({ inputRange: [-1, 0, 1], outputRange: [1.5, 0, 1.5] }) },
+                      { scale: punch.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) },
+                    ],
+                  }}
+                >
+                  <Floor
+                    geo={geo}
+                    tileState={(row, col) => {
+                      const key = row + ',' + col;
+                      if (dangerCells.has(key)) return 'danger';
+                      if (s.lava.includes(key)) return 'lava';
+                      if (s.movePhase && reachableCells.some((c) => c.row === row && c.col === col)) return 'reachable';
+                      if (s.movePhase && current && current.row === row && current.col === col) return 'self';
+                      return 'plain';
                     }}
-                  >
-                    {danger ? <DangerPulse /> : lava ? <LavaGlow /> : null}
-                    {current && current.row === row && current.col === col ? <ActivePulse color={roleColor[current.role]} /> : null}
-                    <ImpactBurst seq={s.impact.seq} active={s.impact.cells.includes(row + ',' + col)} kind={s.impact.kind === 'meteor' || s.impact.kind === 'devour' ? 'meteor' : 'cleave'} />
-                    {raider
-                      ? <GridToken r={raider} isActive={current?.id === raider.id} poisoned={s.poison?.targetId === raider.id} fx={s.fx} sim={s} pitch={cell + 6} />
-                      : danger ? <Icon name={s.danger?.kind === 'meteor' ? 'fire' : 'warning'} size={16} color={colors.danger} />
-                      : lava ? <Icon name="flame" size={15} color="#d9803f" /> : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
-          <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 }}>
-            {shots.map((p) => (
-              <Projectile key={p.key} from={p.from} to={p.to} color={p.color} onDone={() => setShots((xs) => xs.filter((x) => x.key !== p.key))} />
-            ))}
-            {cell && s.pendingCast ? (() => {
-              const t = s.raiders.find((r) => r.id === s.pendingCast!.targetId && r.alive);
-              return t ? <Tether from={foePoint(-1)} to={raiderPoint(t.row, t.col)} color={colors.danger} thickness={3} /> : null;
-            })() : null}
-            {cell && s.chain ? (() => {
-              const a = s.raiders.find((r) => r.id === s.chain!.aId); const b = s.raiders.find((r) => r.id === s.chain!.bId);
-              return a && b ? <Tether from={raiderPoint(a.row, a.col)} to={raiderPoint(b.row, b.col)} color={colors.accent} /> : null;
-            })() : null}
-            {waves.map((w) => <RallyWave key={w.key} at={w.at} onDone={() => setWaves((xs) => xs.filter((x) => x.key !== w.key))} />)}
+                  />
+                  {[...dangerCells].map((key) => {
+                    const [row, col] = key.split(',').map(Number);
+                    return <TileGlow key={'d' + key} geo={geo} row={row} col={col} color="rgba(209,104,92,0.45)" stroke={colors.danger} />;
+                  })}
+                  {s.lava.map((key) => {
+                    const [row, col] = key.split(',').map(Number);
+                    return <TileGlow key={'l' + key} geo={geo} row={row} col={col} color="rgba(255,120,40,0.45)" duration={1500} />;
+                  })}
+                  {current ? (
+                    <TileGlow key={'a' + current.id} geo={geo} row={current.row} col={current.col} color={roleColor[current.role] + '33'} stroke={roleColor[current.role]} duration={1300} min={0.3} max={0.95} />
+                  ) : null}
+                  {s.impact.cells.map((key) => {
+                    const [row, col] = key.split(',').map(Number);
+                    return <TileImpact key={s.impact.seq + ':' + key} geo={geo} row={row} col={col} kind={s.impact.kind === 'meteor' || s.impact.kind === 'devour' ? 'meteor' : 'cleave'} />;
+                  })}
+
+                  {/* Tap targets, one per tile */}
+                  {Array.from({ length: GRID_ROWS }).flatMap((_, row) =>
+                    Array.from({ length: GRID_COLS }).map((__, col) => {
+                      const isSelfCell = !!current && current.row === row && current.col === col;
+                      const reachable = s.movePhase && reachableCells.some((c) => c.row === row && c.col === col);
+                      const rect = geo.tileRect(row, col);
+                      return (
+                        <Pressable
+                          key={'t' + row + '-' + col}
+                          testID={'cell-' + row + '-' + col}
+                          disabled={!(reachable || (s.movePhase && isSelfCell))}
+                          onPress={() => (isSelfCell ? engine.skipMove() : engine.moveRaider(row, col))}
+                          style={{ position: 'absolute', ...rect, zIndex: 1 }}
+                        />
+                      );
+                    }),
+                  )}
+
+                  {/* Figures, far to near so nearer ones overlap */}
+                  {(() => {
+                    const figs: { y: number; node: React.ReactNode }[] = [];
+                    if (isBossFight) {
+                      const f = foeFoot(enemyCenter);
+                      figs.push({ y: f.y, node: (
+                        <View key="boss" style={{ position: 'absolute', left: f.x - foeSize / 2, top: f.y - foeSize, width: foeSize, height: foeSize, zIndex: Math.round(f.y) }}>
+                          <FootShadow at={{ x: foeSize / 2, y: foeSize }} width={foeSize * 0.95} />
+                          <FoeCell
+                            icon="skull" hp={s.boss.hp} maxHp={s.boss.maxHp} alive={s.boss.hp > 0}
+                            focused={false} isBoss poisoned={!!s.bossPoison} stunned={stunnedFoes} phase={s.phase} fx={s.fx}
+                            overlay={s.iceShell ? <IceShellOverlay /> : null} art={bossArt}
+                          />
+                        </View>
+                      ) });
+                    } else {
+                      s.enemies.forEach((e, i) => {
+                        const col = enemySlots[i] ?? enemyCenter;
+                        const f = foeFoot(col);
+                        figs.push({ y: f.y + i * 0.01, node: (
+                          <View key={'foe' + e.id} style={{ position: 'absolute', left: f.x - foeSize / 2, top: f.y - foeSize, width: foeSize, height: foeSize, zIndex: Math.round(f.y) + (col === enemyCenter ? 0 : 1) }}>
+                            <FootShadow at={{ x: foeSize / 2, y: foeSize }} width={foeSize * 0.9} />
+                            <FoeCell
+                              testID={'enemy-' + e.id} icon={ENEMY_ICON[e.role]} name={e.name}
+                              hp={e.hp} maxHp={e.maxHp} alive={e.alive} focused={e.alive && e.id === focusId} isBoss={false}
+                              poisoned={s.bossPoison?.enemyId === e.id} stunned={stunnedFoes} fx={s.fx} onPress={() => engine.setFocus(e.id)}
+                              art={roomArt ? MONSTER_ART[roomArt[e.role]] : undefined}
+                            />
+                          </View>
+                        ) });
+                      });
+                    }
+                    // Dead first so a living raider sharing the cell draws on top.
+                    [...s.raiders].sort((a, b) => Number(a.alive) - Number(b.alive)).forEach((r) => {
+                      const f = geo.foot(r.row, r.col);
+                      const size = figureSize(r.row);
+                      const isSelf = s.movePhase && current?.id === r.id;
+                      figs.push({ y: f.y + (r.alive ? 0.5 : 0), node: (
+                        <View
+                          key={'r' + r.id}
+                          pointerEvents="box-none"
+                          style={{ position: 'absolute', left: f.x - size, top: f.y - size - 3, width: size * 2, zIndex: Math.round(f.y) + (r.alive ? 3 : 2) }}
+                        >
+                          <GridToken
+                            r={r} size={size} isActive={current?.id === r.id} poisoned={s.poison?.targetId === r.id} fx={s.fx} sim={s}
+                            offsetOf={slideOffset(r.row, r.col)} onPress={isSelf ? () => engine.skipMove() : undefined}
+                          />
+                        </View>
+                      ) });
+                    });
+                    return figs.sort((a, b) => a.y - b.y).map((x) => x.node);
+                  })()}
+
+                  <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000 }}>
+                    {shots.map((p) => (
+                      <Projectile key={p.key} from={p.from} to={p.to} color={p.color} arc={p.arc} onDone={() => setShots((xs) => xs.filter((x) => x.key !== p.key))} />
+                    ))}
+                    {s.pendingCast ? (() => {
+                      const t = s.raiders.find((r) => r.id === s.pendingCast!.targetId && r.alive);
+                      return t ? <Tether from={foePoint(-1)} to={raiderPoint(t.row, t.col)} color={colors.danger} thickness={3} /> : null;
+                    })() : null}
+                    {s.chain ? (() => {
+                      const a = s.raiders.find((r) => r.id === s.chain!.aId); const b = s.raiders.find((r) => r.id === s.chain!.bId);
+                      return a && b ? <Tether from={raiderPoint(a.row, a.col)} to={raiderPoint(b.row, b.col)} color={colors.accent} /> : null;
+                    })() : null}
+                    {waves.map((w) => <RallyWave key={w.key} at={w.at} squash={0.42} onDone={() => setWaves((xs) => xs.filter((x) => x.key !== w.key))} />)}
+                  </View>
+                </Animated.View>
+              </>
+            ) : null}
           </View>
-          </Animated.View>
         </View>
 
         {/* Combat log */}
@@ -414,7 +514,10 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   );
 }
 
-function GridToken({ r, isActive, poisoned, fx, sim, pitch }: { r: Raider; isActive: boolean; poisoned: boolean; fx: CombatFx; sim: Sim; pitch: number }) {
+function GridToken({ r, size, isActive, poisoned, fx, sim, offsetOf, onPress }: {
+  r: Raider; size: number; isActive: boolean; poisoned: boolean; fx: CombatFx; sim: Sim;
+  offsetOf: (fromRow: number, fromCol: number) => { dx: number; dy: number }; onPress?: () => void;
+}) {
   const hpPct = Math.max(0, (r.hp / r.maxHp) * 100);
   const hpColor = hpPct > 60 ? colors.good : hpPct > 30 ? colors.warn : colors.danger;
   const chained = r.chainPartner != null;
@@ -439,26 +542,31 @@ function GridToken({ r, isActive, poisoned, fx, sim, pitch }: { r: Raider; isAct
   }, [r.alive, slump]);
   const motion = useActorMotion(fx, (f) => f.actor === r.id, -1);
   const glowColor = fx.kind === 'heal' ? colors.good : fx.kind === 'ability' ? colors.accent : fx.kind === 'rally' ? colors.warn : roleColor[r.role];
-  const slide = useSlideIn(sim.moveFx, r.id, r.row, r.col, pitch);
+  const slide = useSlideIn(sim.moveFx, r.id, r.row, r.col, offsetOf);
   const alive = r.alive;
   const frozen = alive && sim.frozen?.targetId === r.id;
   const shielded = alive && ((r.ability.kind === 'selfShield' && r.ability.active) || !!sim.partyWard);
   const berserk = alive && r.ability.kind === 'berserk' && r.ability.active;
   const doomed = alive && sim.execution?.targetId === r.id;
   const indebted = alive && sim.debt?.targetId === r.id && !sim.debt.paid;
-  return (
-    <Animated.View style={{ alignItems: 'center', width: '100%', zIndex: 3, transform: [{ translateX: slide.x }, { translateY: slide.y }] }}>
+  const body = (
+    <Animated.View pointerEvents={onPress ? 'auto' : 'none'} style={{ alignItems: 'center', width: '100%', transform: [{ translateX: slide.x }, { translateY: slide.y }] }}>
+      {/* Contact shadow under the figure's feet */}
+      <View style={{ position: 'absolute', top: size - size * 0.12, width: size * 1.05, height: size * 0.3, borderRadius: size, backgroundColor: 'rgba(0,0,0,0.5)' }} />
       <Animated.View style={{ opacity: slump.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] }), transform: [
         { translateX: shake.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] }) },
-        { translateY: Animated.add(motion.translateY, slump.interpolate({ inputRange: [0, 1], outputRange: [0, 6] })) },
-        { rotate: slump.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-12deg'] }) },
+        { translateY: Animated.add(motion.translateY, slump.interpolate({ inputRange: [0, 1], outputRange: [0, size * 0.25] })) },
+        { rotate: slump.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-14deg'] }) },
         { scale: motion.scale },
       ] }}>
         <Animated.View
           pointerEvents="none"
           style={{ position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 10, borderWidth: 2, borderColor: glowColor, opacity: motion.glow }}
         />
-        <Avatar id={r.candidateId} size={30} radius={6} grayscale={!r.alive} style={isActive ? { borderWidth: 2, borderColor: roleColor[r.role] } : undefined} />
+        <Avatar
+          id={r.candidateId} size={size} radius={Math.max(4, size * 0.16)} grayscale={!r.alive}
+          style={{ borderWidth: isActive ? 2 : 1, borderColor: isActive ? roleColor[r.role] : 'rgba(0,0,0,0.6)' }}
+        />
         {shielded ? <AuraRing color="#8fb8ff" /> : null}
         {berserk ? <AuraRing color={colors.danger} fast /> : null}
         {poisoned && alive ? <PoisonBubbles /> : null}
@@ -468,7 +576,7 @@ function GridToken({ r, isActive, poisoned, fx, sim, pitch }: { r: Raider; isAct
         {alive && r.defending ? <DefendBadge /> : null}
       </Animated.View>
       <Floaters items={floaters.items} remove={floaters.remove} />
-      <View style={{ width: '78%', marginTop: 3 }}>
+      <View style={{ width: size * 0.95, marginTop: 3 }}>
         <ProgressBar pct={hpPct} color={hpColor} height={3} />
       </View>
       {chained || poisoned || r.ability.active ? (
@@ -480,4 +588,5 @@ function GridToken({ r, isActive, poisoned, fx, sim, pitch }: { r: Raider; isAct
       ) : null}
     </Animated.View>
   );
+  return onPress ? <Pressable onPress={onPress}>{body}</Pressable> : body;
 }

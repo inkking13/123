@@ -270,8 +270,8 @@ function DizzyStars() {
   );
 }
 
-/** A glowing bolt flying between two points of the battlefield, fired once per fx.seq. */
-export function Projectile({ from, to, color, size = 10, onDone }: { from: { x: number; y: number }; to: { x: number; y: number }; color: string; size?: number; onDone: () => void }) {
+/** A glowing bolt flying between two points of the battlefield, fired once per fx.seq; `arc` lobs it over the field. */
+export function Projectile({ from, to, color, size = 10, arc = 0, onDone }: { from: { x: number; y: number }; to: { x: number; y: number }; color: string; size?: number; arc?: number; onDone: () => void }) {
   const t = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(t, { toValue: 1, duration: PROJECTILE_MS, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(onDone);
@@ -287,7 +287,10 @@ export function Projectile({ from, to, color, size = 10, onDone }: { from: { x: 
         opacity: t.interpolate({ inputRange: [0, 0.1, 0.9, 1], outputRange: [0, 1, 1, 0.4] }),
         transform: [
           { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [0, dx] }) },
-          { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, dy] }) },
+          { translateY: Animated.add(
+            t.interpolate({ inputRange: [0, 1], outputRange: [0, dy] }),
+            t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -arc, 0] }),
+          ) },
           { scale: t.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.2] }) },
         ],
       }}
@@ -492,7 +495,7 @@ export function Tether({ from, to, color, thickness = 2 }: { from: { x: number; 
 }
 
 /** Gold shockwave rolling out from whoever rallied the squad. */
-export function RallyWave({ at, onDone }: { at: { x: number; y: number }; onDone: () => void }) {
+export function RallyWave({ at, onDone, squash = 1 }: { at: { x: number; y: number }; onDone: () => void; squash?: number }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(v, { toValue: 1, duration: 750, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(onDone);
@@ -505,7 +508,10 @@ export function RallyWave({ at, onDone }: { at: { x: number; y: number }; onDone
         position: 'absolute', left: at.x - size / 2, top: at.y - size / 2, width: size, height: size, borderRadius: size / 2,
         borderWidth: 3, borderColor: colors.warn, zIndex: 16,
         opacity: v.interpolate({ inputRange: [0, 0.1, 1], outputRange: [0, 0.9, 0] }),
-        transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.4, 6] }) }],
+        transform: [
+          { scaleX: v.interpolate({ inputRange: [0, 1], outputRange: [0.4, 6] }) },
+          { scaleY: v.interpolate({ inputRange: [0, 1], outputRange: [0.4 * squash, 6 * squash] }) },
+        ],
       }}
     />
   );
@@ -513,19 +519,26 @@ export function RallyWave({ at, onDone }: { at: { x: number; y: number }; onDone
 
 // Each move is animated once, even though the token remounts in its new cell.
 const slidDone = new WeakSet<object>();
-/** Glide in from the cell the raider just left. */
-export function useSlideIn(moveFx: { seq: number; id: number; fromRow: number; fromCol: number } | null, raiderId: number, row: number, col: number, pitch: number) {
+/** Glide in from the cell the raider just left; `offsetOf` gives that cell's screen offset from the current one. */
+export function useSlideIn(
+  moveFx: { seq: number; id: number; fromRow: number; fromCol: number } | null,
+  raiderId: number, row: number, col: number,
+  offsetOf: ((fromRow: number, fromCol: number) => { dx: number; dy: number }) | null,
+) {
   const x = useRef(new Animated.Value(0)).current;
   const y = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    if (!moveFx || moveFx.id !== raiderId || !pitch || slidDone.has(moveFx)) return;
+    if (!moveFx || moveFx.id !== raiderId || !offsetOf || slidDone.has(moveFx)) return;
     slidDone.add(moveFx);
-    x.setValue((moveFx.fromCol - col) * pitch);
-    y.setValue((moveFx.fromRow - row) * pitch);
+    const { dx, dy } = offsetOf(moveFx.fromRow, moveFx.fromCol);
+    x.setValue(dx);
+    y.setValue(dy);
     Animated.parallel([
       Animated.spring(x, { toValue: 0, useNativeDriver: true, speed: 14, bounciness: 4 }),
       Animated.spring(y, { toValue: 0, useNativeDriver: true, speed: 14, bounciness: 4 }),
     ]).start();
-  }, [moveFx, raiderId, row, col, pitch, x, y]);
+    // offsetOf is rebuilt every render from the same geometry; the move itself is the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moveFx, raiderId, row, col, x, y]);
   return { x, y };
 }
