@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine, TurnActionKey } from '../engine/GameEngine';
 import { colors, font, roleColor } from '../theme/theme';
@@ -10,7 +10,7 @@ import { SkillIcon } from '../components/SkillIcon';
 import { ProgressBar } from '../components/ProgressBar';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
-import { FoeCell, Floaters, useActorMotion, useHpFloaters } from '../components/CombatFx';
+import { ActivePulse, DangerPulse, FoeCell, Floaters, ImpactBurst, Projectile, impactDelay, useActorMotion, useHpFloaters } from '../components/CombatFx';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
   attack: 'sword',
@@ -48,6 +48,55 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const stunnedNow = s.stunned || s.vulnerableRounds > 0;
   const enraged = s.round >= s.enrageAt;
   const dangerCells = new Set(s.danger?.cells ?? []);
+  const stunnedFoes = s.stunned || s.vulnerableRounds > 0;
+
+  // Battlefield geometry, derived from its measured width (cells are square, 6px gaps, 10px under the enemy row).
+  const [fieldW, setFieldW] = useState(0);
+  const cell = fieldW ? (fieldW - 6 * (GRID_COLS - 1)) / GRID_COLS : 0;
+  const colX = (col: number) => col * (cell + 6) + cell / 2;
+  const foePoint = (enemyId: number) => {
+    const col = enemyId < 0 ? enemyCenter : enemySlots[s.enemies.findIndex((e) => e.id === enemyId)] ?? enemyCenter;
+    return { x: colX(col), y: cell / 2 };
+  };
+  const raiderPoint = (row: number, col: number) => ({ x: colX(col), y: cell + 10 + row * (cell + 6) + cell / 2 });
+
+  // One projectile per ranged/ability/heal action, flying from the actor to its target.
+  const [shots, setShots] = useState<{ key: number; from: { x: number; y: number }; to: { x: number; y: number }; color: string }[]>([]);
+  useEffect(() => {
+    const fx = s.fx;
+    if (!cell || fx.seq === 0 || typeof fx.actor !== 'number') return;
+    const actor = s.raiders.find((r) => r.id === fx.actor);
+    if (!actor) return;
+    const from = raiderPoint(actor.row, actor.col);
+    let to: { x: number; y: number } | null = null;
+    let color: string = colors.warn;
+    if ((fx.kind === 'ranged' || fx.kind === 'ability') && fx.targetEnemy != null) {
+      to = foePoint(fx.targetEnemy);
+      color = fx.kind === 'ability' ? colors.accent : '#ffb35c';
+    } else if (fx.targetRaider != null && fx.targetRaider !== actor.id) {
+      const t = s.raiders.find((r) => r.id === fx.targetRaider);
+      if (t) { to = raiderPoint(t.row, t.col); color = colors.good; }
+    }
+    if (to) setShots((xs) => [...xs, { key: fx.seq, from, to: to!, color }]);
+    // Fires once per action; positions are read from the state that action produced.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.fx.seq]);
+
+  // Heavy moments shake the whole battlefield.
+  const fieldShake = useRef(new Animated.Value(0)).current;
+  const prevShake = useRef(s.shakeSeq);
+  useEffect(() => {
+    if (s.shakeSeq === prevShake.current) return;
+    prevShake.current = s.shakeSeq;
+    fieldShake.setValue(0);
+    Animated.sequence([
+      Animated.timing(fieldShake, { toValue: 1, duration: 45, useNativeDriver: true }),
+      Animated.timing(fieldShake, { toValue: -1, duration: 60, useNativeDriver: true }),
+      Animated.timing(fieldShake, { toValue: 0.6, duration: 55, useNativeDriver: true }),
+      Animated.timing(fieldShake, { toValue: -0.3, duration: 50, useNativeDriver: true }),
+      Animated.timing(fieldShake, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  }, [s.shakeSeq, fieldShake]);
 
   const onPickAction = (key: TurnActionKey, needsTarget: boolean) => {
     if (needsTarget) { setPickingTarget(key); return; }
@@ -159,6 +208,10 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               {isBossFight ? 'Передний край: ближний бой, строй, танк прикрывает' : 'Нажмите на врага, чтобы выбрать цель'}
             </Text>
           </View>
+          <Animated.View
+            onLayout={(e) => setFieldW(e.nativeEvent.layout.width)}
+            style={{ transform: [{ translateX: fieldShake.interpolate({ inputRange: [-1, 1], outputRange: [-7, 7] }) }] }}
+          >
           {/* Enemy row — same column grid as the party, so the whole thing reads as one battlefield */}
           <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10, zIndex: s.fx.actor === 'enemy' ? 5 : 0 }}>
             {Array.from({ length: GRID_COLS }).map((_, col) => {
@@ -167,7 +220,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                 return (
                   <FoeCell
                     key={col} icon="skull" hp={s.boss.hp} maxHp={s.boss.maxHp} alive={s.boss.hp > 0}
-                    focused={false} isBoss poisoned={!!s.bossPoison} fx={s.fx}
+                    focused={false} isBoss poisoned={!!s.bossPoison} stunned={stunnedFoes} phase={s.phase} fx={s.fx}
                   />
                 );
               }
@@ -180,7 +233,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                 <FoeCell
                   key={col} testID={'enemy-' + e.id} icon={ENEMY_ICON[e.role]} name={e.name}
                   hp={e.hp} maxHp={e.maxHp} alive={e.alive} focused={e.alive && e.id === focusId} isBoss={false}
-                  poisoned={s.bossPoison?.enemyId === e.id} fx={s.fx} onPress={() => engine.setFocus(e.id)}
+                  poisoned={s.bossPoison?.enemyId === e.id} stunned={stunnedFoes} fx={s.fx} onPress={() => engine.setFocus(e.id)}
                 />
               );
             })}
@@ -208,6 +261,9 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                       alignItems: 'center', justifyContent: 'center',
                     }}
                   >
+                    {danger ? <DangerPulse /> : null}
+                    {current && current.row === row && current.col === col ? <ActivePulse color={roleColor[current.role]} /> : null}
+                    <ImpactBurst seq={s.impact.seq} active={s.impact.cells.includes(row + ',' + col)} kind={s.impact.cells.length === GRID_COLS ? 'cleave' : 'meteor'} />
                     {raider
                       ? <GridToken r={raider} isActive={current?.id === raider.id} poisoned={s.poison?.targetId === raider.id} fx={s.fx} />
                       : danger ? <Icon name={s.danger?.kind === 'meteor' ? 'fire' : 'warning'} size={16} color={colors.danger} /> : null}
@@ -216,6 +272,12 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               })}
             </View>
           ))}
+          <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 }}>
+            {shots.map((p) => (
+              <Projectile key={p.key} from={p.from} to={p.to} color={p.color} onDone={() => setShots((xs) => xs.filter((x) => x.key !== p.key))} />
+            ))}
+          </View>
+          </Animated.View>
         </View>
 
         {/* Combat log */}
@@ -323,12 +385,21 @@ function GridToken({ r, isActive, poisoned, fx }: { r: Raider; isActive: boolean
     }
     prevHp.current = r.hp;
   }, [r.hp, shake]);
-  const floaters = useHpFloaters(r.hp);
+  const floaters = useHpFloaters(r.hp, () => false, () => (fx.kind === 'heal' || fx.kind === 'ability') && fx.targetRaider === r.id ? impactDelay(fx) : 0);
+  const slump = useRef(new Animated.Value(r.alive ? 0 : 1)).current;
+  useEffect(() => {
+    Animated.timing(slump, { toValue: r.alive ? 0 : 1, duration: r.alive ? 0 : 500, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, [r.alive, slump]);
   const motion = useActorMotion(fx, (f) => f.actor === r.id, -1);
   const glowColor = fx.kind === 'heal' ? colors.good : fx.kind === 'ability' ? colors.accent : roleColor[r.role];
   return (
     <View style={{ alignItems: 'center', width: '100%', zIndex: 3 }}>
-      <Animated.View style={{ transform: [{ translateX: shake.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] }) }, { translateY: motion.translateY }, { scale: motion.scale }] }}>
+      <Animated.View style={{ opacity: slump.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] }), transform: [
+        { translateX: shake.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] }) },
+        { translateY: Animated.add(motion.translateY, slump.interpolate({ inputRange: [0, 1], outputRange: [0, 6] })) },
+        { rotate: slump.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-12deg'] }) },
+        { scale: motion.scale },
+      ] }}>
         <Animated.View
           pointerEvents="none"
           style={{ position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 10, borderWidth: 2, borderColor: glowColor, opacity: motion.glow }}

@@ -124,6 +124,10 @@ export interface CombatFx {
   actor: number | 'enemy' | null;
   kind: 'melee' | 'ranged' | 'heal' | 'ability' | 'enemy' | null;
   crit: boolean;
+  /** Where a projectile should fly: a room enemy id, -1 for the boss, or null. */
+  targetEnemy: number | null;
+  /** Ally receiving a heal (for the healing orb), or null. */
+  targetRaider: number | null;
 }
 export interface LogEntry {
   text: string;
@@ -170,6 +174,10 @@ export interface Sim {
   enemies: Enemy[];
   focusId: number | null;
   fx: CombatFx;
+  /** Bumped when a telegraphed zone lands, so the cells it covered can burst. */
+  impact: { seq: number; cells: string[] };
+  /** Bumped on heavy moments (big hits, deaths, phase changes) to shake the battlefield. */
+  shakeSeq: number;
   name: string;
   raiders: Raider[];
   encounterType: EncounterType;

@@ -1288,7 +1288,8 @@ export class GameEngine {
     return {
       boss: { name: enc.enemyName, maxHp: enemies.length ? enemies.reduce((a, e) => a + e.maxHp, 0) : enc.hp, hp: enemies.length ? enemies.reduce((a, e) => a + e.hp, 0) : enc.hp },
       enemies, focusId: enemies.length ? enemies[0].id : null,
-      fx: { seq: 0, actor: null, kind: null, crit: false },
+      fx: { seq: 0, actor: null, kind: null, crit: false, targetEnemy: null, targetRaider: null },
+      impact: { seq: 0, cells: [] }, shakeSeq: 0,
       name: enc.name, raiders, encounterType: enc.type, dmgMult,
       round: 1, order: [], turnPos: -1, awaitingPlayer: false, movePhase: false, bossCyclePos: 0,
       bossMoveTimers: { beam: 1, meteor: 2, poison: 3, chain: 3, brace: 3, freeze: 2, curse: 2, cleave: 2 },
@@ -1617,6 +1618,7 @@ export class GameEngine {
         this.addTilt(20);
         this.haptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
         this.log(r.name + ' погиб(ла).', 'warn');
+        s.shakeSeq++;
       }
     }
   }
@@ -1633,10 +1635,12 @@ export class GameEngine {
     if (s.encounterType !== 'boss') return;
     if (s.phase === 1 && s.boss.hp <= s.boss.maxHp * 0.5) {
       s.phase = 2;
+      s.shakeSeq++;
       this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
       this.log('Босс: «Вы недооцениваете меня!» Земля исходит ядом.', 'warn');
     } else if (s.phase === 2 && s.boss.hp <= s.boss.maxHp * 0.25) {
       s.phase = 3;
+      s.shakeSeq++;
       this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
       this.log('Босс звереет! Раскалённая аура жжёт весь рейд.', 'warn');
     }
@@ -1853,7 +1857,8 @@ export class GameEngine {
     if (!s || !r || s.over) return;
     s.awaitingPlayer = false;
     const fxKind = key === 'attack' ? (r.attackRange === 'melee' ? 'melee' : 'ranged') : key === 'heal' ? 'heal' : key === 'ability' ? 'ability' : null;
-    s.fx = { seq: s.fx.seq + 1, actor: fxKind ? r.id : null, kind: fxKind, crit: false };
+    const aimsAtEnemy = key === 'attack' || key === 'ability';
+    s.fx = { seq: s.fx.seq + 1, actor: fxKind ? r.id : null, kind: fxKind, crit: false, targetEnemy: aimsAtEnemy ? (this.focusEnemy()?.id ?? -1) : null, targetRaider: null };
     switch (key) {
       case 'attack': this.doAttack(r); break;
       case 'heal': this.doHeal(r, targetId); break;
@@ -1890,6 +1895,7 @@ export class GameEngine {
     const inspired = this.sim!.inspiredRounds > 0;
     const amt = Math.max(1, Math.round(r.healPower * this.outMult(r) * this.healMult() * HEAL_TURN_SCALE * (inspired ? INSPIRED_HEAL_MULT : 1)));
     t.hp = Math.min(t.maxHp, t.hp + amt);
+    this.sim!.fx.targetRaider = t.id;
     this.log(r.name + ' лечит ' + t.name + ': +' + amt + (inspired ? ' (воодушевление)' : ''), 'ok');
   }
   private doInterrupt(r: Raider) {
@@ -1948,10 +1954,12 @@ export class GameEngine {
     this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
     switch (a.kind) {
       case 'selfShield':
+        s.fx.targetEnemy = null;
         a.active = true; a.activeRounds = a.activeMax; a.cd = a.cdMax;
         this.log(r.name + ' раскрывает Librum Tenebris — урон по нему снижен.', 'ok');
         break;
       case 'partyShield':
+        s.fx.targetEnemy = null;
         a.active = true; a.activeRounds = a.activeMax; a.cd = a.cdMax;
         s.partyWard = { roundsLeft: a.activeMax, mult: 0.7 };
         this.log(r.name + ' встаёт последним рубежом — весь отряд получает меньше урона.', 'ok');
@@ -1959,6 +1967,7 @@ export class GameEngine {
       case 'drainHeal': {
         a.cd = a.cdMax;
         const t = this.healTarget(r) || r;
+        s.fx.targetEnemy = null; s.fx.targetRaider = t.id;
         t.hp = Math.min(t.maxHp, t.hp + 90);
         r.hp = Math.max(1, r.hp - 15);
         this.log(r.name + ' платит собственной кровью за исцеление: ' + t.name, 'ok');
@@ -1967,6 +1976,7 @@ export class GameEngine {
       case 'volatileHeal': {
         a.cd = a.cdMax;
         const t = this.healTarget(r) || r;
+        s.fx.targetEnemy = null; s.fx.targetRaider = t.id;
         if (Math.random() < 0.2) {
           t.hp = Math.min(t.maxHp, t.hp + 15);
           this.addTilt(6);
@@ -1984,6 +1994,7 @@ export class GameEngine {
         this.log(r.name + ' смазывает клинки ядом василиска.', 'ok');
         break;
       case 'berserk':
+        s.fx.targetEnemy = null;
         // +1 because the casting turn itself is spent — the buff should cover the next activeMax attacks.
         a.active = true; a.activeRounds = a.activeMax + 1; a.cd = a.cdMax;
         this.log(r.name + ' впадает в кровавую ярость — урон удвоен, но и сам он уязвим.', 'ok');
@@ -2024,7 +2035,7 @@ export class GameEngine {
       return;
     }
     if (s.vulnerableRounds === 0) s.stagger = Math.max(0, s.stagger - STAGGER_DECAY);
-    s.fx = { seq: s.fx.seq + 1, actor: 'enemy', kind: 'enemy', crit: false };
+    s.fx = { seq: s.fx.seq + 1, actor: 'enemy', kind: 'enemy', crit: false, targetEnemy: null, targetRaider: null };
     if (!s.enemies.length) { this.leaderTurn(); return; }
     const has = (role: EnemyRole) => s.enemies.some((e) => e.role === role && e.alive);
     if (has('brute')) this.leaderTurn();
@@ -2077,6 +2088,7 @@ export class GameEngine {
         this.hurt(t, dmg);
         this.addTilt(15);
         this.log(t.name + ' получает полный луч смерти в лицо (-' + dmg + ').', 'warn');
+        s.shakeSeq++;
       }
       s.pendingCast = null;
       return;
@@ -2086,6 +2098,7 @@ export class GameEngine {
       const dmg = Math.round((soaked ? 38 : 100) * this.bossDmgMult());
       for (const r of this.alive()) this.hurt(r, dmg);
       this.addTilt(soaked ? 4 : 16);
+      if (!soaked) s.shakeSeq++;
       this.log(soaked ? 'Рейд приготовился вовремя — «Кровавый прилив» смягчён.' : 'Никто толком не приготовился — Прилив ударил в полную силу!', soaked ? 'ok' : 'warn');
       s.braceCall = null;
       return;
@@ -2096,6 +2109,8 @@ export class GameEngine {
       const dmg = Math.round((zone.kind === 'meteor' ? 55 : 45) * this.bossDmgMult(true));
       const hit = this.alive().filter((r) => zone.cells.includes(r.row + ',' + r.col));
       for (const r of hit) { this.hurt(r, dmg); this.addTilt(6); }
+      s.impact = { seq: s.impact.seq + 1, cells: zone.cells };
+      if (hit.length) s.shakeSeq++;
       const what = zone.kind === 'meteor' ? 'Огненный дождь' : 'Сокрушающий взмах';
       if (hit.length) this.log(what + ' накрывает: ' + hit.map((r) => r.name).join(', ') + ' (-' + dmg + ').', 'warn');
       else this.log(what + ' бьёт в пустоту — отряд вовремя сменил позицию.', 'ok');
