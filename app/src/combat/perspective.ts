@@ -30,6 +30,8 @@ export interface FieldGeometry {
   tileScale: (row: number, col: number) => number;
   /** Floor polygon of the whole board, for the stage backdrop. */
   boardPoints: string;
+  /** Screen y of the board's far edge, where the scenery meets the floor. */
+  horizon: number;
 }
 
 /**
@@ -83,5 +85,6 @@ export function fieldGeometry(width: number, headroom: number): FieldGeometry {
       return scale((z0 + z1) / 2);
     },
     boardPoints: quad(0, 1, 0, zFar),
+    horizon: top,
   };
 }

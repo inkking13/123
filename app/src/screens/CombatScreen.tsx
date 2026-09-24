@@ -14,7 +14,7 @@ import { BOSS_ART, MONSTER_ART, ROOM_ART } from '../data/monsterArt';
 import { AuraRing, Crosshair, DebtCoin, DefendBadge, FoeCell, Floaters, FrozenOverlay, IceShellOverlay, PoisonBubbles, Projectile, RallyWave, Tether, impactDelay, useActorMotion, useHpFloaters, useSlideIn } from '../components/CombatFx';
 import { FootShadow, Floor, TileGlow, TileImpact } from '../components/Stage25D';
 import { fieldGeometry } from '../combat/perspective';
-import { LinearGradient } from 'expo-linear-gradient';
+import { BATTLE_THEMES, BattleBackdrop, BattleParticles } from '../components/BattleBackdrop';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
   attack: 'sword',
@@ -71,6 +71,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const dungeonForArt = engine.inArena ? null : engine.currentDungeon();
   const bossArt = dungeonForArt && BOSS_ART[dungeonForArt.id] ? MONSTER_ART[BOSS_ART[dungeonForArt.id]] : undefined;
   const roomArt = dungeonForArt ? ROOM_ART[dungeonForArt.locationId] : undefined;
+  const theme = BATTLE_THEMES[dungeonForArt ? dungeonForArt.locationId : 'arena'] ?? BATTLE_THEMES.outskirts;
   const focusId = engine.focusEnemy()?.id;
   const stunnedNow = s.stunned || s.vulnerableRounds > 0;
   const enraged = s.round >= s.enrageAt;
@@ -82,7 +83,8 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const [fieldW, setFieldW] = useState(0);
   const bossSize = fieldW * 0.4;
   const roomFoeSize = fieldW * 0.2 * 1.5 * 0.56;
-  const geo = fieldW ? fieldGeometry(fieldW, (isBossFight ? bossSize : roomFoeSize) + 12) : null;
+  // Room fights get extra sky so the location's scenery shows above the enemies.
+  const geo = fieldW ? fieldGeometry(fieldW, Math.max((isBossFight ? bossSize : roomFoeSize) + 12, fieldW * 0.3)) : null;
   const enemyZ = geo ? (geo.rowSpan(-1)[0] + geo.rowSpan(-1)[1]) / 2 : 0;
   const foeSize = isBossFight ? bossSize : geo ? fieldW * 0.2 * 1.5 * geo.scale(enemyZ) : 0;
   // Room groups stand a little wider than the tiles so their cards don't pile up.
@@ -302,25 +304,11 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
           </View>
           <View
             onLayout={(e) => setFieldW(e.nativeEvent.layout.width)}
-            style={{ height: geo ? geo.height : 240, borderRadius: 10, overflow: 'hidden', backgroundColor: '#12131d' }}
+            style={{ height: geo ? geo.height : 240, borderRadius: 10, overflow: 'hidden', backgroundColor: theme.ground[1] }}
           >
             {geo ? (
               <>
-                {/* Far wall: the location's art, blurred into the dark */}
-                {(isBossFight ? bossArt : roomArt ? MONSTER_ART[roomArt.brute] : undefined) ? (
-                  <Image
-                    source={isBossFight ? bossArt : MONSTER_ART[roomArt!.brute]}
-                    blurRadius={14}
-                    resizeMode="cover"
-                    style={{ position: 'absolute', left: 0, top: 0, width: geo.width, height: geo.height * 0.75, opacity: 0.32 }}
-                  />
-                ) : null}
-                <LinearGradient
-                  pointerEvents="none"
-                  colors={['rgba(18,19,29,0.1)', 'rgba(18,19,29,0.55)', '#12131d']}
-                  locations={[0, 0.45, 0.8]}
-                  style={{ position: 'absolute', left: 0, right: 0, top: 0, height: geo.height }}
-                />
+                <BattleBackdrop theme={theme} width={geo.width} height={geo.height} horizon={geo.horizon} pan={camX} />
                 <Animated.View
                   style={{
                     position: 'absolute', left: 0, top: 0, width: geo.width, height: geo.height,
@@ -333,6 +321,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                 >
                   <Floor
                     geo={geo}
+                    palette={theme.floor}
                     tileState={(row, col) => {
                       const key = row + ',' + col;
                       if (dangerCells.has(key)) return 'danger';
@@ -444,6 +433,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                     {waves.map((w) => <RallyWave key={w.key} at={w.at} squash={0.42} onDone={() => setWaves((xs) => xs.filter((x) => x.key !== w.key))} />)}
                   </View>
                 </Animated.View>
+                <BattleParticles theme={theme} width={geo.width} height={geo.height} />
               </>
             ) : null}
           </View>

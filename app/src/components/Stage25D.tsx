@@ -24,7 +24,10 @@ const TILE_STROKE: Record<TileState, string> = {
 };
 
 /** Stone floor under the grid: board slab, enemy zone and one quad per tile. */
-export function Floor({ geo, tileState }: { geo: FieldGeometry; tileState: (row: number, col: number) => TileState }) {
+export function Floor({ geo, tileState, palette }: {
+  geo: FieldGeometry; tileState: (row: number, col: number) => TileState;
+  palette: { far: string; near: string; tile: string; stroke: string };
+}) {
   const [ez0, ez1] = geo.rowSpan(-1);
   const enemyZone = [geo.project(0.04, ez1), geo.project(0.96, ez1), geo.project(1, ez0), geo.project(0, ez0)]
     .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
@@ -32,9 +35,9 @@ export function Floor({ geo, tileState }: { geo: FieldGeometry; tileState: (row:
     <Svg width={geo.width} height={geo.height} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
       <Defs>
         <SvgGradient id="slab" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#1b1c2a" stopOpacity="0.2" />
-          <Stop offset="0.45" stopColor="#23243a" stopOpacity="0.85" />
-          <Stop offset="1" stopColor="#2b2c44" stopOpacity="1" />
+          <Stop offset="0" stopColor={palette.far} stopOpacity="0.55" />
+          <Stop offset="0.45" stopColor={palette.far} stopOpacity="0.95" />
+          <Stop offset="1" stopColor={palette.near} stopOpacity="1" />
         </SvgGradient>
         <SvgGradient id="enemyZone" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#5a2630" stopOpacity="0.05" />
@@ -50,8 +53,8 @@ export function Floor({ geo, tileState }: { geo: FieldGeometry; tileState: (row:
             <Polygon
               key={row + '-' + col}
               points={geo.tilePoints(row, col)}
-              fill={TILE_FILL[st]}
-              stroke={TILE_STROKE[st]}
+              fill={st === 'plain' ? palette.tile : TILE_FILL[st]}
+              stroke={st === 'plain' ? palette.stroke : TILE_STROKE[st]}
               strokeWidth={st === 'plain' ? 1 : 1.6}
             />
           );
