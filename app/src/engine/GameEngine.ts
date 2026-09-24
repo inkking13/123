@@ -5,6 +5,7 @@ import { POOL, RECRUITS, ALL_CANDIDATES, XP_PER_LEVEL, MAX_LEVEL } from '../data
 import { GEAR, SLOT_LABEL, SLOT_ORDER, STARTING_INVENTORY, BOSS_LOOT_TABLE, TRASH_LOOT_TABLE, TRASH_LOOT_CHANCE, SELL_RATIO, UNIQUE_BOSS_LOOT } from '../data/gear';
 import { DUNGEONS, DungeonDef, LOCATIONS } from '../data/dungeons';
 import { ABILITY_BY_CANDIDATE } from '../data/abilities';
+import { ABILITY_ART, SkillArtId } from '../data/skillArt';
 import { TALENT_TREE, TalentTier } from '../data/talents';
 import { CLASSES } from '../data/classes';
 import { PROFESSIONS, PROFESSION_MAX_LEVEL, PROFESSION_XP_PER_LEVEL, professionTrainCost, scaledMult } from '../data/professions';
@@ -144,6 +145,7 @@ export interface TurnActionVM {
   label: string;
   sub?: string;
   abilityIcon?: AbilityIcon;
+  abilityArt?: SkillArtId;
   needsTarget: boolean;
   disabled: boolean;
 }
@@ -1688,7 +1690,7 @@ export class GameEngine {
     }
     const def = ABILITY_BY_CANDIDATE[r.candidateId];
     actions.push({
-      key: 'ability', label: def.name, abilityIcon: def.icon, needsTarget: false,
+      key: 'ability', label: def.name, abilityIcon: def.icon, abilityArt: ABILITY_ART[r.candidateId], needsTarget: false,
       disabled: r.ability.cd > 0, sub: r.ability.cd > 0 ? `КД: ${r.ability.cd}` : undefined,
     });
     if (s.rallyCd <= 0) actions.push({ key: 'rally', label: 'Сплотить отряд', needsTarget: false, disabled: false });

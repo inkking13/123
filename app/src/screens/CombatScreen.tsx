@@ -6,6 +6,7 @@ import { colors, font, roleColor } from '../theme/theme';
 import { GRID_ROWS, GRID_COLS, FRONT_ROW, Raider } from '../combat/types';
 import { Avatar } from '../components/Avatar';
 import { Icon, IconName } from '../components/Icon';
+import { SkillIcon } from '../components/SkillIcon';
 import { ProgressBar } from '../components/ProgressBar';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
@@ -238,7 +239,11 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                     paddingHorizontal: 12, paddingVertical: 10, opacity: a.disabled ? 0.4 : 1,
                   }}
                 >
-                  <Icon name={a.key === 'ability' ? (a.abilityIcon as IconName) : ACTION_ICON[a.key]} size={15} color={a.disabled ? colors.textFaint : colors.text} />
+                  {a.abilityArt ? (
+                    <SkillIcon id={a.abilityArt} size={26} radius={6} dim={a.disabled} style={{ marginVertical: -4 }} />
+                  ) : (
+                    <Icon name={a.key === 'ability' ? (a.abilityIcon as IconName) : ACTION_ICON[a.key]} size={15} color={a.disabled ? colors.textFaint : colors.text} />
+                  )}
                   <View>
                     <Text style={{ fontSize: 12.5, color: a.disabled ? colors.textFaint : colors.text, fontFamily: font.medium }}>{a.label}</Text>
                     {a.sub ? <Text style={{ fontSize: 10, color: colors.textFaint, fontFamily: font.regular }}>{a.sub}</Text> : null}

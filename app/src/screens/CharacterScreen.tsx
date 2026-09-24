@@ -6,6 +6,8 @@ import { GameEngine } from '../engine/GameEngine';
 import { colors, font, roleColor, roleName } from '../theme/theme';
 import { TRAITS } from '../data/traits';
 import { ABILITY_BY_CANDIDATE } from '../data/abilities';
+import { ABILITY_ART, TALENT_ART } from '../data/skillArt';
+import { SkillIcon } from '../components/SkillIcon';
 import { MAX_LEVEL, XP_PER_LEVEL } from '../data/characters';
 import { PROFESSION_MAX_LEVEL } from '../data/professions';
 import { Avatar } from '../components/Avatar';
@@ -101,9 +103,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
           </View>
 
           <View style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 10, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
-            <View style={{ width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: roleColor[cc.role] + '66', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-              <Icon name={ability.icon} size={14} color={roleColor[cc.role]} />
-            </View>
+            <SkillIcon id={ABILITY_ART[cc.id]} size={44} radius={8} style={{ borderWidth: 1, borderColor: roleColor[cc.role] + '88' }} />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 12, fontFamily: font.medium, color: colors.accentSoft }}>{ability.name}</Text>
               <Text style={{ fontSize: 12.5, color: colors.textDim, marginTop: 3, lineHeight: 18, fontFamily: font.regular }}>{ability.desc}</Text>
@@ -229,7 +229,11 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
                                   backgroundColor: nodeBg, borderWidth: 2.5, borderColor: nodeBorder,
                                 }}
                               >
-                                <Icon name={tier.unlocked ? (o.icon || 'target') : 'lock-simple'} size={22} color={iconColor} weight={learnedHere ? 'fill' : 'regular'} />
+                                {tier.unlocked && o.icon && TALENT_ART[o.icon] ? (
+                                  <SkillIcon id={TALENT_ART[o.icon]!} size={47} radius={9} />
+                                ) : (
+                                  <Icon name={tier.unlocked ? (o.icon || 'target') : 'lock-simple'} size={22} color={iconColor} weight={learnedHere ? 'fill' : 'regular'} />
+                                )}
                               </View>
                               {!isLast ? <View style={{ width: 2, height: 12, backgroundColor: connectorBelow }} /> : null}
                               <Text numberOfLines={2} style={{ fontSize: 11, fontFamily: font.medium, color: learnedHere ? colors.warn : colors.text, textAlign: 'center', marginTop: 6 }}>
