@@ -3,13 +3,14 @@ import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine, TurnActionKey } from '../engine/GameEngine';
 import { colors, font, roleColor } from '../theme/theme';
-import { GRID_ROWS, GRID_COLS, FRONT_ROW, EnemyRole, Raider } from '../combat/types';
+import { GRID_ROWS, GRID_COLS, FRONT_ROW, CombatFx, EnemyRole, Raider } from '../combat/types';
 import { Avatar } from '../components/Avatar';
 import { Icon, IconName } from '../components/Icon';
 import { SkillIcon } from '../components/SkillIcon';
 import { ProgressBar } from '../components/ProgressBar';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
+import { FoeCell, Floaters, useActorMotion, useHpFloaters } from '../components/CombatFx';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
   attack: 'sword',
@@ -159,23 +160,15 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
             </Text>
           </View>
           {/* Enemy row — same column grid as the party, so the whole thing reads as one battlefield */}
-          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10, zIndex: s.fx.actor === 'enemy' ? 5 : 0 }}>
             {Array.from({ length: GRID_COLS }).map((_, col) => {
               if (isBossFight) {
-                const isBossCol = col === enemyCenter;
+                if (col !== enemyCenter) return <View key={col} style={{ flex: 1, aspectRatio: 1, borderRadius: 8, borderWidth: 1, borderColor: colors.border, opacity: 0.4 }} />;
                 return (
-                  <View
-                    key={col}
-                    style={{
-                      flex: 1, aspectRatio: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
-                      borderWidth: isBossCol ? 1.5 : 1,
-                      borderColor: isBossCol ? colors.danger : colors.border,
-                      backgroundColor: isBossCol ? 'rgba(209,104,92,0.12)' : 'transparent',
-                      opacity: isBossCol ? 1 : 0.4,
-                    }}
-                  >
-                    {isBossCol ? <Icon name="skull" size={26} color={colors.danger} weight="fill" /> : null}
-                  </View>
+                  <FoeCell
+                    key={col} icon="skull" hp={s.boss.hp} maxHp={s.boss.maxHp} alive={s.boss.hp > 0}
+                    focused={false} isBoss poisoned={!!s.bossPoison} fx={s.fx}
+                  />
                 );
               }
               const slot = enemySlots.indexOf(col);
@@ -183,32 +176,12 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               if (!e) {
                 return <View key={col} style={{ flex: 1, aspectRatio: 1, borderRadius: 8, borderWidth: 1, borderColor: colors.border, opacity: 0.4 }} />;
               }
-              const focused = e.alive && e.id === focusId;
               return (
-                <Pressable
-                  key={col}
-                  testID={'enemy-' + e.id}
-                  disabled={!e.alive}
-                  onPress={() => engine.setFocus(e.id)}
-                  style={{
-                    flex: 1, aspectRatio: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center', gap: 2,
-                    borderWidth: focused ? 2.5 : 1.5,
-                    borderColor: focused ? colors.warn : e.alive ? colors.danger : colors.border,
-                    backgroundColor: e.alive ? 'rgba(209,104,92,0.12)' : 'transparent',
-                    opacity: e.alive ? 1 : 0.35,
-                  }}
-                >
-                  <View>
-                    <Icon name={e.alive ? ENEMY_ICON[e.role] : 'skull'} size={17} color={e.alive ? colors.danger : colors.textFaint} />
-                    {s.bossPoison?.enemyId === e.id ? (
-                      <View style={{ position: 'absolute', right: -9, top: -3 }}><Icon name="drop" size={9} color={colors.good} /></View>
-                    ) : null}
-                  </View>
-                  <Text numberOfLines={1} style={{ fontSize: 9, color: focused ? colors.warn : colors.textDim, fontFamily: font.medium }}>{e.name}</Text>
-                  <View style={{ width: '72%' }}>
-                    <ProgressBar pct={(e.hp / e.maxHp) * 100} color={colors.danger} height={3} />
-                  </View>
-                </Pressable>
+                <FoeCell
+                  key={col} testID={'enemy-' + e.id} icon={ENEMY_ICON[e.role]} name={e.name}
+                  hp={e.hp} maxHp={e.maxHp} alive={e.alive} focused={e.alive && e.id === focusId} isBoss={false}
+                  poisoned={s.bossPoison?.enemyId === e.id} fx={s.fx} onPress={() => engine.setFocus(e.id)}
+                />
               );
             })}
           </View>
@@ -236,7 +209,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                     }}
                   >
                     {raider
-                      ? <GridToken r={raider} isActive={current?.id === raider.id} poisoned={s.poison?.targetId === raider.id} />
+                      ? <GridToken r={raider} isActive={current?.id === raider.id} poisoned={s.poison?.targetId === raider.id} fx={s.fx} />
                       : danger ? <Icon name={s.danger?.kind === 'meteor' ? 'fire' : 'warning'} size={16} color={colors.danger} /> : null}
                   </Pressable>
                 );
@@ -269,7 +242,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
       <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg, paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(14, insets.bottom + 10) }}>
         {!current ? (
           <View style={{ height: 46, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 13, color: colors.textFaint, fontFamily: font.regular }}>Ход противника…</Text>
+            <Text style={{ fontSize: 13, color: colors.textFaint, fontFamily: font.regular }}>{s.order[s.turnPos]?.kind === 'boss' ? 'Ход противника…' : '…'}</Text>
           </View>
         ) : s.movePhase ? (
           <>
@@ -332,7 +305,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   );
 }
 
-function GridToken({ r, isActive, poisoned }: { r: Raider; isActive: boolean; poisoned: boolean }) {
+function GridToken({ r, isActive, poisoned, fx }: { r: Raider; isActive: boolean; poisoned: boolean; fx: CombatFx }) {
   const hpPct = Math.max(0, (r.hp / r.maxHp) * 100);
   const hpColor = hpPct > 60 ? colors.good : hpPct > 30 ? colors.warn : colors.danger;
   const chained = r.chainPartner != null;
@@ -350,11 +323,19 @@ function GridToken({ r, isActive, poisoned }: { r: Raider; isActive: boolean; po
     }
     prevHp.current = r.hp;
   }, [r.hp, shake]);
+  const floaters = useHpFloaters(r.hp);
+  const motion = useActorMotion(fx, (f) => f.actor === r.id, -1);
+  const glowColor = fx.kind === 'heal' ? colors.good : fx.kind === 'ability' ? colors.accent : roleColor[r.role];
   return (
-    <View style={{ alignItems: 'center', width: '100%' }}>
-      <Animated.View style={{ transform: [{ translateX: shake.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] }) }] }}>
+    <View style={{ alignItems: 'center', width: '100%', zIndex: 3 }}>
+      <Animated.View style={{ transform: [{ translateX: shake.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] }) }, { translateY: motion.translateY }, { scale: motion.scale }] }}>
+        <Animated.View
+          pointerEvents="none"
+          style={{ position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 10, borderWidth: 2, borderColor: glowColor, opacity: motion.glow }}
+        />
         <Avatar id={r.candidateId} size={30} radius={6} grayscale={!r.alive} style={isActive ? { borderWidth: 2, borderColor: roleColor[r.role] } : undefined} />
       </Animated.View>
+      <Floaters items={floaters.items} remove={floaters.remove} />
       <View style={{ width: '78%', marginTop: 3 }}>
         <ProgressBar pct={hpPct} color={hpColor} height={3} />
       </View>

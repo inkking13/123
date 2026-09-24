@@ -1288,6 +1288,7 @@ export class GameEngine {
     return {
       boss: { name: enc.enemyName, maxHp: enemies.length ? enemies.reduce((a, e) => a + e.maxHp, 0) : enc.hp, hp: enemies.length ? enemies.reduce((a, e) => a + e.hp, 0) : enc.hp },
       enemies, focusId: enemies.length ? enemies[0].id : null,
+      fx: { seq: 0, actor: null, kind: null, crit: false },
       name: enc.name, raiders, encounterType: enc.type, dmgMult,
       round: 1, order: [], turnPos: -1, awaitingPlayer: false, movePhase: false, bossCyclePos: 0,
       bossMoveTimers: { beam: 1, meteor: 2, poison: 3, chain: 3, brace: 3, freeze: 2, curse: 2, cleave: 2 },
@@ -1851,6 +1852,8 @@ export class GameEngine {
     const s = this.sim; const r = this.currentRaider();
     if (!s || !r || s.over) return;
     s.awaitingPlayer = false;
+    const fxKind = key === 'attack' ? (r.attackRange === 'melee' ? 'melee' : 'ranged') : key === 'heal' ? 'heal' : key === 'ability' ? 'ability' : null;
+    s.fx = { seq: s.fx.seq + 1, actor: fxKind ? r.id : null, kind: fxKind, crit: false };
     switch (key) {
       case 'attack': this.doAttack(r); break;
       case 'heal': this.doHeal(r, targetId); break;
@@ -1876,6 +1879,7 @@ export class GameEngine {
     if (crit) raw *= 1.8;
     const frontMelee = r.attackRange === 'melee' && r.row === FRONT_ROW;
     const stagger = STAGGER_ATTACK + (frontMelee ? STAGGER_FRONT_MELEE : 0) + (crit ? STAGGER_CRIT : 0);
+    this.sim!.fx.crit = crit;
     const { dmg, note } = this.hitBoss(r, raw, stagger);
     this.log(r.name + (crit ? ' наносит критический удар: -' : ' атакует: -') + dmg + note, crit ? 'ok' : undefined);
     if (crit) this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
@@ -2020,6 +2024,7 @@ export class GameEngine {
       return;
     }
     if (s.vulnerableRounds === 0) s.stagger = Math.max(0, s.stagger - STAGGER_DECAY);
+    s.fx = { seq: s.fx.seq + 1, actor: 'enemy', kind: 'enemy', crit: false };
     if (!s.enemies.length) { this.leaderTurn(); return; }
     const has = (role: EnemyRole) => s.enemies.some((e) => e.role === role && e.alive);
     if (has('brute')) this.leaderTurn();

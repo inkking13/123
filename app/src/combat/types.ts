@@ -117,6 +117,14 @@ export interface BraceCall {
 }
 
 export type LogKind = 'info' | 'ok' | 'warn';
+
+/** The most recent actor, published for the combat screen's attack animations. `seq` bumps on every action so the UI can replay even identical ones. */
+export interface CombatFx {
+  seq: number;
+  actor: number | 'enemy' | null;
+  kind: 'melee' | 'ranged' | 'heal' | 'ability' | 'enemy' | null;
+  crit: boolean;
+}
 export interface LogEntry {
   text: string;
   kind?: LogKind;
@@ -161,6 +169,7 @@ export interface Sim {
   boss: Boss;
   enemies: Enemy[];
   focusId: number | null;
+  fx: CombatFx;
   name: string;
   raiders: Raider[];
   encounterType: EncounterType;
