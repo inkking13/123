@@ -11,7 +11,7 @@ export interface QuestDef {
 }
 
 const hasGear = (e: GameEngine) =>
-  e.pool.some((c) => c.equipment.weapon !== 'none' || c.equipment.armor !== 'none' || c.equipment.trinket !== 'none');
+  e.pool.some((c) => Object.values(c.equipment).some((id) => id !== 'none'));
 const hasTalent = (e: GameEngine) => e.pool.some((c) => c.talents.some((t) => t != null));
 const hasVeteran = (e: GameEngine) => e.pool.some((c) => c.level >= 10);
 const hasGrandmaster = (e: GameEngine) => e.pool.some((c) => c.level >= MAX_LEVEL);

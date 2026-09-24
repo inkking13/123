@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { POOL, RECRUITS, ALL_CANDIDATES, XP_PER_LEVEL, MAX_LEVEL } from '../data/characters';
-import { GEAR, SLOT_LABEL, SLOT_ORDER, STARTING_INVENTORY, BOSS_LOOT_TABLE, TRASH_LOOT_TABLE, TRASH_LOOT_CHANCE, SELL_RATIO, UNIQUE_BOSS_LOOT } from '../data/gear';
+import { GEAR, SLOT_LABEL, SLOT_ORDER, STARTING_INVENTORY, BOSS_LOOT_TABLE, TRASH_LOOT_TABLE, TRASH_LOOT_CHANCE, SELL_RATIO, UNIQUE_BOSS_LOOT, UNIQUE_BOSS_LOOT_EXTRA, emptyEquipment } from '../data/gear';
 import { DUNGEONS, DungeonDef, LOCATIONS } from '../data/dungeons';
 import { ABILITY_BY_CANDIDATE } from '../data/abilities';
 import { ABILITY_ART, SkillArtId } from '../data/skillArt';
@@ -80,6 +80,8 @@ const FEAST_HEAL_SHARE = 0.004;
 const FEAST_THRESHOLD = 0.4;
 const LAVA_MAX_CELLS = 4;
 // Quota is set against the party's raw per-round damage; crits, combos and abilities are what push a focused round past it.
+const GEAR_SLOT_COMP_HP = 0.1;
+const GEAR_SLOT_COMP_DMG = 0.2;
 const QUOTA_SHARE = 2.3;
 const SHAMAN_HEAL_SHARE = 0.07;
 // Splitting one HP pool into several targets loses damage to overkill and to
@@ -393,7 +395,7 @@ export class GameEngine {
   private loaded = false;
 
   constructor() {
-    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
+    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: emptyEquipment(), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
     this.selected = new Set([0, 2, 4, 5, 6]);
     this.inventoryCounts = { ...STARTING_INVENTORY };
   }
@@ -443,7 +445,7 @@ export class GameEngine {
           const def = byId.get(saved.id);
           if (!def) return null;
           return {
-            ...def, level: saved.level, xp: saved.xp, equipment: saved.equipment,
+            ...def, level: saved.level, xp: saved.xp, equipment: { ...emptyEquipment(), ...saved.equipment },
             talents: saved.talents, classId: saved.classId ?? null, professionId: saved.professionId ?? null,
             professionLevel: saved.professionLevel ?? 1, professionXp: saved.professionXp ?? 0, morale: saved.morale,
           };
@@ -496,7 +498,7 @@ export class GameEngine {
   }
   async resetProgress() {
     if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
-    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
+    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: emptyEquipment(), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
     this.selected = new Set([0, 2, 4, 5, 6]);
     this.inventoryCounts = { ...STARTING_INVENTORY };
     this.reagentCounts = {};
@@ -589,16 +591,18 @@ export class GameEngine {
     this.notify();
   }
 
+  // Every slot's piece stacks multiplicatively on every stat it carries.
   gearMults(c: Candidate) {
-    const w = GEAR.weapon.find((x) => x.id === c.equipment.weapon) || GEAR.weapon[0];
-    const a = GEAR.armor.find((x) => x.id === c.equipment.armor) || GEAR.armor[0];
-    const t = GEAR.trinket.find((x) => x.id === c.equipment.trinket) || GEAR.trinket[0];
-    return {
-      outputMult: (w.mult || 1) * (a.mult || 1) * (t.mult || 1),
-      hpMult: (w.hpMult || 1) * (a.hpMult || 1),
-      wardMult: t.wardMult || 1,
-      cdMult: t.cdMult || 1,
-    };
+    let outputMult = 1, hpMult = 1, wardMult = 1, cdMult = 1;
+    for (const slot of SLOT_ORDER) {
+      const o = GEAR[slot].find((x) => x.id === c.equipment[slot]);
+      if (!o) continue;
+      outputMult *= o.mult || 1;
+      hpMult *= o.hpMult || 1;
+      wardMult *= o.wardMult || 1;
+      cdMult *= o.cdMult || 1;
+    }
+    return { outputMult, hpMult, wardMult, cdMult };
   }
 
   // ── inventory ────────────────────────────────────────────
@@ -1185,7 +1189,7 @@ export class GameEngine {
     const cost = def.hireCost ?? 0;
     if (this.gold < cost) return;
     this.gold -= cost;
-    this.pool.push({ ...def, level: 1, xp: 0, equipment: { weapon: 'none', armor: 'none', trinket: 'none' }, talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 });
+    this.pool.push({ ...def, level: 1, xp: 0, equipment: emptyEquipment(), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 });
     this.notify();
   }
 
@@ -1361,20 +1365,30 @@ export class GameEngine {
     return roles.map((role, i) => ({ id: i, role, name: ENEMY_NAME[role], maxHp: hps[i], hp: hps[i], alive: true }));
   }
 
+  // The helm/gloves/boots/ring slots added power the dungeons were never
+  // tuned for; deeper dungeons (where those pieces are actually owned) get
+  // proportionally tougher so the curve stays where it was.
+  slotCompMult(kind: 'hp' | 'dmg'): number {
+    // Zero through the first location (3 dungeons), full by the last one.
+    const idx = Math.max(0, DUNGEONS.findIndex((d) => d.id === this.dungeonId) - 2);
+    return 1 + (kind === 'hp' ? GEAR_SLOT_COMP_HP : GEAR_SLOT_COMP_DMG) * idx / (DUNGEONS.length - 3);
+  }
+
   freshSim(enc: EncounterDef, keepRaiders: Raider[] | null, roomIdx = 0): Sim {
     const raiders = keepRaiders || this.makeRaiders(this.squad());
     const dmgMult = this.inArena
       ? (this.arenaOpponent?.dmgMult ?? 1)
-      : (this.currentDungeon().dmgMult ?? 1) * (this.inWeeklyChallenge ? this.weeklyModifierDmgMult : 1);
+      : (this.currentDungeon().dmgMult ?? 1) * (this.inWeeklyChallenge ? this.weeklyModifierDmgMult : 1) * this.slotCompMult('dmg');
+    const encHp = Math.round(enc.hp * (this.inArena ? 1 : this.slotCompMult('hp')));
     raiders.forEach((r, i) => {
       r.chainPartner = null;
       r.defending = false;
       r.row = BACK_ROW; r.col = i;
       if (r.ability) { r.ability.active = false; r.ability.activeRounds = 0; r.ability.cd = 0; }
     });
-    const enemies = enc.type === 'room' ? this.buildRoomGroup(Math.round(enc.hp * ROOM_GROUP_HP_MULT), roomIdx) : [];
+    const enemies = enc.type === 'room' ? this.buildRoomGroup(Math.round(encHp * ROOM_GROUP_HP_MULT), roomIdx) : [];
     return {
-      boss: { name: enc.enemyName, maxHp: enemies.length ? enemies.reduce((a, e) => a + e.maxHp, 0) : enc.hp, hp: enemies.length ? enemies.reduce((a, e) => a + e.hp, 0) : enc.hp },
+      boss: { name: enc.enemyName, maxHp: enemies.length ? enemies.reduce((a, e) => a + e.maxHp, 0) : encHp, hp: enemies.length ? enemies.reduce((a, e) => a + e.hp, 0) : encHp },
       enemies, focusId: enemies.length ? enemies[0].id : null,
       fx: { seq: 0, actor: null, kind: null, crit: false, targetEnemy: null, targetRaider: null },
       impact: { seq: 0, cells: [], kind: null }, shakeSeq: 0, moveFx: null,
@@ -2475,14 +2489,16 @@ export class GameEngine {
         assigned: null,
       }));
       // Every boss's signature trophy is guaranteed on the dungeon's first-ever clear.
-      const unique = UNIQUE_BOSS_LOOT[this.dungeonId];
-      if (unique && !this.defeatedDungeons.has(this.dungeonId)) {
-        loot.push({
-          slot: unique.slot,
-          gearId: unique.gearId,
-          name: GEAR[unique.slot].find((o) => o.id === unique.gearId)?.name || unique.gearId,
-          assigned: null,
-        });
+      if (!this.defeatedDungeons.has(this.dungeonId)) {
+        for (const unique of [UNIQUE_BOSS_LOOT[this.dungeonId], UNIQUE_BOSS_LOOT_EXTRA[this.dungeonId]]) {
+          if (!unique) continue;
+          loot.push({
+            slot: unique.slot,
+            gearId: unique.gearId,
+            name: GEAR[unique.slot].find((o) => o.id === unique.gearId)?.name || unique.gearId,
+            assigned: null,
+          });
+        }
       }
       curioFound = this.rollCurio(0.6);
       goldFound = 70 + Math.floor(Math.random() * 41);

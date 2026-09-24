@@ -1,6 +1,6 @@
 export type Role = 'tank' | 'heal' | 'dps';
 export type TraitId = 'steady' | 'novice' | 'egoist' | 'clicker' | 'legend' | 'ninjaLooter';
-export type GearSlotKey = 'weapon' | 'armor' | 'trinket';
+export type GearSlotKey = 'weapon' | 'helm' | 'armor' | 'gloves' | 'boots' | 'trinket' | 'ring';
 /** Melee must stand on the grid's front row to attack; ranged/healers can act from anywhere. */
 export type AttackRange = 'melee' | 'ranged';
 

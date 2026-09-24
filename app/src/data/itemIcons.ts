@@ -89,7 +89,16 @@ export type ItemIconId =
   | 'adskoe-pero-kontrakta-dush'
   | 'proklyataya-kukla-mesti-i-boli'
   | 'zabytyy-ukaz-lorda-haosa'
-  | 'runnyy-topor-vladyki-krovi';
+  | 'runnyy-topor-vladyki-krovi'
+  | 'adskiy-shlem'
+  | 'rogatyy-shlem'
+  | 'perchatki-lovkosti'
+  | 'latnye-rukavitsy'
+  | 'latnye-sapogi'
+  | 'kolchuzhnye-sapogi'
+  | 'koltso-pustoty'
+  | 'serebryanoe-koltso'
+  | 'ledyanoe-koltso';
 
 export const ITEM_ICONS: Record<ItemIconId, any> = {
   'proklyatyy-mech': require('../../assets/items/proklyatyy-mech.jpg'),
@@ -182,6 +191,15 @@ export const ITEM_ICONS: Record<ItemIconId, any> = {
   'proklyataya-kukla-mesti-i-boli': require('../../assets/items/proklyataya-kukla-mesti-i-boli.jpg'),
   'zabytyy-ukaz-lorda-haosa': require('../../assets/items/zabytyy-ukaz-lorda-haosa.jpg'),
   'runnyy-topor-vladyki-krovi': require('../../assets/items/runnyy-topor-vladyki-krovi.jpg'),
+  'adskiy-shlem': require('../../assets/items/adskiy-shlem.jpg'),
+  'rogatyy-shlem': require('../../assets/items/rogatyy-shlem.jpg'),
+  'perchatki-lovkosti': require('../../assets/items/perchatki-lovkosti.jpg'),
+  'latnye-rukavitsy': require('../../assets/items/latnye-rukavitsy.jpg'),
+  'latnye-sapogi': require('../../assets/items/latnye-sapogi.jpg'),
+  'kolchuzhnye-sapogi': require('../../assets/items/kolchuzhnye-sapogi.jpg'),
+  'koltso-pustoty': require('../../assets/items/koltso-pustoty.jpg'),
+  'serebryanoe-koltso': require('../../assets/items/serebryanoe-koltso.jpg'),
+  'ledyanoe-koltso': require('../../assets/items/ledyanoe-koltso.jpg'),
 };
 
 export const ITEM_ICON_NAMES: Record<ItemIconId, string> = {
@@ -275,4 +293,13 @@ export const ITEM_ICON_NAMES: Record<ItemIconId, string> = {
   'proklyataya-kukla-mesti-i-boli': 'Проклятая Кукла Мести и Боли',
   'zabytyy-ukaz-lorda-haosa': 'Забытый Указ Лорда Хаоса',
   'runnyy-topor-vladyki-krovi': 'Рунный Топор Владыки Крови',
+  'adskiy-shlem': 'Адский Шлем',
+  'rogatyy-shlem': 'Рогатый Шлем',
+  'perchatki-lovkosti': 'Перчатки Ловкости',
+  'latnye-rukavitsy': 'Латные Рукавицы',
+  'latnye-sapogi': 'Латные Сапоги',
+  'kolchuzhnye-sapogi': 'Кольчужные Сапоги',
+  'koltso-pustoty': 'Кольцо Пустоты',
+  'serebryanoe-koltso': 'Серебряный Перстень',
+  'ledyanoe-koltso': 'Ледяное Кольцо',
 };

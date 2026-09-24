@@ -26,6 +26,30 @@ export const GEAR: Record<GearSlotKey, GearOption[]> = {
     { id: 'rw-enchant1', name: 'Зачарованный Клинок Тьмы', mult: 1.10, cdMult: 0.85, desc: '+10% к урону/лечению и -15% к перезарядке способности.', icon: 'oskolki-posoha-haosa' },
     { id: 'rw-enchant2', name: 'Зачарованный Клинок Пепла', mult: 1.20, cdMult: 0.75, desc: '+20% к урону/лечению и -25% к перезарядке способности.', icon: 'grimuar-teney' },
   ],
+  helm: [
+    { id: 'none', name: 'Без шлема', desc: 'Никаких бонусов.' },
+    { id: 'h1', name: 'Помятый шлем', hpMult: 1.05, desc: '+5% к HP.', icon: 'shlem-padshego-rytsarya', price: 35 },
+    { id: 'h2', name: 'Шлем стражника', hpMult: 1.09, desc: '+9% к HP.', icon: 'shlem-s-shipami', price: 90 },
+    { id: 'h3', name: 'Рогатый шлем', hpMult: 1.12, mult: 1.03, desc: '+12% к HP и +3% к урону/лечению.', icon: 'rogatyy-shlem', price: 160 },
+    { id: 'uh-parishruins', name: 'Адский Шлем Настоятеля', hpMult: 1.15, mult: 1.04, desc: '+15% к HP и +4% к урону/лечению. Трофей с Настоятеля Руин.', icon: 'adskiy-shlem' },
+    { id: 'uh-desertersfort', name: 'Маска Чумного Полковника', hpMult: 1.20, wardMult: 0.95, desc: '+20% к HP и -5% к получаемому урону. Трофей с Полковника-Отступника.', icon: 'maska-mora-chumnogo-vestnika' },
+  ],
+  gloves: [
+    { id: 'none', name: 'Без перчаток', desc: 'Никаких бонусов.' },
+    { id: 'g1', name: 'Латные рукавицы', mult: 1.04, desc: '+4% к урону/лечению.', icon: 'latnye-rukavitsy', price: 35 },
+    { id: 'g2', name: 'Когтистые перчатки', mult: 1.07, desc: '+7% к урону/лечению.', icon: 'kogtistye-perchatki', price: 90 },
+    { id: 'g3', name: 'Перчатки Ловкости', mult: 1.10, desc: '+10% к урону/лечению.', icon: 'perchatki-lovkosti', price: 160 },
+    { id: 'ug-road', name: 'Перчатка Атамана Тракта', mult: 1.12, desc: '+12% к урону/лечению. Трофей с Атамана Тракта.', icon: 'otravlennaya-perchatka-tenevogo-ubiytsy' },
+    { id: 'ug-wyvernlair', name: 'Когти Королевы Виверн', mult: 1.18, hpMult: 0.95, desc: '+18% к урону/лечению, но -5% к HP. Трофей с Королевы Виверн.', icon: 'kogot-chumnoy-letuchey-myshi' },
+  ],
+  boots: [
+    { id: 'none', name: 'Без сапог', desc: 'Никаких бонусов.' },
+    { id: 'b1', name: 'Кольчужные сапоги', wardMult: 0.96, desc: '-4% к получаемому урону.', icon: 'kolchuzhnye-sapogi', price: 35 },
+    { id: 'b2', name: 'Латные сапоги', wardMult: 0.93, desc: '-7% к получаемому урону.', icon: 'latnye-sapogi', price: 90 },
+    { id: 'b3', name: 'Сапоги скорохода', cdMult: 0.90, wardMult: 0.97, desc: '-10% к перезарядке и -3% к получаемому урону.', icon: 'kolchuzhnye-sapogi', price: 160 },
+    { id: 'ub-wolfrifts', name: 'Поступь Матери Стаи', wardMult: 0.90, hpMult: 1.04, desc: '-10% к получаемому урону и +4% к HP. Трофей с Матери Стаи.', icon: 'latnye-sapogi' },
+    { id: 'ub-smugglercatacombs', name: 'Сапоги Контрабандиста', cdMult: 0.85, wardMult: 0.94, desc: '-15% к перезарядке и -6% к получаемому урону. Трофей со Смотрителя Катакомб.', icon: 'kolchuzhnye-sapogi' },
+  ],
   armor: [
     { id: 'none', name: 'Без брони', hpMult: 1, desc: 'Никаких бонусов.' },
     { id: 'a1', name: 'Кожаный нагрудник', hpMult: 1.10, desc: '+10% к HP.', icon: 'proklyatyy-nagrudnik', price: 40 },
@@ -66,6 +90,14 @@ export const GEAR: Record<GearSlotKey, GearOption[]> = {
     { id: 'rt-alchemy1', name: 'Костяной Оберег', mult: 1.12, wardMult: 1.04, desc: '+12% к урону/лечению, но +4% к получаемому урону.', icon: 'filakteriya-proklyatogo-nekromanta' },
     { id: 'rt-alchemy2', name: 'Эликсир из Чешуи Виверны', mult: 1.22, wardMult: 1.08, desc: '+22% к урону/лечению, но +8% к получаемому урону.', icon: 'sklyanka-rtuti' },
   ],
+  ring: [
+    { id: 'none', name: 'Без кольца', desc: 'Никаких бонусов.' },
+    { id: 'rg1', name: 'Серебряный перстень', mult: 1.03, desc: '+3% к урону/лечению.', icon: 'serebryanoe-koltso', price: 40 },
+    { id: 'rg2', name: 'Ледяное кольцо', cdMult: 0.92, desc: '-8% к перезарядке способности.', icon: 'ledyanoe-koltso', price: 100 },
+    { id: 'rg3', name: 'Кольцо Пустоты', mult: 1.08, wardMult: 1.03, desc: '+8% к урону/лечению, но +3% к получаемому урону.', icon: 'koltso-pustoty', price: 170 },
+    { id: 'ur-debtorsjail', name: 'Перстень Начальника Тюрьмы', mult: 1.06, cdMult: 0.92, desc: '+6% к урону/лечению и -8% к перезарядке. Трофей с Начальника Тюрьмы.', icon: 'serebryanoe-koltso' },
+    { id: 'ur-councilantechamber', name: 'Печатка Спикера Совета', mult: 1.14, wardMult: 1.04, desc: '+14% к урону/лечению, но +4% к получаемому урону. Трофей со Спикера Совета.', icon: 'koltso-pustoty' },
+  ],
 };
 
 // Guaranteed unique drop on a dungeon's FIRST boss kill — one weapon, one
@@ -103,11 +135,32 @@ export const SELL_RATIO = 0.5;
 
 export const SLOT_LABEL: Record<GearSlotKey, string> = {
   weapon: 'Оружие',
+  helm: 'Шлем',
   armor: 'Броня',
+  gloves: 'Перчатки',
+  boots: 'Сапоги',
   trinket: 'Амулет',
+  ring: 'Кольцо',
 };
 
-export const SLOT_ORDER: GearSlotKey[] = ['weapon', 'armor', 'trinket'];
+export const SLOT_ORDER: GearSlotKey[] = ['weapon', 'helm', 'armor', 'gloves', 'boots', 'trinket', 'ring'];
+
+export function emptyEquipment(): Record<GearSlotKey, string> {
+  return Object.fromEntries(SLOT_ORDER.map((s) => [s, 'none'])) as Record<GearSlotKey, string>;
+}
+
+// Second first-clear trophy for the smaller slots (helm, gloves, boots,
+// ring) — one per location, on its middle dungeon, early tier first.
+export const UNIQUE_BOSS_LOOT_EXTRA: Record<string, LootDrop> = {
+  road: { slot: 'gloves', gearId: 'ug-road' },
+  wolfrifts: { slot: 'boots', gearId: 'ub-wolfrifts' },
+  parishruins: { slot: 'helm', gearId: 'uh-parishruins' },
+  debtorsjail: { slot: 'ring', gearId: 'ur-debtorsjail' },
+  smugglercatacombs: { slot: 'boots', gearId: 'ub-smugglercatacombs' },
+  desertersfort: { slot: 'helm', gearId: 'uh-desertersfort' },
+  wyvernlair: { slot: 'gloves', gearId: 'ug-wyvernlair' },
+  councilantechamber: { slot: 'ring', gearId: 'ur-councilantechamber' },
+};
 
 // Starting stash — the guild owns exactly one of each, so the very first
 // gearing decision (who gets it) already matters.
@@ -128,6 +181,14 @@ export const BOSS_LOOT_TABLE: LootDrop[] = [
   { slot: 'trinket', gearId: 't3' },
   { slot: 'trinket', gearId: 't4' },
   { slot: 'trinket', gearId: 't5' },
+  { slot: 'helm', gearId: 'h2' },
+  { slot: 'helm', gearId: 'h3' },
+  { slot: 'gloves', gearId: 'g2' },
+  { slot: 'gloves', gearId: 'g3' },
+  { slot: 'boots', gearId: 'b2' },
+  { slot: 'boots', gearId: 'b3' },
+  { slot: 'ring', gearId: 'rg2' },
+  { slot: 'ring', gearId: 'rg3' },
 ];
 
 // Regular room fights have a chance at a single common-tier drop off the
@@ -137,5 +198,9 @@ export const TRASH_LOOT_TABLE: LootDrop[] = [
   { slot: 'weapon', gearId: 'w1' },
   { slot: 'armor', gearId: 'a1' },
   { slot: 'trinket', gearId: 't1' },
+  { slot: 'helm', gearId: 'h1' },
+  { slot: 'gloves', gearId: 'g1' },
+  { slot: 'boots', gearId: 'b1' },
+  { slot: 'ring', gearId: 'rg1' },
 ];
 export const TRASH_LOOT_CHANCE = 0.55;

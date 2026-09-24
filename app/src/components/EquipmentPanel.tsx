@@ -14,6 +14,11 @@ const GOLD_DIM = '#4a3f2c';
 const PANEL_BG = '#12100d';
 const CELL_BG = '#1a1712';
 
+// Diablo IV layout: worn pieces down the left, jewellery and boots on the
+// right, the weapon under the portrait.
+const LEFT: GearSlotKey[] = ['helm', 'armor', 'gloves'];
+const RIGHT: GearSlotKey[] = ['trinket', 'ring', 'boots'];
+
 // Small rotated square used as the frame's corner rivet / title flourish.
 function Rivet({ style }: { style: object }) {
   return <View style={[{ position: 'absolute', width: 8, height: 8, transform: [{ rotate: '45deg' }], backgroundColor: GOLD, borderWidth: 1, borderColor: PANEL_BG }, style]} />;
@@ -154,6 +159,12 @@ export function EquipmentPanel({ engine, c }: { engine: GameEngine; c: Candidate
   const picked = slot.stash.find((i) => i.id === itemId) || slot.equipped || slot.stash[0] || null;
 
   const pickSlot = (k: GearSlotKey) => { setSlotKey(k); setItemId(null); };
+  const cell = (k: GearSlotKey, w = 62, h = 62) => (
+    <View key={k} style={{ alignItems: 'center', gap: 2 }}>
+      <SlotCell slot={k} item={by(k).equipped} w={w} h={h} active={slotKey === k} onPress={() => pickSlot(k)} />
+      <Text style={{ fontSize: 9.5, color: '#a8966c', fontFamily: font.regular }}>{by(k).label}</Text>
+    </View>
+  );
 
   return (
     <View style={{ borderWidth: 1, borderColor: GOLD, borderRadius: 6, backgroundColor: PANEL_BG, padding: 12, marginBottom: 18 }}>
@@ -169,28 +180,25 @@ export function EquipmentPanel({ engine, c }: { engine: GameEngine; c: Candidate
         <LinearGradient colors={[GOLD, 'rgba(138,118,80,0)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1, height: 1 }} />
       </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-        <View style={{ alignItems: 'center', gap: 4 }}>
-          <SlotCell slot="weapon" item={by('weapon').equipped} w={74} h={124} active={slotKey === 'weapon'} onPress={() => pickSlot('weapon')} />
-          <Text style={{ fontSize: 10, color: '#a8966c', fontFamily: font.regular }}>{by('weapon').label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 10 }}>
+        <View style={{ gap: 6 }}>
+          {LEFT.map((k) => cell(k))}
         </View>
 
-        <View style={{ width: 132, height: 168, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: GOLD_DIM }}>
-          <Avatar id={c.id} size={168} radius={0} style={{ width: 132, height: 168 }} />
-          <LinearGradient colors={['rgba(18,16,13,0.1)', 'rgba(18,16,13,0)', 'rgba(18,16,13,0.95)']} locations={[0, 0.5, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-          <View style={{ position: 'absolute', left: 6, right: 6, bottom: 6, alignItems: 'center' }}>
-            <Text numberOfLines={1} style={{ fontSize: 13, fontFamily: font.semibold, color: '#efe4c8' }}>{c.name}</Text>
-            <Text style={{ fontSize: 10, color: roleColor[c.role], fontFamily: font.regular }}>Ур. {c.level}</Text>
-          </View>
-        </View>
-
-        <View style={{ gap: 8 }}>
-          {(['armor', 'trinket'] as GearSlotKey[]).map((k) => (
-            <View key={k} style={{ alignItems: 'center', gap: 3 }}>
-              <SlotCell slot={k} item={by(k).equipped} w={64} h={64} active={slotKey === k} onPress={() => pickSlot(k)} />
-              <Text style={{ fontSize: 10, color: '#a8966c', fontFamily: font.regular }}>{by(k).label}</Text>
+        <View style={{ alignItems: 'center', gap: 6 }}>
+          <View style={{ width: 132, height: 172, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: GOLD_DIM }}>
+            <Avatar id={c.id} size={172} radius={0} style={{ width: 132, height: 172 }} />
+            <LinearGradient colors={['rgba(18,16,13,0.1)', 'rgba(18,16,13,0)', 'rgba(18,16,13,0.95)']} locations={[0, 0.5, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+            <View style={{ position: 'absolute', left: 6, right: 6, bottom: 6, alignItems: 'center' }}>
+              <Text numberOfLines={1} style={{ fontSize: 13, fontFamily: font.semibold, color: '#efe4c8' }}>{c.name}</Text>
+              <Text style={{ fontSize: 10, color: roleColor[c.role], fontFamily: font.regular }}>Ур. {c.level}</Text>
             </View>
-          ))}
+          </View>
+          {cell('weapon', 132, 58)}
+        </View>
+
+        <View style={{ gap: 6 }}>
+          {RIGHT.map((k) => cell(k))}
         </View>
       </View>
 

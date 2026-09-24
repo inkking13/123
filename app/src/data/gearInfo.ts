@@ -1,5 +1,6 @@
 import { GearOption, GearSlotKey } from './types';
 import { GEAR_SETS } from './gearSets';
+import type { IconName } from '../components/Icon';
 
 // Diablo-style rarity tiers, derived from where an item comes from rather
 // than stored per item: shop tier by price, crafted pieces, boss trophies.
@@ -24,7 +25,7 @@ export const RARITY_NAME: Record<Rarity, string> = {
 export const SET_COLOR = '#6fcf7c';
 
 export function rarityOf(o: GearOption): Rarity {
-  if (/^u[wat]-/.test(o.id)) return 'unique';
+  if (/^u[a-z]-/.test(o.id)) return 'unique';
   if (/^r[wat]-/.test(o.id)) return 'legendary';
   if ((o.price || 0) >= 150) return 'rare';
   if ((o.price || 0) >= 90) return 'magic';
@@ -71,8 +72,12 @@ export function compareLines(o: GearOption, worn: GearOption): StatLine[] {
   });
 }
 
-export const SLOT_SILHOUETTE: Record<GearSlotKey, 'sword' | 'shield' | 'crown-simple'> = {
+export const SLOT_SILHOUETTE: Record<GearSlotKey, IconName> = {
   weapon: 'sword',
+  helm: 'hard-hat',
   armor: 'shield',
+  gloves: 'hand-fist',
+  boots: 'boot',
   trinket: 'crown-simple',
+  ring: 'diamond',
 };
