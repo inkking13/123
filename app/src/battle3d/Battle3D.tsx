@@ -23,7 +23,7 @@ export function canRender3D(): boolean {
 }
 
 /** Any render error inside the 3D view drops the fight back to the 2.5D stage instead of crashing it. */
-class Guard extends Component<{ onFail: (e: unknown) => void; children: React.ReactNode }, { failed: boolean }> {
+export class Guard extends Component<{ onFail: (e: unknown) => void; children: React.ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(e: unknown) { this.props.onFail(e); }

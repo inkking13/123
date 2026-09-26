@@ -4,7 +4,7 @@ import { useFrame, useThree } from './r3f';
 import { useArt } from './textures';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
-import { WANDERER_HEIGHT, WandererModel } from './WandererModel';
+import { MODEL_HEIGHT, SHEET_MODELS } from './heroFigures';
 import { CreatureAnim, CreatureModel } from './CreatureModel';
 import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
@@ -19,12 +19,6 @@ import { portraitSource } from '../data/portraits';
 import { colors, roleColor } from '../theme/theme';
 
 const WHITE = new THREE.Color('#ffffff');
-/** Heroes drawn with a sheet-built model instead of the generic rig. */
-const SHEET_MODELS: Record<number, { height: number; Model: typeof WandererModel }> = {
-  4: { height: WANDERER_HEIGHT, Model: WandererModel }, // Векс — the hooded wanderer
-};
-/** Approximate standing height of each low-poly build, for anchoring HP bars above the head. */
-const MODEL_HEIGHT = { human: 1.12, dwarf: 0.92, orc: 1.26, elf: 1.2, gnome: 0.95, brute: 1.35, golem: 1.5, imp: 0.95 } as const;
 const HURT = new THREE.Color('#ff7a6a');
 const DEAD = new THREE.Color('#5a5a66');
 const UP = new THREE.Vector3(0, 1, 0);

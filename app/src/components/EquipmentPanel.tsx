@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EquipItemVM, EquipSlotVM, GameEngine } from '../engine/GameEngine';
@@ -8,6 +8,8 @@ import { colors, font, roleColor } from '../theme/theme';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { ItemIcon } from './ItemIcon';
+import { HeroPreview3D } from '../battle3d/HeroPreview3D';
+import { canRender3D } from '../battle3d/Battle3D';
 
 const GOLD = '#8a7650';
 const GOLD_DIM = '#4a3f2c';
@@ -158,6 +160,8 @@ export function EquipmentPanel({ engine, c }: { engine: GameEngine; c: Candidate
   const by = (k: GearSlotKey) => vm.slots.find((s) => s.slot === k)!;
   const picked = slot.stash.find((i) => i.id === itemId) || slot.equipped || slot.stash[0] || null;
 
+  const [failed3d, setFailed3d] = useState(false);
+  const show3d = useMemo(() => engine.settings.view3d && canRender3D(), [engine.settings.view3d]) && !failed3d;
   const pickSlot = (k: GearSlotKey) => { setSlotKey(k); setItemId(null); };
   const cell = (k: GearSlotKey, w = 62, h = 62) => (
     <View key={k} style={{ alignItems: 'center', gap: 2 }}>
@@ -187,9 +191,13 @@ export function EquipmentPanel({ engine, c }: { engine: GameEngine; c: Candidate
 
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ width: 132, height: 172, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: GOLD_DIM }}>
-            <Avatar id={c.id} size={172} radius={0} style={{ width: 132, height: 172 }} />
-            <LinearGradient colors={['rgba(18,16,13,0.1)', 'rgba(18,16,13,0)', 'rgba(18,16,13,0.95)']} locations={[0, 0.5, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-            <View style={{ position: 'absolute', left: 6, right: 6, bottom: 6, alignItems: 'center' }}>
+            {show3d ? (
+              <HeroPreview3D id={c.id} width={132} height={172} onFail={() => setFailed3d(true)} />
+            ) : (
+              <Avatar id={c.id} size={172} radius={0} style={{ width: 132, height: 172 }} />
+            )}
+            <LinearGradient pointerEvents="none" colors={['rgba(18,16,13,0.1)', 'rgba(18,16,13,0)', 'rgba(18,16,13,0.95)']} locations={[0, 0.5, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+            <View pointerEvents="none" style={{ position: 'absolute', left: 6, right: 6, bottom: 6, alignItems: 'center' }}>
               <Text numberOfLines={1} style={{ fontSize: 13, fontFamily: font.semibold, color: '#efe4c8' }}>{c.name}</Text>
               <Text style={{ fontSize: 10, color: roleColor[c.role], fontFamily: font.regular }}>Ур. {c.level}</Text>
             </View>
