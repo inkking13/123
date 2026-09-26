@@ -15,6 +15,7 @@ import { Icon } from '../components/Icon';
 import { EquipmentPanel } from '../components/EquipmentPanel';
 import { ProgressBar } from '../components/ProgressBar';
 import { useEngineVersion } from '../engine/useEngine';
+import { FEATURES, Feature, unlockHint } from '../data/features';
 
 export function CharacterScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -101,9 +102,9 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
             ))}
           </View>
 
-          <EquipmentPanel key={cc.id} engine={engine} c={cc} />
+          {engine.isUnlocked('gear') ? <EquipmentPanel key={cc.id} engine={engine} c={cc} /> : null}
 
-          {setProgress.length > 0 ? (
+          {engine.isUnlocked('gear') && setProgress.length > 0 ? (
             <>
               <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Комплект</Text>
               {setProgress.map((s) => (
@@ -145,6 +146,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
 
           <Text style={{ fontSize: 13.5, lineHeight: 22, color: colors.textMuted, marginBottom: 22, fontFamily: font.regular }}>{cc.story}</Text>
 
+          {engine.isUnlocked('classes') ? (<>
           <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 6, fontFamily: font.regular }}>Класс</Text>
           <Text style={{ fontSize: 11.5, color: colors.textFaint, marginBottom: 10, lineHeight: 16, fontFamily: font.regular }}>
             {cc.classId ? 'Выбор сделан навсегда — определяет базовый стиль боя.' : 'Выберите один раз, навсегда — определит базовый стиль боя.'}
@@ -168,6 +170,9 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
             ))}
           </View>
 
+          </>) : null}
+
+          {engine.isUnlocked('professions') ? (<>
           <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 6, fontFamily: font.regular }}>Профессия</Text>
           <Text style={{ fontSize: 11.5, color: colors.textFaint, marginBottom: 10, lineHeight: 16, fontFamily: font.regular }}>
             {cc.professionId ? 'Выбор сделан навсегда — прокачивайте мастерство на отдельном экране.' : 'Выберите ремесло один раз, навсегда — его можно будет прокачивать за золото.'}
@@ -215,7 +220,27 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
             </Pressable>
           ) : null}
 
+          </>) : null}
+
           {(() => {
+            // Systems not open yet: one quiet list of what's coming instead of empty sections.
+            const soon = (['gear', 'talents', 'classes', 'professions'] as Feature[]).filter((f) => !engine.isUnlocked(f));
+            return soon.length ? (
+              <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 18, gap: 8 }}>
+                <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Скоро</Text>
+                {soon.map((f) => (
+                  <View key={f} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Icon name="lock-simple" size={13} color={colors.borderHover} />
+                    <Text style={{ flex: 1, fontSize: 12.5, color: colors.textFaint, fontFamily: font.regular }}>
+                      <Text style={{ color: colors.textMuted }}>{FEATURES[f].title}</Text> — {unlockHint(f).replace('Откроется', 'откроется')}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null;
+          })()}
+
+          {engine.isUnlocked('talents') ? (() => {
             const tiers = engine.talentVM(cc);
             const learned = tiers.filter((t) => t.chosen).length;
             return (
@@ -279,7 +304,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
                 })}
               </>
             );
-          })()}
+          })() : null}
 
           <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, marginTop: 8, fontFamily: font.regular }}>Кадровые решения</Text>
           {!engine.canFire() ? (

@@ -18,6 +18,7 @@ import { BATTLE_THEMES, BattleBackdrop, BattleParticles } from '../components/Ba
 import { Battle3D, canRender3D } from '../battle3d/Battle3D';
 import { ARENA_CHAMPION, MONSTER_LOOKS } from '../battle3d/monsterLooks';
 import { gearLookOf } from '../battle3d/gearLooks';
+import { TIPS, Tip } from '../data/features';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
   attack: 'sword',
@@ -493,6 +494,34 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
 
       {/* Action panel */}
       <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg, paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(14, insets.bottom + 10) }}>
+        {(() => {
+          // First-fight coaching: one tip at a time, each shown once, when it's relevant.
+          if (s.over) return null;
+          const tip: Tip | null =
+            s.windup && engine.tipPending('windup') ? 'windup'
+            : dangerCells.size > 0 && engine.tipPending('danger') ? 'danger'
+            : current && s.movePhase && engine.tipPending('move') ? 'move'
+            : current && !s.movePhase && !isBossFight && engine.tipPending('focus') ? 'focus'
+            : current && !s.movePhase && !pickingTarget && engine.tipPending('act') ? 'act'
+            : null;
+          if (!tip) return null;
+          const warn = tip === 'danger' || tip === 'windup';
+          return (
+            <View
+              testID={'tip-' + tip}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10, padding: 10, borderRadius: 8, borderWidth: 1,
+                borderColor: warn ? colors.danger : colors.accent, backgroundColor: warn ? 'rgba(209,104,92,0.12)' : colors.accentWash,
+              }}
+            >
+              <Icon name={warn ? 'warning' : 'target'} size={16} color={warn ? colors.danger : colors.accentSoft} />
+              <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colors.text, fontFamily: font.regular }}>{TIPS[tip]}</Text>
+              <Pressable testID="tip-ok" onPress={() => engine.dismissTip(tip)} hitSlop={8} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: colors.borderStrong }}>
+                <Text style={{ fontSize: 12, color: colors.textMuted, fontFamily: font.medium }}>Понятно</Text>
+              </Pressable>
+            </View>
+          );
+        })()}
         {!current ? (
           <View style={{ height: 46, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontSize: 13, color: colors.textFaint, fontFamily: font.regular }}>{s.windup ? 'Противник замахивается для мощного удара!' : s.order[s.turnPos]?.kind === 'boss' ? 'Ход противника…' : '…'}</Text>

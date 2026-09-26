@@ -21,6 +21,7 @@ import { WeeklyModifierDef, pickWeeklyModifier, pickWeeklyDungeonId } from '../d
 import { CURIOS } from '../data/curios';
 import { EventOption, OFFICE_EVENTS } from '../data/events';
 import { ItemIconId } from '../data/itemIcons';
+import { FEATURES, FEATURE_ORDER, Feature, Tip } from '../data/features';
 import { IconName } from '../components/Icon';
 import { AttackRange, Candidate, EncounterDef, GearOption, GearSlotKey, Role } from '../data/types';
 import {
@@ -139,6 +140,8 @@ interface SaveData {
   arenaLosses: number;
   weeklyChallengeWeek: string;
   weeklyClaimed: boolean;
+  seenUnlocks?: string[];
+  seenTips?: string[];
 }
 
 export interface GearSlotOption {
@@ -393,6 +396,10 @@ export class GameEngine {
   inWeeklyChallenge = false;
   private weeklyModifierDmgMult = 1;
 
+  // gradual unlocks and first-fight tips
+  seenUnlocks = new Set<Feature>();
+  seenTips = new Set<Tip>();
+
   settings = { haptics: true, view3d: true };
 
   private turnTimer: ReturnType<typeof setTimeout> | null = null;
@@ -438,6 +445,8 @@ export class GameEngine {
       arenaLosses: this.arenaLosses,
       weeklyChallengeWeek: this.weeklyChallengeWeek,
       weeklyClaimed: this.weeklyClaimed,
+      seenUnlocks: Array.from(this.seenUnlocks),
+      seenTips: Array.from(this.seenTips),
     };
   }
   private applySave(data: SaveData) {
@@ -484,6 +493,10 @@ export class GameEngine {
     if (typeof data.arenaLosses === 'number') this.arenaLosses = data.arenaLosses;
     if (typeof data.weeklyChallengeWeek === 'string') this.weeklyChallengeWeek = data.weeklyChallengeWeek;
     if (typeof data.weeklyClaimed === 'boolean') this.weeklyClaimed = data.weeklyClaimed;
+    if (Array.isArray(data.seenUnlocks)) this.seenUnlocks = new Set(data.seenUnlocks as Feature[]);
+    else for (const f of FEATURE_ORDER) if (this.isUnlocked(f)) this.seenUnlocks.add(f); // older save: no announcements for what it already had
+    if (Array.isArray(data.seenTips)) this.seenTips = new Set(data.seenTips as Tip[]);
+    else if (this.statsRoomWins > 0) this.seenTips = new Set(['move', 'act', 'focus', 'danger', 'windup']);
   }
   async load() {
     try {
@@ -530,6 +543,7 @@ export class GameEngine {
     this.dailyDate = ''; this.dailyProgress = {}; this.dailyClaimedIds = new Set();
     this.arenaRating = 1000; this.arenaWins = 0; this.arenaLosses = 0; this.inArena = false; this.arenaOpponent = null;
     this.weeklyChallengeWeek = ''; this.weeklyClaimed = false; this.inWeeklyChallenge = false; this.weeklyModifierDmgMult = 1;
+    this.seenUnlocks = new Set(); this.seenTips = new Set();
     this.payrollNotice = null; this.resignationNotice = null; this.activeEvent = null; this.employeeOfMonthNotice = null;
     try { await AsyncStorage.removeItem(SAVE_KEY); } catch {}
     this.screen = 'title';
@@ -563,6 +577,31 @@ export class GameEngine {
     if (!(this.sim && !this.sim.over)) this.scheduleSave();
   }
   bump() { this.notify(); }
+
+  // ── gradual unlocks & tips ───────────────────────────────
+  isUnlocked(f: Feature): boolean {
+    const d = FEATURES[f];
+    return this.statsRoomWins >= (d.rooms ?? 0) && this.defeatedDungeons.size >= (d.bosses ?? 0);
+  }
+  /** Features that have opened but haven't been announced yet, in order. */
+  newUnlocks(): Feature[] {
+    return FEATURE_ORDER.filter((f) => this.isUnlocked(f) && !this.seenUnlocks.has(f));
+  }
+  markUnlockSeen(f: Feature) {
+    this.seenUnlocks.add(f);
+    this.notify();
+  }
+  tipPending(t: Tip): boolean {
+    return !this.seenTips.has(t);
+  }
+  dismissTip(t: Tip) {
+    this.seenTips.add(t);
+    this.notify();
+  }
+  resetTips() {
+    this.seenTips = new Set();
+    this.notify();
+  }
 
   // ── navigation ───────────────────────────────────────────
   go(screen: Screen) {

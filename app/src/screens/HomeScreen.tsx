@@ -8,6 +8,7 @@ import { Avatar } from '../components/Avatar';
 import { Icon, IconName } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
 import { useEngineVersion } from '../engine/useEngine';
+import { FEATURES, FEATURE_ORDER, Feature, unlockHint } from '../data/features';
 
 const DUNGEON_ICON: Record<string, IconName> = {
   wastes: 'trash-simple', road: 'path', groblot: 'skull',
@@ -20,6 +21,84 @@ const DUNGEON_ICON: Record<string, IconName> = {
   shareholderfloor: 'chart-line-up', councilantechamber: 'identification-card', boardroom: 'crown-simple',
 };
 
+/** A camp menu row; locked ones show what opens them instead of navigating. */
+function MenuCard({ title, sub, icon, onPress, lockedHint, caret }: {
+  title: string; sub: string; icon?: IconName; onPress: () => void; lockedHint?: string; caret?: boolean;
+}) {
+  const locked = !!lockedHint;
+  return (
+    <Pressable
+      onPress={locked ? undefined : onPress}
+      disabled={locked}
+      style={({ pressed }) => ({
+        borderWidth: 1, borderColor: locked ? colors.border : pressed ? colors.borderHover : colors.borderStrong,
+        borderRadius: 8, padding: 14, backgroundColor: locked ? 'transparent' : colors.surface, marginBottom: 22,
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', opacity: locked ? 0.55 : 1,
+      })}
+    >
+      <View style={{ flex: 1, paddingRight: 10 }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>{title}</Text>
+        <Text style={{ fontSize: 13, color: locked ? colors.textFaint : colors.textMuted, marginTop: 4, fontFamily: font.regular }}>{locked ? lockedHint : sub}</Text>
+      </View>
+      <Icon name={locked ? 'lock-simple' : caret ? 'caret-right' : icon ?? 'caret-right'} size={locked || caret ? 16 : 18} color={locked ? colors.borderHover : colors.textDim} />
+    </Pressable>
+  );
+}
+
+/** Where "Посмотреть" leads for a freshly opened system. */
+function openFeature(engine: GameEngine, f: Feature) {
+  const first = engine.squad()[0];
+  switch (f) {
+    case 'gear': engine.go('gear'); break;
+    case 'quests': engine.go('quests'); break;
+    case 'shop': engine.go('shop'); break;
+    case 'weekly': engine.go('weekly'); break;
+    case 'achievements': engine.go('achievements'); break;
+    case 'hire': engine.go('hire'); break;
+    case 'personnel': engine.go('personnel'); break;
+    case 'arena': engine.go('arena'); break;
+    case 'analytics': engine.go('analytics'); break;
+    default: if (first) engine.openChar(first.id); // talents, classes, professions live on the hero card
+  }
+}
+
+function UnlockBanner({ engine, f }: { engine: GameEngine; f: Feature }) {
+  const d = FEATURES[f];
+  return (
+    <View
+      testID={'unlock-' + f}
+      style={{ borderWidth: 1, borderColor: colors.accent, borderRadius: 10, padding: 14, marginBottom: 22, backgroundColor: colors.accentWash }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(145,132,217,0.22)' }}>
+          <Icon name={d.icon} size={16} color={colors.accentSoft} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 10.5, letterSpacing: 1.4, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>Открыто новое</Text>
+          <Text style={{ fontSize: 16, color: colors.text, fontFamily: font.medium }}>{d.title}</Text>
+        </View>
+      </View>
+      <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textMuted, fontFamily: font.regular }}>{d.intro}</Text>
+      <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+        <Pressable
+          testID="unlock-open"
+          onPress={() => { engine.markUnlockSeen(f); openFeature(engine, f); }}
+          style={{ flex: 1, height: 38, borderRadius: 8, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Text style={{ fontSize: 13, color: colors.bg, fontFamily: font.semibold }}>Посмотреть</Text>
+        </Pressable>
+        <Pressable
+          testID="unlock-ok"
+          onPress={() => engine.markUnlockSeen(f)}
+          style={{ flex: 1, height: 38, borderRadius: 8, borderWidth: 1, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Text style={{ fontSize: 13, color: colors.textMuted, fontFamily: font.medium }}>Понятно</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export function HomeScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
   const insets = useSafeAreaInsets();
@@ -29,6 +108,13 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
   const freeItems = inventory.reduce((sum, r) => sum + Math.max(0, r.free), 0);
   const hireCount = engine.hireVM().length;
   const weeklyVM = engine.weeklyChallengeVM();
+  // The nearest milestone still ahead, and what it opens — shown as one teaser
+  // instead of a wall of locked cards.
+  const upcoming = FEATURE_ORDER.filter((f) => !engine.isUnlocked(f));
+  const need = (f: Feature) => (FEATURES[f].bosses ?? 0) * 100 + (FEATURES[f].rooms ?? 0);
+  const nextNeed = upcoming.length ? Math.min(...upcoming.map(need)) : 0;
+  const nextUp = upcoming.filter((f) => need(f) === nextNeed);
+  const fresh = engine.newUnlocks()[0];
 
   const locationGroups = LOCATIONS.map((loc) => ({
     loc,
@@ -77,6 +163,8 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
           </View>
         </View>
         <View style={{ height: 22 }} />
+
+        {fresh ? <UnlockBanner engine={engine} f={fresh} /> : null}
 
         {engine.payrollNotice ? (
           <Pressable
@@ -152,118 +240,41 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
           </View>
         </Pressable>
 
-        <Pressable
-          onPress={() => engine.go('inventory')}
-          style={({ pressed }) => ({
-            borderWidth: 1, borderColor: pressed ? colors.borderHover : colors.borderStrong,
-            borderRadius: 8, padding: 14, backgroundColor: colors.surface, marginBottom: 22,
-            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-          })}
-        >
-          <View>
-            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Инвентарь</Text>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>
-              {inventory.length === 0 ? 'Склад пуст' : `${inventory.length} видов предметов · ${freeItems} свободно`}
+        {engine.isUnlocked('gear') ? (
+          <MenuCard title="Инвентарь" caret onPress={() => engine.go('inventory')} sub={inventory.length === 0 ? 'Склад пуст' : `${inventory.length} видов предметов · ${freeItems} свободно`} />
+        ) : null}
+        {engine.isUnlocked('shop') ? (
+          <MenuCard title="Отдел закупок" icon="storefront" onPress={() => engine.go('shop')} sub="Купить и продать снаряжение за бюджет гильдии" />
+        ) : null}
+        {engine.isUnlocked('hire') ? (
+          <MenuCard title="Найм героев" icon="door-open" onPress={() => engine.go('hire')} sub={hireCount === 0 ? 'Все соискатели наняты' : `${hireCount} соискател${hireCount === 1 ? 'ь' : hireCount < 5 ? 'я' : 'ей'} на рынке труда`} />
+        ) : null}
+        {engine.isUnlocked('analytics') ? (
+          <MenuCard title="Аналитика гильдии" icon="chart-line-up" onPress={() => engine.go('analytics')} sub="Win-rate, бюджет, мораль и KPI в динамике" />
+        ) : null}
+        {engine.isUnlocked('personnel') ? (
+          <MenuCard title="Личные дела" icon="identification-card" onPress={() => engine.go('personnel')} sub="Досье сотрудников и архив уволенных" />
+        ) : null}
+        {engine.isUnlocked('achievements') ? (
+          <MenuCard title="Достижения" icon="trophy" onPress={() => engine.go('achievements')} sub={`${engine.achievementVM().filter((a) => a.claimed).length}/${engine.achievementVM().length} получено`} />
+        ) : null}
+        {engine.isUnlocked('weekly') ? (
+          <MenuCard title="Испытание недели" icon="crown-simple" onPress={() => engine.go('weekly')} sub={weeklyVM.available ? (weeklyVM.claimed ? 'Награда уже получена' : weeklyVM.modifierName) : 'Откроется после первого босса'} />
+        ) : null}
+
+        {nextUp.length ? (
+          <View testID="next-up" style={{ borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', borderRadius: 8, padding: 14, marginBottom: 22, gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="lock-simple" size={13} color={colors.textFaint} />
+              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>
+                {unlockHint(nextUp[0])}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textMuted, fontFamily: font.regular }}>
+              {nextUp.map((f) => FEATURES[f].title).join(', ')}
             </Text>
           </View>
-          <Icon name="caret-right" size={16} color={colors.textDim} />
-        </Pressable>
-
-        <Pressable
-          onPress={() => engine.go('shop')}
-          style={({ pressed }) => ({
-            borderWidth: 1, borderColor: pressed ? colors.borderHover : colors.borderStrong,
-            borderRadius: 8, padding: 14, backgroundColor: colors.surface, marginBottom: 22,
-            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-          })}
-        >
-          <View>
-            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Отдел закупок</Text>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>Купить и продать снаряжение за бюджет гильдии</Text>
-          </View>
-          <Icon name="storefront" size={18} color={colors.textDim} />
-        </Pressable>
-
-        <Pressable
-          onPress={() => engine.go('hire')}
-          style={({ pressed }) => ({
-            borderWidth: 1, borderColor: pressed ? colors.borderHover : colors.borderStrong,
-            borderRadius: 8, padding: 14, backgroundColor: colors.surface, marginBottom: 22,
-            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-          })}
-        >
-          <View>
-            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Найм героев</Text>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>
-              {hireCount === 0 ? 'Все соискатели наняты' : `${hireCount} соискател${hireCount === 1 ? 'ь' : hireCount < 5 ? 'я' : 'ей'} на рынке труда`}
-            </Text>
-          </View>
-          <Icon name="door-open" size={18} color={colors.textDim} />
-        </Pressable>
-
-        <Pressable
-          onPress={() => engine.go('analytics')}
-          style={({ pressed }) => ({
-            borderWidth: 1, borderColor: pressed ? colors.borderHover : colors.borderStrong,
-            borderRadius: 8, padding: 14, backgroundColor: colors.surface, marginBottom: 22,
-            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-          })}
-        >
-          <View>
-            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Аналитика гильдии</Text>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>Win-rate, бюджет, мораль и KPI в динамике</Text>
-          </View>
-          <Icon name="chart-line-up" size={18} color={colors.textDim} />
-        </Pressable>
-
-        <Pressable
-          onPress={() => engine.go('personnel')}
-          style={({ pressed }) => ({
-            borderWidth: 1, borderColor: pressed ? colors.borderHover : colors.borderStrong,
-            borderRadius: 8, padding: 14, backgroundColor: colors.surface, marginBottom: 22,
-            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-          })}
-        >
-          <View>
-            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Личные дела</Text>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>Досье сотрудников и архив уволенных</Text>
-          </View>
-          <Icon name="identification-card" size={18} color={colors.textDim} />
-        </Pressable>
-
-        <Pressable
-          onPress={() => engine.go('achievements')}
-          style={({ pressed }) => ({
-            borderWidth: 1, borderColor: pressed ? colors.borderHover : colors.borderStrong,
-            borderRadius: 8, padding: 14, backgroundColor: colors.surface, marginBottom: 22,
-            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-          })}
-        >
-          <View>
-            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Достижения</Text>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>
-              {engine.achievementVM().filter((a) => a.claimed).length}/{engine.achievementVM().length} получено
-            </Text>
-          </View>
-          <Icon name="trophy" size={18} color={colors.textDim} />
-        </Pressable>
-
-        <Pressable
-          onPress={() => engine.go('weekly')}
-          style={({ pressed }) => ({
-            borderWidth: 1, borderColor: pressed ? colors.borderHover : colors.borderStrong,
-            borderRadius: 8, padding: 14, backgroundColor: colors.surface, marginBottom: 22,
-            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-          })}
-        >
-          <View>
-            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Испытание недели</Text>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>
-              {weeklyVM.available ? (weeklyVM.claimed ? 'Награда уже получена' : weeklyVM.modifierName) : 'Откроется после первого босса'}
-            </Text>
-          </View>
-          <Icon name="chart-line-up" size={18} color={colors.textDim} />
-        </Pressable>
+        ) : null}
 
         <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Походы</Text>
         {locationGroups.map(({ loc, dungeons }) => {

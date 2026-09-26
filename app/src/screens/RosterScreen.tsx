@@ -107,12 +107,21 @@ export function RosterScreen({ engine }: { engine: GameEngine }) {
             </Text>
             <Text style={{ fontSize: 12, color: warnColor, fontFamily: font.regular }}>{warn}</Text>
           </View>
-          <PrimaryButton
-            label="К снаряжению"
-            icon="shield-chevron"
-            disabled={!ready}
-            onPress={() => { if (ready) engine.go('gear'); }}
-          />
+          {engine.isUnlocked('gear') ? (
+            <PrimaryButton
+              label="К снаряжению"
+              icon="shield-chevron"
+              disabled={!ready}
+              onPress={() => { if (ready) engine.go('gear'); }}
+            />
+          ) : (
+            <PrimaryButton
+              label="В поход"
+              icon="path"
+              disabled={!ready}
+              onPress={() => { if (ready) engine.goDungeon(); }}
+            />
+          )}
         </View>
       </View>
 

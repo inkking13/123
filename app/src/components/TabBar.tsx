@@ -11,12 +11,12 @@ export function TabBar({ engine }: { engine: GameEngine }) {
   const insets = useSafeAreaInsets();
   const screen = engine.screen;
   const hasReward = engine.questVM().some((q) => q.achieved && !q.claimed);
-  const tabs: { label: string; icon: IconName; active: boolean; badge?: boolean; onTap: () => void }[] = [
+  const tabs: { label: string; icon: IconName; active: boolean; badge?: boolean; locked?: boolean; onTap: () => void }[] = [
     { label: 'Лагерь', icon: 'campfire', active: screen === 'home', onTap: () => engine.go('home') },
     { label: 'Отряд', icon: 'users-three', active: screen === 'roster', onTap: () => engine.go('roster') },
     { label: 'Поход', icon: 'path', active: screen === 'levelmap', onTap: () => engine.go('levelmap') },
-    { label: 'Арена', icon: 'sword', active: screen === 'arena', onTap: () => engine.go('arena') },
-    { label: 'KPI', icon: 'scroll', active: screen === 'quests', badge: hasReward, onTap: () => engine.go('quests') },
+    { label: 'Арена', icon: 'sword', active: screen === 'arena', locked: !engine.isUnlocked('arena'), onTap: () => engine.go('arena') },
+    { label: 'KPI', icon: 'scroll', active: screen === 'quests', badge: hasReward && engine.isUnlocked('quests'), locked: !engine.isUnlocked('quests'), onTap: () => engine.go('quests') },
   ];
   return (
     <View
@@ -29,9 +29,9 @@ export function TabBar({ engine }: { engine: GameEngine }) {
       }}
     >
       {tabs.map((t) => (
-        <Pressable key={t.label} onPress={t.onTap} style={{ flex: 1, alignItems: 'center', gap: 3, paddingVertical: 6 }}>
+        <Pressable key={t.label} testID={'tab-' + t.label} onPress={t.locked ? undefined : t.onTap} disabled={t.locked} style={{ flex: 1, alignItems: 'center', gap: 3, paddingVertical: 6, opacity: t.locked ? 0.4 : 1 }}>
           <View>
-            <Icon name={t.icon} size={20} color={t.active ? colors.accent : colors.textFaint} />
+            <Icon name={t.locked ? 'lock-simple' : t.icon} size={20} color={t.active ? colors.accent : colors.textFaint} />
             {t.badge ? (
               <View style={{ position: 'absolute', top: -2, right: -4, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent }} />
             ) : null}

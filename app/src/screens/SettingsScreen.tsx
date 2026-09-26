@@ -56,6 +56,24 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
           </View>
         </Pressable>
 
+        <Pressable
+          testID="reset-tips"
+          onPress={() => engine.resetTips()}
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 12,
+            borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 14, marginBottom: 22,
+            backgroundColor: colors.surface,
+          }}
+        >
+          <Icon name="target" size={18} color={colors.accentSoft} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontFamily: font.medium, color: colors.text }}>Показать подсказки в бою заново</Text>
+            <Text style={{ fontSize: 12, color: colors.textDim, marginTop: 2, fontFamily: font.regular }}>
+              {engine.seenTips.size === 0 ? 'Подсказки появятся в следующем бою.' : 'Как ходить, выбирать цель, уходить с красных клеток.'}
+            </Text>
+          </View>
+        </Pressable>
+
         <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
           Прогресс
         </Text>
