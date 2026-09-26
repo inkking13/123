@@ -2,6 +2,8 @@ import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from './r3f';
 import { useArt } from './textures';
+import { HeroAnim, HeroModel } from './HeroModel';
+import { HERO_LOOKS } from './heroLooks';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
 import {
@@ -14,6 +16,8 @@ import { portraitSource } from '../data/portraits';
 import { colors, roleColor } from '../theme/theme';
 
 const WHITE = new THREE.Color('#ffffff');
+/** Approximate standing height of each low-poly build, for anchoring HP bars above the head. */
+const MODEL_HEIGHT = { human: 1.12, dwarf: 0.92, orc: 1.26, elf: 1.2, gnome: 0.95 } as const;
 const HURT = new THREE.Color('#ff7a6a');
 const DEAD = new THREE.Color('#5a5a66');
 const UP = new THREE.Vector3(0, 1, 0);
@@ -108,6 +112,12 @@ function RaiderFigure({ r, sim, proj, active, poisoned }: { r: Raider; sim: Sim;
   const mat = useRef<THREE.MeshBasicMaterial | null>(null);
   const pos = useRef(tilePos(r.row, r.col));
   const ev = useRef({ lunge: -99, kind: '' as string, hit: -99, deadAt: r.alive ? -1 : -99 });
+  const look = HERO_LOOKS[r.candidateId];
+  const model = useRef<THREE.Group>(null);
+  const anim = useRef<HeroAnim>({ kind: '', at: -99, hit: -99, deadAt: r.alive ? -1 : -99, alive: r.alive, defending: false, speed: 0, frozen: false });
+  const yaw = useRef(Math.PI);
+  const prevPos = useMemo(() => new THREE.Vector3(), []);
+  const figH = look ? MODEL_HEIGHT[look.build] : 0.08 + RAIDER_CARD;
   const prevHp = useRef(r.hp);
   const head = useMemo(() => new THREE.Vector3(), []);
   const center = useMemo(() => new THREE.Vector3(), []);
@@ -133,20 +143,46 @@ function RaiderFigure({ r, sim, proj, active, poisoned }: { r: Raider; sim: Sim;
   useFrame((st, dt) => {
     const g = root.current; if (!g) return;
     const t = st.clock.elapsedTime;
-    pos.current.lerp(tilePos(r.row, r.col), 1 - Math.exp(-dt * 9));
-    let dz = 0, dy = 0, sx = 0, scale = 1;
+    prevPos.copy(pos.current);
+    pos.current.lerp(tilePos(r.row, r.col), 1 - Math.exp(-dt * (look ? 6 : 9)));
+    // Models turn to face the nearest enemy; lunges go that way too.
+    let fx = 0, fz = -1;
+    if (look && r.alive) {
+      let best: THREE.Vector3 | null = null; let bd = Infinity;
+      for (const [k, v] of proj.world) {
+        if (k !== 'boss' && !k.startsWith('e')) continue;
+        const d = (v.x - pos.current.x) ** 2 + (v.z - pos.current.z) ** 2;
+        if (d < bd) { bd = d; best = v; }
+      }
+      if (best) {
+        const want = Math.atan2(best.x - pos.current.x, best.z - pos.current.z);
+        let diff = want - yaw.current;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        yaw.current += diff * (1 - Math.exp(-dt * 8));
+      }
+      fx = Math.sin(yaw.current); fz = Math.cos(yaw.current);
+    }
+    let dz = 0, dx = 0, dy = 0, sx = 0, scale = 1;
     const e = ev.current; const lt = t - e.lunge;
     if (e.kind === 'melee' && lt < 0.33) {
       const k = lt < 0.11 ? lt / 0.11 : 1 - (lt - 0.11) / 0.22;
-      dz = -0.8 * k; dy = 0.2 * Math.sin(Math.PI * (lt / 0.33));
-    } else if (e.kind === 'ranged' && lt < 0.3) {
+      dx = fx * 0.6 * k; dz = fz * 0.6 * k; dy = look ? 0 : 0.2 * Math.sin(Math.PI * (lt / 0.33));
+    } else if (e.kind === 'ranged' && lt < 0.3 && !look) {
       dz = 0.14 * Math.sin(Math.PI * (lt / 0.3));
-    } else if (lt < 0.5 && (e.kind === 'ability' || e.kind === 'heal' || e.kind === 'rally')) {
+    } else if (lt < 0.5 && !look && (e.kind === 'ability' || e.kind === 'heal' || e.kind === 'rally')) {
       scale = 1 + 0.16 * Math.sin(Math.PI * (lt / 0.5)); dy = 0.1 * Math.sin(Math.PI * (lt / 0.5));
     }
     const ht = t - e.hit;
     if (ht >= 0 && ht < 0.3) sx = Math.sin(ht * 70) * 0.07 * (1 - ht / 0.3);
-    g.position.set(pos.current.x + sx, dy, pos.current.z + dz);
+    g.position.set(pos.current.x + sx + dx, dy, pos.current.z + dz);
+    if (look && model.current) {
+      model.current.rotation.y = yaw.current;
+      const a = anim.current;
+      a.kind = e.kind; a.at = e.lunge; a.hit = e.hit; a.deadAt = e.deadAt; a.alive = r.alive;
+      a.defending = r.defending; a.frozen = r.alive && sim.frozen?.targetId === r.id;
+      a.speed = prevPos.distanceTo(pos.current) / Math.max(dt, 1e-3);
+    }
     const c = card.current;
     if (c) {
       faceCamera(c, g.position, st.camera);
@@ -161,8 +197,8 @@ function RaiderFigure({ r, sim, proj, active, poisoned }: { r: Raider; sim: Sim;
         mat.current.color.copy(WHITE).lerp(HURT, f);
       }
     }
-    head.set(g.position.x, g.position.y + 0.08 + RAIDER_CARD + 0.14, g.position.z);
-    center.set(g.position.x, g.position.y + 0.08 + RAIDER_CARD / 2, g.position.z);
+    head.set(g.position.x, g.position.y + figH + 0.14, g.position.z);
+    center.set(g.position.x, g.position.y + figH * 0.6, g.position.z);
   });
 
   const alive = r.alive;
@@ -177,14 +213,20 @@ function RaiderFigure({ r, sim, proj, active, poisoned }: { r: Raider; sim: Sim;
       {shielded ? <PulseRing radius={0.5} color="#8fb8ff" speed={2} y={0.2} /> : null}
       {berserk ? <PulseRing radius={0.5} color={colors.danger} speed={8} y={0.2} /> : null}
       {poisoned && alive ? <PulseRing radius={0.36} color="#7ac874" speed={4} y={0.12} /> : null}
-      <Card art={portraitSource(r.candidateId)} size={RAIDER_CARD} frame={frame} matRef={mat} cardRef={card}>
-        {frozen ? (
-          <mesh>
-            <boxGeometry args={[RAIDER_CARD + 0.16, RAIDER_CARD + 0.16, 0.22]} />
-            <meshBasicMaterial color="#bfe6ff" transparent opacity={0.4} depthWrite={false} />
-          </mesh>
-        ) : null}
-      </Card>
+      {look ? (
+        <group ref={model} position={[0, 0.06, 0]}>
+          <HeroModel look={look} anim={anim} />
+        </group>
+      ) : (
+        <Card art={portraitSource(r.candidateId)} size={RAIDER_CARD} frame={frame} matRef={mat} cardRef={card}>
+          {frozen ? (
+            <mesh>
+              <boxGeometry args={[RAIDER_CARD + 0.16, RAIDER_CARD + 0.16, 0.22]} />
+              <meshBasicMaterial color="#bfe6ff" transparent opacity={0.4} depthWrite={false} />
+            </mesh>
+          ) : null}
+        </Card>
+      )}
     </group>
   );
 }
