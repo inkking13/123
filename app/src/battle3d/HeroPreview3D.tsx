@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { PanResponder, Platform, View } from 'react-native';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from './r3f';
+import { Quality, qualityProfile } from './quality';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
 import { MODEL_HEIGHT, SHEET_MODELS } from './heroFigures';
@@ -67,7 +68,8 @@ function Stage({ id, spin, gear }: { id: number; spin: React.MutableRefObject<Sp
   );
 }
 
-export function HeroPreview3D({ id, width, height, onFail, gear }: { id: number; width: number; height: number; onFail: (e: unknown) => void; gear?: GearLook }) {
+export function HeroPreview3D({ id, width, height, onFail, gear, quality = 'medium' }: { id: number; width: number; height: number; onFail: (e: unknown) => void; gear?: GearLook; quality?: Quality }) {
+  const q = useMemo(() => qualityProfile(quality), [quality]);
   const spin = useRef<Spin>({ yaw: 0.5, dragging: false, tap: false });
   const startYaw = useRef(0);
   const pan = useMemo(() => PanResponder.create({
@@ -86,7 +88,7 @@ export function HeroPreview3D({ id, width, height, onFail, gear }: { id: number;
   return (
     <View testID="hero-3d" style={[{ width, height }, NO_SELECT]}>
       <Guard onFail={onFail}>
-        <Canvas camera={camera} style={{ flex: 1 }} gl={{ antialias: true }}>
+        <Canvas key={quality} camera={camera} style={{ flex: 1 }} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
           <Stage id={id} spin={spin} gear={gear} />
         </Canvas>
       </Guard>

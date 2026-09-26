@@ -19,10 +19,12 @@ import { DailyMetric, pickDailyTemplates } from '../data/dailyQuests';
 import { ARENA_RIVALS, arenaRankName } from '../data/arena';
 import { WeeklyModifierDef, pickWeeklyModifier, pickWeeklyDungeonId } from '../data/weeklyChallenge';
 import { CURIOS } from '../data/curios';
-import { EventOption, OFFICE_EVENTS } from '../data/events';
+import { EventOption, OFFICE_EVENTS, STAFF_EVENTS } from '../data/events';
+import { BARKS, barkMoment } from '../data/barks';
 import { ItemIconId } from '../data/itemIcons';
 import { FEATURES, FEATURE_ORDER, Feature, Tip } from '../data/features';
 import { IconName } from '../components/Icon';
+import type { Quality } from '../battle3d/quality';
 import { AttackRange, Candidate, EncounterDef, GearOption, GearSlotKey, Role } from '../data/types';
 import {
   ACCENT, ATTACK_TURN_SCALE, HEAL_TURN_SCALE,
@@ -98,6 +100,8 @@ const BERSERK_TAKEN_MULT = 1.25;
 const BOSS_DMG_SCALE = 1.6;
 const EMPLOYEE_OF_MONTH_CYCLE = 3;
 const DEPARTED_LOG_LIMIT = 20;
+const FEUD_MULT = 0.9;
+const STRIKE_MULT = 0.85;
 
 export interface HistoryPoint {
   gold: number;
@@ -125,7 +129,7 @@ interface SaveData {
   curiosOwned: string[];
   claimedAchievementIds: string[];
   everCrafted: boolean;
-  settings: { haptics: boolean; view3d: boolean; speed?: number; auto?: boolean };
+  settings: { haptics: boolean; view3d: boolean; speed?: number; auto?: boolean; quality?: Quality };
   statsRoomWins: number;
   statsBossWins: number;
   statsWipes: number;
@@ -142,7 +146,13 @@ interface SaveData {
   weeklyClaimed: boolean;
   seenUnlocks?: string[];
   seenTips?: string[];
+  raises?: Record<string, number>;
+  feud?: Feud | null;
+  strikeTrips?: number;
 }
+
+/** Two squad members who won't cover each other until it blows over. */
+export interface Feud { a: number; b: number; trips: number }
 
 export interface GearSlotOption {
   id: string;
@@ -209,6 +219,8 @@ export interface CombatResult {
   goldFound: number;
   reagentFound: ReagentDrop | null;
 }
+
+export interface BanterLine { id: number; name: string; text: string }
 
 export interface TalentOptionVM {
   id: string;
@@ -313,6 +325,8 @@ export interface ActiveEventVM {
   labelA: string;
   labelB: string;
   resultText: string | null;
+  faces: number[];
+  stakes: string | null;
 }
 
 export interface ResignationNotice {
@@ -402,9 +416,13 @@ export class GameEngine {
 
   // gradual unlocks and first-fight tips
   seenUnlocks = new Set<Feature>();
+  /** HR consequences: extra wage per trip by hero id, an open quarrel, trips left on a go-slow strike. */
+  raises: Record<number, number> = {};
+  feud: Feud | null = null;
+  strikeTrips = 0;
   seenTips = new Set<Tip>();
 
-  settings: { haptics: boolean; view3d: boolean; speed: number; auto: boolean } = { haptics: true, view3d: true, speed: 1, auto: false };
+  settings: { haptics: boolean; view3d: boolean; speed: number; auto: boolean; quality: Quality } = { haptics: true, view3d: true, speed: 1, auto: false, quality: 'medium' };
 
   private turnTimer: ReturnType<typeof setTimeout> | null = null;
   private subs = new Set<() => void>();
@@ -451,6 +469,9 @@ export class GameEngine {
       weeklyClaimed: this.weeklyClaimed,
       seenUnlocks: Array.from(this.seenUnlocks),
       seenTips: Array.from(this.seenTips),
+      raises: this.raises,
+      feud: this.feud,
+      strikeTrips: this.strikeTrips,
     };
   }
   private applySave(data: SaveData) {
@@ -501,6 +522,9 @@ export class GameEngine {
     else for (const f of FEATURE_ORDER) if (this.isUnlocked(f)) this.seenUnlocks.add(f); // older save: no announcements for what it already had
     if (Array.isArray(data.seenTips)) this.seenTips = new Set(data.seenTips as Tip[]);
     else if (this.statsRoomWins > 0) this.seenTips = new Set(['move', 'act', 'focus', 'danger', 'windup']);
+    if (data.raises) this.raises = data.raises;
+    if (data.feud) this.feud = data.feud;
+    if (typeof data.strikeTrips === 'number') this.strikeTrips = data.strikeTrips;
   }
   async load() {
     try {
@@ -548,6 +572,7 @@ export class GameEngine {
     this.arenaRating = 1000; this.arenaWins = 0; this.arenaLosses = 0; this.inArena = false; this.arenaOpponent = null;
     this.weeklyChallengeWeek = ''; this.weeklyClaimed = false; this.inWeeklyChallenge = false; this.weeklyModifierDmgMult = 1;
     this.seenUnlocks = new Set(); this.seenTips = new Set();
+    this.raises = {}; this.feud = null; this.strikeTrips = 0;
     this.payrollNotice = null; this.resignationNotice = null; this.activeEvent = null; this.employeeOfMonthNotice = null;
     try { await AsyncStorage.removeItem(SAVE_KEY); } catch {}
     this.screen = 'title';
@@ -569,6 +594,10 @@ export class GameEngine {
     this.settings.auto = !this.settings.auto;
     const s = this.sim;
     if (this.settings.auto && s && !s.over && s.awaitingPlayer && !this.bossIntro) this.scheduleAuto();
+    this.notify();
+  }
+  setQuality(q: Quality) {
+    this.settings.quality = q;
     this.notify();
   }
   private pace(ms: number) {
@@ -1228,7 +1257,7 @@ export class GameEngine {
   runPayroll() {
     const active = this.squad();
     if (!active.length) return;
-    const due = active.reduce((sum, c) => sum + PAYROLL_BASE + c.level * PAYROLL_PER_LEVEL, 0);
+    const due = active.reduce((sum, c) => sum + PAYROLL_BASE + c.level * PAYROLL_PER_LEVEL + (this.raises[c.id] ?? 0), 0);
     if (this.gold >= due) {
       this.gold -= due;
       this.payrollNotice = { paid: due, shortfall: false };
@@ -1238,6 +1267,37 @@ export class GameEngine {
       for (const c of this.pool) this.adjustMorale(c.id, -8);
       this.payrollNotice = { paid, shortfall: true };
     }
+  }
+  /** Output penalty from open HR trouble: a feuding pair fielded together, or a go-slow strike. */
+  hrMult(cid: number, squadIds: number[]): number {
+    let m = 1;
+    const f = this.feud;
+    if (f && (cid === f.a || cid === f.b) && squadIds.includes(f.a) && squadIds.includes(f.b)) m *= FEUD_MULT;
+    if (this.strikeTrips > 0) m *= STRIKE_MULT;
+    return m;
+  }
+  /** Line for the combat log at the start of a trip, if HR trouble follows the squad in. */
+  hrNote(): string | null {
+    if (this.inArena) return null;
+    const ids = this.squad().map((c) => c.id);
+    const notes: string[] = [];
+    const f = this.feud;
+    if (f && ids.includes(f.a) && ids.includes(f.b)) notes.push(`${this.nameOf(f.a)} и ${this.nameOf(f.b)} в ссоре и не прикрывают друг друга (−${Math.round((1 - FEUD_MULT) * 100)}% урона).`);
+    if (this.strikeTrips > 0) notes.push(`Итальянская забастовка: отряд работает строго по инструкции (−${Math.round((1 - STRIKE_MULT) * 100)}% урона).`);
+    return notes.length ? notes.join(' ') : null;
+  }
+  nameOf(cid: number): string {
+    return this.pool.find((c) => c.id === cid)?.name ?? ALL_CANDIDATES.find((c) => c.id === cid)?.name ?? '—';
+  }
+  /** Each trip back to camp wears down open HR trouble. */
+  private tickHr() {
+    if (this.feud) {
+      const f = this.feud;
+      if (!this.pool.some((c) => c.id === f.a) || !this.pool.some((c) => c.id === f.b)) this.feud = null;
+      else if (--f.trips <= 0) this.feud = null;
+    }
+    if (this.strikeTrips > 0) this.strikeTrips--;
+    for (const id of Object.keys(this.raises)) if (!this.pool.some((c) => c.id === Number(id))) delete this.raises[Number(id)];
   }
   dismissPayrollNotice() {
     this.payrollNotice = null;
@@ -1324,6 +1384,13 @@ export class GameEngine {
   // A chance, every time the squad comes back to camp, of a small text-only
   // HR scenario with two consequences to pick between.
   private tryBuildEvent() {
+    if (this.isUnlocked('personnel') && Math.random() < 0.6) {
+      // A strike, when morale is low enough for one, jumps the queue.
+      for (const def of [...STAFF_EVENTS].sort((x, y) => Number(y.id === 'strike') - Number(x.id === 'strike') || Math.random() - 0.5)) {
+        const built = def.build(this);
+        if (built) return built;
+      }
+    }
     const order = [...OFFICE_EVENTS].sort(() => Math.random() - 0.5);
     for (const def of order) {
       const built = def.build(this);
@@ -1332,12 +1399,12 @@ export class GameEngine {
     return null;
   }
   /** Returns true if an event was triggered (caller should route to the 'event' screen instead of going straight to camp). */
-  private maybeTriggerEvent(returnTo: Screen): boolean {
-    if (Math.random() >= 0.4) return false;
+  private maybeTriggerEvent(returnTo: Screen, force = false): boolean {
+    if (!force && Math.random() >= 0.4) return false;
     const built = this.tryBuildEvent();
     if (!built) return false;
     this.pendingEventOptions = built.options;
-    this.activeEvent = { title: built.title, desc: built.desc, labelA: built.options[0].label, labelB: built.options[1].label, resultText: null };
+    this.activeEvent = { title: built.title, desc: built.desc, labelA: built.options[0].label, labelB: built.options[1].label, resultText: null, faces: built.faces ?? [], stakes: built.stakes ?? null };
     this.postEventScreen = returnTo;
     return true;
   }
@@ -1357,6 +1424,7 @@ export class GameEngine {
     this.runPayroll();
     this.checkResignations();
     this.checkEmployeeOfMonth();
+    this.tickHr();
     this.recordHistory();
     if (this.maybeTriggerEvent(target)) { this.screen = 'event'; this.notify(); return; }
     this.go(target);
@@ -1405,6 +1473,7 @@ export class GameEngine {
   }
 
   makeRaiders(squad: Candidate[]): Raider[] {
+    const squadIds = squad.map((c) => c.id);
     const baseSpeed: Record<Role, number> = { dps: 12, heal: 9, tank: 6 };
     return squad.map((d, i) => {
       const gm = this.gearMults(d);
@@ -1422,7 +1491,7 @@ export class GameEngine {
       return {
         id: i, name: d.name, role: d.role, attackRange: d.attackRange, candidateId: d.id, trait: d.trait, level: d.level,
         maxHp, hp: maxHp, alive: true, dps: d.dps, healPower: d.healPower || 9,
-        outputMult: gm.outputMult * tm.outputMult * cm.outputMult * pm.outputMult * sm.outputMult * moraleMult,
+        outputMult: gm.outputMult * tm.outputMult * cm.outputMult * pm.outputMult * sm.outputMult * moraleMult * (this.inArena ? 1 : this.hrMult(d.id, squadIds)),
         wardMult: gm.wardMult * tm.wardMult * cm.wardMult * pm.wardMult * sm.wardMult, levelMult: lvl,
         speed: baseSpeed[d.role] + (d.id % 5) * 0.1,
         chainPartner: null, defending: false, ability: this.makeAbility(d.id, gm.cdMult * tm.cdMult * pm.cdMult * sm.cdMult),
@@ -1484,6 +1553,8 @@ export class GameEngine {
     const keep = this.sim && this.sim.raiders.some((r) => r.alive) ? this.sim.raiders : null;
     this.sim = this.freshSim(enc, keep, this.encIdx);
     this.log(enc.type === 'boss' ? 'Пул начался. Рейд-лидер, командуй!' : 'Отряд входит в бой: ' + enc.name + ' — ' + enc.enemyName.toLowerCase() + '. Выберите цель, нажав на врага.');
+    const hr = keep ? null : this.hrNote();
+    if (hr) this.log(hr, 'warn');
     this.screen = 'combat';
     this.beginRound();
     if (enc.type === 'boss') this.openBossIntro(enc.enemyName, this.currentDungeon().name, enc.desc);
@@ -2838,6 +2909,31 @@ export class GameEngine {
     this.result = { win, isBoss, loot, curioFound, goldFound, reagentFound };
     this.screen = 'results';
     this.notify();
+  }
+  private banterCache = new WeakMap<CombatResult, BanterLine[]>();
+  /** Two lines of squad chatter for the result screen, fixed per result so re-renders don't reroll it. */
+  banter(): BanterLine[] {
+    const res = this.result; const s = this.sim;
+    if (!res || !s) return [];
+    const cached = this.banterCache.get(res);
+    if (cached) return cached;
+    const rough = s.raiders.some((r) => !r.alive || r.hp / r.maxHp < 0.3);
+    const moment = barkMoment(res.win, res.isBoss, rough);
+    const voiced = s.raiders.filter((r) => BARKS[r.candidateId]);
+    const speakers = res.win ? voiced.filter((r) => r.alive) : voiced;
+    const rnd = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
+    const lines: BanterLine[] = [];
+    if (speakers.length) {
+      const a = rnd(speakers);
+      lines.push({ id: a.candidateId, name: a.name, text: rnd(BARKS[a.candidateId][moment]) });
+      const others = voiced.filter((r) => r.candidateId !== a.candidateId && (r.alive || !res.win));
+      if (others.length) {
+        const b = rnd(others);
+        lines.push({ id: b.candidateId, name: b.name, text: rnd(BARKS[b.candidateId].reply) });
+      }
+    }
+    this.banterCache.set(res, lines);
+    return lines;
   }
   assignLoot(idx: number, raiderId: number) {
     const item = this.result!.loot[idx]; if (!item || item.assigned !== null) return;

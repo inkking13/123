@@ -703,10 +703,12 @@ export interface ArenaProps {
   closeUp?: boolean;
   /** Boss title card showing: the camera circles the boss. */
   intro?: boolean;
+  /** Share of weather particles to draw, 0 … 1 (graphics quality). */
+  weather?: number;
   bossMonster?: MonsterLook; roomMonsters?: Record<EnemyRole, MonsterLook>;
 }
 
-export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear, closeUp = false, intro = false }: ArenaProps) {
+export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear, closeUp = false, intro = false, weather = 1 }: ArenaProps) {
   const bp = sim.bossPos ? bossPos(sim.bossPos.row, sim.bossPos.col) : bossPos(0, Math.floor((GRID_COLS - BOSS_W) / 2));
   const sun = useMemo(() => sunDirection(theme).multiplyScalar(20), [theme]);
   const stunned = sim.stunned || sim.vulnerableRounds > 0;
@@ -719,7 +721,7 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
       <ambientLight intensity={1.1} />
       <directionalLight position={sun.toArray() as [number, number, number]} intensity={2.4} color={theme.glow.color} />
       <directionalLight position={[0, 6, 8]} intensity={1.2} color="#ffffff" />
-      <Scenery theme={theme} />
+      <Scenery theme={theme} weather={weather} />
       <Board sim={sim} theme={theme} current={current} reachable={reachable} proj={proj} />
       {isBoss ? (
         <FoeFigure

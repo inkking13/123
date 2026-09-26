@@ -195,7 +195,7 @@ export function EquipmentPanel({ engine, c }: { engine: GameEngine; c: Candidate
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ width: 132, height: 172, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: GOLD_DIM }}>
             {show3d ? (
-              <HeroPreview3D id={c.id} width={132} height={172} gear={gear} onFail={() => setFailed3d(true)} />
+              <HeroPreview3D id={c.id} width={132} height={172} gear={gear} quality={engine.settings.quality} onFail={() => setFailed3d(true)} />
             ) : (
               <Avatar id={c.id} size={172} radius={0} style={{ width: 132, height: 172 }} />
             )}

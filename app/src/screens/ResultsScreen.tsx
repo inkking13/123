@@ -67,6 +67,29 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
           </View>
         ))}
 
+        {(() => {
+          const lines = engine.banter();
+          if (!lines.length) return null;
+          return (
+            <View testID="banter" style={{ marginTop: 14, marginBottom: 6, gap: 8 }}>
+              {lines.map((l, i) => (
+                <View key={i} style={{ flexDirection: i === 0 ? 'row' : 'row-reverse', alignItems: 'flex-end', gap: 8 }}>
+                  <Avatar id={l.id} size={34} radius={17} />
+                  <View style={{
+                    maxWidth: '78%', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
+                    borderBottomLeftRadius: i === 0 ? 3 : 12, borderBottomRightRadius: i === 0 ? 12 : 3,
+                    backgroundColor: i === 0 ? colors.surface : colors.accentWash, borderWidth: 1, borderColor: i === 0 ? colors.border : colors.accent,
+                  }}
+                  >
+                    <Text style={{ fontSize: 10.5, color: colors.textFaint, fontFamily: font.medium, marginBottom: 2 }}>{l.name}</Text>
+                    <Text style={{ fontSize: 13, lineHeight: 18, color: colors.text, fontFamily: font.regular }}>{l.text}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          );
+        })()}
+
         {res.goldFound > 0 ? (
           <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Icon name="coins" size={15} color={colors.warn} />

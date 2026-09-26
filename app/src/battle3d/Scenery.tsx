@@ -260,8 +260,9 @@ const WEATHER: Record<string, { count: number; color: string; size: number; opac
   fog: { count: 40, color: '#a79ed6', size: 0.9, opacity: 0.08 },
 };
 
-function Weather({ kind }: { kind: string }) {
-  const cfg = WEATHER[kind] ?? WEATHER.dust;
+function Weather({ kind, density }: { kind: string; density: number }) {
+  const base = WEATHER[kind] ?? WEATHER.dust;
+  const cfg = useMemo(() => ({ ...base, count: Math.max(1, Math.round(base.count * density)) }), [base, density]);
   const { geo, speed } = useMemo(() => {
     const r = rng(5);
     const pos = new Float32Array(cfg.count * 3);
@@ -305,7 +306,7 @@ function Weather({ kind }: { kind: string }) {
   );
 }
 
-export function Scenery({ theme }: { theme: BattleTheme }) {
+export function Scenery({ theme, weather = 1 }: { theme: BattleTheme; weather?: number }) {
   const pieces = useMemo(() => {
     const bands = theme.layers.length === 1 ? [BANDS[1]] : theme.layers.length === 2 ? [BANDS[0], BANDS[1]] : BANDS;
     return theme.layers.flatMap((l, i) => buildLayer(l.shape, l.color, l.accent, l.height, l.seed, bands[i]));
@@ -319,7 +320,7 @@ export function Scenery({ theme }: { theme: BattleTheme }) {
         <meshLambertMaterial color={theme.ground[0]} />
       </mesh>
       <Pieces pieces={pieces} />
-      <Weather kind={theme.particles} />
+      {weather > 0 ? <Weather kind={theme.particles} density={weather} /> : null}
     </>
   );
 }

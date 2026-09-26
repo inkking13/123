@@ -6,6 +6,7 @@ import { colors, font } from '../theme/theme';
 import { GhostLink, PrimaryButton } from '../components/Buttons';
 import { Icon } from '../components/Icon';
 import { useEngineVersion } from '../engine/useEngine';
+import { Quality, QUALITY_HINT, QUALITY_LABEL } from '../battle3d/quality';
 
 export function SettingsScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -55,6 +56,33 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
             />
           </View>
         </Pressable>
+
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
+          Качество графики
+        </Text>
+        <View style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 22, backgroundColor: colors.surface }}>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {(['low', 'medium', 'high'] as Quality[]).map((q) => {
+              const on = engine.settings.quality === q;
+              return (
+                <Pressable
+                  key={q}
+                  testID={'quality-' + q}
+                  onPress={() => engine.setQuality(q)}
+                  style={{
+                    flex: 1, height: 36, borderRadius: 7, alignItems: 'center', justifyContent: 'center', borderWidth: 1,
+                    borderColor: on ? colors.accent : colors.border, backgroundColor: on ? colors.accentWash : 'transparent',
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontFamily: font.medium, color: on ? colors.text : colors.textDim }}>{QUALITY_LABEL[q]}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={{ fontSize: 12, lineHeight: 17, color: colors.textDim, marginTop: 10, fontFamily: font.regular }}>
+            {QUALITY_HINT[engine.settings.quality]} Если бой в 3D тормозит, выберите «Низкое» или переключите поле на 2D прямо в бою.
+          </Text>
+        </View>
 
         <Pressable
           testID="reset-tips"

@@ -1,6 +1,7 @@
 import React, { Component, Suspense, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, Text, View } from 'react-native';
 import { Canvas } from './r3f';
+import { qualityProfile } from './quality';
 import { Arena3D, ArenaProps } from './Arena3D';
 import { Projection } from './projection';
 import { CAMERA_HOME } from './world';
@@ -106,15 +107,17 @@ function TileTarget({ proj, row, col, enabled, onPress }: { proj: Projection; ro
 export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine; height: number; onFail: (e: unknown) => void }) {
   const { engine, sim, height, onFail, isBoss, focusId, current, reachable } = props;
   const proj = useRef(new Projection()).current;
+  const quality = engine.settings.quality;
+  const q = useMemo(() => qualityProfile(quality), [quality]);
   // Close-up by default: on a phone the whole board makes the figures tiny.
   const [closeUp, setCloseUp] = useState(true);
   const camera = useMemo(() => ({ position: CAMERA_HOME.toArray() as [number, number, number], fov: 50, near: 0.1, far: 200 }), []);
   return (
     <View style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: props.theme.sky[2] }}>
       <Guard onFail={onFail}>
-        <Canvas camera={camera} style={{ flex: 1 }} gl={{ antialias: true }}>
+        <Canvas key={quality} camera={camera} style={{ flex: 1 }} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
           <Suspense fallback={null}>
-            <Arena3D {...props} proj={proj} closeUp={closeUp} />
+            <Arena3D {...props} proj={proj} closeUp={closeUp} weather={q.weather} />
           </Suspense>
         </Canvas>
       </Guard>

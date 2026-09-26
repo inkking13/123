@@ -3,8 +3,11 @@ import * as THREE from 'three';
 import { useFrame } from './r3f';
 import { HeroLook } from './heroLooks';
 import { GearLook, TWO_HANDED, withGear } from './gearLooks';
+import { Pattern, surface } from './texgen';
 
-// A low-poly hero built from primitives: faceted, flat-shaded, no textures.
+// A hero built from primitives, smooth-shaded and textured with the same
+// procedural cloth, leather, skin and metal maps as the sheet-built Vex, so
+// the whole cast reads as one style.
 // It is a small skeleton of pivots (hips, knees, shoulders, elbows, neck) so
 // every action can be posed: idle breathing, walking, swings, shots, casts,
 // flinching and falling. The figure faces +Z; the caller turns it.
@@ -23,13 +26,13 @@ export interface HeroAnim {
 
 const G = {
   box: new THREE.BoxGeometry(1, 1, 1),
-  cyl: new THREE.CylinderGeometry(1, 1, 1, 6),
-  taper: new THREE.CylinderGeometry(0.78, 1, 1, 6),
-  cone: new THREE.ConeGeometry(1, 1, 6),
+  cyl: new THREE.CylinderGeometry(1, 1, 1, 12),
+  taper: new THREE.CylinderGeometry(0.78, 1, 1, 12),
+  cone: new THREE.ConeGeometry(1, 1, 12),
   cone4: new THREE.ConeGeometry(1, 1, 4),
-  ico: new THREE.IcosahedronGeometry(1, 0),
-  ico1: new THREE.IcosahedronGeometry(1, 1),
-  disc: new THREE.CylinderGeometry(1, 1, 1, 8),
+  ico: new THREE.IcosahedronGeometry(1, 1),
+  ico1: new THREE.IcosahedronGeometry(1, 2),
+  disc: new THREE.CylinderGeometry(1, 1, 1, 14),
   bow: new THREE.TorusGeometry(1, 0.05, 4, 10, Math.PI * 0.9),
 };
 
@@ -46,13 +49,21 @@ const BUILD = {
 
 type Mats = Record<'skin' | 'hair' | 'primary' | 'secondary' | 'metal' | 'dark' | 'cape' | 'shield' | 'emblem' | 'wood' | 'leaf', THREE.MeshLambertMaterial> & { glow: THREE.MeshBasicMaterial; eye: THREE.MeshBasicMaterial; crack: THREE.MeshBasicMaterial };
 
+const OUTFIT_SURFACE: Record<HeroLook['outfit'], Pattern> = { plate: 'metal', robe: 'wool', leather: 'leather', bare: 'skin' };
+
 function makeMats(look: HeroLook): Mats {
-  const m = (c: string) => new THREE.MeshLambertMaterial({ color: c, flatShading: true, transparent: !!look.ghost, opacity: look.ghost ? 0.82 : 1 });
+  const m = (c: string, p?: Pattern) => {
+    const mat = new THREE.MeshLambertMaterial({ color: c, transparent: !!look.ghost, opacity: look.ghost ? 0.82 : 1 });
+    if (p) { const s = surface(p); mat.map = s.map; mat.bumpMap = s.bump; mat.bumpScale = p === 'metal' ? 0.6 : 1.2; }
+    return mat;
+  };
   return {
-    skin: m(look.skin), hair: m(look.hair), primary: m(look.primary), secondary: m(look.secondary), metal: m(look.metal),
-    dark: m('#141214'), cape: m(look.fishTail ?? look.cape ?? look.primary), shield: m(look.shieldColor ?? look.secondary), emblem: m(look.emblem ?? look.metal),
-    wood: m('#6a4a2e'),
-    leaf: m(look.leaves ?? look.hair),
+    skin: m(look.skin, look.skeleton ? undefined : 'skin'), hair: m(look.hair, 'linen'), primary: m(look.primary, OUTFIT_SURFACE[look.outfit]),
+    secondary: m(look.secondary, 'leather'), metal: m(look.metal, 'metal'),
+    dark: m('#141214', 'leather'), cape: m(look.fishTail ?? look.cape ?? look.primary, look.fishTail ? 'skin' : 'wool'),
+    shield: m(look.shieldColor ?? look.secondary, 'leather'), emblem: m(look.emblem ?? look.metal, 'metal'),
+    wood: m('#6a4a2e', 'linen'),
+    leaf: m(look.leaves ?? look.hair, 'wool'),
     glow: new THREE.MeshBasicMaterial({ color: look.glow ?? '#ffffff', toneMapped: false }),
     eye: new THREE.MeshBasicMaterial({ color: look.eyes ?? look.glow ?? '#ffffff', toneMapped: false }),
     crack: new THREE.MeshBasicMaterial({ color: look.cracks ?? '#ffffff', toneMapped: false }),
@@ -235,7 +246,7 @@ function makeGearMats(): GearMats {
   const glo = new Map<string, THREE.MeshBasicMaterial>();
   const list: THREE.Material[] = [];
   return {
-    of: (c) => { let m = lam.get(c); if (!m) { m = new THREE.MeshLambertMaterial({ color: c, flatShading: true }); lam.set(c, m); list.push(m); } return m; },
+    of: (c) => { let m = lam.get(c); if (!m) { m = new THREE.MeshLambertMaterial({ color: c, map: surface('metal').map, bumpMap: surface('metal').bump, bumpScale: 0.6 }); lam.set(c, m); list.push(m); } return m; },
     glowOf: (c) => { let m = glo.get(c); if (!m) { m = new THREE.MeshBasicMaterial({ color: c, toneMapped: false }); glo.set(c, m); list.push(m); } return m; },
     list,
   };

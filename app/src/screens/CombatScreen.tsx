@@ -473,6 +473,17 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
           </View>
         </View>
 
+        {(() => {
+          // HR trouble costs damage all trip long; keep it on screen, not just in the scrolling log.
+          const hr = engine.hrNote();
+          return hr ? (
+            <View testID="hr-note" style={{ marginTop: 12, flexDirection: 'row', gap: 8, alignItems: 'flex-start', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.warn, backgroundColor: 'rgba(214,170,90,0.08)' }}>
+              <Icon name="warning" size={14} color={colors.warn} />
+              <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colors.warn, fontFamily: font.regular }}>{hr}</Text>
+            </View>
+          ) : null;
+        })()}
+
         {/* Combat log */}
         <View style={{ marginTop: 14, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, minHeight: 90 }}>
           {s.log.length === 0 ? (

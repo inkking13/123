@@ -73,6 +73,25 @@ export function PersonnelScreen({ engine }: { engine: GameEngine }) {
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, marginTop: 10, fontFamily: font.regular }}>Отдел кадров</Text>
         <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 4, marginBottom: 18, letterSpacing: -0.5 }}>Личные дела</Text>
 
+        {(() => {
+          const issues: { key: string; icon: 'warning' | 'coins'; text: string }[] = [];
+          if (engine.strikeTrips > 0) issues.push({ key: 'strike', icon: 'warning', text: `Итальянская забастовка: −15% урона отряда ещё ${engine.strikeTrips} ${engine.strikeTrips === 1 ? 'поход' : 'похода'}.` });
+          if (engine.feud) issues.push({ key: 'feud', icon: 'warning', text: `${engine.nameOf(engine.feud.a)} и ${engine.nameOf(engine.feud.b)} в ссоре: −10% урона обоим в одном отряде, ещё походов: ${engine.feud.trips}.` });
+          const raises = Object.entries(engine.raises);
+          if (raises.length) issues.push({ key: 'raises', icon: 'coins', text: 'Прибавки к окладу: ' + raises.map(([id, v]) => `${engine.nameOf(Number(id))} +${v}`).join(', ') + ' золота за поход.' });
+          if (!issues.length) return null;
+          return (
+            <View testID="hr-issues" style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 18, gap: 8, backgroundColor: colors.surface }}>
+              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Открытые вопросы</Text>
+              {issues.map((i) => (
+                <View key={i.key} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                  <Icon name={i.icon} size={14} color={i.icon === 'warning' ? colors.warn : colors.accentSoft} />
+                  <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: colors.textMuted, fontFamily: font.regular }}>{i.text}</Text>
+                </View>
+              ))}
+            </View>
+          );
+        })()}
         <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
           Действующий состав ({vm.roster.length})
         </Text>
