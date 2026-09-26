@@ -1,12 +1,11 @@
 import { GRID_COLS, GRID_ROWS } from './types';
 
-// 2.5D battlefield: the 3×5 grid (plus the enemy row beyond it) is laid on a
-// floor plane seen from behind the party, projected with a simple pinhole
-// camera. Depth z runs from the near edge (0) away from the camera; every
-// row is one unit deep and the enemy row sits a short gap past the front row.
+// 2.5D battlefield: the shared grid is laid on a floor plane seen from behind
+// the party, projected with a simple pinhole camera. Depth z runs from the near
+// edge (0, the party's bottom row) away from the camera; every row is one unit
+// deep, so the enemies' top rows are the farthest.
 
-const FOCAL = 4.5;
-const ENEMY_GAP = 0.45;
+const FOCAL = 9;
 const TILE_INSET_X = 0.012; // in board-width fractions
 const TILE_INSET_Z = 0.05; // in rows
 
@@ -18,7 +17,7 @@ export interface FieldGeometry {
   /** Depth scale at z: 1 on the near edge, shrinking with distance. */
   scale: (z: number) => number;
   project: (xn: number, z: number) => Pt;
-  /** Depth span [near, far] of a raider row, or of the enemy row (row = -1). */
+  /** Depth span [near, far] of a grid row. */
   rowSpan: (row: number) => [number, number];
   /** Floor quad of a tile, as an SVG points string. */
   tilePoints: (row: number, col: number) => string;
@@ -26,6 +25,8 @@ export interface FieldGeometry {
   tileRect: (row: number, col: number) => { left: number; top: number; width: number; height: number };
   /** Where a figure standing on the tile has its feet. */
   foot: (row: number, col: number) => Pt;
+  /** Feet of a figure centred on fractional cell coordinates (the boss's footprint centre). */
+  footAt: (row: number, col: number) => Pt;
   /** Depth scale at a tile's centre. */
   tileScale: (row: number, col: number) => number;
   /** Floor polygon of the whole board, for the stage backdrop. */
@@ -41,14 +42,14 @@ export interface FieldGeometry {
  */
 export function fieldGeometry(width: number, headroom: number): FieldGeometry {
   const scale = (z: number) => FOCAL / (FOCAL + z);
-  const zFar = GRID_ROWS + ENEMY_GAP + 1;
+  const zFar = GRID_ROWS;
   const sFar = scale(zFar);
-  const k = width * 0.95;
-  const rowSpan = (row: number): [number, number] =>
-    row < 0 ? [GRID_ROWS + ENEMY_GAP, zFar] : [GRID_ROWS - 1 - row, GRID_ROWS - row];
-  const enemyMid = (rowSpan(-1)[0] + rowSpan(-1)[1]) / 2;
-  // The horizon sits above the view; shift so the far edge leaves `headroom`.
-  const top = Math.max(8, headroom + 6 - k * (scale(enemyMid) - sFar));
+  const k = width * 1.2;
+  const rowSpan = (row: number): [number, number] => [GRID_ROWS - 1 - row, GRID_ROWS - row];
+  // The tallest enemy stands around the second row from the top.
+  const tallZ = GRID_ROWS - 1.6;
+  // The horizon sits above the view; shift so the far rows leave `headroom`.
+  const top = Math.max(8, headroom + 6 - k * (scale(tallZ) - sFar));
   const project = (xn: number, z: number): Pt => {
     const s = scale(z);
     return { x: width / 2 + (xn - 0.5) * width * s, y: top + k * (s - sFar) };
@@ -76,10 +77,8 @@ export function fieldGeometry(width: number, headroom: number): FieldGeometry {
       const near = project(b.xn0, b.z0); const far = project(b.xn0, b.z1);
       return { left: l.x, top: far.y, width: r.x - l.x, height: near.y - far.y };
     },
-    foot: (row, col) => {
-      const [z0, z1] = rowSpan(row);
-      return project((col + 0.5) / GRID_COLS, z0 + (z1 - z0) * 0.4);
-    },
+    foot: (row, col) => project((col + 0.5) / GRID_COLS, GRID_ROWS - row - 0.6),
+    footAt: (row, col) => project((col + 0.5) / GRID_COLS, GRID_ROWS - row - 0.6),
     tileScale: (row) => {
       const [z0, z1] = rowSpan(row);
       return scale((z0 + z1) / 2);

@@ -3,15 +3,18 @@ import { AttackRange, Role, TraitId } from '../data/types';
 export const DANGER = '#d1685c';
 export const ACCENT = '#9184d9';
 
-// Tactical grid — raiders occupy one of GRID_ROWS × GRID_COLS cells; the boss
-// sits in its own row in front of row 0. Melee needs row 0 (the front line)
-// to swing; ranged/heal act from any row. Movement range is generous enough
-// that a raider can cross the whole grid (back row to front) in one turn.
-export const GRID_ROWS = 3;
-export const GRID_COLS = 5;
-export const FRONT_ROW = 0;
+// Tactical grid — one shared battlefield. The party deploys along the bottom
+// row, enemies come in from the top and walk the same cells. Melee has to
+// stand next to its target (any of the 8 neighbouring cells); ranged and heal
+// act from anywhere. The boss is a giant that fills BOSS_W × BOSS_H cells.
+export const GRID_ROWS = 6;
+export const GRID_COLS = 7;
 export const BACK_ROW = GRID_ROWS - 1;
 export const MOVE_RANGE = 2;
+export const BOSS_W = 3;
+export const BOSS_H = 2;
+/** Cells an enemy may step per turn. */
+export const FOE_SPEED = { boss: 1, brute: 2, archer: 1, shaman: 1 } as const;
 
 // Turn economy constants — a "turn" replaces what used to be several seconds
 // of continuous real-time combat, so raw dps/healPower (balanced per-second)
@@ -76,6 +79,8 @@ export interface Enemy {
   maxHp: number;
   hp: number;
   alive: boolean;
+  row: number;
+  col: number;
 }
 
 /** An announced, interruptible beam cast — resolves on the boss's next turn unless a raider spends their turn to interrupt it. */
@@ -174,6 +179,8 @@ export interface AshCurseState {
 export interface Sim {
   /** In room fights this mirrors the group's combined HP, so the header bar and win check work unchanged. */
   boss: Boss;
+  /** Top-left cell of the boss's BOSS_W × BOSS_H footprint (boss fights only). */
+  bossPos: { row: number; col: number } | null;
   enemies: Enemy[];
   focusId: number | null;
   fx: CombatFx;

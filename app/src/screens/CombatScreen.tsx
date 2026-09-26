@@ -3,7 +3,7 @@ import { Animated, Easing, Image, Pressable, ScrollView, Text, View } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine, TurnActionKey } from '../engine/GameEngine';
 import { colors, font, roleColor } from '../theme/theme';
-import { GRID_ROWS, GRID_COLS, FRONT_ROW, CombatFx, EnemyRole, Raider, Sim } from '../combat/types';
+import { GRID_ROWS, GRID_COLS, BOSS_W, BOSS_H, CombatFx, EnemyRole, Raider, Sim } from '../combat/types';
 import { Avatar } from '../components/Avatar';
 import { Icon, IconName } from '../components/Icon';
 import { SkillIcon } from '../components/SkillIcon';
@@ -32,7 +32,7 @@ const ACTION_ICON: Record<TurnActionKey, IconName> = {
 
 const DANGER_TITLE = {
   meteor: (cols: number[]) => 'Огненный дождь по колоннам ' + cols.map((c) => c + 1).join(' и '),
-  cleave: () => 'Сокрушающий взмах по переднему ряду',
+  cleave: () => 'Сокрушающий взмах по клеткам вокруг врага',
   devour: () => 'Пасть раскрыта над отмеченной клеткой',
   backstab: () => 'Удар в спину по заднему ряду',
 };
@@ -49,8 +49,6 @@ function Banner({ tone, title, text }: { tone: 'danger' | 'warn' | 'accent'; tit
 }
 
 const ENEMY_ICON: Record<EnemyRole, IconName> = { brute: 'shield', archer: 'target', shaman: 'flask' };
-// Room groups sit centred in the enemy row, spread out so each stays easy to tap.
-const ENEMY_SLOTS: Record<number, number[]> = { 1: [2], 2: [1, 3], 3: [1, 2, 3] };
 
 export function CombatScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -69,8 +67,6 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const healTargets = engine.healTargetsVM();
   const reachableCells = engine.reachableCells();
   const isBossFight = s.encounterType === 'boss';
-  const enemyCenter = Math.floor(GRID_COLS / 2);
-  const enemySlots = ENEMY_SLOTS[s.enemies.length] ?? [];
   // Arena rivals are other guilds' squads, not monsters, so they keep the plain skull.
   const dungeonForArt = engine.inArena ? null : engine.currentDungeon();
   const bossArt = dungeonForArt && BOSS_ART[dungeonForArt.id] ? MONSTER_ART[BOSS_ART[dungeonForArt.id]] : undefined;
@@ -82,23 +78,28 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const dangerCells = new Set(s.danger?.cells ?? []);
   const stunnedFoes = s.stunned || s.vulnerableRounds > 0;
 
-  // 2.5D battlefield geometry, derived from its measured width: the grid is a
-  // floor seen from behind the party, enemies stand beyond its far edge.
+  // 2.5D battlefield geometry, derived from its measured width: the shared
+  // grid is a floor seen from behind the party, enemies walk its far rows.
   const [fieldW, setFieldW] = useState(0);
-  const bossSize = fieldW * 0.4;
-  const roomFoeSize = fieldW * 0.2 * 1.5 * 0.56;
-  // Room fights get extra sky so the location's scenery shows above the enemies.
-  const geo = fieldW ? fieldGeometry(fieldW, Math.max((isBossFight ? bossSize : roomFoeSize) + 12, fieldW * 0.3)) : null;
-  const enemyZ = geo ? (geo.rowSpan(-1)[0] + geo.rowSpan(-1)[1]) / 2 : 0;
-  const foeSize = isBossFight ? bossSize : geo ? fieldW * 0.2 * 1.5 * geo.scale(enemyZ) : 0;
-  // Room groups stand a little wider than the tiles so their cards don't pile up.
-  const foeFoot = (col: number) => geo!.project(0.5 + ((col - enemyCenter) / GRID_COLS) * 1.3, enemyZ);
-  const foePoint = (enemyId: number) => {
-    const col = enemyId < 0 ? enemyCenter : enemySlots[s.enemies.findIndex((e) => e.id === enemyId)] ?? enemyCenter;
-    const f = foeFoot(col);
-    return { x: f.x, y: f.y - foeSize / 2 };
+  const bossSize = fieldW * 0.42;
+  const roomFoeSize = fieldW * 0.15;
+  // Extra sky so the location's scenery shows above the enemies.
+  const geo = fieldW ? fieldGeometry(fieldW, Math.max((isBossFight ? bossSize : roomFoeSize) + 12, fieldW * 0.28)) : null;
+  const foeSizeAt = (row: number) => (isBossFight ? bossSize : geo ? roomFoeSize * geo.tileScale(row, 0) / geo.tileScale(1, 0) : 0);
+  /** Feet of an enemy figure: the centre of the boss's footprint, or a room enemy's own cell. */
+  const foeFootOf = (enemyId: number) => {
+    if (s.bossPos || enemyId < 0) {
+      const p = s.bossPos ?? { row: 0, col: Math.floor((GRID_COLS - BOSS_W) / 2) };
+      return { foot: geo!.footAt(p.row + (BOSS_H - 1) / 2, p.col + (BOSS_W - 1) / 2), size: bossSize };
+    }
+    const e = s.enemies.find((x) => x.id === enemyId) ?? s.enemies[0];
+    return { foot: geo!.foot(e.row, e.col), size: foeSizeAt(e.row) };
   };
-  const figureSize = (row: number) => (geo ? Math.round(60 * geo.tileScale(row, 0)) : 30);
+  const foePoint = (enemyId: number) => {
+    const { foot, size } = foeFootOf(enemyId);
+    return { x: foot.x, y: foot.y - size / 2 };
+  };
+  const figureSize = (row: number) => (geo ? Math.round(46 * geo.tileScale(row, 0)) : 30);
   const raiderPoint = (row: number, col: number) => {
     const f = geo!.foot(row, col);
     return { x: f.x, y: f.y - figureSize(row) * 0.6 };
@@ -314,15 +315,15 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               ) : null}
             </View>
             <Text style={{ fontSize: 10.5, color: colors.textFaint, fontFamily: font.regular }}>
-              {isBossFight ? 'Передний край: ближний бой, строй, танк прикрывает' : 'Нажмите на врага, чтобы выбрать цель'}
+              {isBossFight ? 'Ближний бой — вплотную к врагу' : 'Нажмите на врага, чтобы выбрать цель'}
             </Text>
           </View>
           <View onLayout={(e) => setFieldW(e.nativeEvent.layout.width)}>
           {use3d && fieldW ? (
             <Battle3D
-              engine={engine} sim={s} theme={theme} height={Math.round(fieldW * 0.95)} isBoss={isBossFight}
+              engine={engine} sim={s} theme={theme} height={Math.round(fieldW * 1.12)} isBoss={isBossFight}
               bossArt={bossArt} roomArt={roomArt ? { brute: MONSTER_ART[roomArt.brute], archer: MONSTER_ART[roomArt.archer], shaman: MONSTER_ART[roomArt.shaman] } : undefined}
-              enemySlots={enemySlots} enemyCenter={enemyCenter} focusId={focusId} current={current} reachable={reachableCells}
+              focusId={focusId} current={current} reachable={reachableCells}
               onFail={(e) => { console.warn('3D battlefield failed, falling back to 2.5D', e); setFailed3d(true); }}
             />
           ) : (
@@ -351,6 +352,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                       if (s.lava.includes(key)) return 'lava';
                       if (s.movePhase && reachableCells.some((c) => c.row === row && c.col === col)) return 'reachable';
                       if (s.movePhase && current && current.row === row && current.col === col) return 'self';
+                      if (engine.foeRects().some((f) => row >= f.row && row < f.row + f.h && col >= f.col && col < f.col + f.w)) return 'foe';
                       return 'plain';
                     }}
                   />
@@ -392,31 +394,30 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                   {(() => {
                     const figs: { y: number; node: React.ReactNode }[] = [];
                     if (isBossFight) {
-                      const f = foeFoot(enemyCenter);
+                      const { foot: f, size } = foeFootOf(-1);
                       figs.push({ y: f.y, node: (
-                        <View key="boss" style={{ position: 'absolute', left: f.x - foeSize / 2, top: f.y - foeSize, width: foeSize, height: foeSize, zIndex: Math.round(f.y) }}>
-                          <FootShadow at={{ x: foeSize / 2, y: foeSize }} width={foeSize * 0.95} />
+                        <Glide key="boss" x={f.x - size / 2} y={f.y - size} passThrough style={{ width: size, height: size, zIndex: Math.round(f.y) }}>
+                          <FootShadow at={{ x: size / 2, y: size }} width={size * 0.95} />
                           <FoeCell
                             icon="skull" hp={s.boss.hp} maxHp={s.boss.maxHp} alive={s.boss.hp > 0}
                             focused={false} isBoss poisoned={!!s.bossPoison} stunned={stunnedFoes} phase={s.phase} fx={s.fx}
                             overlay={s.iceShell ? <IceShellOverlay /> : null} art={bossArt} windup={s.windup}
                           />
-                        </View>
+                        </Glide>
                       ) });
                     } else {
-                      s.enemies.forEach((e, i) => {
-                        const col = enemySlots[i] ?? enemyCenter;
-                        const f = foeFoot(col);
-                        figs.push({ y: f.y + i * 0.01, node: (
-                          <View key={'foe' + e.id} style={{ position: 'absolute', left: f.x - foeSize / 2, top: f.y - foeSize, width: foeSize, height: foeSize, zIndex: Math.round(f.y) + (col === enemyCenter ? 0 : 1) }}>
-                            <FootShadow at={{ x: foeSize / 2, y: foeSize }} width={foeSize * 0.9} />
+                      s.enemies.forEach((e) => {
+                        const { foot: f, size } = foeFootOf(e.id);
+                        figs.push({ y: f.y + (e.alive ? 0.4 : 0), node: (
+                          <Glide key={'foe' + e.id} x={f.x - size / 2} y={f.y - size} passThrough={s.movePhase} style={{ width: size, height: size, zIndex: Math.round(f.y) + (e.alive ? 1 : 0) }}>
+                            <FootShadow at={{ x: size / 2, y: size }} width={size * 0.9} />
                             <FoeCell
                               testID={'enemy-' + e.id} icon={ENEMY_ICON[e.role]} name={e.name}
                               hp={e.hp} maxHp={e.maxHp} alive={e.alive} focused={e.alive && e.id === focusId} isBoss={false}
                               poisoned={s.bossPoison?.enemyId === e.id} stunned={stunnedFoes} fx={s.fx} onPress={() => engine.setFocus(e.id)}
                               art={roomArt ? MONSTER_ART[roomArt[e.role]] : undefined} windup={s.windup}
                             />
-                          </View>
+                          </Glide>
                         ) });
                       });
                     }
@@ -548,6 +549,28 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
         )}
       </View>
     </View>
+  );
+}
+
+/** Absolutely positioned box that slides to its new spot when an enemy walks, instead of jumping. */
+function Glide({ x, y, style, passThrough, children }: { x: number; y: number; style: object; passThrough?: boolean; children: React.ReactNode }) {
+  const ox = useRef(new Animated.Value(0)).current;
+  const oy = useRef(new Animated.Value(0)).current;
+  const prev = useRef({ x, y });
+  useEffect(() => {
+    const dx = prev.current.x - x; const dy = prev.current.y - y;
+    prev.current = { x, y };
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    ox.setValue(dx); oy.setValue(dy);
+    Animated.parallel([
+      Animated.timing(ox, { toValue: 0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(oy, { toValue: 0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]).start();
+  }, [x, y, ox, oy]);
+  return (
+    <Animated.View pointerEvents={passThrough ? 'none' : 'auto'} style={[{ position: 'absolute', left: x, top: y, transform: [{ translateX: ox }, { translateY: oy }] }, style]}>
+      {children}
+    </Animated.View>
   );
 }
 

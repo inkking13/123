@@ -6,7 +6,7 @@ import { FieldGeometry, Pt } from '../combat/perspective';
 import { GRID_COLS, GRID_ROWS } from '../combat/types';
 import { colors } from '../theme/theme';
 
-export type TileState = 'plain' | 'reachable' | 'self' | 'danger' | 'lava';
+export type TileState = 'plain' | 'reachable' | 'self' | 'danger' | 'lava' | 'foe';
 
 const TILE_FILL: Record<TileState, string> = {
   plain: 'rgba(120,118,150,0.10)',
@@ -14,6 +14,7 @@ const TILE_FILL: Record<TileState, string> = {
   self: 'rgba(210,206,253,0.22)',
   danger: 'rgba(209,104,92,0.34)',
   lava: 'rgba(217,128,63,0.38)',
+  foe: 'rgba(209,104,92,0.16)',
 };
 const TILE_STROKE: Record<TileState, string> = {
   plain: 'rgba(160,160,190,0.22)',
@@ -21,16 +22,14 @@ const TILE_STROKE: Record<TileState, string> = {
   self: colors.accentSoft,
   danger: colors.danger,
   lava: '#d9803f',
+  foe: 'rgba(209,104,92,0.45)',
 };
 
-/** Stone floor under the grid: board slab, enemy zone and one quad per tile. */
+/** Stone floor under the grid: board slab and one quad per tile. */
 export function Floor({ geo, tileState, palette }: {
   geo: FieldGeometry; tileState: (row: number, col: number) => TileState;
   palette: { far: string; near: string; tile: string; stroke: string };
 }) {
-  const [ez0, ez1] = geo.rowSpan(-1);
-  const enemyZone = [geo.project(0.04, ez1), geo.project(0.96, ez1), geo.project(1, ez0), geo.project(0, ez0)]
-    .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   return (
     <Svg width={geo.width} height={geo.height} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
       <Defs>
@@ -39,13 +38,8 @@ export function Floor({ geo, tileState, palette }: {
           <Stop offset="0.45" stopColor={palette.far} stopOpacity="0.95" />
           <Stop offset="1" stopColor={palette.near} stopOpacity="1" />
         </SvgGradient>
-        <SvgGradient id="enemyZone" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#5a2630" stopOpacity="0.05" />
-          <Stop offset="1" stopColor="#6e2b33" stopOpacity="0.45" />
-        </SvgGradient>
       </Defs>
       <Polygon points={geo.boardPoints} fill="url(#slab)" />
-      <Polygon points={enemyZone} fill="url(#enemyZone)" stroke="rgba(209,104,92,0.35)" strokeWidth={1} />
       {Array.from({ length: GRID_ROWS }).flatMap((_, row) =>
         Array.from({ length: GRID_COLS }).map((__, col) => {
           const st = tileState(row, col);

@@ -5,10 +5,10 @@ import { useArt } from './textures';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
 import {
-  BOSS_CARD, BOSS_Z, CAMERA_HOME, CAMERA_LOOK, ENEMY_Z, RAIDER_CARD, ROOM_CARD, TILE_SIZE, colX, enemyX, rowZ, tilePos,
+  BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
 } from './world';
 import { BattleTheme } from '../components/BattleBackdrop';
-import { CombatFx, EnemyRole, GRID_COLS, GRID_ROWS, Raider, Sim } from '../combat/types';
+import { BOSS_H, BOSS_W, CombatFx, EnemyRole, GRID_COLS, GRID_ROWS, Raider, Sim } from '../combat/types';
 import { impactDelay, PROJECTILE_MS } from '../components/CombatFx';
 import { portraitSource } from '../data/portraits';
 import { colors, roleColor } from '../theme/theme';
@@ -202,6 +202,7 @@ function FoeFigure({
   const glow = useRef<THREE.Mesh>(null);
   const ring = useRef<THREE.Mesh>(null);
   const ev = useRef({ lunge: -99, hit: -99, deadAt: alive ? -1 : -99, windAt: -99, phaseAt: -99, rear: 0 });
+  const at = useRef(new THREE.Vector3(x, 0, z));
   const prevHp = useRef(hp);
   const prevPhase = useRef(phase);
   const box = useMemo(() => [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], []);
@@ -235,7 +236,12 @@ function FoeFigure({
     const ht = t - e.hit;
     if (ht >= 0 && ht < 0.3) sx = Math.sin(ht * 70) * 0.08 * (1 - ht / 0.3);
     sx += e.rear * Math.sin(t * 80) * 0.03;
-    g.position.set(x + sx, e.rear * (isBoss ? 0.3 : 0.15), z + dz);
+    // Walks to its new cell; a small bob while moving sells the step.
+    const before = at.current.clone();
+    at.current.lerp(new THREE.Vector3(x, 0, z), 1 - Math.exp(-dt * (isBoss ? 3 : 5)));
+    const moving = before.distanceTo(at.current) / Math.max(dt, 1e-3);
+    const bob = Math.min(1, moving) * Math.abs(Math.sin(t * 12)) * (isBoss ? 0.12 : 0.08);
+    g.position.set(at.current.x + sx, e.rear * (isBoss ? 0.3 : 0.15) + bob, at.current.z + dz);
     const c = card.current;
     if (c) {
       faceCamera(c, g.position, st.camera);
@@ -271,7 +277,7 @@ function FoeFigure({
     center.set(g.position.x, cy + s / 2, g.position.z);
   });
 
-  const baseR = isBoss ? 0.95 : 0.42;
+  const baseR = isBoss ? 1.25 : 0.4;
   return (
     <group ref={root}>
       <Base radius={baseR} color={alive ? colors.danger : '#44444c'} />
@@ -297,9 +303,9 @@ function FoeFigure({
   );
 }
 
-type TileState = 'plain' | 'reachable' | 'self' | 'danger' | 'lava';
+type TileState = 'plain' | 'reachable' | 'self' | 'danger' | 'lava' | 'foe';
 const TILE_COLOR: Record<Exclude<TileState, 'plain'>, string> = {
-  reachable: '#9184d9', self: '#d2cefd', danger: '#d1685c', lava: '#ff7a2a',
+  reachable: '#9184d9', self: '#d2cefd', danger: '#d1685c', lava: '#ff7a2a', foe: '#7a2a30',
 };
 
 function Tile({ row, col, state, activeColor, theme }: { row: number; col: number; state: TileState; activeColor: string | null; theme: BattleTheme }) {
@@ -315,7 +321,7 @@ function Tile({ row, col, state, activeColor, theme }: { row: number; col: numbe
     } else {
       m.color.set(TILE_COLOR[state]);
       m.emissive.set(TILE_COLOR[state]);
-      const pulse = state === 'danger' || state === 'lava' ? 0.35 + 0.3 * Math.sin(t * (state === 'danger' ? 6 : 3)) : 0.3;
+      const pulse = state === 'danger' || state === 'lava' ? 0.35 + 0.3 * Math.sin(t * (state === 'danger' ? 6 : 3)) : state === 'foe' ? 0.15 : 0.3;
       m.emissiveIntensity = pulse;
     }
   });
@@ -341,23 +347,25 @@ function Board({ sim, theme, current, reachable, proj }: { sim: Sim; theme: Batt
     }
   }, [proj]);
   const danger = new Set(sim.danger?.cells ?? []);
+  const foeCells = new Set<string>();
+  if (sim.bossPos && sim.boss.hp > 0) {
+    for (let dr = 0; dr < BOSS_H; dr++) for (let dc = 0; dc < BOSS_W; dc++) foeCells.add((sim.bossPos.row + dr) + ',' + (sim.bossPos.col + dc));
+  }
+  for (const e of sim.enemies) if (e.alive) foeCells.add(e.row + ',' + e.col);
   const stateOf = (row: number, col: number): TileState => {
     const k = row + ',' + col;
     if (danger.has(k)) return 'danger';
     if (sim.lava.includes(k)) return 'lava';
     if (sim.movePhase && reachable.some((c) => c.row === row && c.col === col)) return 'reachable';
     if (sim.movePhase && current && current.row === row && current.col === col) return 'self';
+    if (foeCells.has(k)) return 'foe';
     return 'plain';
   };
   return (
     <>
-      <mesh position={[0, -0.07, rowZ(1) - 0.45]}>
-        <boxGeometry args={[GRID_COLS + 0.5, 0.14, GRID_ROWS + 2.1]} />
+      <mesh position={[0, -0.07, 0]}>
+        <boxGeometry args={[GRID_COLS + 0.5, 0.14, GRID_ROWS + 0.5]} />
         <meshLambertMaterial color={theme.floor.far} />
-      </mesh>
-      <mesh position={[0, 0.006, (ENEMY_Z + BOSS_Z) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[GRID_COLS + 0.3, 1.3]} />
-        <meshBasicMaterial color="#8a2b33" transparent opacity={0.35} depthWrite={false} />
       </mesh>
       {Array.from({ length: GRID_ROWS }).flatMap((_, row) => Array.from({ length: GRID_COLS }).map((__, col) => (
         <Tile
@@ -521,8 +529,9 @@ function CameraRig({ sim, current, proj }: { sim: Sim; current: Raider | null; p
     const t = st.clock.elapsedTime;
     const enemyTurn = sim.order[sim.turnPos]?.kind === 'boss';
     let dist = 1; let pull = 0;
-    if (sim.windup) { focus.set(0, 0.8, BOSS_Z); dist = 0.8; pull = 0.35; }
-    else if (enemyTurn) { focus.set(0, 0.6, ENEMY_Z); dist = 0.94; pull = 0.2; }
+    const foe = proj.world.get('boss') ?? [...proj.world.entries()].find(([k]) => k.startsWith('e'))?.[1];
+    if (sim.windup && foe) { focus.copy(foe); dist = 0.78; pull = 0.35; }
+    else if (enemyTurn && foe) { focus.copy(foe); dist = 0.94; pull = 0.2; }
     else if (current) { const c = proj.world.get('r' + current.id); if (c) focus.copy(c); else focus.copy(tilePos(current.row, current.col)); dist = 0.97; pull = 0.12; }
     else { focus.copy(CAMERA_LOOK); }
     wantLook.copy(CAMERA_LOOK).lerp(focus, pull);
@@ -549,10 +558,11 @@ function CameraRig({ sim, current, proj }: { sim: Sim; current: Raider | null; p
 
 export interface ArenaProps {
   sim: Sim; theme: BattleTheme; proj: Projection; isBoss: boolean; bossArt?: any; roomArt?: Record<EnemyRole, any>;
-  enemySlots: number[]; enemyCenter: number; focusId?: number; current: Raider | null; reachable: { row: number; col: number }[];
+  focusId?: number; current: Raider | null; reachable: { row: number; col: number }[];
 }
 
-export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, enemySlots, enemyCenter, focusId, current, reachable }: ArenaProps) {
+export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable }: ArenaProps) {
+  const bp = sim.bossPos ? bossPos(sim.bossPos.row, sim.bossPos.col) : bossPos(0, Math.floor((GRID_COLS - BOSS_W) / 2));
   const sun = useMemo(() => sunDirection(theme).multiplyScalar(20), [theme]);
   const stunned = sim.stunned || sim.vulnerableRounds > 0;
   const foeKeyFor = (enemyId: number) => (isBoss || enemyId < 0 ? 'boss' : 'e' + enemyId);
@@ -568,12 +578,12 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, enemySlots
       <Board sim={sim} theme={theme} current={current} reachable={reachable} proj={proj} />
       {isBoss ? (
         <FoeFigure
-          id="boss" art={bossArt} x={0} z={BOSS_Z} size={BOSS_CARD} alive={sim.boss.hp > 0} hp={sim.boss.hp} focused={false}
+          id="boss" art={bossArt} x={bp.x} z={bp.z} size={BOSS_CARD} alive={sim.boss.hp > 0} hp={sim.boss.hp} focused={false}
           stunned={stunned} windup={sim.windup} poisoned={!!sim.bossPoison} shell={sim.iceShell} phase={sim.phase} isBoss fx={sim.fx} proj={proj}
         />
-      ) : sim.enemies.map((e, i) => (
+      ) : sim.enemies.map((e) => (
         <FoeFigure
-          key={e.id} id={'e' + e.id} art={roomArt ? roomArt[e.role] : undefined} x={enemyX(enemySlots[i] ?? enemyCenter)} z={ENEMY_Z}
+          key={e.id} id={'e' + e.id} art={roomArt ? roomArt[e.role] : undefined} x={colX(e.col)} z={rowZ(e.row)}
           size={ROOM_CARD} alive={e.alive} hp={e.hp} focused={e.alive && e.id === focusId} stunned={stunned} windup={sim.windup}
           poisoned={sim.bossPoison?.enemyId === e.id} shell={false} phase={1} isBoss={false} fx={sim.fx} proj={proj}
         />

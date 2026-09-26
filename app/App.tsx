@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -63,6 +63,8 @@ export default function App() {
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
   });
   const engine = useMemo(() => new GameEngine(), []);
+  // Dev-only handle for browser automation (playtest bots, video capture); stripped from release bundles.
+  if (__DEV__ && Platform.OS === 'web') (globalThis as { __engine?: GameEngine }).__engine = engine;
 
   const [saveLoaded, setSaveLoaded] = useState(false);
   useEffect(() => {

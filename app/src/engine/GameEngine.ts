@@ -25,7 +25,7 @@ import { IconName } from '../components/Icon';
 import { AttackRange, Candidate, EncounterDef, GearOption, GearSlotKey, Role } from '../data/types';
 import {
   ACCENT, ATTACK_TURN_SCALE, HEAL_TURN_SCALE,
-  GRID_ROWS, GRID_COLS, FRONT_ROW, BACK_ROW, MOVE_RANGE,
+  GRID_ROWS, GRID_COLS, BACK_ROW, MOVE_RANGE, BOSS_W, BOSS_H, FOE_SPEED,
   Ability, AbilityIcon, BossMoveTimers, Enemy, EnemyRole, Raider, SignatureKind, Sim, TurnEntry, LogKind,
 } from '../combat/types';
 
@@ -64,6 +64,10 @@ const DEFEND_MULT = 0.6;
 // Room enemy groups, by the room's position in its dungeon. The brute always
 // leads (it carries the boss-style move kit); the others take a fixed share
 // of the room's HP pool, the brute gets the rest.
+// Where a room group stands when the fight opens: the brute out front, the
+// others behind it on the flanks.
+const ROOM_START = [{ row: 1, col: 3 }, { row: 0, col: 1 }, { row: 0, col: 5 }];
+const BOSS_START = { row: 0, col: Math.floor((GRID_COLS - BOSS_W) / 2) };
 const ROOM_GROUPS: EnemyRole[][] = [['brute', 'archer'], ['brute', 'shaman'], ['brute', 'archer', 'shaman']];
 export function roomGroupRoles(roomIdx: number): EnemyRole[] {
   return ROOM_GROUPS[Math.min(roomIdx, ROOM_GROUPS.length - 1)];
@@ -78,12 +82,12 @@ const SIG_COOLDOWN: Record<SignatureKind, number> = { devour: 4, iceShell: 5, fe
 const ICE_SHELL_MULT = 0.25;
 const FEAST_HEAL_SHARE = 0.004;
 const FEAST_THRESHOLD = 0.4;
-const LAVA_MAX_CELLS = 4;
+const LAVA_MAX_CELLS = 7;
 // Quota is set against the party's raw per-round damage; crits, combos and abilities are what push a focused round past it.
 const WINDUP_MS = 750;
 const GEAR_SLOT_COMP_HP = 0.1;
 const GEAR_SLOT_COMP_DMG = 0.2;
-const QUOTA_SHARE = 2.3;
+const QUOTA_SHARE = 2.8;
 const SHAMAN_HEAL_SHARE = 0.07;
 // Splitting one HP pool into several targets loses damage to overkill and to
 // venom dying with its carrier, so the group gets a slightly smaller pool.
@@ -180,6 +184,8 @@ export interface EquipmentVM {
   slots: EquipSlotVM[];
   totals: StatLine[];
 }
+
+export interface FoeRect { id: number; row: number; col: number; w: number; h: number }
 
 export interface LootItem {
   slot: GearSlotKey;
@@ -1358,7 +1364,7 @@ export class GameEngine {
         wardMult: gm.wardMult * tm.wardMult * cm.wardMult * pm.wardMult * sm.wardMult, levelMult: lvl,
         speed: baseSpeed[d.role] + (d.id % 5) * 0.1,
         chainPartner: null, defending: false, ability: this.makeAbility(d.id, gm.cdMult * tm.cdMult * pm.cdMult * sm.cdMult),
-        row: BACK_ROW, col: i,
+        row: BACK_ROW, col: i + 1,
       };
     });
   }
@@ -1367,7 +1373,7 @@ export class GameEngine {
     const roles = roomGroupRoles(roomIdx);
     const hps = roles.map((r) => (r === 'brute' ? 0 : Math.round(totalHp * ENEMY_HP_SHARE[r])));
     hps[0] = totalHp - hps.reduce((a, b) => a + b, 0);
-    return roles.map((role, i) => ({ id: i, role, name: ENEMY_NAME[role], maxHp: hps[i], hp: hps[i], alive: true }));
+    return roles.map((role, i) => ({ id: i, role, name: ENEMY_NAME[role], maxHp: hps[i], hp: hps[i], alive: true, ...ROOM_START[i] }));
   }
 
   // The helm/gloves/boots/ring slots added power the dungeons were never
@@ -1388,12 +1394,13 @@ export class GameEngine {
     raiders.forEach((r, i) => {
       r.chainPartner = null;
       r.defending = false;
-      r.row = BACK_ROW; r.col = i;
+      r.row = BACK_ROW; r.col = i + 1;
       if (r.ability) { r.ability.active = false; r.ability.activeRounds = 0; r.ability.cd = 0; }
     });
     const enemies = enc.type === 'room' ? this.buildRoomGroup(Math.round(encHp * ROOM_GROUP_HP_MULT), roomIdx) : [];
     return {
       boss: { name: enc.enemyName, maxHp: enemies.length ? enemies.reduce((a, e) => a + e.maxHp, 0) : encHp, hp: enemies.length ? enemies.reduce((a, e) => a + e.hp, 0) : encHp },
+      bossPos: enemies.length ? null : { ...BOSS_START },
       enemies, focusId: enemies.length ? enemies[0].id : null,
       fx: { seq: 0, actor: null, kind: null, crit: false, targetEnemy: null, targetRaider: null },
       impact: { seq: 0, cells: [], kind: null }, shakeSeq: 0, windup: false, moveFx: null,
@@ -1801,7 +1808,7 @@ export class GameEngine {
     if (pw) d *= pw.mult;
     const curse = this.sim?.ashCurse;
     if (curse) d *= 1 + 0.15 * curse.stacks;
-    if (r.role === 'tank' && r.row === FRONT_ROW) d *= TANK_GUARD_MULT;
+    if (r.role === 'tank' && this.engaged(r)) d *= TANK_GUARD_MULT;
     if (r.defending) d *= DEFEND_MULT;
     if (r.ability && r.ability.kind === 'berserk' && r.ability.active) d *= BERSERK_TAKEN_MULT;
     d *= r.wardMult || 1;
@@ -1832,8 +1839,88 @@ export class GameEngine {
     if (a.active && --a.activeRounds <= 0) { a.active = false; a.activeRounds = 0; }
   }
   private frontAllies(r: Raider): number {
-    if (r.attackRange !== 'melee' || r.row !== FRONT_ROW) return 0;
-    return this.alive().filter((x) => x.id !== r.id && x.row === FRONT_ROW && Math.abs(x.col - r.col) === 1).length;
+    if (r.attackRange !== 'melee' || !this.engaged(r)) return 0;
+    // Shoulder to shoulder — side-by-side or front-to-back neighbours, at most two, like the old front line.
+    return Math.min(2, this.alive().filter((x) => x.id !== r.id && x.attackRange === 'melee' && this.engaged(x)
+      && Math.abs(x.row - r.row) + Math.abs(x.col - r.col) === 1).length);
+  }
+
+  // ── positions on the shared field ────────────────────────
+  /** Every living enemy's footprint as a rectangle: room foes are 1×1, the boss BOSS_W × BOSS_H. */
+  foeRects(): FoeRect[] {
+    const s = this.sim;
+    if (!s) return [];
+    if (!s.enemies.length) return s.bossPos && s.boss.hp > 0 ? [{ id: -1, row: s.bossPos.row, col: s.bossPos.col, w: BOSS_W, h: BOSS_H }] : [];
+    return s.enemies.filter((e) => e.alive).map((e) => ({ id: e.id, row: e.row, col: e.col, w: 1, h: 1 }));
+  }
+  /** Chebyshev distance from a cell to the nearest cell of a footprint — 1 means standing right next to it. */
+  static rectDist(row: number, col: number, f: { row: number; col: number; w: number; h: number }): number {
+    const dr = row < f.row ? f.row - row : row > f.row + f.h - 1 ? row - (f.row + f.h - 1) : 0;
+    const dc = col < f.col ? f.col - col : col > f.col + f.w - 1 ? col - (f.col + f.w - 1) : 0;
+    return Math.max(dr, dc);
+  }
+  private foeAt(row: number, col: number, except?: number): boolean {
+    return this.foeRects().some((f) => f.id !== except && GameEngine.rectDist(row, col, f) === 0);
+  }
+  /** Enemies standing next to this raider. */
+  adjacentFoes(r: Raider): FoeRect[] {
+    return this.foeRects().filter((f) => GameEngine.rectDist(r.row, r.col, f) <= 1);
+  }
+  engaged(r: Raider): boolean {
+    return this.adjacentFoes(r).length > 0;
+  }
+  private leaderRect(): FoeRect | null {
+    const s = this.sim!;
+    if (!s.enemies.length) return this.foeRects()[0] ?? null;
+    const b = s.enemies.find((e) => e.role === 'brute' && e.alive);
+    return b ? { id: b.id, row: b.row, col: b.col, w: 1, h: 1 } : null;
+  }
+  /**
+   * Where an enemy ends up after walking up to `speed` cells toward the lowest
+   * `score`, never onto a raider or another enemy (its own cell if nothing is better).
+   */
+  private stepFoe(f: FoeRect, speed: number, score: (row: number, col: number) => number): { row: number; col: number } {
+    const raiderCells = new Set(this.alive().map((r) => r.row + ',' + r.col));
+    const others = this.foeRects().filter((o) => o.id !== f.id);
+    let best = { row: f.row, col: f.col }; let bestScore = score(f.row, f.col);
+    for (let row = Math.max(0, f.row - speed); row <= Math.min(GRID_ROWS - f.h, f.row + speed); row++) {
+      for (let col = Math.max(0, f.col - speed); col <= Math.min(GRID_COLS - f.w, f.col + speed); col++) {
+        let free = true;
+        for (let dr = 0; dr < f.h && free; dr++) for (let dc = 0; dc < f.w && free; dc++) {
+          const cr = row + dr; const cc = col + dc;
+          if (raiderCells.has(cr + ',' + cc) || others.some((o) => GameEngine.rectDist(cr, cc, o) === 0)) free = false;
+        }
+        if (!free) continue;
+        const sc = score(row, col) + 0.01 * Math.max(Math.abs(row - f.row), Math.abs(col - f.col));
+        if (sc < bestScore) { bestScore = sc; best = { row, col }; }
+      }
+    }
+    return best;
+  }
+  /** The leader (boss or brute) closes in on a tank if it can, otherwise on whoever is nearest. */
+  private advanceLeader() {
+    const s = this.sim!;
+    const f = this.leaderRect(); if (!f) return;
+    const alive = this.alive(); if (!alive.length) return;
+    const near = (pool: Raider[]) => pool.reduce((a, b) => (GameEngine.rectDist(b.row, b.col, f) < GameEngine.rectDist(a.row, a.col, f) ? b : a));
+    if (alive.some((r) => GameEngine.rectDist(r.row, r.col, f) <= 1)) return; // already in the thick of it
+    const tanks = alive.filter((r) => r.role === 'tank');
+    const target = near(tanks.length ? tanks : alive);
+    const speed = s.enemies.length ? FOE_SPEED.brute : FOE_SPEED.boss;
+    const to = this.stepFoe(f, speed, (row, col) => GameEngine.rectDist(target.row, target.col, { ...f, row, col }));
+    if (to.row === f.row && to.col === f.col) return;
+    if (s.bossPos) s.bossPos = to;
+    else { const e = s.enemies.find((x) => x.id === f.id)!; e.row = to.row; e.col = to.col; }
+  }
+  /** Archers and shamans keep about three cells between themselves and the party, backing off when rushed. */
+  private repositionSkirmisher(e: Enemy) {
+    const alive = this.alive(); if (!alive.length) return;
+    const f: FoeRect = { id: e.id, row: e.row, col: e.col, w: 1, h: 1 };
+    const to = this.stepFoe(f, FOE_SPEED[e.role as 'archer' | 'shaman'], (row, col) => {
+      const d = Math.min(...alive.map((r) => Math.max(Math.abs(r.row - row), Math.abs(r.col - col))));
+      return Math.abs(d - 3) + row * 0.05;
+    });
+    e.row = to.row; e.col = to.col;
   }
   /** Every hit on the boss goes through here so combos, the stun window and the stagger meter apply consistently. */
   private hitBoss(r: Raider, raw: number, staggerGain: number): { dmg: number; note: string } {
@@ -1869,6 +1956,14 @@ export class GameEngine {
     const s = this.sim!;
     if (!s.enemies.length) return null;
     return s.enemies.find((e) => e.id === s.focusId && e.alive) || s.enemies.find((e) => e.alive) || null;
+  }
+  /** Melee can only hit what it stands next to: its focus if adjacent, otherwise the nearest adjacent foe. */
+  attackTarget(r: Raider): Enemy | null {
+    const focus = this.focusEnemy();
+    if (!focus || r.attackRange !== 'melee') return focus;
+    const adj = this.adjacentFoes(r).map((f) => f.id);
+    if (adj.includes(focus.id)) return focus;
+    return this.sim!.enemies.find((e) => e.alive && adj.includes(e.id)) ?? focus;
   }
   setFocus(enemyId: number) {
     const s = this.sim;
@@ -1926,7 +2021,7 @@ export class GameEngine {
         if (row === r.row && col === r.col) continue;
         const dist = Math.max(Math.abs(row - r.row), Math.abs(col - r.col));
         if (dist > MOVE_RANGE) continue;
-        if (occupied.has(row + ',' + col)) continue;
+        if (occupied.has(row + ',' + col) || this.foeAt(row, col)) continue;
         cells.push({ row, col });
       }
     }
@@ -1939,7 +2034,7 @@ export class GameEngine {
     s.moveFx = { seq: (s.moveFx?.seq ?? 0) + 1, id: r.id, fromRow: r.row, fromCol: r.col };
     r.row = row; r.col = col;
     s.movePhase = false;
-    this.log(r.name + (row === FRONT_ROW ? ' выходит на передний край.' : ' меняет позицию на поле.'));
+    this.log(r.name + (this.engaged(r) ? ' вступает в ближний бой.' : ' меняет позицию на поле.'));
     this.notify();
   }
   skipMove() {
@@ -1965,11 +2060,11 @@ export class GameEngine {
     if (s.braceCall && !s.braceCall.braced.has(r.id)) {
       actions.push({ key: 'brace', label: 'Приготовиться', needsTarget: false, disabled: false });
     }
-    const inMeleeRange = r.attackRange === 'ranged' || r.row === FRONT_ROW;
-    const focus = this.focusEnemy();
+    const inMeleeRange = r.attackRange === 'ranged' || this.engaged(r);
+    const focus = this.attackTarget(r);
     actions.push({
       key: 'attack', label: 'Атаковать', needsTarget: false, disabled: !inMeleeRange,
-      sub: !inMeleeRange ? 'нужен передний край' : focus ? 'цель: ' + focus.name : undefined,
+      sub: !inMeleeRange ? 'подойдите вплотную к врагу' : focus ? 'цель: ' + focus.name : undefined,
     });
     if (r.role === 'heal') {
       actions.push({ key: 'heal', label: 'Лечить', needsTarget: true, disabled: false });
@@ -1996,6 +2091,10 @@ export class GameEngine {
     s.awaitingPlayer = false;
     const fxKind = key === 'attack' ? (r.attackRange === 'melee' ? 'melee' : 'ranged') : key === 'heal' ? 'heal' : key === 'ability' ? 'ability' : key === 'rally' ? 'rally' : null;
     const aimsAtEnemy = key === 'attack' || key === 'ability';
+    if (key === 'attack' && r.attackRange === 'melee') {
+      const t = this.attackTarget(r);
+      if (t && t.id !== s.focusId) s.focusId = t.id;
+    }
     s.fx = { seq: s.fx.seq + 1, actor: fxKind ? r.id : null, kind: fxKind, crit: false, targetEnemy: aimsAtEnemy ? (this.focusEnemy()?.id ?? -1) : null, targetRaider: null };
     switch (key) {
       case 'attack': this.doAttack(r); break;
@@ -2024,7 +2123,7 @@ export class GameEngine {
     const crit = Math.random() < 0.14;
     let raw = r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE;
     if (crit) raw *= 1.8;
-    const frontMelee = r.attackRange === 'melee' && r.row === FRONT_ROW;
+    const frontMelee = r.attackRange === 'melee' && this.engaged(r);
     const stagger = STAGGER_ATTACK + (frontMelee ? STAGGER_FRONT_MELEE : 0) + (crit ? STAGGER_CRIT : 0);
     this.sim!.fx.crit = crit;
     const { dmg, note } = this.hitBoss(r, raw, stagger);
@@ -2181,6 +2280,7 @@ export class GameEngine {
     if (!s.enemies.length) { this.leaderTurn(); return; }
     const has = (role: EnemyRole) => s.enemies.some((e) => e.role === role && e.alive);
     if (has('brute')) this.leaderTurn();
+    for (const e of s.enemies) if (e.alive && e.role !== 'brute') this.repositionSkirmisher(e);
     if (has('archer')) this.archerShot();
     if (has('shaman')) this.shamanTurn();
   }
@@ -2189,8 +2289,11 @@ export class GameEngine {
   private archerShot() {
     const alive = this.alive();
     if (!alive.length) return;
-    const backRow = Math.max(...alive.map((r) => r.row));
-    const pool = alive.filter((r) => r.row === backRow);
+    // The raider hanging furthest back from the brawl — healers and casters, usually.
+    const lead = this.leaderRect();
+    const away = (r: Raider) => (lead ? GameEngine.rectDist(r.row, r.col, lead) : BACK_ROW - r.row);
+    const far = Math.max(...alive.map(away));
+    const pool = alive.filter((r) => away(r) === far);
     const t = pool[Math.floor(Math.random() * pool.length)];
     const dmg = Math.round((ARCHER_DMG + Math.random() * 8) * this.bossDmgMult(true));
     this.hurt(t, dmg);
@@ -2298,9 +2401,12 @@ export class GameEngine {
       }
     }
 
+    this.advanceLeader();
     const alive = this.alive();
     if (!alive.length) return;
     const t = s.bossMoveTimers;
+    const lead = this.leaderRect();
+    const nextToLeader = (r: Raider) => !!lead && GameEngine.rectDist(r.row, r.col, lead) <= 1;
     // Every enemy can cleave the front line, on top of its own signature kit.
     const moves: (keyof BossMoveTimers)[] = [...(this.currentDungeon().bossKit ?? ['beam', 'meteor', 'poison', 'chain', 'brace']), 'cleave'];
     for (const k of moves) t[k] = Math.max(0, t[k] - 1);
@@ -2317,7 +2423,7 @@ export class GameEngine {
       if (k === 'brace') return s.phase >= 2;
       if (k === 'freeze') return !s.frozen;
       if (k === 'curse') return true;
-      if (k === 'cleave') return !s.danger && alive.some((r) => r.row === FRONT_ROW);
+      if (k === 'cleave') return !s.danger && alive.some(nextToLeader);
       if (k === 'meteor') return !s.danger;
       return true;
     };
@@ -2361,9 +2467,11 @@ export class GameEngine {
       }
       case 'cleave': {
         const cells: string[] = [];
-        for (let col = 0; col < GRID_COLS; col++) cells.push(FRONT_ROW + ',' + col);
+        for (let row = 0; row < GRID_ROWS; row++) for (let col = 0; col < GRID_COLS; col++) {
+          if (lead && GameEngine.rectDist(row, col, lead) === 1) cells.push(row + ',' + col);
+        }
         s.danger = { kind: 'cleave', cells, cols: [] };
-        this.log(this.leaderName() + ' замахивается на передний ряд — отступите или примите удар!', 'warn');
+        this.log(this.leaderName() + ' раскручивает сокрушающий взмах вокруг себя — отступите или примите удар!', 'warn');
         this.basicStrike();
         t.cleave = 4;
         break;
@@ -2416,14 +2524,15 @@ export class GameEngine {
     const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
     switch (sig) {
       case 'devour': {
-        const front = alive.filter((r) => r.row === FRONT_ROW);
+        const lead = this.leaderRect();
+        const front = alive.filter((r) => lead && GameEngine.rectDist(r.row, r.col, lead) <= 1);
         const t = pick(front.length ? front : alive);
         s.danger = { kind: 'devour', cells: [t.row + ',' + t.col], cols: [t.col] };
         this.log(s.boss.name + ' раскрывает пасть над ' + t.name + ' — уведите с этой клетки!', 'warn');
         return true;
       }
       case 'backstab': {
-        const back = GRID_ROWS - 1;
+        const back = BACK_ROW;
         const cells: string[] = [];
         for (let col = 0; col < GRID_COLS; col++) cells.push(back + ',' + col);
         s.danger = { kind: 'backstab', cells, cols: [] };
@@ -2453,7 +2562,7 @@ export class GameEngine {
         const free: string[] = [];
         for (let row = 0; row < GRID_ROWS; row++) for (let col = 0; col < GRID_COLS; col++) {
           const k = row + ',' + col;
-          if (!s.lava.includes(k)) free.push(k);
+          if (!s.lava.includes(k) && !this.foeAt(row, col)) free.push(k);
         }
         const added = free.sort(() => Math.random() - 0.5).slice(0, 2);
         s.lava = [...s.lava, ...added];
@@ -2471,19 +2580,22 @@ export class GameEngine {
     }
   }
 
-  /** Plain strikes go for whoever is standing in front, tanks first; an empty front line lets the boss reach anyone, harder. */
+  /** Plain strikes hit whoever stands next to the leader, tanks first; with nobody in its way it charges the nearest raider, harder. */
   private basicStrike() {
     const s = this.sim!;
     const alive = this.alive();
     if (!alive.length) return;
-    const front = alive.filter((r) => r.row === FRONT_ROW);
+    const lead = this.leaderRect();
+    const dist = (r: Raider) => (lead ? GameEngine.rectDist(r.row, r.col, lead) : 1);
+    const front = alive.filter((r) => dist(r) <= 1);
     const tanks = front.filter((r) => r.role === 'tank');
-    const pool = tanks.length ? tanks : front.length ? front : alive;
+    const nearest = alive.reduce((a, b) => (dist(b) < dist(a) ? b : a));
+    const pool = tanks.length ? tanks : front.length ? front : [nearest];
     const target = pool[Math.floor(Math.random() * pool.length)];
     const exposed = front.length === 0;
     const dmg = Math.round((20 + Math.random() * 12) * (exposed ? 1.3 : 1) * this.bossDmgMult());
     this.hurt(target, dmg);
-    this.log(this.leaderName() + ' обрушивается на ' + target.name + ' (-' + dmg + ')' + (exposed ? ' — передний край пуст, никто не прикрыл.' : '.'), 'warn');
+    this.log(this.leaderName() + (exposed ? ' прорывается к ' + target.name + ' (-' + dmg + ') — никто не встал у него на пути.' : ' обрушивается на ' + target.name + ' (-' + dmg + ').'), 'warn');
   }
 
   endGame(win: boolean) {

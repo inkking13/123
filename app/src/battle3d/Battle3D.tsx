@@ -72,7 +72,8 @@ function FoeOverlay({ proj, keyName, name, hp, maxHp, alive, isBoss, sim, focuse
   const floaters = useHpFloaters(hp, () => fx.crit && fx.actor !== 'enemy', delay);
   return (
     <Animated.View
-      pointerEvents="box-none"
+      // While a raider is choosing a cell, taps go through the figure to the tile under it.
+      pointerEvents={sim.movePhase ? 'none' : 'box-none'}
       style={{ position: 'absolute', left: box.left, top: box.top, width: box.width, height: box.height, zIndex: 5 }}
     >
       <Pressable testID={testID} disabled={!onPress || !alive} onPress={onPress} style={{ flex: 1 }}>
