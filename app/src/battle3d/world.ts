@@ -20,5 +20,8 @@ export const ROOM_CARD = 0.9;
 export const BOSS_CARD = 2.3;
 
 /** Default camera: behind and above the party, looking out over the field. */
-export const CAMERA_HOME = new THREE.Vector3(0, 4.9, 7.2);
-export const CAMERA_LOOK = new THREE.Vector3(0, 0.1, -0.2);
+export const CAMERA_HOME = new THREE.Vector3(0, 5.1, 6.5);
+export const CAMERA_LOOK = new THREE.Vector3(0, 0.2, -0.7);
+
+/** Heroes and room monsters are drawn this much larger than their build size, to read on a phone. */
+export const FIGURE_SCALE = 1.3;

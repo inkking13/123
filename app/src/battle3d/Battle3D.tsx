@@ -1,4 +1,4 @@
-import React, { Component, Suspense, useMemo, useRef } from 'react';
+import React, { Component, Suspense, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, Text, View } from 'react-native';
 import { Canvas } from './r3f';
 import { Arena3D, ArenaProps } from './Arena3D';
@@ -106,13 +106,15 @@ function TileTarget({ proj, row, col, enabled, onPress }: { proj: Projection; ro
 export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine; height: number; onFail: (e: unknown) => void }) {
   const { engine, sim, height, onFail, isBoss, focusId, current, reachable } = props;
   const proj = useRef(new Projection()).current;
+  // Close-up by default: on a phone the whole board makes the figures tiny.
+  const [closeUp, setCloseUp] = useState(true);
   const camera = useMemo(() => ({ position: CAMERA_HOME.toArray() as [number, number, number], fov: 50, near: 0.1, far: 200 }), []);
   return (
     <View style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: props.theme.sky[2] }}>
       <Guard onFail={onFail}>
         <Canvas camera={camera} style={{ flex: 1 }} gl={{ antialias: true }}>
           <Suspense fallback={null}>
-            <Arena3D {...props} proj={proj} />
+            <Arena3D {...props} proj={proj} closeUp={closeUp} />
           </Suspense>
         </Canvas>
       </Guard>
@@ -138,6 +140,19 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
         ))}
         {sim.raiders.map((r) => <RaiderTag key={r.id} r={r} sim={sim} proj={proj} />)}
       </View>
+      <Pressable
+        testID="camera-toggle"
+        onPress={() => setCloseUp((v) => !v)}
+        hitSlop={8}
+        style={{
+          position: 'absolute', right: 8, top: 8, flexDirection: 'row', alignItems: 'center', gap: 5,
+          paddingHorizontal: 10, height: 28, borderRadius: 14, backgroundColor: 'rgba(12,12,20,0.62)',
+          borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+        }}
+      >
+        <Icon name={closeUp ? 'path' : 'target'} size={13} color="#e8e4f2" />
+        <Text style={{ fontSize: 11.5, color: '#e8e4f2', fontFamily: font.medium }}>{closeUp ? 'Обзор' : 'Крупно'}</Text>
+      </Pressable>
     </View>
   );
 }

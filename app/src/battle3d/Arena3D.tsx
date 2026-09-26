@@ -11,7 +11,7 @@ import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
 import {
-  BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
+  BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
 } from './world';
 import { BattleTheme } from '../components/BattleBackdrop';
 import { BOSS_H, BOSS_W, CombatFx, EnemyRole, GRID_COLS, GRID_ROWS, Raider, Sim } from '../combat/types';
@@ -120,7 +120,7 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
   const yaw = useRef(Math.PI);
   const prevPos = useMemo(() => new THREE.Vector3(), []);
   const sheet = SHEET_MODELS[r.candidateId];
-  const figH = sheet ? sheet.height : look ? MODEL_HEIGHT[look.build] : 0.08 + RAIDER_CARD;
+  const figH = sheet ? sheet.height * FIGURE_SCALE : look ? MODEL_HEIGHT[look.build] * FIGURE_SCALE : 0.08 + RAIDER_CARD;
   const prevHp = useRef(r.hp);
   const head = useMemo(() => new THREE.Vector3(), []);
   const center = useMemo(() => new THREE.Vector3(), []);
@@ -148,8 +148,10 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
     const t = st.clock.elapsedTime;
     prevPos.copy(pos.current);
     pos.current.lerp(tilePos(r.row, r.col), 1 - Math.exp(-dt * (look ? 6 : 9)));
-    // Models turn to face the nearest enemy; lunges go that way too.
+    // Models face the nearest enemy while acting (lunges go that way too); waiting
+    // for their turn they stand three-quarters on to the camera, so faces show.
     let fx = 0, fz = -1;
+    const busy = active || t - ev.current.lunge < 1.1 || prevPos.distanceToSquared(tilePos(r.row, r.col)) > 0.01;
     if (look && r.alive) {
       let best: THREE.Vector3 | null = null; let bd = Infinity;
       for (const [k, v] of proj.world) {
@@ -158,13 +160,21 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
         if (d < bd) { bd = d; best = v; }
       }
       if (best) {
-        const want = Math.atan2(best.x - pos.current.x, best.z - pos.current.z);
+        let want = Math.atan2(best.x - pos.current.x, best.z - pos.current.z);
+        if (!busy) {
+          // Turn ~65° off the enemy towards the camera, opening inwards to the board's middle.
+          const inward = pos.current.x > 0.01 ? -1 : 1;
+          const a = want + 1.15, b = want - 1.15;
+          const score = (y: number) => Math.cos(y) + Math.sin(y) * inward * 0.3;
+          want = score(a) >= score(b) ? a : b;
+        }
         let diff = want - yaw.current;
         while (diff > Math.PI) diff -= Math.PI * 2;
         while (diff < -Math.PI) diff += Math.PI * 2;
-        yaw.current += diff * (1 - Math.exp(-dt * 8));
+        yaw.current += diff * (1 - Math.exp(-dt * (busy ? 8 : 3)));
       }
-      fx = Math.sin(yaw.current); fz = Math.cos(yaw.current);
+      const face = look && r.alive && busy ? yaw.current : NaN;
+      fx = Number.isNaN(face) ? 0 : Math.sin(face); fz = Number.isNaN(face) ? -1 : Math.cos(face);
     }
     let dz = 0, dx = 0, dy = 0, sx = 0, scale = 1;
     const e = ev.current; const lt = t - e.lunge;
@@ -217,7 +227,7 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
       {berserk ? <PulseRing radius={0.5} color={colors.danger} speed={8} y={0.2} /> : null}
       {poisoned && alive ? <PulseRing radius={0.36} color="#7ac874" speed={4} y={0.12} /> : null}
       {look ? (
-        <group ref={model} position={[0, 0.06, 0]}>
+        <group ref={model} position={[0, 0.06, 0]} scale={[FIGURE_SCALE, FIGURE_SCALE, FIGURE_SCALE]}>
           {sheet ? <sheet.Model anim={anim} gear={gear} /> : <HeroModel look={look} anim={anim} gear={gear} />}
         </group>
       ) : (
@@ -242,7 +252,7 @@ function FoeFigure({
   /** Low-poly body; without one the enemy stays a portrait card. */
   monster?: MonsterLook;
 }) {
-  const mscale = isBoss ? 2.1 : 1.15;
+  const mscale = isBoss ? 2.1 : 1.15 * FIGURE_SCALE;
   const mH = monster ? monster.height * mscale : 0;
   const model = useRef<THREE.Group>(null);
   const yaw = useRef(0);
@@ -611,7 +621,7 @@ function Effects({ sim, proj, foeKeyFor }: { sim: Sim; proj: Projection; foeKeyF
 
 // ── camera ─────────────────────────────────────────────────
 
-function CameraRig({ sim, current, proj }: { sim: Sim; current: Raider | null; proj: Projection }) {
+function CameraRig({ sim, current, proj, closeUp, focusId }: { sim: Sim; current: Raider | null; proj: Projection; closeUp: boolean; focusId?: number }) {
   const { camera, size } = useThree();
   const look = useRef(CAMERA_LOOK.clone());
   const shakeAt = useRef(-99);
@@ -632,9 +642,23 @@ function CameraRig({ sim, current, proj }: { sim: Sim; current: Raider | null; p
     else if (enemyTurn && foe) { focus.copy(foe); dist = 0.94; pull = 0.2; }
     else if (current) { const c = proj.world.get('r' + current.id); if (c) focus.copy(c); else focus.copy(tilePos(current.row, current.col)); dist = 0.97; pull = 0.12; }
     else { focus.copy(CAMERA_LOOK); }
+    if (closeUp) {
+      // Close-up: frame whoever is acting. On a hero's turn (after moving) take in their
+      // target too, so it stays on screen to tap.
+      const hero = current ? proj.world.get('r' + current.id) : undefined;
+      const target = proj.world.get(focusId != null ? 'e' + focusId : 'boss') ?? foe;
+      if (hero && !enemyTurn && !sim.windup) {
+        focus.copy(hero);
+        if (!sim.movePhase && target) focus.lerp(target, 0.4);
+        // Look a little past the hero, so they stand in the lower part of the frame.
+        focus.z -= 1.1;
+      }
+      dist = sim.movePhase ? 0.84 : 0.72;
+      pull = 0.9;
+    }
     wantLook.copy(CAMERA_LOOK).lerp(focus, pull);
     want.copy(CAMERA_HOME).sub(CAMERA_LOOK).multiplyScalar(dist).add(wantLook);
-    want.x += Math.sin(t * 0.35) * 0.12 + focus.x * pull * 0.5;
+    want.x += Math.sin(t * 0.35) * 0.12 + focus.x * pull * (closeUp ? 0.2 : 0.5);
     want.y += Math.sin(t * 0.5) * 0.05;
     const k = 1 - Math.exp(-dt * (sim.windup ? 3 : 2.4));
     camera.position.lerp(want, k);
@@ -659,10 +683,12 @@ export interface ArenaProps {
   focusId?: number; current: Raider | null; reachable: { row: number; col: number }[];
   /** How each hero's worn gear looks, by candidate id. */
   heroGear?: Record<number, GearLook>;
+  /** Camera close on whoever is acting instead of the whole board. */
+  closeUp?: boolean;
   bossMonster?: MonsterLook; roomMonsters?: Record<EnemyRole, MonsterLook>;
 }
 
-export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear }: ArenaProps) {
+export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear, closeUp = false }: ArenaProps) {
   const bp = sim.bossPos ? bossPos(sim.bossPos.row, sim.bossPos.col) : bossPos(0, Math.floor((GRID_COLS - BOSS_W) / 2));
   const sun = useMemo(() => sunDirection(theme).multiplyScalar(20), [theme]);
   const stunned = sim.stunned || sim.vulnerableRounds > 0;
@@ -693,7 +719,7 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
         <RaiderFigure key={r.id} r={r} sim={sim} proj={proj} active={current?.id === r.id} poisoned={sim.poison?.targetId === r.id} gear={heroGear?.[r.candidateId]} />
       ))}
       <Effects sim={sim} proj={proj} foeKeyFor={foeKeyFor} />
-      <CameraRig sim={sim} current={current} proj={proj} />
+      <CameraRig sim={sim} current={current} proj={proj} closeUp={closeUp} focusId={focusId} />
     </>
   );
 }
