@@ -16,6 +16,7 @@ import { FootShadow, Floor, TileGlow, TileImpact } from '../components/Stage25D'
 import { fieldGeometry } from '../combat/perspective';
 import { BATTLE_THEMES, BattleBackdrop, BattleParticles } from '../components/BattleBackdrop';
 import { Battle3D, canRender3D } from '../battle3d/Battle3D';
+import { ARENA_CHAMPION, MONSTER_LOOKS } from '../battle3d/monsterLooks';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
   attack: 'sword',
@@ -323,6 +324,8 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
             <Battle3D
               engine={engine} sim={s} theme={theme} height={Math.round(fieldW * 1.12)} isBoss={isBossFight}
               bossArt={bossArt} roomArt={roomArt ? { brute: MONSTER_ART[roomArt.brute], archer: MONSTER_ART[roomArt.archer], shaman: MONSTER_ART[roomArt.shaman] } : undefined}
+              bossMonster={engine.inArena ? ARENA_CHAMPION : dungeonForArt && BOSS_ART[dungeonForArt.id] ? MONSTER_LOOKS[BOSS_ART[dungeonForArt.id]] : undefined}
+              roomMonsters={roomArt ? { brute: MONSTER_LOOKS[roomArt.brute], archer: MONSTER_LOOKS[roomArt.archer], shaman: MONSTER_LOOKS[roomArt.shaman] } : undefined}
               focusId={focusId} current={current} reachable={reachableCells}
               onFail={(e) => { console.warn('3D battlefield failed, falling back to 2.5D', e); setFailed3d(true); }}
             />

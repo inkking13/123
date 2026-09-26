@@ -1,12 +1,12 @@
 // How each hero looks as a low-poly figure — picked from their portrait:
 // build, skin/hair, outfit colours, head details, weapon and off-hand.
 
-export type Build = 'human' | 'dwarf' | 'orc' | 'elf' | 'gnome';
+export type Build = 'human' | 'dwarf' | 'orc' | 'elf' | 'gnome' | 'brute' | 'golem' | 'imp';
 export type Hair = 'short' | 'long' | 'mohawk' | 'none';
 export type Beard = 'none' | 'short' | 'long';
 export type HeadGear = 'none' | 'hood' | 'maskHood';
 export type Outfit = 'plate' | 'robe' | 'leather' | 'bare';
-export type Weapon = 'sword' | 'axe' | 'mace' | 'greatAxe' | 'greatHammer' | 'dagger' | 'staff' | 'bow' | 'flask' | 'orb';
+export type Weapon = 'sword' | 'axe' | 'mace' | 'greatAxe' | 'greatHammer' | 'dagger' | 'staff' | 'bow' | 'flask' | 'orb' | 'claws' | 'trident';
 export type OffHand = 'none' | 'roundShield' | 'kiteShield' | 'towerShield' | 'dagger' | 'flask';
 
 export interface HeroLook {
@@ -30,6 +30,29 @@ export interface HeroLook {
   glow?: string;
   shieldColor?: string;
   emblem?: string;
+  // Monster extras (heroes leave these unset).
+  /** Glowing eye colour. */
+  eyes?: string;
+  /** Floats with no legs, trailing a tattered robe. */
+  ghost?: boolean;
+  crown?: string;
+  /** Bare bones: ribs across the chest, skull face. */
+  skeleton?: boolean;
+  /** Empty armour: no head, a glow where it should be. */
+  headless?: boolean;
+  wolfHead?: boolean;
+  /** Merfolk: a fish tail instead of legs, in this colour. */
+  fishTail?: string;
+  /** Bat wings in this colour. */
+  wings?: string;
+  /** Forward lean in radians (ghouls, brutes). */
+  hunch?: number;
+  /** A crown of leaves instead of hair (treants). */
+  leaves?: string;
+  /** Glowing cracks across the body (lava, lightning). */
+  cracks?: string;
+  /** A buzzing cloud of flies. */
+  flies?: boolean;
 }
 
 export const HERO_LOOKS: Record<number, HeroLook> = {

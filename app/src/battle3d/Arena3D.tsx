@@ -4,6 +4,8 @@ import { useFrame, useThree } from './r3f';
 import { useArt } from './textures';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
+import { CreatureAnim, CreatureModel } from './CreatureModel';
+import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
 import {
@@ -17,7 +19,7 @@ import { colors, roleColor } from '../theme/theme';
 
 const WHITE = new THREE.Color('#ffffff');
 /** Approximate standing height of each low-poly build, for anchoring HP bars above the head. */
-const MODEL_HEIGHT = { human: 1.12, dwarf: 0.92, orc: 1.26, elf: 1.2, gnome: 0.95 } as const;
+const MODEL_HEIGHT = { human: 1.12, dwarf: 0.92, orc: 1.26, elf: 1.2, gnome: 0.95, brute: 1.35, golem: 1.5, imp: 0.95 } as const;
 const HURT = new THREE.Color('#ff7a6a');
 const DEAD = new THREE.Color('#5a5a66');
 const UP = new THREE.Vector3(0, 1, 0);
@@ -232,11 +234,19 @@ function RaiderFigure({ r, sim, proj, active, poisoned }: { r: Raider; sim: Sim;
 }
 
 function FoeFigure({
-  id, art, x, z, size, alive, hp, focused, stunned, windup, poisoned, shell, phase, isBoss, fx, proj,
+  id, art, x, z, size, alive, hp, focused, stunned, windup, poisoned, shell, phase, isBoss, fx, proj, monster,
 }: {
   id: string; art: any; x: number; z: number; size: number; alive: boolean; hp: number; focused: boolean; stunned: boolean;
   windup: boolean; poisoned: boolean; shell: boolean; phase: number; isBoss: boolean; fx: CombatFx; proj: Projection;
+  /** Low-poly body; without one the enemy stays a portrait card. */
+  monster?: MonsterLook;
 }) {
+  const mscale = isBoss ? 2.1 : 1.15;
+  const mH = monster ? monster.height * mscale : 0;
+  const model = useRef<THREE.Group>(null);
+  const yaw = useRef(0);
+  const heroAnim = useRef<HeroAnim>({ kind: '', at: -99, hit: -99, deadAt: alive ? -1 : -99, alive, defending: false, speed: 0, frozen: false });
+  const creAnim = useRef<CreatureAnim>({ at: -99, hit: -99, deadAt: alive ? -1 : -99, alive, speed: 0, rear: 0, stunned: false });
   const clock = useThree((s) => s.clock);
   const root = useRef<THREE.Group>(null);
   const card = useRef<THREE.Group | null>(null);
@@ -272,9 +282,27 @@ function FoeFigure({
     const t = st.clock.elapsedTime;
     const e = ev.current;
     e.rear += ((windup && alive ? 1 : 0) - e.rear) * (1 - Math.exp(-dt * (windup ? 4.5 : 20)));
-    let dz = 0, sx = 0;
+    // Models turn to the nearest raider and lunge that way; cards just lunge toward the party.
+    let fx0 = 0, fz0 = 1;
+    if (monster && alive) {
+      let best: THREE.Vector3 | null = null; let bd = Infinity;
+      for (const [k, v] of proj.world) {
+        if (!k.startsWith('r')) continue;
+        const d = (v.x - at.current.x) ** 2 + (v.z - at.current.z) ** 2;
+        if (d < bd) { bd = d; best = v; }
+      }
+      if (best) {
+        const want = Math.atan2(best.x - at.current.x, best.z - at.current.z);
+        let diff = want - yaw.current;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        yaw.current += diff * (1 - Math.exp(-dt * 6));
+      }
+      fx0 = Math.sin(yaw.current); fz0 = Math.cos(yaw.current);
+    }
+    let dz = 0, dx = 0, sx = 0;
     const lt = t - e.lunge;
-    if (lt < 0.33) dz = 0.7 * (lt < 0.11 ? lt / 0.11 : 1 - (lt - 0.11) / 0.22);
+    if (lt < 0.33) { const k = 0.7 * (lt < 0.11 ? lt / 0.11 : 1 - (lt - 0.11) / 0.22); dz = fz0 * k; dx = fx0 * k; }
     const ht = t - e.hit;
     if (ht >= 0 && ht < 0.3) sx = Math.sin(ht * 70) * 0.08 * (1 - ht / 0.3);
     sx += e.rear * Math.sin(t * 80) * 0.03;
@@ -283,7 +311,16 @@ function FoeFigure({
     at.current.lerp(new THREE.Vector3(x, 0, z), 1 - Math.exp(-dt * (isBoss ? 3 : 5)));
     const moving = before.distanceTo(at.current) / Math.max(dt, 1e-3);
     const bob = Math.min(1, moving) * Math.abs(Math.sin(t * 12)) * (isBoss ? 0.12 : 0.08);
-    g.position.set(at.current.x + sx, e.rear * (isBoss ? 0.3 : 0.15) + bob, at.current.z + dz);
+    g.position.set(at.current.x + sx + dx, (monster ? 0 : e.rear * (isBoss ? 0.3 : 0.15)) + (monster ? 0 : bob), at.current.z + dz);
+    if (monster && model.current) {
+      model.current.rotation.y = yaw.current;
+      model.current.rotation.z = stunned && alive && 'humanoid' in monster ? Math.sin(t * 6) * 0.08 : 0;
+      model.current.scale.setScalar(mscale * (1 + e.rear * 0.14));
+      const h = heroAnim.current;
+      h.kind = lt < 0.6 ? 'melee' : ''; h.at = e.lunge; h.hit = e.hit; h.deadAt = e.deadAt; h.alive = alive; h.speed = moving / mscale;
+      const c = creAnim.current;
+      c.at = e.lunge; c.hit = e.hit; c.deadAt = e.deadAt; c.alive = alive; c.speed = moving / mscale; c.rear = e.rear; c.stunned = stunned;
+    }
     const c = card.current;
     if (c) {
       faceCamera(c, g.position, st.camera);
@@ -310,12 +347,13 @@ function FoeFigure({
       if (pt < 0.7) { ring.current.visible = true; ring.current.scale.setScalar(1 + pt * 2.5); m.opacity = 1 - pt / 0.7; }
       else ring.current.visible = false;
     }
-    const s = size * (1 + e.rear * 0.14);
-    const cy = g.position.y + 0.08;
-    box[0].set(g.position.x - s / 2, cy, g.position.z);
-    box[1].set(g.position.x + s / 2, cy, g.position.z);
-    box[2].set(g.position.x - s / 2, cy + s, g.position.z);
-    box[3].set(g.position.x + s / 2, cy + s, g.position.z);
+    const s = (monster ? mH : size) * (1 + e.rear * 0.14);
+    const w = monster ? Math.min(s * 0.85, isBoss ? 2.6 : 0.95) : s;
+    const cy = g.position.y + (monster ? 0 : 0.08);
+    box[0].set(g.position.x - w / 2, cy, g.position.z);
+    box[1].set(g.position.x + w / 2, cy, g.position.z);
+    box[2].set(g.position.x - w / 2, cy + s, g.position.z);
+    box[3].set(g.position.x + w / 2, cy + s, g.position.z);
     center.set(g.position.x, cy + s / 2, g.position.z);
   });
 
@@ -329,18 +367,35 @@ function FoeFigure({
         <torusGeometry args={[baseR * 1.2, 0.05, 6, 36]} />
         <meshBasicMaterial color={colors.danger} transparent toneMapped={false} />
       </mesh>
-      <Card art={art} size={size} frame={alive ? (focused ? colors.warn : colors.danger) : '#3a3a44'} matRef={mat} cardRef={card}>
-        <mesh ref={glow} position={[0, 0, -0.05]}>
-          <circleGeometry args={[size * 0.85, 32]} />
-          <meshBasicMaterial color="#ff4a2a" transparent opacity={0} depthWrite={false} toneMapped={false} />
+      {monster ? (<>
+        <group ref={model}>
+          {'humanoid' in monster ? <HeroModel look={monster.humanoid} anim={heroAnim} /> : <CreatureModel look={monster.creature} anim={creAnim} />}
+        </group>
+        {/* wind-up halo and ice shell wrap the whole figure */}
+        <mesh ref={glow} position={[0, mH * 0.5, 0]}>
+          <sphereGeometry args={[mH * 0.55, 16, 10]} />
+          <meshBasicMaterial color="#ff4a2a" transparent opacity={0} depthWrite={false} toneMapped={false} side={THREE.BackSide} />
         </mesh>
         {shell && alive ? (
-          <mesh>
-            <boxGeometry args={[size + 0.2, size + 0.2, 0.3]} />
-            <meshBasicMaterial color="#bfe6ff" transparent opacity={0.35} depthWrite={false} />
+          <mesh position={[0, mH * 0.5, 0]}>
+            <boxGeometry args={[mH * 0.8, mH * 1.05, mH * 0.8]} />
+            <meshBasicMaterial color="#bfe6ff" transparent opacity={0.3} depthWrite={false} />
           </mesh>
         ) : null}
-      </Card>
+      </>) : (
+        <Card art={art} size={size} frame={alive ? (focused ? colors.warn : colors.danger) : '#3a3a44'} matRef={mat} cardRef={card}>
+          <mesh ref={glow} position={[0, 0, -0.05]}>
+            <circleGeometry args={[size * 0.85, 32]} />
+            <meshBasicMaterial color="#ff4a2a" transparent opacity={0} depthWrite={false} toneMapped={false} />
+          </mesh>
+          {shell && alive ? (
+            <mesh>
+              <boxGeometry args={[size + 0.2, size + 0.2, 0.3]} />
+              <meshBasicMaterial color="#bfe6ff" transparent opacity={0.35} depthWrite={false} />
+            </mesh>
+          ) : null}
+        </Card>
+      )}
     </group>
   );
 }
@@ -601,9 +656,10 @@ function CameraRig({ sim, current, proj }: { sim: Sim; current: Raider | null; p
 export interface ArenaProps {
   sim: Sim; theme: BattleTheme; proj: Projection; isBoss: boolean; bossArt?: any; roomArt?: Record<EnemyRole, any>;
   focusId?: number; current: Raider | null; reachable: { row: number; col: number }[];
+  bossMonster?: MonsterLook; roomMonsters?: Record<EnemyRole, MonsterLook>;
 }
 
-export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable }: ArenaProps) {
+export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters }: ArenaProps) {
   const bp = sim.bossPos ? bossPos(sim.bossPos.row, sim.bossPos.col) : bossPos(0, Math.floor((GRID_COLS - BOSS_W) / 2));
   const sun = useMemo(() => sunDirection(theme).multiplyScalar(20), [theme]);
   const stunned = sim.stunned || sim.vulnerableRounds > 0;
@@ -620,12 +676,12 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
       <Board sim={sim} theme={theme} current={current} reachable={reachable} proj={proj} />
       {isBoss ? (
         <FoeFigure
-          id="boss" art={bossArt} x={bp.x} z={bp.z} size={BOSS_CARD} alive={sim.boss.hp > 0} hp={sim.boss.hp} focused={false}
+          id="boss" art={bossArt} monster={bossMonster} x={bp.x} z={bp.z} size={BOSS_CARD} alive={sim.boss.hp > 0} hp={sim.boss.hp} focused={false}
           stunned={stunned} windup={sim.windup} poisoned={!!sim.bossPoison} shell={sim.iceShell} phase={sim.phase} isBoss fx={sim.fx} proj={proj}
         />
       ) : sim.enemies.map((e) => (
         <FoeFigure
-          key={e.id} id={'e' + e.id} art={roomArt ? roomArt[e.role] : undefined} x={colX(e.col)} z={rowZ(e.row)}
+          key={e.id} id={'e' + e.id} art={roomArt ? roomArt[e.role] : undefined} monster={roomMonsters?.[e.role]} x={colX(e.col)} z={rowZ(e.row)}
           size={ROOM_CARD} alive={e.alive} hp={e.hp} focused={e.alive && e.id === focusId} stunned={stunned} windup={sim.windup}
           poisoned={sim.bossPoison?.enemyId === e.id} shell={false} phase={1} isBoss={false} fx={sim.fx} proj={proj}
         />

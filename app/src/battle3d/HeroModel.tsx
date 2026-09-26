@@ -38,17 +38,23 @@ const BUILD = {
   orc: { size: 1.1, width: 1.34, legs: 1, head: 1.05 },
   elf: { size: 1.05, width: 0.88, legs: 1.06, head: 0.96 },
   gnome: { size: 0.74, width: 0.96, legs: 0.8, head: 1.35 },
+  brute: { size: 1.18, width: 1.75, legs: 0.85, head: 1 },
+  golem: { size: 1.3, width: 1.6, legs: 0.9, head: 0.85 },
+  imp: { size: 0.82, width: 1, legs: 0.9, head: 1.25 },
 } as const;
 
-type Mats = Record<'skin' | 'hair' | 'primary' | 'secondary' | 'metal' | 'dark' | 'cape' | 'shield' | 'emblem' | 'wood', THREE.MeshLambertMaterial> & { glow: THREE.MeshBasicMaterial };
+type Mats = Record<'skin' | 'hair' | 'primary' | 'secondary' | 'metal' | 'dark' | 'cape' | 'shield' | 'emblem' | 'wood' | 'leaf', THREE.MeshLambertMaterial> & { glow: THREE.MeshBasicMaterial; eye: THREE.MeshBasicMaterial; crack: THREE.MeshBasicMaterial };
 
 function makeMats(look: HeroLook): Mats {
-  const m = (c: string) => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
+  const m = (c: string) => new THREE.MeshLambertMaterial({ color: c, flatShading: true, transparent: !!look.ghost, opacity: look.ghost ? 0.82 : 1 });
   return {
     skin: m(look.skin), hair: m(look.hair), primary: m(look.primary), secondary: m(look.secondary), metal: m(look.metal),
-    dark: m('#141214'), cape: m(look.cape ?? look.primary), shield: m(look.shieldColor ?? look.secondary), emblem: m(look.emblem ?? look.metal),
+    dark: m('#141214'), cape: m(look.fishTail ?? look.cape ?? look.primary), shield: m(look.shieldColor ?? look.secondary), emblem: m(look.emblem ?? look.metal),
     wood: m('#6a4a2e'),
+    leaf: m(look.leaves ?? look.hair),
     glow: new THREE.MeshBasicMaterial({ color: look.glow ?? '#ffffff', toneMapped: false }),
+    eye: new THREE.MeshBasicMaterial({ color: look.eyes ?? look.glow ?? '#ffffff', toneMapped: false }),
+    crack: new THREE.MeshBasicMaterial({ color: look.cracks ?? '#ffffff', toneMapped: false }),
   };
 }
 
@@ -98,6 +104,14 @@ function WeaponMesh({ look, mats }: { look: HeroLook; mats: Mats }) {
       <Part g={G.ico1} m={mats.glow} p={[0, 0.06, 0]} s={[0.055, 0.055, 0.055]} />
       <Part g={G.cyl} m={mats.metal} p={[0, 0.13, 0]} s={[0.018, 0.05, 0.018]} />
     </>);
+    case 'claws': return null;
+    case 'trident': return (<>
+      <Part g={G.cyl} m={mats.metal} p={[0, 0.12, 0]} s={[0.02, 1.0, 0.02]} />
+      <Part g={G.box} m={mats.metal} p={[0, 0.62, 0]} s={[0.2, 0.025, 0.025]} />
+      <Part g={G.cone} m={mats.metal} p={[0, 0.72, 0]} s={[0.025, 0.16, 0.025]} />
+      <Part g={G.cone} m={mats.metal} p={[0.09, 0.69, 0]} s={[0.02, 0.12, 0.02]} />
+      <Part g={G.cone} m={mats.metal} p={[-0.09, 0.69, 0]} s={[0.02, 0.12, 0.02]} />
+    </>);
     case 'orb': return (<>
       <Part g={G.ico1} m={mats.glow} p={[0, 0.08, 0.02]} s={[0.07, 0.07, 0.07]} />
     </>);
@@ -141,8 +155,25 @@ function Head({ look, mats }: { look: HeroLook; mats: Mats }) {
     <>
       <Part g={G.ico} m={mats.skin} s={[0.105, 0.115, 0.105]} />
       {/* eyes */}
-      <Part g={G.box} m={look.glow && look.weapon === 'orb' ? mats.glow : mats.dark} p={[0.037, 0.012, 0.094]} s={[0.022, 0.014, 0.01]} />
-      <Part g={G.box} m={look.glow && look.weapon === 'orb' ? mats.glow : mats.dark} p={[-0.037, 0.012, 0.094]} s={[0.022, 0.014, 0.01]} />
+      <Part g={G.box} m={look.eyes ? mats.eye : look.glow && look.weapon === 'orb' ? mats.glow : mats.dark} p={[0.037, 0.012, 0.094]} s={look.skeleton ? [0.035, 0.03, 0.012] : [0.022, 0.014, 0.01]} />
+      <Part g={G.box} m={look.eyes ? mats.eye : look.glow && look.weapon === 'orb' ? mats.glow : mats.dark} p={[-0.037, 0.012, 0.094]} s={look.skeleton ? [0.035, 0.03, 0.012] : [0.022, 0.014, 0.01]} />
+      {look.skeleton ? <Part g={G.box} m={mats.dark} p={[0, -0.06, 0.085]} s={[0.07, 0.025, 0.02]} /> : null}
+      {look.wolfHead ? (<>
+        <Part g={G.box} m={mats.skin} p={[0, -0.03, 0.13]} s={[0.09, 0.08, 0.14]} />
+        <Part g={G.box} m={mats.dark} p={[0, -0.01, 0.205]} s={[0.04, 0.03, 0.02]} />
+        <Part g={G.cone4} m={mats.skin} p={[0.06, 0.12, -0.01]} s={[0.035, 0.1, 0.03]} />
+        <Part g={G.cone4} m={mats.skin} p={[-0.06, 0.12, -0.01]} s={[0.035, 0.1, 0.03]} />
+      </>) : null}
+      {look.crown ? [0, 1, 2, 3, 4].map((i) => {
+        const a = (i / 5) * Math.PI * 2;
+        return <Part key={i} g={G.cone4} m={mats.emblem} p={[Math.sin(a) * 0.085, 0.12, Math.cos(a) * 0.085]} s={[0.025, 0.08, 0.025]} />;
+      }) : null}
+      {look.crown ? <Part g={G.cyl} m={mats.emblem} p={[0, 0.09, 0]} s={[0.1, 0.03, 0.1]} /> : null}
+      {look.leaves ? (<>
+        <Part g={G.ico} m={mats.leaf} p={[0, 0.13, -0.02]} s={[0.2, 0.14, 0.18]} />
+        <Part g={G.ico} m={mats.leaf} p={[0.12, 0.08, -0.04]} s={[0.1, 0.09, 0.1]} />
+        <Part g={G.ico} m={mats.leaf} p={[-0.12, 0.1, -0.03]} s={[0.1, 0.09, 0.1]} />
+      </>) : null}
       {look.ears ? (<>
         <Part g={G.cone4} m={mats.skin} p={[0.105, 0.03, -0.01]} s={[0.02, 0.075, 0.016]} r={[0, 0, -1.1]} />
         <Part g={G.cone4} m={mats.skin} p={[-0.105, 0.03, -0.01]} s={[0.02, 0.075, 0.016]} r={[0, 0, 1.1]} />
@@ -169,7 +200,7 @@ function Head({ look, mats }: { look: HeroLook; mats: Mats }) {
 }
 
 /** Held upright along the body rather than pointed forward. */
-const UPRIGHT = new Set(['staff', 'orb', 'flask']);
+const UPRIGHT = new Set(['staff', 'orb', 'flask', 'trident']);
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 /** 0→1→0 bump over [0, dur], peaking at `peak`. */
@@ -192,8 +223,9 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
     fall: useRef<THREE.Group>(null), body: useRef<THREE.Group>(null), torso: useRef<THREE.Group>(null), head: useRef<THREE.Group>(null),
     legL: useRef<THREE.Group>(null), legR: useRef<THREE.Group>(null), kneeL: useRef<THREE.Group>(null), kneeR: useRef<THREE.Group>(null),
     armL: useRef<THREE.Group>(null), armR: useRef<THREE.Group>(null), elbowL: useRef<THREE.Group>(null), elbowR: useRef<THREE.Group>(null),
-    cape: useRef<THREE.Mesh>(null),
+    cape: useRef<THREE.Mesh>(null), wingL: useRef<THREE.Group>(null), wingR: useRef<THREE.Group>(null), flies: useRef<THREE.Group>(null),
   };
+  const noLegs = !!(look.ghost || look.fishTail);
   const walkPhase = useRef(0);
   const flashCol = useMemo(() => new THREE.Color('#ff4a3a'), []);
   const frozenCol = useMemo(() => new THREE.Color('#9fd6ff'), []);
@@ -212,7 +244,9 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
     let armLx = -walk * Math.sin(ph) * 0.5 + 0.05 * breathe, armRx = walk * Math.sin(ph) * 0.5 - 0.05 * breathe;
     let armLz = 0.12, armRz = -0.12;
     let elbowL = -0.25, elbowR = -0.25;
-    let torsoX = 0.03 * breathe, torsoY = 0, bodyY = walk * Math.abs(Math.sin(ph)) * 0.04 + 0.006 * breathe;
+    let torsoX = 0.03 * breathe + (look.hunch ?? 0), torsoY = 0, bodyY = walk * Math.abs(Math.sin(ph)) * 0.04 + 0.006 * breathe;
+    if (look.ghost) bodyY = 0.12 + Math.sin(t * 1.8) * 0.05;
+    if (look.weapon === 'claws') { armLx -= 0.35; armRx -= 0.35; elbowL = -0.7; elbowR = -0.7; }
 
     // hold poses
     if (twoHanded) { armRx = -0.5; elbowR = -0.9; armLx = -0.7; elbowL = -1.1; armLz = -0.35; }
@@ -253,14 +287,21 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
     if (ht >= 0 && ht < 0.35) torsoX -= 0.4 * (1 - ht / 0.35);
 
     const R = r;
-    R.legL.current!.rotation.x = legL; R.legR.current!.rotation.x = legR;
-    R.kneeL.current!.rotation.x = kneeL; R.kneeR.current!.rotation.x = kneeR;
+    if (R.legL.current && R.legR.current && R.kneeL.current && R.kneeR.current) {
+      R.legL.current.rotation.x = legL; R.legR.current.rotation.x = legR;
+      R.kneeL.current.rotation.x = kneeL; R.kneeR.current.rotation.x = kneeR;
+    }
     R.armL.current!.rotation.set(armLx, 0, armLz); R.armR.current!.rotation.set(armRx, 0, armRz);
     R.elbowL.current!.rotation.x = elbowL; R.elbowR.current!.rotation.x = elbowR;
     R.torso.current!.rotation.set(torsoX, torsoY, 0);
     R.body.current!.position.y = bodyY;
-    R.head.current!.rotation.y = Math.sin(t * 0.7) * 0.12;
+    if (R.head.current) R.head.current.rotation.y = Math.sin(t * 0.7) * 0.12;
     if (R.cape.current) R.cape.current.rotation.x = 0.12 + walk * 0.3 + Math.sin(t * 2.5) * 0.04;
+    if (R.wingL.current && R.wingR.current) {
+      const flap = Math.sin(t * (kind === 'melee' && at < 0.5 ? 18 : 4)) * 0.35;
+      R.wingL.current.rotation.y = -0.5 + flap; R.wingR.current.rotation.y = 0.5 - flap;
+    }
+    if (R.flies.current) R.flies.current.rotation.y = t * 3;
 
     // falling over (backwards) and lying still
     const fall = a.alive ? 0 : a.deadAt >= 0 ? Math.min(1, (t - a.deadAt) / 0.55) : 1;
@@ -274,7 +315,7 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
       if (m instanceof THREE.MeshLambertMaterial) {
         m.emissive.copy(a.frozen ? frozenCol : flashCol);
         m.emissiveIntensity = a.frozen ? 0.45 : f * 0.9;
-        m.opacity = a.alive ? 1 : 0.85;
+        m.opacity = look.ghost ? 0.82 : a.alive ? 1 : 0.85;
       }
     }
   });
@@ -282,8 +323,13 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
   return (
     <group ref={r.fall}>
       <group ref={r.body} scale={[b.size, b.size, b.size]}>
-        {/* legs */}
-        {([['L', -1], ['R', 1]] as const).map(([side, sx]) => (
+        {/* legs — or a ghostly trail / fish tail */}
+        {look.ghost ? <Part g={G.cone} m={mats.primary} p={[0, hipY * 0.45, 0]} s={[0.2 * W, hipY * 1.1, 0.16 * W]} r={[Math.PI, 0, 0]} /> : null}
+        {look.fishTail ? (<>
+          <Part g={G.cone} m={mats.cape} p={[0, hipY * 0.5, -0.05]} s={[0.13 * W, hipY * 1.05, 0.11 * W]} r={[Math.PI + 0.25, 0, 0]} />
+          <Part g={G.cone4} m={mats.cape} p={[0, 0.04, -0.22]} s={[0.16, 0.12, 0.05]} r={[-1.2, 0, 0]} />
+        </>) : null}
+        {noLegs ? null : ([['L', -1], ['R', 1]] as const).map(([side, sx]) => (
           <group key={side} ref={side === 'L' ? r.legL : r.legR} position={[sx * 0.075 * W, hipY, 0]}>
             <Part g={G.cyl} m={plate ? mats.metal : mats.secondary} p={[0, -thigh / 2, 0]} s={[0.055 * W, thigh, 0.055 * W]} />
             <group ref={side === 'L' ? r.kneeL : r.kneeR} position={[0, -thigh, 0]}>
@@ -299,29 +345,56 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
           <group ref={r.torso} position={[0, 0.06, 0]}>
             <Part g={G.taper} m={look.outfit === 'bare' ? mats.skin : mats.primary} p={[0, torsoH / 2, 0]} s={[0.17 * W, torsoH, 0.12 * W]} />
             {plate ? <Part g={G.box} m={mats.metal} p={[0, torsoH * 0.62, 0.075 * W]} s={[0.24 * W, 0.16, 0.05]} /> : null}
-            {look.outfit === 'bare' ? (<>
+            {look.outfit === 'bare' && !look.eyes ? (<>
               <Part g={G.box} m={mats.primary} p={[0, torsoH * 0.5, 0.105 * W]} s={[0.035, 0.36, 0.02]} r={[0, 0, 0.7]} />
               <Part g={G.box} m={mats.primary} p={[0, torsoH * 0.5, -0.105 * W]} s={[0.035, 0.36, 0.02]} r={[0, 0, -0.7]} />
               <Part g={G.cone} m={mats.metal} p={[shoulderX, torsoH + 0.02, 0]} s={[0.04, 0.12, 0.04]} r={[0, 0, -0.5]} />
             </>) : null}
             <Part g={G.box} m={mats.secondary} p={[0, 0.02, 0]} s={[0.27 * W, 0.045, 0.17 * W]} />
+            {look.skeleton && look.outfit === 'bare' ? [0.12, 0.19, 0.26].map((y) => (
+              <Part key={y} g={G.box} m={mats.dark} p={[0, y, 0.1 * W]} s={[0.2 * W, 0.018, 0.02]} />
+            )) : null}
+            {look.cracks ? (<>
+              <Part g={G.box} m={mats.crack} p={[0.03, torsoH * 0.5, 0.13 * W]} s={[0.018, torsoH * 0.8, 0.012]} r={[0, 0, 0.4]} />
+              <Part g={G.box} m={mats.crack} p={[-0.05, torsoH * 0.62, 0.125 * W]} s={[0.015, torsoH * 0.5, 0.012]} r={[0, 0, -0.6]} />
+              <Part g={G.box} m={mats.crack} p={[0.06, torsoH * 0.3, 0.12 * W]} s={[0.1, 0.014, 0.012]} r={[0, 0, 0.2]} />
+            </>) : null}
+            {look.wings ? ([['L', -1], ['R', 1]] as const).map(([side, sx]) => (
+              <group key={side} ref={side === 'L' ? r.wingL : r.wingR} position={[sx * 0.06, torsoH * 0.8, -0.1 * W]}>
+                <Part g={G.cone4} m={mats.cape} p={[sx * 0.28, 0, -0.02]} s={[0.3, 0.02, 0.22]} r={[Math.PI / 2, 0, sx * 1.4]} />
+              </group>
+            )) : null}
             {look.cape ? <mesh ref={r.cape} geometry={G.box} material={mats.cape} position={[0, torsoH - 0.02, -0.115 * W]} scale={[0.3 * W, 0.58, 0.015]} /> : null}
             {plate ? (<>
               <Part g={G.ico} m={mats.metal} p={[shoulderX, torsoH - 0.01, 0]} s={[0.085, 0.07, 0.09]} />
               <Part g={G.ico} m={mats.metal} p={[-shoulderX, torsoH - 0.01, 0]} s={[0.085, 0.07, 0.09]} />
             </>) : null}
-            {/* neck + head */}
-            <Part g={G.cyl} m={mats.skin} p={[0, torsoH + 0.03, 0]} s={[0.045, 0.07, 0.045]} />
-            <group ref={r.head} position={[0, torsoH + 0.14, 0]} scale={[b.head, b.head, b.head]}>
-              <Head look={look} mats={mats} />
-            </group>
+            {/* neck + head (empty armour just glows where the head should be) */}
+            {look.headless ? (
+              <Part g={G.ico} m={mats.eye} p={[0, torsoH + 0.04, 0]} s={[0.05, 0.03, 0.05]} />
+            ) : (<>
+              <Part g={G.cyl} m={mats.skin} p={[0, torsoH + 0.03, 0]} s={[0.045, 0.07, 0.045]} />
+              <group ref={r.head} position={[0, torsoH + 0.14, 0]} scale={[b.head, b.head, b.head]}>
+                <Head look={look} mats={mats} />
+              </group>
+            </>)}
+            {look.flies ? (
+              <group ref={r.flies} position={[0, torsoH + 0.15, 0]}>
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <Part key={i} g={G.ico} m={mats.dark} p={[Math.sin(i * 1.7) * 0.3, Math.cos(i * 2.3) * 0.12, Math.cos(i * 1.7) * 0.3]} s={[0.018, 0.018, 0.018]} />
+                ))}
+              </group>
+            ) : null}
             {/* arms */}
             {([['L', -1], ['R', 1]] as const).map(([side, sx]) => (
               <group key={side} ref={side === 'L' ? r.armL : r.armR} position={[sx * shoulderX, torsoH - 0.03, 0]}>
                 <Part g={G.cyl} m={armMat} p={[0, -0.1, 0]} s={[0.045, 0.2, 0.045]} />
                 <group ref={side === 'L' ? r.elbowL : r.elbowR} position={[0, -0.2, 0]}>
                   <Part g={G.cyl} m={look.outfit === 'bare' ? mats.skin : plate ? mats.metal : mats.primary} p={[0, -0.09, 0]} s={[0.04, 0.18, 0.04]} />
-                  <Part g={G.ico} m={plate ? mats.secondary : mats.skin} p={[0, -0.2, 0]} s={[0.043, 0.043, 0.043]} />
+                  <Part g={G.ico} m={plate ? mats.secondary : mats.skin} p={[0, -0.2, 0]} s={look.weapon === 'claws' ? [0.06, 0.06, 0.06] : [0.043, 0.043, 0.043]} />
+                  {look.weapon === 'claws' ? [-0.03, 0, 0.03].map((x) => (
+                    <Part key={x} g={G.cone} m={mats.eye} p={[x, -0.28, 0.02]} s={[0.012, 0.08, 0.012]} r={[Math.PI, 0, 0]} />
+                  )) : null}
                   <group position={[0, -0.21, 0.02]} rotation={[UPRIGHT.has(look.weapon) ? 0 : 0.6, 0, 0]}>
                     {side === 'R' ? <WeaponMesh look={look} mats={mats} /> : null}
                   </group>
