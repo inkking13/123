@@ -495,9 +495,15 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
 
       {/* Action panel */}
       <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg, paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(14, insets.bottom + 10) }}>
+        {!s.over ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 8 }}>
+            <Chip testID="speed-toggle" label={engine.settings.speed >= 2 ? '×2' : '×1'} icon="fast-forward" on={engine.settings.speed >= 2} onPress={() => engine.toggleSpeed()} />
+            <Chip testID="auto-toggle" label="Авто" icon="robot" on={engine.settings.auto} onPress={() => { setPickingTarget(null); engine.toggleAuto(); }} />
+          </View>
+        ) : null}
         {(() => {
           // First-fight coaching: one tip at a time, each shown once, when it's relevant.
-          if (s.over) return null;
+          if (s.over || engine.settings.auto) return null;
           const tip: Tip | null =
             s.windup && engine.tipPending('windup') ? 'windup'
             : dangerCells.size > 0 && engine.tipPending('danger') ? 'danger'
@@ -526,6 +532,13 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
         {!current ? (
           <View style={{ height: 46, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontSize: 13, color: colors.textFaint, fontFamily: font.regular }}>{s.windup ? 'Противник замахивается для мощного удара!' : s.order[s.turnPos]?.kind === 'boss' ? 'Ход противника…' : '…'}</Text>
+          </View>
+        ) : engine.settings.auto ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 46 }}>
+            <Text style={{ flex: 1, fontSize: 13, color: colors.textMuted, fontFamily: font.regular }}>
+              Автобой · ход: <Text style={{ color: colors.text, fontFamily: font.medium }}>{current.name}</Text>
+            </Text>
+            <SecondaryButton label="Взять управление" height={40} onPress={() => engine.toggleAuto()} />
           </View>
         ) : s.movePhase ? (
           <>
@@ -588,6 +601,24 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
         <BossIntro name={engine.bossIntro.name} place={engine.bossIntro.place} line={engine.bossIntro.line} onDone={engine.endBossIntro} />
       ) : null}
     </View>
+  );
+}
+
+/** Small pill toggle for battle pace and auto-play. */
+function Chip({ label, icon, on, onPress, testID }: { label: string; icon: IconName; on: boolean; onPress: () => void; testID?: string }) {
+  return (
+    <Pressable
+      testID={testID}
+      onPress={onPress}
+      hitSlop={6}
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: 5, height: 28, paddingHorizontal: 10, borderRadius: 14, borderWidth: 1,
+        borderColor: on ? colors.accent : colors.borderStrong, backgroundColor: on ? colors.accentWash : 'transparent',
+      }}
+    >
+      <Icon name={icon} size={13} color={on ? colors.accentSoft : colors.textDim} />
+      <Text style={{ fontSize: 12, color: on ? colors.text : colors.textDim, fontFamily: font.medium }}>{label}</Text>
+    </Pressable>
   );
 }
 

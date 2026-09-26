@@ -125,7 +125,7 @@ interface SaveData {
   curiosOwned: string[];
   claimedAchievementIds: string[];
   everCrafted: boolean;
-  settings: { haptics: boolean; view3d: boolean };
+  settings: { haptics: boolean; view3d: boolean; speed?: number; auto?: boolean };
   statsRoomWins: number;
   statsBossWins: number;
   statsWipes: number;
@@ -404,7 +404,7 @@ export class GameEngine {
   seenUnlocks = new Set<Feature>();
   seenTips = new Set<Tip>();
 
-  settings = { haptics: true, view3d: true };
+  settings: { haptics: boolean; view3d: boolean; speed: number; auto: boolean } = { haptics: true, view3d: true, speed: 1, auto: false };
 
   private turnTimer: ReturnType<typeof setTimeout> | null = null;
   private subs = new Set<() => void>();
@@ -558,6 +558,21 @@ export class GameEngine {
   private haptic(fn: () => Promise<void>) {
     if (!this.settings.haptics || Platform.OS === 'web') return;
     fn().catch(() => {});
+  }
+  /** Battle speed: 1 or 2 (turn pauses and wind-ups are divided by it). */
+  toggleSpeed() {
+    this.settings.speed = this.settings.speed >= 2 ? 1 : 2;
+    this.notify();
+  }
+  /** Auto-battle: the party plays its own turns. Takes over at once if a hero is waiting. */
+  toggleAuto() {
+    this.settings.auto = !this.settings.auto;
+    const s = this.sim;
+    if (this.settings.auto && s && !s.over && s.awaitingPlayer && !this.bossIntro) this.scheduleAuto();
+    this.notify();
+  }
+  private pace(ms: number) {
+    return ms / Math.max(1, this.settings.speed || 1);
   }
   toggleView3d() {
     this.settings.view3d = !this.settings.view3d;
@@ -1667,7 +1682,98 @@ export class GameEngine {
   }
   private scheduleAdvance(delay: number) {
     this.clearTurnTimer();
-    this.turnTimer = setTimeout(() => { this.turnTimer = null; this.advanceTurn(); this.notify(); }, delay);
+    this.turnTimer = setTimeout(() => { this.turnTimer = null; this.advanceTurn(); this.notify(); }, this.pace(delay));
+  }
+
+  // ── auto-battle ──────────────────────────────────────────
+  // The party's own turns, played the way the balance sim plays them: melee
+  // walks up to its target, ranged and healers hang back, everyone steps
+  // out of telegraphed zones; then the most useful action this turn.
+  private scheduleAuto() {
+    this.clearTurnTimer();
+    this.turnTimer = setTimeout(() => { this.turnTimer = null; this.autoStep(); }, this.pace(420));
+  }
+  private autoStep() {
+    const s = this.sim; const r = this.currentRaider();
+    if (!s || s.over || !r || !s.awaitingPlayer || !this.settings.auto) return;
+    if (s.movePhase) {
+      this.autoPlace(r);
+      this.turnTimer = setTimeout(() => { this.turnTimer = null; this.autoStep(); }, this.pace(380));
+      return;
+    }
+    const [key, target] = this.autoAction(r);
+    this.raiderAction(key, target);
+  }
+  private autoFocus() {
+    const s = this.sim!;
+    if (!s.enemies.length) return;
+    for (const role of ['shaman', 'archer', 'brute'] as EnemyRole[]) {
+      const f = s.enemies.find((x) => x.role === role && x.alive);
+      if (f) { if (s.focusId !== f.id) s.focusId = f.id; return; }
+    }
+  }
+  private autoPlace(r: Raider) {
+    const s = this.sim!;
+    this.autoFocus();
+    const rects = this.foeRects();
+    if (!rects.length) { this.skipMove(); return; }
+    const focus = s.enemies.length ? rects.find((f) => f.id === s.focusId) || rects[0] : rects[0];
+    const lead = s.enemies.length ? rects.find((f) => s.enemies.find((x) => x.id === f.id && x.role === 'brute')) || focus : rects[0];
+    const cells = this.reachableCells().concat([{ row: r.row, col: r.col }]);
+    const danger = new Set(s.danger ? s.danger.cells : []);
+    const lava = new Set(s.lava ?? []);
+    const melee = r.attackRange === 'melee';
+    const allies = s.raiders.filter((x) => x.alive && x.id !== r.id);
+    let best = cells[cells.length - 1]; let bestScore = -1e9;
+    for (const c of cells) {
+      let sc = 0;
+      const key = c.row + ',' + c.col;
+      if (danger.has(key)) sc -= r.role === 'tank' && s.danger!.kind === 'cleave' ? 30 : 100;
+      if (lava.has(key)) sc -= 40;
+      if (melee) {
+        const d = GameEngine.rectDist(c.row, c.col, focus);
+        const anyAdj = rects.some((f) => GameEngine.rectDist(c.row, c.col, f) <= 1);
+        sc += d <= 1 ? 50 : anyAdj ? 35 - d : -8 * d;
+        if (r.role === 'tank' && GameEngine.rectDist(c.row, c.col, lead) <= 1) sc += 12;
+        if (anyAdj) sc += 3 * allies.filter((x) => x.attackRange === 'melee' && Math.max(Math.abs(x.row - c.row), Math.abs(x.col - c.col)) === 1).length;
+      } else {
+        sc += Math.min(Math.min(...rects.map((f) => GameEngine.rectDist(c.row, c.col, f))), 4) * 6;
+      }
+      if (c.row === r.row && c.col === r.col) sc += 1;
+      if (sc > bestScore) { bestScore = sc; best = c; }
+    }
+    if (best.row === r.row && best.col === r.col) this.skipMove(); else this.moveRaider(best.row, best.col);
+  }
+  private autoAction(r: Raider): [TurnActionKey, number?] {
+    const s = this.sim!;
+    this.autoFocus();
+    const acts = this.turnActionsVM();
+    const has = (k: TurnActionKey) => acts.some((a) => a.key === k && !a.disabled);
+    const alive = s.raiders.filter((x) => x.alive);
+    const lowest = alive.reduce((a, b) => (b.hp / b.maxHp < a.hp / a.maxHp ? b : a));
+    const weakest = () => this.healTargetsVM().sort((a, b) => a.hpPct - b.hpPct)[0];
+    if (has('interrupt')) return ['interrupt'];
+    if (has('breakChain')) return ['breakChain'];
+    if (has('breakShell') && r.role !== 'heal') return ['breakShell'];
+    if (s.execution) {
+      const t = s.raiders.find((x) => x.id === s.execution!.targetId);
+      if (t && t.hp < t.maxHp * 0.6) {
+        if (r.role === 'heal' && has('heal') && t.id !== r.id) return ['heal', t.id];
+        if (t.id === r.id && has('defend')) return ['defend'];
+      }
+    }
+    if (has('breakIce') && r.role !== 'heal') return ['breakIce'];
+    if (has('brace') && s.braceCall && s.braceCall.braced.size < 3) return ['brace'];
+    if (has('rally') && (s.tilt >= 40 || (s.ashCurse && s.ashCurse.stacks >= 2))) return ['rally'];
+    if (r.role === 'heal' && has('heal') && lowest.hp / lowest.maxHp < 0.65) { const t = weakest(); if (t) return ['heal', t.id]; }
+    if (has('ability')) {
+      const k = r.ability.kind;
+      if (!['drainHeal', 'volatileHeal'].includes(k) || lowest.hp / lowest.maxHp < 0.8) return ['ability'];
+    }
+    if (has('attack')) return ['attack'];
+    if (r.role === 'heal' && has('heal')) { const t = weakest(); if (t) return ['heal', t.id]; }
+    if (has('defend')) return ['defend'];
+    return ['attack'];
   }
 
   private buildOrder(): TurnEntry[] {
@@ -1781,11 +1887,12 @@ export class GameEngine {
       s.selected = r.id;
       s.awaitingPlayer = true;
       s.movePhase = true;
+      if (this.settings.auto) this.scheduleAuto();
     } else if (this.heavyBlowPending()) {
       // Give the heavy blow a beat of wind-up the UI can show before it lands.
       s.windup = true;
       this.clearTurnTimer();
-      this.turnTimer = setTimeout(() => { this.turnTimer = null; this.resolveBossTurn(); this.notify(); }, WINDUP_MS);
+      this.turnTimer = setTimeout(() => { this.turnTimer = null; this.resolveBossTurn(); this.notify(); }, this.pace(WINDUP_MS));
     } else {
       this.resolveBossTurn();
     }

@@ -5,7 +5,7 @@ import {
   Pause, Play, Shield, FirstAidKit, Campfire, UsersThree, PathIcon, SnowflakeIcon,
   FlaskIcon, DropIcon, FlameIcon, TargetIcon, FireIcon,
   GearSix, SpeakerHigh, SpeakerSlash, Vibrate, TrashSimple, Warning, CoinsIcon, Storefront, ChartLineUpIcon,
-  TrophyIcon, IdentificationCardIcon, HardHat, HandFist, Boot, Diamond,
+  TrophyIcon, IdentificationCardIcon, HardHat, HandFist, Boot, Diamond, FastForward, Robot,
 } from 'phosphor-react-native';
 
 export type IconName =
@@ -15,7 +15,7 @@ export type IconName =
   | 'flask' | 'drop' | 'flame' | 'target' | 'fire'
   | 'gear' | 'speaker-high' | 'speaker-slash' | 'vibrate' | 'trash-simple' | 'warning'
   | 'coins' | 'storefront' | 'chart-line-up' | 'trophy' | 'identification-card'
-  | 'hard-hat' | 'hand-fist' | 'boot' | 'diamond';
+  | 'hard-hat' | 'hand-fist' | 'boot' | 'diamond' | 'fast-forward' | 'robot';
 
 const MAP: Record<IconName, React.ComponentType<any>> = {
   'arrow-right': ArrowRight,
@@ -59,6 +59,8 @@ const MAP: Record<IconName, React.ComponentType<any>> = {
   'hand-fist': HandFist,
   boot: Boot,
   diamond: Diamond,
+  'fast-forward': FastForward,
+  robot: Robot,
 };
 
 export function Icon({
