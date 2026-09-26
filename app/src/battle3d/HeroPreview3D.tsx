@@ -48,7 +48,7 @@ function Stage({ id, spin, gear }: { id: number; spin: React.MutableRefObject<Sp
   return (
     <>
       <color attach="background" args={['#15120e']} />
-      <hemisphereLight args={['#fff1dc', '#2a2118', 1.5]} />
+      <hemisphereLight args={['#fff1dc', '#2a2118', 1.9]} />
       <directionalLight position={[1.5, 3, 2.5]} intensity={2.2} color="#ffe8c8" />
       <directionalLight position={[-2, 1.5, -2]} intensity={1.1} color="#9fb4ff" />
       {/* pedestal */}
