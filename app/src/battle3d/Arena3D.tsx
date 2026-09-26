@@ -4,6 +4,7 @@ import { useFrame, useThree } from './r3f';
 import { useArt } from './textures';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
+import { WANDERER_HEIGHT, WandererModel } from './WandererModel';
 import { CreatureAnim, CreatureModel } from './CreatureModel';
 import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
@@ -18,6 +19,10 @@ import { portraitSource } from '../data/portraits';
 import { colors, roleColor } from '../theme/theme';
 
 const WHITE = new THREE.Color('#ffffff');
+/** Heroes drawn with a sheet-built model instead of the generic rig. */
+const SHEET_MODELS: Record<number, { height: number; Model: typeof WandererModel }> = {
+  4: { height: WANDERER_HEIGHT, Model: WandererModel }, // Векс — the hooded wanderer
+};
 /** Approximate standing height of each low-poly build, for anchoring HP bars above the head. */
 const MODEL_HEIGHT = { human: 1.12, dwarf: 0.92, orc: 1.26, elf: 1.2, gnome: 0.95, brute: 1.35, golem: 1.5, imp: 0.95 } as const;
 const HURT = new THREE.Color('#ff7a6a');
@@ -119,7 +124,8 @@ function RaiderFigure({ r, sim, proj, active, poisoned }: { r: Raider; sim: Sim;
   const anim = useRef<HeroAnim>({ kind: '', at: -99, hit: -99, deadAt: r.alive ? -1 : -99, alive: r.alive, defending: false, speed: 0, frozen: false });
   const yaw = useRef(Math.PI);
   const prevPos = useMemo(() => new THREE.Vector3(), []);
-  const figH = look ? MODEL_HEIGHT[look.build] : 0.08 + RAIDER_CARD;
+  const sheet = SHEET_MODELS[r.candidateId];
+  const figH = sheet ? sheet.height : look ? MODEL_HEIGHT[look.build] : 0.08 + RAIDER_CARD;
   const prevHp = useRef(r.hp);
   const head = useMemo(() => new THREE.Vector3(), []);
   const center = useMemo(() => new THREE.Vector3(), []);
@@ -217,7 +223,7 @@ function RaiderFigure({ r, sim, proj, active, poisoned }: { r: Raider; sim: Sim;
       {poisoned && alive ? <PulseRing radius={0.36} color="#7ac874" speed={4} y={0.12} /> : null}
       {look ? (
         <group ref={model} position={[0, 0.06, 0]}>
-          <HeroModel look={look} anim={anim} />
+          {sheet ? <sheet.Model anim={anim} /> : <HeroModel look={look} anim={anim} />}
         </group>
       ) : (
         <Card art={portraitSource(r.candidateId)} size={RAIDER_CARD} frame={frame} matRef={mat} cardRef={card}>
