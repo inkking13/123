@@ -15,6 +15,7 @@ import { AuraRing, Crosshair, DebtCoin, DefendBadge, FoeCell, Floaters, FrozenOv
 import { FootShadow, Floor, TileGlow, TileImpact } from '../components/Stage25D';
 import { fieldGeometry } from '../combat/perspective';
 import { BATTLE_THEMES, BattleBackdrop, BattleParticles } from '../components/BattleBackdrop';
+import { Battle3D, canRender3D } from '../battle3d/Battle3D';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
   attack: 'sword',
@@ -55,6 +56,9 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
   const insets = useSafeAreaInsets();
   const [pickingTarget, setPickingTarget] = useState<TurnActionKey | null>(null);
+  const [failed3d, setFailed3d] = useState(false);
+  const [webgl] = useState(canRender3D);
+  const use3d = engine.settings.view3d && webgl && !failed3d;
   const s = engine.sim!;
 
   const bossPct = Math.max(0, (s.boss.hp / s.boss.maxHp) * 100);
@@ -297,13 +301,32 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
         {/* Tactical grid */}
         <View style={{ marginTop: 14 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-            <Text style={{ fontSize: 10.5, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Поле боя</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 10.5, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Поле боя</Text>
+              {webgl && !failed3d ? (
+                <Pressable
+                  testID="toggle-3d"
+                  onPress={() => engine.toggleView3d()}
+                  style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, borderWidth: 1, borderColor: use3d ? colors.accent : colors.borderStrong, backgroundColor: use3d ? colors.accentWash : 'transparent' }}
+                >
+                  <Text style={{ fontSize: 10, color: use3d ? colors.accentSoft : colors.textDim, fontFamily: font.medium }}>{use3d ? '3D' : '2.5D'}</Text>
+                </Pressable>
+              ) : null}
+            </View>
             <Text style={{ fontSize: 10.5, color: colors.textFaint, fontFamily: font.regular }}>
               {isBossFight ? 'Передний край: ближний бой, строй, танк прикрывает' : 'Нажмите на врага, чтобы выбрать цель'}
             </Text>
           </View>
+          <View onLayout={(e) => setFieldW(e.nativeEvent.layout.width)}>
+          {use3d && fieldW ? (
+            <Battle3D
+              engine={engine} sim={s} theme={theme} height={Math.round(fieldW * 0.95)} isBoss={isBossFight}
+              bossArt={bossArt} roomArt={roomArt ? { brute: MONSTER_ART[roomArt.brute], archer: MONSTER_ART[roomArt.archer], shaman: MONSTER_ART[roomArt.shaman] } : undefined}
+              enemySlots={enemySlots} enemyCenter={enemyCenter} focusId={focusId} current={current} reachable={reachableCells}
+              onFail={(e) => { console.warn('3D battlefield failed, falling back to 2.5D', e); setFailed3d(true); }}
+            />
+          ) : (
           <View
-            onLayout={(e) => setFieldW(e.nativeEvent.layout.width)}
             style={{ height: geo ? geo.height : 240, borderRadius: 10, overflow: 'hidden', backgroundColor: theme.ground[1] }}
           >
             {geo ? (
@@ -436,6 +459,8 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                 <BattleParticles theme={theme} width={geo.width} height={geo.height} />
               </>
             ) : null}
+          </View>
+          )}
           </View>
         </View>
 

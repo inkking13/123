@@ -120,7 +120,7 @@ interface SaveData {
   curiosOwned: string[];
   claimedAchievementIds: string[];
   everCrafted: boolean;
-  settings: { haptics: boolean };
+  settings: { haptics: boolean; view3d: boolean };
   statsRoomWins: number;
   statsBossWins: number;
   statsWipes: number;
@@ -387,7 +387,7 @@ export class GameEngine {
   inWeeklyChallenge = false;
   private weeklyModifierDmgMult = 1;
 
-  settings = { haptics: true };
+  settings = { haptics: true, view3d: true };
 
   private turnTimer: ReturnType<typeof setTimeout> | null = null;
   private subs = new Set<() => void>();
@@ -534,6 +534,10 @@ export class GameEngine {
   private haptic(fn: () => Promise<void>) {
     if (!this.settings.haptics || Platform.OS === 'web') return;
     fn().catch(() => {});
+  }
+  toggleView3d() {
+    this.settings.view3d = !this.settings.view3d;
+    this.notify();
   }
   toggleHaptics() {
     this.settings.haptics = !this.settings.haptics;
