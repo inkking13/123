@@ -19,6 +19,7 @@ import { Battle3D, canRender3D } from '../battle3d/Battle3D';
 import { ARENA_CHAMPION, MONSTER_LOOKS } from '../battle3d/monsterLooks';
 import { gearLookOf } from '../battle3d/gearLooks';
 import { TIPS, Tip } from '../data/features';
+import { BossIntro } from '../components/BossIntro';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
   attack: 'sword',
@@ -330,7 +331,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               bossArt={bossArt} roomArt={roomArt ? { brute: MONSTER_ART[roomArt.brute], archer: MONSTER_ART[roomArt.archer], shaman: MONSTER_ART[roomArt.shaman] } : undefined}
               bossMonster={engine.inArena ? ARENA_CHAMPION : dungeonForArt && BOSS_ART[dungeonForArt.id] ? MONSTER_LOOKS[BOSS_ART[dungeonForArt.id]] : undefined}
               roomMonsters={roomArt ? { brute: MONSTER_LOOKS[roomArt.brute], archer: MONSTER_LOOKS[roomArt.archer], shaman: MONSTER_LOOKS[roomArt.shaman] } : undefined}
-              focusId={focusId} current={current} reachable={reachableCells} heroGear={heroGear}
+              focusId={focusId} current={current} reachable={reachableCells} heroGear={heroGear} intro={!!engine.bossIntro}
               onFail={(e) => { console.warn('3D battlefield failed, falling back to 2.5D', e); setFailed3d(true); }}
             />
           ) : (
@@ -583,6 +584,9 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
           </>
         )}
       </View>
+      {engine.bossIntro ? (
+        <BossIntro name={engine.bossIntro.name} place={engine.bossIntro.place} line={engine.bossIntro.line} onDone={engine.endBossIntro} />
+      ) : null}
     </View>
   );
 }

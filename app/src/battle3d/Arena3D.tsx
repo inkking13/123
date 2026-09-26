@@ -621,7 +621,8 @@ function Effects({ sim, proj, foeKeyFor }: { sim: Sim; proj: Projection; foeKeyF
 
 // ── camera ─────────────────────────────────────────────────
 
-function CameraRig({ sim, current, proj, closeUp, focusId }: { sim: Sim; current: Raider | null; proj: Projection; closeUp: boolean; focusId?: number }) {
+function CameraRig({ sim, current, proj, closeUp, focusId, intro }: { sim: Sim; current: Raider | null; proj: Projection; closeUp: boolean; focusId?: number; intro: boolean }) {
+  const introAt = useRef(-1);
   const { camera, size } = useThree();
   const look = useRef(CAMERA_LOOK.clone());
   const shakeAt = useRef(-99);
@@ -635,6 +636,21 @@ function CameraRig({ sim, current, proj, closeUp, focusId }: { sim: Sim; current
   const focus = useMemo(() => new THREE.Vector3(), []);
   useFrame((st, dt) => {
     const t = st.clock.elapsedTime;
+    const bossAt = proj.world.get('boss');
+    if (intro && bossAt) {
+      // Title card: a slow half-circle round the boss, rising and pulling back.
+      if (introAt.current < 0) introAt.current = t;
+      const k = Math.min(1, (t - introAt.current) / 3.6);
+      const e = k * k * (3 - 2 * k);
+      const ang = -1.25 + e * 1.45;
+      const r = 3.1 + e * 1.4;
+      camera.position.set(bossAt.x + Math.sin(ang) * r, 0.9 + e * 1.6, bossAt.z + Math.cos(ang) * r);
+      look.current.set(bossAt.x, 1.1 + e * 0.2, bossAt.z);
+      camera.lookAt(look.current);
+      proj.project(camera, size.width, size.height);
+      return;
+    }
+    introAt.current = -1;
     const enemyTurn = sim.order[sim.turnPos]?.kind === 'boss';
     let dist = 1; let pull = 0;
     const foe = proj.world.get('boss') ?? [...proj.world.entries()].find(([k]) => k.startsWith('e'))?.[1];
@@ -685,10 +701,12 @@ export interface ArenaProps {
   heroGear?: Record<number, GearLook>;
   /** Camera close on whoever is acting instead of the whole board. */
   closeUp?: boolean;
+  /** Boss title card showing: the camera circles the boss. */
+  intro?: boolean;
   bossMonster?: MonsterLook; roomMonsters?: Record<EnemyRole, MonsterLook>;
 }
 
-export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear, closeUp = false }: ArenaProps) {
+export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear, closeUp = false, intro = false }: ArenaProps) {
   const bp = sim.bossPos ? bossPos(sim.bossPos.row, sim.bossPos.col) : bossPos(0, Math.floor((GRID_COLS - BOSS_W) / 2));
   const sun = useMemo(() => sunDirection(theme).multiplyScalar(20), [theme]);
   const stunned = sim.stunned || sim.vulnerableRounds > 0;
@@ -719,7 +737,7 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
         <RaiderFigure key={r.id} r={r} sim={sim} proj={proj} active={current?.id === r.id} poisoned={sim.poison?.targetId === r.id} gear={heroGear?.[r.candidateId]} />
       ))}
       <Effects sim={sim} proj={proj} foeKeyFor={foeKeyFor} />
-      <CameraRig sim={sim} current={current} proj={proj} closeUp={closeUp} focusId={focusId} />
+      <CameraRig sim={sim} current={current} proj={proj} closeUp={closeUp} focusId={focusId} intro={intro} />
     </>
   );
 }

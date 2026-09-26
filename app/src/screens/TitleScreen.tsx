@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { Animated, LayoutChangeEvent, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
 import { colors, font } from '../theme/theme';
 import { PrimaryButton } from '../components/Buttons';
-import { useTilt } from '../components/useTilt';
+import { TiltArt } from '../components/TiltArt';
+import { askMotionPermission } from '../components/useTilt';
 
 // Key art: the logo sits across the middle (kept whole on phones), the knight right of centre.
 const ART = require('../../assets/title/title-art.jpg');
@@ -13,49 +13,11 @@ const ART_ASPECT = 1600 / 893;
 /** Horizontal point of the art kept in the middle of a narrow screen. */
 const FOCUS_X = 0.5;
 
-/**
- * The art covering its box, cropped round FOCUS_X. Tilting the phone pans
- * across it — left to the burning castle, right to the heroes and the demon —
- * with a little vertical drift, like looking through a window.
- */
-function KeyArt({ tilt }: { tilt: ReturnType<typeof useTilt> }) {
-  const [box, setBox] = useState({ w: 0, h: 0 });
-  const onLayout = (e: LayoutChangeEvent) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
-  // A touch taller than the box so there's room to drift up and down.
-  const imgH = box.h * 1.08;
-  const imgW = Math.max(box.w, imgH * ART_ASPECT);
-  const left = Math.min(0, Math.max(box.w - imgW, box.w / 2 - imgW * FOCUS_X));
-  // How far the art can slide each way from its resting crop.
-  const toLeftEdge = -left;
-  const toRightEdge = left - (box.w - imgW);
-  const slideY = (imgH - box.h) / 2;
-  const tx = tilt.x.interpolate({ inputRange: [-1, 0, 1], outputRange: [toLeftEdge, 0, -toRightEdge], extrapolate: 'clamp' });
-  const ty = tilt.y.interpolate({ inputRange: [-1, 1], outputRange: [slideY, -slideY], extrapolate: 'clamp' });
-  return (
-    <View onLayout={onLayout} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%', overflow: 'hidden' }}>
-      {box.w > 0 ? (
-        <Animated.Image
-          testID="title-art"
-          source={ART}
-          resizeMode="cover"
-          style={{ position: 'absolute', left, top: -slideY, width: imgW, height: imgH, transform: [{ translateX: tx }, { translateY: ty }] }}
-        />
-      ) : null}
-      <LinearGradient
-        colors={['rgba(22,24,38,0)', 'rgba(22,24,38,0)', colors.bg]}
-        locations={[0, 0.55, 1]}
-        style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
-      />
-    </View>
-  );
-}
-
 export function TitleScreen({ engine }: { engine: GameEngine }) {
   const insets = useSafeAreaInsets();
-  const tilt = useTilt();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }} onTouchStart={tilt.askPermission}>
-      <KeyArt tilt={tilt} />
+    <View style={{ flex: 1, backgroundColor: colors.bg }} onTouchStart={askMotionPermission}>
+      <TiltArt testID="title-art" source={ART} aspect={ART_ASPECT} focusX={FOCUS_X} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%' }} />
       <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 24, paddingBottom: 40 + insets.bottom, paddingTop: insets.top }}>
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textDim, marginBottom: 14, fontFamily: font.regular }}>
           Отдел кадров · Гильдия наёмников

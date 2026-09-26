@@ -396,6 +396,10 @@ export class GameEngine {
   inWeeklyChallenge = false;
   private weeklyModifierDmgMult = 1;
 
+  /** A boss fight opens on its title card; the first turn waits until it's done. */
+  bossIntro: { name: string; place: string; line: string } | null = null;
+  private introTimer: ReturnType<typeof setTimeout> | null = null;
+
   // gradual unlocks and first-fight tips
   seenUnlocks = new Set<Feature>();
   seenTips = new Set<Tip>();
@@ -605,7 +609,11 @@ export class GameEngine {
 
   // ── navigation ───────────────────────────────────────────
   go(screen: Screen) {
-    if (screen !== 'combat') this.clearTurnTimer();
+    if (screen !== 'combat') {
+      this.clearTurnTimer();
+      this.bossIntro = null;
+      if (this.introTimer) { clearTimeout(this.introTimer); this.introTimer = null; }
+    }
     this.screen = screen;
     this.notify();
   }
@@ -1463,7 +1471,23 @@ export class GameEngine {
     this.log(enc.type === 'boss' ? 'Пул начался. Рейд-лидер, командуй!' : 'Отряд входит в бой: ' + enc.name + ' — ' + enc.enemyName.toLowerCase() + '. Выберите цель, нажав на врага.');
     this.screen = 'combat';
     this.beginRound();
-    if (!this.sim.over) this.advanceTurn();
+    if (enc.type === 'boss') this.openBossIntro(enc.enemyName, this.currentDungeon().name, enc.desc);
+    else if (!this.sim.over) this.advanceTurn();
+    this.notify();
+  };
+
+  private openBossIntro(name: string, place: string, line: string) {
+    this.bossIntro = { name, place, line };
+    // Safety net: the screen normally closes it (on a timer or a tap).
+    if (this.introTimer) clearTimeout(this.introTimer);
+    this.introTimer = setTimeout(() => this.endBossIntro(), 8000);
+  }
+  /** Closes the boss title card and lets the fight's first turn go. */
+  endBossIntro = () => {
+    if (!this.bossIntro) return;
+    this.bossIntro = null;
+    if (this.introTimer) { clearTimeout(this.introTimer); this.introTimer = null; }
+    if (this.sim && !this.sim.over && this.screen === 'combat') this.advanceTurn();
     this.notify();
   };
 
@@ -1594,7 +1618,7 @@ export class GameEngine {
     this.log('Отряд выходит на испытание недели: ' + cur.dungeon.name + ' (' + cur.modifier.name + ').');
     this.screen = 'combat';
     this.beginRound();
-    if (!this.sim.over) this.advanceTurn();
+    this.openBossIntro(cur.encounter.enemyName, 'Испытание недели · ' + cur.modifier.name, cur.encounter.desc);
     this.notify();
   }
   private endWeeklyChallenge(win: boolean) {

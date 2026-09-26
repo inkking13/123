@@ -13,10 +13,19 @@ import { Accelerometer } from 'expo-sensors';
 const FULL_TILT = 0.45; // sideways reading that counts as a full tilt
 const SMOOTH = 0.12; // low-pass factor per reading
 
+let askedMotion = false;
+/** Mobile Safari only hands out motion data after a tap asks for it; call from any touch. */
+export function askMotionPermission() {
+  if (Platform.OS !== 'web' || askedMotion) return;
+  askedMotion = true;
+  const req = (globalThis as any).DeviceOrientationEvent?.requestPermission;
+  if (typeof req === 'function') req.call((globalThis as any).DeviceOrientationEvent).catch(() => {});
+}
+
 export function useTilt() {
   const x = useRef(new Animated.Value(0)).current;
   const y = useRef(new Animated.Value(0)).current;
-  const state = useRef({ sx: 0, sy: 0, baseY: null as number | null, asked: false }).current;
+  const state = useRef({ sx: 0, sy: 0, baseY: null as number | null }).current;
 
   useEffect(() => {
     let sub: { remove: () => void } | null = null;
@@ -74,13 +83,5 @@ export function useTilt() {
     };
   }, [x, y, state]);
 
-  /** Mobile Safari only hands out motion data after a tap asks for it. */
-  const askPermission = () => {
-    if (Platform.OS !== 'web' || state.asked) return;
-    state.asked = true;
-    const req = (globalThis as any).DeviceOrientationEvent?.requestPermission;
-    if (typeof req === 'function') req.call((globalThis as any).DeviceOrientationEvent).catch(() => {});
-  };
-
-  return { x, y, askPermission };
+  return { x, y, askPermission: askMotionPermission };
 }

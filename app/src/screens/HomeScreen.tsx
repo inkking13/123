@@ -9,6 +9,12 @@ import { Icon, IconName } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
 import { useEngineVersion } from '../engine/useEngine';
 import { FEATURES, FEATURE_ORDER, Feature, unlockHint } from '../data/features';
+import { TiltArt } from '../components/TiltArt';
+import { askMotionPermission } from '../components/useTilt';
+import { LinearGradient } from 'expo-linear-gradient';
+
+// The key art without its logo: burning castle on the left, the guild's heroes on the right.
+const CAMP_ART = require('../../assets/title/camp-art.jpg');
 
 const DUNGEON_ICON: Record<string, IconName> = {
   wastes: 'trash-simple', road: 'path', groblot: 'skull',
@@ -67,7 +73,7 @@ function UnlockBanner({ engine, f }: { engine: GameEngine; f: Feature }) {
   return (
     <View
       testID={'unlock-' + f}
-      style={{ borderWidth: 1, borderColor: colors.accent, borderRadius: 10, padding: 14, marginBottom: 22, backgroundColor: colors.accentWash }}
+      style={{ borderWidth: 1, borderColor: colors.accent, borderRadius: 10, padding: 14, marginBottom: 22, backgroundColor: 'rgba(30,28,52,0.96)' }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
         <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(145,132,217,0.22)' }}>
@@ -138,7 +144,10 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
   }));
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }} onTouchStart={askMotionPermission}>
+      {/* Art behind the top of camp; the page scrolls over it. */}
+      <TiltArt testID="camp-art" source={CAMP_ART} aspect={1600 / 893} focusX={0.66} fadeFrom={0.5} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 400 + insets.top }} />
+      <LinearGradient pointerEvents="none" colors={['rgba(22,24,38,0.75)', 'rgba(22,24,38,0)']} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120 + insets.top }} />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 96 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <View>
@@ -162,7 +171,8 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
             </Pressable>
           </View>
         </View>
-        <View style={{ height: 22 }} />
+        {/* A window onto the art: the guild's heroes on the ridge. */}
+        <View style={{ height: fresh ? 22 : 150 }} />
 
         {fresh ? <UnlockBanner engine={engine} f={fresh} /> : null}
 
@@ -219,7 +229,7 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
           onPress={() => engine.go('roster')}
           style={({ pressed }) => ({
             borderWidth: 1, borderColor: pressed ? colors.borderHover : colors.borderStrong,
-            borderRadius: 8, padding: 14, backgroundColor: colors.surface, marginBottom: 22,
+            borderRadius: 8, padding: 14, backgroundColor: 'rgba(28,30,44,0.86)', marginBottom: 22,
           })}
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
