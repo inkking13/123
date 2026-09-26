@@ -7,7 +7,7 @@ import { useFrame, useLoader } from './r3f';
 import { HeroAnim } from './HeroModel';
 import { GearLook } from './gearLooks';
 import { WandererModel } from './WandererModel';
-import { ARM_REST, ELBOW, HIP, WRIST, makeSkeleton, skinGeometry } from './vexRig';
+import { ARM_REST, HIP, aimBlades, armFists, makeSkeleton, skinGeometry } from './vexRig';
 
 // Vex as the textured hooded rogue generated in Meshy from his model sheet
 // (repo root: "Hooded Rogue Character Sheet_Meshy_AI…glb", repacked with
@@ -24,21 +24,6 @@ const FEET = -0.951;
 const MODEL_H = 1.9;
 export const VEX_HEIGHT = 1.16;
 const SCALE = VEX_HEIGHT / MODEL_H;
-
-/** Vex's red blade, gripped in a hand bone and pointing along +Y of its group. */
-function makeBlade(color: string) {
-  const g = new THREE.Group();
-  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.1, 0.022), new THREE.MeshLambertMaterial({ color: '#1c1618' }));
-  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.03), new THREE.MeshLambertMaterial({ color: '#3a3034' }));
-  guard.position.y = 0.055;
-  const glow = new THREE.MeshBasicMaterial({ color, toneMapped: false });
-  const edge = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.24, 0.01), glow);
-  edge.position.y = 0.18;
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.029, 0.06, 4), glow);
-  tip.position.y = 0.33; tip.scale.z = 0.3; tip.rotation.y = Math.PI / 4;
-  g.add(grip, guard, edge, tip);
-  return g;
-}
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const bump = (t: number, dur: number, peak = 0.35) => (t < 0 || t > dur ? 0 : t < dur * peak ? t / (dur * peak) : 1 - (t - dur * peak) / (dur * (1 - peak)));
@@ -59,17 +44,8 @@ function Rogue({ anim, gear }: { anim: React.MutableRefObject<HeroAnim>; gear?: 
     skinned.updateMatrixWorld(true);
     skinned.bind(new THREE.Skeleton(s.bones));
     skinned.frustumCulled = false;
-    // Blades in both fists, pointing forward out of the grip.
-    const blades: THREE.Group[] = [];
-    for (const [fore, side] of [[s.foreL, 1], [s.foreR, -1]] as const) {
-      const b = makeBlade(bladeColor);
-      // Gripped at the wrist and carried along the forearm, pointing forward and a little up
-      // (the forearm hangs out at ~0.65 rad in the rest pose; -Y runs down it).
-      b.position.set(side * (WRIST[0] - ELBOW[0] + 0.03), WRIST[1] - ELBOW[1] - 0.05, 0.05);
-      b.rotation.set(Math.PI - 0.5, 0, -side * 0.65);
-      fore.add(b);
-      blades.push(b);
-    }
+    // Fists round the grips of his two red blades.
+    const blades = armFists(s, bladeColor);
     return { skinned, material, s, blades };
   }, [gltf, bladeColor]);
   useEffect(() => () => {
@@ -135,12 +111,12 @@ function Rogue({ anim, gear }: { anim: React.MutableRefObject<HeroAnim>; gear?: 
     // Arms rest out in an A; bring them in to `hang`, then swing forward.
     S.armL.rotation.set(armLx, 0, -(ARM_REST - hang));
     S.armR.rotation.set(armRx, 0, ARM_REST - hang);
-    S.foreL.rotation.x = foreL; S.foreR.rotation.x = foreR;
-    // Wrists bent so the open hands close round the grips.
-    S.handL.rotation.x = 0.45; S.handR.rotation.x = 0.45;
+    // Forearms turned out a touch so the fists stay in front of the shoulders.
+    S.foreL.rotation.set(foreL, 0, 0.3); S.foreR.rotation.set(foreR, 0, -0.3);
     S.spine.rotation.set(spineX, spineY, 0);
     S.head.rotation.set(-0.08, Math.sin(t * 0.7) * 0.15, 0);
     S.hips.position.y = HIP[1] + lift / SCALE;
+    aimBlades(rig.blades, rig.skinned, a.kind === 'ability' && at < 0.7 ? bump(at, 0.7, 0.4) : 0);
 
     const fall = a.alive ? 0 : a.deadAt >= 0 ? Math.min(1, (t - a.deadAt) / 0.55) : 1;
     const eased = 1 - (1 - fall) * (1 - fall);

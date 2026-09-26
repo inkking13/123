@@ -9,8 +9,8 @@ export type V2 = [number, number];
 // Joint positions on the model (x for the figure's left side; mirrored for the right).
 export const SHOULDER: V2 = [0.2, 0.56];
 export const ELBOW: V2 = [0.39, 0.33];
-export const WRIST: V2 = [0.55, 0.12];
-export const TIP: V2 = [0.62, -0.07];
+export const WRIST: V2 = [0.5, 0.18];
+export const TIP: V2 = [0.61, -0.03];
 export const HIP: V2 = [0.1, -0.1];
 export const KNEE: V2 = [0.12, -0.5];
 export const NECK_Y = 0.66;
@@ -19,7 +19,12 @@ export const SPINE_Y = 0.15;
 export const ARM_REST = Math.atan2(ELBOW[0] - SHOULDER[0], SHOULDER[1] - ELBOW[1]);
 
 // Bone order in the skeleton.
-export const B = { hips: 0, spine: 1, head: 2, armL: 3, foreL: 4, handL: 5, armR: 6, foreR: 7, handR: 8, thighL: 9, shinL: 10, thighR: 11, shinR: 12 } as const;
+export const B = { hips: 0, spine: 1, head: 2, armL: 3, foreL: 4, handL: 5, armR: 6, foreR: 7, handR: 8, thighL: 9, shinL: 10, thighR: 11, shinR: 12, f1L: 13, f2L: 14, f3L: 15, f1R: 16, f2R: 17, f3R: 18 } as const;
+/** A point part-way from wrist to fingertips. The hands hang palm-in, thumb forward. */
+const onHand = (t: number): V2 => [WRIST[0] + (TIP[0] - WRIST[0]) * t, WRIST[1] + (TIP[1] - WRIST[1]) * t];
+/** Finger joints: knuckles, then two more down the fingers. */
+export const PHALANX = [0.45, 0.63, 0.8] as const;
+export const KNUCKLE = onHand(PHALANX[0]);
 
 const smooth = (a: number, b: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -53,9 +58,19 @@ export function weigh(x: number, y: number, z: number): Map<number, number> {
     const along = d1 <= d2 && d1 <= d3 ? t1 : d2 <= d3 ? 1 + t2 : 2 + t3;
     const fore = smooth(0.85, 1.1, along);
     const hand = smooth(1.9, 2.05, along);
+    // Fingers past the knuckles curl joint by joint; the thumb (out front) stays with the palm.
+    // The thumb sits on the inner side of the hand, out in front; the four fingers are further out.
+    const notThumb = 1 - (1 - smooth(0.555, 0.575, ax)) * smooth(0.15, 0.17, z);
+    const f1 = smooth(1 + PHALANX[0] + 0.93, 2 + PHALANX[0] + 0.07, along) * notThumb;
+    const f2 = smooth(2 + PHALANX[1] - 0.07, 2 + PHALANX[1] + 0.07, along) * notThumb;
+    const f3 = smooth(2 + PHALANX[2] - 0.06, 2 + PHALANX[2] + 0.06, along) * notThumb;
+    const h = arm * fore * hand;
     add(left ? B.armL : B.armR, arm * (1 - fore));
     add(left ? B.foreL : B.foreR, arm * fore * (1 - hand));
-    add(left ? B.handL : B.handR, arm * fore * hand);
+    add(left ? B.handL : B.handR, h * (1 - f1));
+    add(left ? B.f1L : B.f1R, h * f1 * (1 - f2));
+    add(left ? B.f2L : B.f2R, h * f2 * (1 - f3));
+    add(left ? B.f3L : B.f3R, h * f3);
     rest -= arm;
   }
   if (rest <= 0) return w;
@@ -119,10 +134,13 @@ export function makeSkeleton() {
     const a = bone(s * SHOULDER[0], SHOULDER[1], spine);
     const f = bone(s * ELBOW[0], ELBOW[1], a);
     const h = bone(s * WRIST[0], WRIST[1], f);
-    return [a, f, h];
+    const k1 = bone(s * onHand(PHALANX[0])[0], onHand(PHALANX[0])[1], h);
+    const k2 = bone(s * onHand(PHALANX[1])[0], onHand(PHALANX[1])[1], k1);
+    const k3 = bone(s * onHand(PHALANX[2])[0], onHand(PHALANX[2])[1], k2);
+    return [a, f, h, k1, k2, k3];
   };
-  const [armL, foreL, handL] = arm(1);
-  const [armR, foreR, handR] = arm(-1);
+  const [armL, foreL, handL, f1L, f2L, f3L] = arm(1);
+  const [armR, foreR, handR, f1R, f2R, f3R] = arm(-1);
   const leg = (s: number) => {
     const t = bone(s * HIP[0], HIP[1], hips);
     const k = bone(s * KNEE[0], KNEE[1], t);
@@ -130,7 +148,64 @@ export function makeSkeleton() {
   };
   const [thighL, shinL] = leg(1);
   const [thighR, shinR] = leg(-1);
-  const bones = [hips, spine, head, armL, foreL, handL, armR, foreR, handR, thighL, shinL, thighR, shinR];
-  return { bones, hips, spine, head, armL, foreL, handL, armR, foreR, handR, thighL, shinL, thighR, shinR };
+  const bones = [hips, spine, head, armL, foreL, handL, armR, foreR, handR, thighL, shinL, thighR, shinR, f1L, f2L, f3L, f1R, f2R, f3R];
+  return { bones, hips, spine, head, armL, foreL, handL, armR, foreR, handR, thighL, shinL, thighR, shinR, f1L, f2L, f3L, f1R, f2R, f3R };
 }
 
+/** How far each finger joint folds towards the palm for a fist, radians. */
+export const FIST = [0.75, 0.7, 0.6] as const;
+
+/** Vex's red blade: grip along +Y from the origin, blade beyond the guard. */
+export function makeBlade(color: string) {
+  const g = new THREE.Group();
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.11, 0.024), new THREE.MeshLambertMaterial({ color: '#1c1618' }));
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.03), new THREE.MeshLambertMaterial({ color: '#3a3034' }));
+  guard.position.y = 0.065;
+  const glow = new THREE.MeshBasicMaterial({ color, toneMapped: false });
+  const edge = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.22, 0.01), glow);
+  edge.position.y = 0.185;
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.06, 4), glow);
+  tip.position.y = 0.325; tip.scale.z = 0.3; tip.rotation.y = Math.PI / 4;
+  g.add(grip, guard, edge, tip);
+  return g;
+}
+
+/**
+ * Curls both hands into fists and puts a blade in each, the grip in the
+ * hole of the fist. Call aimBlades every frame after posing to point them.
+ */
+export function armFists(s: ReturnType<typeof makeSkeleton>, color: string) {
+  const blades: THREE.Group[] = [];
+  for (const [hand, joints, side] of [[s.handL, [s.f1L, s.f2L, s.f3L], 1], [s.handR, [s.f1R, s.f2R, s.f3R], -1]] as const) {
+    joints.forEach((j, i) => { j.rotation.z = -side * FIST[i]; });
+    const b = makeBlade(color);
+    // Through the hole of the fist (relative to the wrist), guard just in front of the thumb.
+    b.position.set(side * 0.055, -0.11, 0.14);
+    b.userData.side = side;
+    hand.add(b);
+    blades.push(b);
+  }
+  return blades;
+}
+
+
+const UP = new THREE.Vector3(0, 1, 0);
+const _dir = new THREE.Vector3();
+const _qa = new THREE.Quaternion();
+const _qb = new THREE.Quaternion();
+
+/**
+ * Points each blade forward, a little up and out from the body, whatever the
+ * arms are doing — the scan's hands hang palm-in, so a fixed angle in the
+ * hand would swing the blades across the chest. `lift` raises them (0..1).
+ */
+export function aimBlades(blades: THREE.Group[], root: THREE.Object3D, lift = 0) {
+  root.updateMatrixWorld(true);
+  root.getWorldQuaternion(_qa);
+  for (const b of blades) {
+    const side = b.userData.side as number;
+    _dir.set(side * 0.18, 0.45 + lift * 0.8, 0.85).normalize();
+    _qb.setFromUnitVectors(UP, _dir).premultiply(_qa); // desired, in world space
+    b.parent!.getWorldQuaternion(b.quaternion).invert().multiply(_qb);
+  }
+}
