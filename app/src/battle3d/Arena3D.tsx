@@ -5,6 +5,7 @@ import { useArt } from './textures';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
 import { MODEL_HEIGHT, SHEET_MODELS } from './heroFigures';
+import { GearLook } from './gearLooks';
 import { CreatureAnim, CreatureModel } from './CreatureModel';
 import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
@@ -106,7 +107,7 @@ function faceCamera(obj: THREE.Object3D, from: THREE.Vector3, camera: THREE.Came
   obj.rotation.y = Math.atan2(camera.position.x - from.x, camera.position.z - from.z);
 }
 
-function RaiderFigure({ r, sim, proj, active, poisoned }: { r: Raider; sim: Sim; proj: Projection; active: boolean; poisoned: boolean }) {
+function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim: Sim; proj: Projection; active: boolean; poisoned: boolean; gear?: GearLook }) {
   const clock = useThree((s) => s.clock);
   const root = useRef<THREE.Group>(null);
   const card = useRef<THREE.Group | null>(null);
@@ -217,7 +218,7 @@ function RaiderFigure({ r, sim, proj, active, poisoned }: { r: Raider; sim: Sim;
       {poisoned && alive ? <PulseRing radius={0.36} color="#7ac874" speed={4} y={0.12} /> : null}
       {look ? (
         <group ref={model} position={[0, 0.06, 0]}>
-          {sheet ? <sheet.Model anim={anim} /> : <HeroModel look={look} anim={anim} />}
+          {sheet ? <sheet.Model anim={anim} gear={gear} /> : <HeroModel look={look} anim={anim} gear={gear} />}
         </group>
       ) : (
         <Card art={portraitSource(r.candidateId)} size={RAIDER_CARD} frame={frame} matRef={mat} cardRef={card}>
@@ -656,10 +657,12 @@ function CameraRig({ sim, current, proj }: { sim: Sim; current: Raider | null; p
 export interface ArenaProps {
   sim: Sim; theme: BattleTheme; proj: Projection; isBoss: boolean; bossArt?: any; roomArt?: Record<EnemyRole, any>;
   focusId?: number; current: Raider | null; reachable: { row: number; col: number }[];
+  /** How each hero's worn gear looks, by candidate id. */
+  heroGear?: Record<number, GearLook>;
   bossMonster?: MonsterLook; roomMonsters?: Record<EnemyRole, MonsterLook>;
 }
 
-export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters }: ArenaProps) {
+export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear }: ArenaProps) {
   const bp = sim.bossPos ? bossPos(sim.bossPos.row, sim.bossPos.col) : bossPos(0, Math.floor((GRID_COLS - BOSS_W) / 2));
   const sun = useMemo(() => sunDirection(theme).multiplyScalar(20), [theme]);
   const stunned = sim.stunned || sim.vulnerableRounds > 0;
@@ -687,7 +690,7 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
         />
       ))}
       {sim.raiders.map((r) => (
-        <RaiderFigure key={r.id} r={r} sim={sim} proj={proj} active={current?.id === r.id} poisoned={sim.poison?.targetId === r.id} />
+        <RaiderFigure key={r.id} r={r} sim={sim} proj={proj} active={current?.id === r.id} poisoned={sim.poison?.targetId === r.id} gear={heroGear?.[r.candidateId]} />
       ))}
       <Effects sim={sim} proj={proj} foeKeyFor={foeKeyFor} />
       <CameraRig sim={sim} current={current} proj={proj} />

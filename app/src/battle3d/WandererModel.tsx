@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { useFrame } from './r3f';
 import { HeroAnim } from './HeroModel';
 import { WANDERER_BUILT_HEIGHT, WANDERER_COLORS, buildWanderer } from './wandererMesh';
+import { GearLook } from './gearLooks';
 
 // Vex as the hooded wanderer from the model sheet (see wandererMesh.ts),
 // shrunk to hero size and posed through its named pivots with the same
@@ -16,8 +17,26 @@ const BATTLE_COLORS = { ...WANDERER_COLORS, cloak: '#4a4441', cloakIn: '#2e2926'
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const bump = (t: number, dur: number, peak = 0.35) => (t < 0 || t > dur ? 0 : t < dur * peak ? t / (dur * peak) : 1 - (t - dur * peak) / (dur * (1 - peak)));
 
-export function WandererModel({ anim }: { anim: React.MutableRefObject<HeroAnim> }) {
-  const b = useMemo(() => buildWanderer(BATTLE_COLORS), []);
+export function WandererModel({ anim, gear }: { anim: React.MutableRefObject<HeroAnim>; gear?: GearLook }) {
+  // The hood and cloak stay whatever he wears; the weapon's enchantment
+  // tints his blades, and amulet and ring show as glowing gems.
+  const bladeColor = gear?.weapon?.glow ?? WANDERER_COLORS.blade;
+  const b = useMemo(() => buildWanderer({ ...BATTLE_COLORS, blade: bladeColor }), [bladeColor]);
+  useEffect(() => {
+    const added: THREE.Mesh[] = [];
+    const gem = (color: string, parent: THREE.Object3D, x: number, y: number, z: number, r: number) => {
+      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), new THREE.MeshBasicMaterial({ color, toneMapped: false }));
+      m.position.set(x, y, z);
+      parent.add(m);
+      added.push(m);
+    };
+    if (gear?.amulet) gem(gear.amulet, b.joints.spine, 0, 0.36, 0.14, 0.03);
+    if (gear?.ring) {
+      const hand = b.joints.foreL.getObjectByName('hand.L');
+      if (hand) gem(gear.ring, hand, 0.028, -0.07, 0.03, 0.013);
+    }
+    return () => added.forEach((m) => { m.removeFromParent(); m.geometry.dispose(); (m.material as THREE.Material).dispose(); });
+  }, [b, gear?.amulet, gear?.ring]);
   useEffect(() => () => { b.geometries.forEach((g) => g.dispose()); b.materials.forEach((m) => m.dispose()); }, [b]);
   const tinted = useMemo(() => b.materials.filter((m): m is THREE.MeshLambertMaterial => m instanceof THREE.MeshLambertMaterial), [b]);
   const fallRef = useRef<THREE.Group>(null);

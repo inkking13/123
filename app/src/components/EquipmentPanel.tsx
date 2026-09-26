@@ -10,6 +10,7 @@ import { Icon } from './Icon';
 import { ItemIcon } from './ItemIcon';
 import { HeroPreview3D } from '../battle3d/HeroPreview3D';
 import { canRender3D } from '../battle3d/Battle3D';
+import { gearLookOf } from '../battle3d/gearLooks';
 
 const GOLD = '#8a7650';
 const GOLD_DIM = '#4a3f2c';
@@ -162,6 +163,8 @@ export function EquipmentPanel({ engine, c }: { engine: GameEngine; c: Candidate
 
   const [failed3d, setFailed3d] = useState(false);
   const show3d = useMemo(() => engine.settings.view3d && canRender3D(), [engine.settings.view3d]) && !failed3d;
+  const wornKey = JSON.stringify(c.equipment);
+  const gear = useMemo(() => gearLookOf(c.equipment), [wornKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const pickSlot = (k: GearSlotKey) => { setSlotKey(k); setItemId(null); };
   const cell = (k: GearSlotKey, w = 62, h = 62) => (
     <View key={k} style={{ alignItems: 'center', gap: 2 }}>
@@ -192,7 +195,7 @@ export function EquipmentPanel({ engine, c }: { engine: GameEngine; c: Candidate
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ width: 132, height: 172, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: GOLD_DIM }}>
             {show3d ? (
-              <HeroPreview3D id={c.id} width={132} height={172} onFail={() => setFailed3d(true)} />
+              <HeroPreview3D id={c.id} width={132} height={172} gear={gear} onFail={() => setFailed3d(true)} />
             ) : (
               <Avatar id={c.id} size={172} radius={0} style={{ width: 132, height: 172 }} />
             )}

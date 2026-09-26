@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine, TurnActionKey } from '../engine/GameEngine';
@@ -17,6 +17,7 @@ import { fieldGeometry } from '../combat/perspective';
 import { BATTLE_THEMES, BattleBackdrop, BattleParticles } from '../components/BattleBackdrop';
 import { Battle3D, canRender3D } from '../battle3d/Battle3D';
 import { ARENA_CHAMPION, MONSTER_LOOKS } from '../battle3d/monsterLooks';
+import { gearLookOf } from '../battle3d/gearLooks';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
   attack: 'sword',
@@ -58,6 +59,8 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const [failed3d, setFailed3d] = useState(false);
   const [webgl] = useState(canRender3D);
   const use3d = engine.settings.view3d && webgl && !failed3d;
+  // Gear can't change mid-fight, so the heroes' worn looks are worked out once.
+  const heroGear = useMemo(() => Object.fromEntries(engine.pool.map((c) => [c.id, gearLookOf(c.equipment)])), [engine]);
   const s = engine.sim!;
 
   const bossPct = Math.max(0, (s.boss.hp / s.boss.maxHp) * 100);
@@ -326,7 +329,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               bossArt={bossArt} roomArt={roomArt ? { brute: MONSTER_ART[roomArt.brute], archer: MONSTER_ART[roomArt.archer], shaman: MONSTER_ART[roomArt.shaman] } : undefined}
               bossMonster={engine.inArena ? ARENA_CHAMPION : dungeonForArt && BOSS_ART[dungeonForArt.id] ? MONSTER_LOOKS[BOSS_ART[dungeonForArt.id]] : undefined}
               roomMonsters={roomArt ? { brute: MONSTER_LOOKS[roomArt.brute], archer: MONSTER_LOOKS[roomArt.archer], shaman: MONSTER_LOOKS[roomArt.shaman] } : undefined}
-              focusId={focusId} current={current} reachable={reachableCells}
+              focusId={focusId} current={current} reachable={reachableCells} heroGear={heroGear}
               onFail={(e) => { console.warn('3D battlefield failed, falling back to 2.5D', e); setFailed3d(true); }}
             />
           ) : (

@@ -1,25 +1,30 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { PanResponder, View } from 'react-native';
+import { PanResponder, Platform, View } from 'react-native';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from './r3f';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
 import { MODEL_HEIGHT, SHEET_MODELS } from './heroFigures';
 import { Guard } from './Battle3D';
+import { GearLook, withGear } from './gearLooks';
 
 // A hero on a pedestal for the equipment sheet: turns slowly on its own,
 // follows a horizontal drag, and shows off its attack when tapped.
 
+/** Dragging to turn the hero shouldn't select the page's text on web. */
+const NO_SELECT = Platform.OS === 'web' ? ({ userSelect: 'none' } as object) : null;
+
 interface Spin { yaw: number; dragging: boolean; tap: boolean }
 
-function actionFor(id: number): HeroAnim['kind'] {
-  const w = HERO_LOOKS[id]?.weapon;
+function actionFor(id: number, gear?: GearLook): HeroAnim['kind'] {
+  const base = HERO_LOOKS[id];
+  const w = base ? withGear(base, gear).weapon : undefined;
   if (w === 'bow' || w === 'flask') return 'ranged';
-  if (w === 'staff' || w === 'orb') return 'ability';
+  if (w === 'staff' || w === 'orb' || w === 'book') return 'ability';
   return 'melee';
 }
 
-function Stage({ id, spin }: { id: number; spin: React.MutableRefObject<Spin> }) {
+function Stage({ id, spin, gear }: { id: number; spin: React.MutableRefObject<Spin>; gear?: GearLook }) {
   const look = HERO_LOOKS[id];
   const sheet = SHEET_MODELS[id];
   const h = sheet ? sheet.height : look ? MODEL_HEIGHT[look.build] : 1.1;
@@ -31,7 +36,7 @@ function Stage({ id, spin }: { id: number; spin: React.MutableRefObject<Spin> })
   }, [camera, h]);
   const turn = useRef<THREE.Group>(null);
   const anim = useRef<HeroAnim>({ kind: '', at: -99, hit: -99, deadAt: -1, alive: true, defending: false, speed: 0, frozen: false });
-  const kind = useMemo(() => actionFor(id), [id]);
+  const kind = useMemo(() => actionFor(id, gear), [id, gear]);
 
   useFrame((st, dt) => {
     const s = spin.current;
@@ -53,16 +58,16 @@ function Stage({ id, spin }: { id: number; spin: React.MutableRefObject<Spin> })
       </mesh>
       <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[h * 0.36, h * 0.41, 32]} />
-        <meshBasicMaterial color="#8a7650" />
+        <meshBasicMaterial color={gear?.best ?? '#8a7650'} />
       </mesh>
       <group ref={turn}>
-        {sheet ? <sheet.Model anim={anim} /> : look ? <HeroModel look={look} anim={anim} /> : null}
+        {sheet ? <sheet.Model anim={anim} gear={gear} /> : look ? <HeroModel look={look} anim={anim} gear={gear} /> : null}
       </group>
     </>
   );
 }
 
-export function HeroPreview3D({ id, width, height, onFail }: { id: number; width: number; height: number; onFail: (e: unknown) => void }) {
+export function HeroPreview3D({ id, width, height, onFail, gear }: { id: number; width: number; height: number; onFail: (e: unknown) => void; gear?: GearLook }) {
   const spin = useRef<Spin>({ yaw: 0.5, dragging: false, tap: false });
   const startYaw = useRef(0);
   const pan = useMemo(() => PanResponder.create({
@@ -79,10 +84,10 @@ export function HeroPreview3D({ id, width, height, onFail }: { id: number; width
   }), []);
   const camera = useMemo(() => ({ position: [0, 0.8, 2.8] as [number, number, number], fov: 30, near: 0.05, far: 50 }), []);
   return (
-    <View testID="hero-3d" style={{ width, height }}>
+    <View testID="hero-3d" style={[{ width, height }, NO_SELECT]}>
       <Guard onFail={onFail}>
         <Canvas camera={camera} style={{ flex: 1 }} gl={{ antialias: true }}>
-          <Stage id={id} spin={spin} />
+          <Stage id={id} spin={spin} gear={gear} />
         </Canvas>
       </Guard>
       <View {...pan.panHandlers} style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }} />

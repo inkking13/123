@@ -6,7 +6,7 @@ export type Hair = 'short' | 'long' | 'mohawk' | 'none';
 export type Beard = 'none' | 'short' | 'long';
 export type HeadGear = 'none' | 'hood' | 'maskHood';
 export type Outfit = 'plate' | 'robe' | 'leather' | 'bare';
-export type Weapon = 'sword' | 'axe' | 'mace' | 'greatAxe' | 'greatHammer' | 'dagger' | 'staff' | 'bow' | 'flask' | 'orb' | 'claws' | 'trident';
+export type Weapon = 'sword' | 'axe' | 'mace' | 'greatAxe' | 'greatHammer' | 'dagger' | 'staff' | 'bow' | 'flask' | 'orb' | 'claws' | 'trident' | 'scythe' | 'flail' | 'book';
 export type OffHand = 'none' | 'roundShield' | 'kiteShield' | 'towerShield' | 'dagger' | 'flask';
 
 export interface HeroLook {

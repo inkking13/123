@@ -1,7 +1,8 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from './r3f';
 import { HeroLook } from './heroLooks';
+import { GearLook, TWO_HANDED, withGear } from './gearLooks';
 
 // A low-poly hero built from primitives: faceted, flat-shaded, no textures.
 // It is a small skeleton of pivots (hips, knees, shoulders, elbows, neck) so
@@ -115,6 +116,22 @@ function WeaponMesh({ look, mats }: { look: HeroLook; mats: Mats }) {
     case 'orb': return (<>
       <Part g={G.ico1} m={mats.glow} p={[0, 0.08, 0.02]} s={[0.07, 0.07, 0.07]} />
     </>);
+    case 'scythe': return (<>
+      <Part g={G.cyl} m={mats.wood} p={[0, 0.25, 0]} s={[0.022, 0.95, 0.022]} />
+      <Part g={G.box} m={look.glow ? mats.glow : mats.metal} p={[0.13, 0.68, 0]} s={[0.3, 0.05, 0.012]} r={[0, 0, -0.35]} />
+      <Part g={G.cone4} m={look.glow ? mats.glow : mats.metal} p={[0.29, 0.6, 0]} s={[0.03, 0.1, 0.01]} r={[0, 0, -2.2]} />
+    </>);
+    case 'flail': return (<>
+      <Part g={G.cyl} m={mats.wood} p={[0, 0.1, 0]} s={[0.02, 0.28, 0.02]} />
+      <Part g={G.cyl} m={mats.dark} p={[0.04, 0.26, 0]} s={[0.008, 0.14, 0.008]} r={[0, 0, -0.6]} />
+      <Part g={G.ico} m={mats.metal} p={[0.09, 0.31, 0]} s={[0.06, 0.06, 0.06]} />
+      <Part g={G.cone} m={mats.metal} p={[0.09, 0.38, 0]} s={[0.02, 0.05, 0.02]} />
+      <Part g={G.cone} m={mats.metal} p={[0.16, 0.31, 0]} s={[0.02, 0.05, 0.02]} r={[0, 0, -Math.PI / 2]} />
+    </>);
+    case 'book': return (<>
+      <Part g={G.box} m={mats.secondary} p={[0, 0.06, 0.02]} s={[0.14, 0.17, 0.05]} />
+      <Part g={G.box} m={mats.glow} p={[0, 0.06, 0.047]} s={[0.05, 0.05, 0.006]} />
+    </>);
   }
 }
 
@@ -149,8 +166,8 @@ function OffHandMesh({ look, mats }: { look: HeroLook; mats: Mats }) {
   }
 }
 
-function Head({ look, mats }: { look: HeroLook; mats: Mats }) {
-  const hood = look.headGear !== 'none';
+function Head({ look, mats, helm }: { look: HeroLook; mats: Mats; helm?: React.ReactNode }) {
+  const hood = look.headGear !== 'none' && !helm;
   return (
     <>
       <Part g={G.ico} m={mats.skin} s={[0.105, 0.115, 0.105]} />
@@ -182,33 +199,161 @@ function Head({ look, mats }: { look: HeroLook; mats: Mats }) {
         <Part g={G.cone} m={mats.dark} p={[0.06, 0.13, -0.02]} s={[0.025, 0.12, 0.025]} r={[-0.5, 0, -0.4]} />
         <Part g={G.cone} m={mats.dark} p={[-0.06, 0.13, -0.02]} s={[0.025, 0.12, 0.025]} r={[-0.5, 0, 0.4]} />
       </>) : null}
-      {!hood && look.hairStyle === 'short' ? <Part g={G.ico} m={mats.hair} p={[0, 0.05, -0.02]} s={[0.112, 0.085, 0.112]} /> : null}
-      {!hood && look.hairStyle === 'long' ? (<>
+      {helm}
+      {!hood && !helm && look.hairStyle === 'short' ? <Part g={G.ico} m={mats.hair} p={[0, 0.05, -0.02]} s={[0.112, 0.085, 0.112]} /> : null}
+      {!hood && !helm && look.hairStyle === 'long' ? (<>
         <Part g={G.ico} m={mats.hair} p={[0, 0.05, -0.02]} s={[0.114, 0.088, 0.114]} />
         <Part g={G.box} m={mats.hair} p={[0, -0.09, -0.07]} s={[0.19, 0.24, 0.07]} />
       </>) : null}
-      {!hood && look.hairStyle === 'mohawk' ? <Part g={G.box} m={mats.hair} p={[0, 0.11, -0.01]} s={[0.035, 0.08, 0.19]} /> : null}
+      {!hood && !helm && look.hairStyle === 'mohawk' ? <Part g={G.box} m={mats.hair} p={[0, 0.11, -0.01]} s={[0.035, 0.08, 0.19]} /> : null}
       {look.beard === 'short' ? <Part g={G.box} m={mats.hair} p={[0, -0.075, 0.06]} s={[0.13, 0.07, 0.07]} /> : null}
       {look.beard === 'long' ? <Part g={G.cone} m={mats.hair} p={[0, -0.15, 0.065]} s={[0.085, 0.22, 0.06]} r={[Math.PI, 0, 0]} /> : null}
       {hood ? (<>
         <Part g={G.cone} m={look.headGear === 'maskHood' ? mats.dark : mats.primary} p={[0, 0.06, -0.02]} s={[0.15, 0.22, 0.155]} />
         <Part g={G.box} m={look.headGear === 'maskHood' ? mats.dark : mats.primary} p={[0, -0.05, -0.08]} s={[0.24, 0.2, 0.08]} />
       </>) : null}
-      {look.headGear === 'maskHood' ? <Part g={G.box} m={mats.dark} p={[0, -0.045, 0.085]} s={[0.17, 0.08, 0.03]} /> : null}
+      {hood && look.headGear === 'maskHood' ? <Part g={G.box} m={mats.dark} p={[0, -0.045, 0.085]} s={[0.17, 0.08, 0.03]} /> : null}
+    </>
+  );
+}
+
+
+// ── Worn gear drawn over the rig ─────────────────────────────────────────
+
+const GEAR_BASE: Record<string, string> = {
+  leather: '#6a4a30', chain: '#8e949c', plate: '#b4b9c0', cloak: '#2c2830', bone: '#dcd2bc', scale: '#3f6e56',
+};
+
+interface GearMats {
+  of: (color: string) => THREE.MeshLambertMaterial;
+  glowOf: (color: string) => THREE.MeshBasicMaterial;
+  list: THREE.Material[];
+}
+
+function makeGearMats(): GearMats {
+  const lam = new Map<string, THREE.MeshLambertMaterial>();
+  const glo = new Map<string, THREE.MeshBasicMaterial>();
+  const list: THREE.Material[] = [];
+  return {
+    of: (c) => { let m = lam.get(c); if (!m) { m = new THREE.MeshLambertMaterial({ color: c, flatShading: true }); lam.set(c, m); list.push(m); } return m; },
+    glowOf: (c) => { let m = glo.get(c); if (!m) { m = new THREE.MeshBasicMaterial({ color: c, toneMapped: false }); glo.set(c, m); list.push(m); } return m; },
+    list,
+  };
+}
+
+function HelmMesh({ gear, gm }: { gear: NonNullable<GearLook['helm']>; gm: GearMats }) {
+  const trim = gm.of(gear.rarity);
+  switch (gear.kind) {
+    case 'cap': return (<>
+      <Part g={G.ico1} m={gm.of('#8e949c')} p={[0, 0.045, -0.01]} s={[0.122, 0.095, 0.124]} />
+      <Part g={G.disc} m={gear.rich ? trim : gm.of('#6e737a')} p={[0, 0.01, -0.01]} s={[0.126, 0.022, 0.128]} />
+    </>);
+    case 'nasal': return (<>
+      <Part g={G.ico1} m={gm.of('#a8adb4')} p={[0, 0.045, -0.01]} s={[0.124, 0.1, 0.126]} />
+      <Part g={G.disc} m={trim} p={[0, 0.01, -0.01]} s={[0.128, 0.024, 0.13]} />
+      <Part g={G.box} m={gm.of('#a8adb4')} p={[0, -0.02, 0.112]} s={[0.022, 0.08, 0.02]} />
+      <Part g={G.box} m={trim} p={[0, 0.12, -0.01]} s={[0.02, 0.05, 0.16]} />
+    </>);
+    case 'horned': return (<>
+      <Part g={G.ico1} m={gm.of('#8a8e94')} p={[0, 0.045, -0.01]} s={[0.124, 0.1, 0.126]} />
+      <Part g={G.disc} m={trim} p={[0, 0.01, -0.01]} s={[0.128, 0.024, 0.13]} />
+      <Part g={G.cone} m={gm.of('#e6dcc6')} p={[0.12, 0.1, -0.01]} s={[0.03, 0.14, 0.03]} r={[0, 0, -0.9]} />
+      <Part g={G.cone} m={gm.of('#e6dcc6')} p={[-0.12, 0.1, -0.01]} s={[0.03, 0.14, 0.03]} r={[0, 0, 0.9]} />
+    </>);
+    case 'infernal': return (<>
+      <Part g={G.ico1} m={gm.of('#3a1c18')} p={[0, 0.01, 0]} s={[0.132, 0.14, 0.132]} />
+      <Part g={G.box} m={gm.glowOf('#ff4a2a')} p={[0.04, 0.015, 0.125]} s={[0.035, 0.014, 0.01]} />
+      <Part g={G.box} m={gm.glowOf('#ff4a2a')} p={[-0.04, 0.015, 0.125]} s={[0.035, 0.014, 0.01]} />
+      <Part g={G.cone} m={gm.of('#1c1010')} p={[0.1, 0.15, -0.03]} s={[0.035, 0.18, 0.035]} r={[-0.5, 0, -0.5]} />
+      <Part g={G.cone} m={gm.of('#1c1010')} p={[-0.1, 0.15, -0.03]} s={[0.035, 0.18, 0.035]} r={[-0.5, 0, 0.5]} />
+      <Part g={G.disc} m={trim} p={[0, -0.06, 0]} s={[0.134, 0.02, 0.134]} />
+    </>);
+    case 'plague': return (<>
+      <Part g={G.ico1} m={gm.of('#2a2624')} p={[0, 0.03, -0.01]} s={[0.13, 0.13, 0.13]} />
+      <Part g={G.cone} m={gm.of('#d8cfb8')} p={[0, -0.03, 0.2]} s={[0.04, 0.16, 0.04]} r={[Math.PI / 2 + 0.3, 0, 0]} />
+      <Part g={G.disc} m={gm.glowOf(gear.rarity)} p={[0.045, 0.02, 0.118]} s={[0.028, 0.01, 0.028]} r={[Math.PI / 2, 0, 0]} />
+      <Part g={G.disc} m={gm.glowOf(gear.rarity)} p={[-0.045, 0.02, 0.118]} s={[0.028, 0.01, 0.028]} r={[Math.PI / 2, 0, 0]} />
+      <Part g={G.cone} m={gm.of('#2a2624')} p={[0, 0.2, -0.02]} s={[0.1, 0.1, 0.1]} />
+    </>);
+  }
+}
+
+function ChestMesh({ gear, gm, W, torsoH, shoulderX }: { gear: NonNullable<GearLook['chest']>; gm: GearMats; W: number; torsoH: number; shoulderX: number }) {
+  const m = gm.of(GEAR_BASE[gear.kind]);
+  const trim = gm.of(gear.rarity);
+  const pauldrons = gear.kind === 'plate' || gear.kind === 'scale' || gear.kind === 'bone';
+  return (
+    <>
+      {gear.kind !== 'cloak' && gear.kind !== 'bone' ? <Part g={G.taper} m={m} p={[0, torsoH * 0.52, 0]} s={[0.182 * W, torsoH * 0.9, 0.132 * W]} /> : null}
+      {gear.kind === 'plate' ? <Part g={G.box} m={m} p={[0, torsoH * 0.62, 0.085 * W]} s={[0.26 * W, 0.17, 0.05]} /> : null}
+      {gear.kind === 'chain' ? <Part g={G.box} m={trim} p={[0, torsoH * 0.35, 0.13 * W]} s={[0.1 * W, torsoH * 0.8, 0.012]} /> : null}
+      {gear.kind === 'leather' ? <Part g={G.box} m={gm.of('#3a2618')} p={[0, torsoH * 0.5, 0.125 * W]} s={[0.035, 0.38, 0.02]} r={[0, 0, 0.7]} /> : null}
+      {gear.kind === 'bone' ? (<>
+        <Part g={G.box} m={gm.of('#4a3a2c')} p={[0, torsoH * 0.5, 0]} s={[0.35 * W, 0.03, 0.25 * W]} r={[0, 0, 0.6]} />
+        {[0.42, 0.56, 0.7].map((y) => <Part key={y} g={G.box} m={m} p={[0, torsoH * y, 0.12 * W]} s={[0.22 * W, 0.022, 0.02]} />)}
+      </>) : null}
+      {gear.kind === 'scale' ? [0.25, 0.45, 0.65].map((y) => (
+        <Part key={y} g={G.box} m={gm.of('#2e5a44')} p={[0, torsoH * y, 0.128 * W]} s={[0.24 * W, 0.02, 0.012]} />
+      )) : null}
+      {gear.kind === 'cloak' ? (<>
+        <Part g={G.box} m={m} p={[0, torsoH * 0.35, -0.12 * W]} s={[0.34 * W, 0.66, 0.02]} r={[0.12, 0, 0]} />
+        <Part g={G.ico} m={m} p={[0, torsoH + 0.01, -0.02]} s={[0.17 * W, 0.06, 0.12 * W]} />
+        <Part g={G.ico} m={trim} p={[0.07 * W, torsoH - 0.02, 0.09 * W]} s={[0.025, 0.025, 0.025]} />
+      </>) : null}
+      {pauldrons ? [1, -1].map((sx) => (
+        <group key={sx} position={[sx * shoulderX, torsoH - 0.005, 0]}>
+          <Part g={G.ico1} m={m} s={[0.095, 0.075, 0.1]} />
+          {gear.kind === 'bone'
+            ? <Part g={G.cone} m={m} p={[sx * 0.04, 0.08, 0]} s={[0.025, 0.12, 0.025]} r={[0, 0, -sx * 0.5]} />
+            : <Part g={G.disc} m={trim} p={[0, -0.035, 0]} s={[0.1, 0.018, 0.105]} />}
+        </group>
+      )) : null}
+      <Part g={G.box} m={trim} p={[0, 0.045, 0]} s={[0.29 * W, 0.028, 0.185 * W]} />
+    </>
+  );
+}
+
+function GloveMesh({ gear, gm }: { gear: NonNullable<GearLook['hands']>; gm: GearMats }) {
+  const base = gear.kind === 'plate' ? '#b4b9c0' : gear.kind === 'claw' ? '#3a3430' : '#5a3e28';
+  const m = gm.of(base);
+  return (
+    <>
+      <Part g={G.ico} m={m} p={[0, -0.2, 0]} s={[0.054, 0.054, 0.054]} />
+      <Part g={G.taper} m={m} p={[0, -0.15, 0]} s={[0.052, 0.07, 0.052]} r={[Math.PI, 0, 0]} />
+      <Part g={G.disc} m={gm.of(gear.rarity)} p={[0, -0.118, 0]} s={[0.054, 0.012, 0.054]} />
+      {gear.kind === 'claw' ? [-0.03, 0, 0.03].map((x) => (
+        <Part key={x} g={G.cone} m={gm.of('#e6dcc6')} p={[x, -0.28, 0.02]} s={[0.012, 0.08, 0.012]} r={[Math.PI, 0, 0]} />
+      )) : null}
+    </>
+  );
+}
+
+function BootMesh({ gear, gm, W, shin }: { gear: NonNullable<GearLook['feet']>; gm: GearMats; W: number; shin: number }) {
+  const base = gear.kind === 'plate' ? '#b4b9c0' : gear.kind === 'chain' ? '#8e949c' : '#5a3e28';
+  const m = gm.of(base);
+  return (
+    <>
+      <Part g={G.box} m={m} p={[0, -shin - 0.02, 0.035]} s={[0.1 * W, 0.066, 0.17]} />
+      <Part g={G.cyl} m={m} p={[0, -shin * 0.72, 0]} s={[0.056 * W, shin * 0.5, 0.056 * W]} />
+      <Part g={G.disc} m={gm.of(gear.rarity)} p={[0, -shin * 0.47, 0]} s={[0.06 * W, 0.016, 0.06 * W]} />
+      {gear.kind === 'plate' ? <Part g={G.ico} m={m} p={[0, -0.01, 0.045]} s={[0.05, 0.045, 0.04]} /> : null}
     </>
   );
 }
 
 /** Held upright along the body rather than pointed forward. */
-const UPRIGHT = new Set(['staff', 'orb', 'flask', 'trident']);
+const UPRIGHT = new Set(['staff', 'orb', 'flask', 'trident', 'book']);
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 /** 0→1→0 bump over [0, dur], peaking at `peak`. */
 const bump = (t: number, dur: number, peak = 0.35) => (t < 0 || t > dur ? 0 : t < dur * peak ? t / (dur * peak) : 1 - (t - dur * peak) / (dur * (1 - peak)));
 
-export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableRefObject<HeroAnim> }) {
+export function HeroModel({ look: baseLook, anim, gear }: { look: HeroLook; anim: React.MutableRefObject<HeroAnim>; gear?: GearLook }) {
+  const look = useMemo(() => withGear(baseLook, gear), [baseLook, gear]);
   const b = BUILD[look.build];
   const mats = useMemo(() => makeMats(look), [look]);
+  const gm = useMemo(makeGearMats, []);
+  useEffect(() => () => { gm.list.forEach((m) => m.dispose()); }, [gm]);
   const W = b.width;
   const thigh = 0.24 * b.legs; const shin = 0.22 * b.legs;
   const hipY = thigh + shin + 0.05;
@@ -217,7 +362,7 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
   const robe = look.outfit === 'robe';
   const plate = look.outfit === 'plate';
   const armMat = plate ? mats.metal : look.outfit === 'bare' ? mats.skin : mats.primary;
-  const twoHanded = look.weapon === 'greatAxe' || look.weapon === 'greatHammer';
+  const twoHanded = TWO_HANDED.has(look.weapon);
 
   const r = {
     fall: useRef<THREE.Group>(null), body: useRef<THREE.Group>(null), torso: useRef<THREE.Group>(null), head: useRef<THREE.Group>(null),
@@ -311,7 +456,7 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
 
     // hit flash / frozen tint / death grey
     const f = ht >= 0 && ht < 0.3 ? 1 - ht / 0.3 : 0;
-    for (const m of Object.values(mats)) {
+    for (const m of [...Object.values(mats), ...gm.list]) {
       if (m instanceof THREE.MeshLambertMaterial) {
         m.emissive.copy(a.frozen ? frozenCol : flashCol);
         m.emissiveIntensity = a.frozen ? 0.45 : f * 0.9;
@@ -335,6 +480,7 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
             <group ref={side === 'L' ? r.kneeL : r.kneeR} position={[0, -thigh, 0]}>
               <Part g={G.cyl} m={mats.secondary} p={[0, -shin / 2, 0]} s={[0.047 * W, shin, 0.047 * W]} />
               <Part g={G.box} m={mats.dark} p={[0, -shin - 0.02, 0.03]} s={[0.085 * W, 0.05, 0.15]} />
+              {gear?.feet ? <BootMesh gear={gear.feet} gm={gm} W={W} shin={shin} /> : null}
             </group>
           </group>
         ))}
@@ -351,6 +497,11 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
               <Part g={G.cone} m={mats.metal} p={[shoulderX, torsoH + 0.02, 0]} s={[0.04, 0.12, 0.04]} r={[0, 0, -0.5]} />
             </>) : null}
             <Part g={G.box} m={mats.secondary} p={[0, 0.02, 0]} s={[0.27 * W, 0.045, 0.17 * W]} />
+            {gear?.chest ? <ChestMesh gear={gear.chest} gm={gm} W={W} torsoH={torsoH} shoulderX={shoulderX} /> : null}
+            {gear?.amulet ? (<>
+              <Part g={G.cyl} m={mats.dark} p={[0, torsoH * 0.86, 0.1 * W]} s={[0.006, 0.08, 0.006]} r={[0.3, 0, 0]} />
+              <Part g={G.ico} m={gm.glowOf(gear.amulet)} p={[0, torsoH * 0.74, 0.135 * W]} s={[0.028, 0.034, 0.02]} />
+            </>) : null}
             {look.skeleton && look.outfit === 'bare' ? [0.12, 0.19, 0.26].map((y) => (
               <Part key={y} g={G.box} m={mats.dark} p={[0, y, 0.1 * W]} s={[0.2 * W, 0.018, 0.02]} />
             )) : null}
@@ -375,7 +526,7 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
             ) : (<>
               <Part g={G.cyl} m={mats.skin} p={[0, torsoH + 0.03, 0]} s={[0.045, 0.07, 0.045]} />
               <group ref={r.head} position={[0, torsoH + 0.14, 0]} scale={[b.head, b.head, b.head]}>
-                <Head look={look} mats={mats} />
+                <Head look={look} mats={mats} helm={gear?.helm && !look.headless ? <HelmMesh gear={gear.helm} gm={gm} /> : undefined} />
               </group>
             </>)}
             {look.flies ? (
@@ -392,6 +543,8 @@ export function HeroModel({ look, anim }: { look: HeroLook; anim: React.MutableR
                 <group ref={side === 'L' ? r.elbowL : r.elbowR} position={[0, -0.2, 0]}>
                   <Part g={G.cyl} m={look.outfit === 'bare' ? mats.skin : plate ? mats.metal : mats.primary} p={[0, -0.09, 0]} s={[0.04, 0.18, 0.04]} />
                   <Part g={G.ico} m={plate ? mats.secondary : mats.skin} p={[0, -0.2, 0]} s={look.weapon === 'claws' ? [0.06, 0.06, 0.06] : [0.043, 0.043, 0.043]} />
+                  {gear?.hands ? <GloveMesh gear={gear.hands} gm={gm} /> : null}
+                  {side === 'L' && gear?.ring ? <Part g={G.ico} m={gm.glowOf(gear.ring)} p={[0.03, -0.22, 0.03]} s={[0.014, 0.014, 0.014]} /> : null}
                   {look.weapon === 'claws' ? [-0.03, 0, 0.03].map((x) => (
                     <Part key={x} g={G.cone} m={mats.eye} p={[x, -0.28, 0.02]} s={[0.012, 0.08, 0.012]} r={[Math.PI, 0, 0]} />
                   )) : null}
