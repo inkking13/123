@@ -42,7 +42,12 @@ function Stage({ id, spin, gear }: { id: number; spin: React.MutableRefObject<Sp
   useFrame((st, dt) => {
     const s = spin.current;
     if (!s.dragging) s.yaw += dt * 0.35;
-    if (s.tap) { s.tap = false; anim.current.kind = kind; anim.current.at = st.clock.elapsedTime; }
+    if (s.tap) {
+      s.tap = false;
+      // Models with a dance clip alternate: action, then a dance on the next tap.
+      const next = sheet?.dance && anim.current.kind === kind ? 'dance' : kind;
+      anim.current.kind = next; anim.current.at = st.clock.elapsedTime;
+    }
     if (turn.current) turn.current.rotation.y = s.yaw;
   });
 
