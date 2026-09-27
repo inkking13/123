@@ -9,23 +9,50 @@ import { HeroAnim, HeroModel } from './HeroModel';
 import { GearLook, withGear } from './gearLooks';
 import { HERO_LOOKS } from './heroLooks';
 
-// The elf base body from Meshy: a rigged (Mixamo skeleton) biped with its own
-// walk, run, spell-cast and dance clips, merged from the four uploaded
-// Meshy exports into assets/models/elf.glb (textures shrunk to 1K JPEG).
+// Race base bodies from Meshy: rigged (Mixamo skeleton) bipeds with their
+// own animation clips. Each race's uploaded exports (one GLB per clip, same
+// mesh) are merged into one file in assets/models with 1K JPEG textures.
 // Unlike Vex, nothing here is procedural: the clips drive the skeleton and
 // the hero's weapon rides the hand bones.
 
-const ELF_GLB = require('../../assets/models/elf.glb');
-const ELF_URL: string = Platform.OS === 'web' ? Asset.fromModule(ELF_GLB).uri : ELF_GLB;
+const url = (mod: number): string => (Platform.OS === 'web' ? Asset.fromModule(mod).uri : (mod as unknown as string));
 
-/** Model units: 1.7 tall, feet at y = 0, facing +Z. */
+/** Which clip of the file plays for each thing a hero does. */
+interface Body {
+  url: string;
+  /** Standing height in the game; every Meshy export is 1.7 units tall, feet at 0, facing +Z. */
+  height: number;
+  idle: string | { clip: string; frame: number };
+  walk: string;
+  run: string;
+  /** Per action kind (melee, ranged, ability, heal, rally), falling back to `default`. */
+  act: Partial<Record<string, string>> & { default: string };
+  /** Clip speed-up per clip, so long Meshy clips fit a turn. */
+  speed?: Record<string, number>;
+  /** Looped while defending. */
+  guard?: string;
+  /** Second tap on the equipment preview. */
+  flourish?: string;
+}
+
+export const BODIES = {
+  // Female elf: walk, run, spell cast, dance. No idle clip: the walk's first frame, held.
+  elf: {
+    url: url(require('../../assets/models/elf.glb')), height: 1.2,
+    idle: { clip: 'walk', frame: 0 }, walk: 'walk', run: 'run', act: { default: 'cast' }, flourish: 'dance',
+  },
+  // Braided dwarf: breathing idle, shield bash, war cry, shield-up alert.
+  dwarf: {
+    url: url(require('../../assets/models/dwarf.glb')), height: 1.0,
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'bash', rally: 'shout', ability: 'shout' },
+    speed: { bash: 1.5, shout: 2.2 }, guard: 'alert', flourish: 'shout',
+  },
+} satisfies Record<string, Body>;
+export type BodyName = keyof typeof BODIES;
+
 const MODEL_H = 1.7;
-export const ELF_HEIGHT = 1.2;
-const SCALE = ELF_HEIGHT / MODEL_H;
-/** How long an action plays the cast clip, seconds. */
-const ACTION_S = 1.1;
-
-type Clip = 'idle' | 'walk' | 'run' | 'cast' | 'dance';
+/** How long an action holds its clip before blending back, seconds. */
+const ACTION_S = 1.4;
 
 function weaponMesh(kind: string | undefined, glow: string, metal: string): THREE.Object3D | null {
   const g = new THREE.Group();
@@ -40,6 +67,14 @@ function weaponMesh(kind: string | undefined, glow: string, metal: string): THRE
     const string = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 2 * R * Math.sin(half), 4), new THREE.MeshBasicMaterial({ color: '#d8d2c0' }));
     string.position.x = R * (1 - Math.cos(half));
     g.add(limb, string);
+    return g;
+  }
+  if (kind === 'axe') {
+    const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.62, 8), new THREE.MeshLambertMaterial({ color: '#5a3e26' }));
+    haft.position.y = 0.2;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.16, 0.025), new THREE.MeshLambertMaterial({ color: metal }));
+    head.position.set(0.1, 0.44, 0);
+    g.add(haft, head);
     return g;
   }
   if (kind === 'orb' || kind === 'staff' || kind === 'flask') {
@@ -58,8 +93,23 @@ function weaponMesh(kind: string | undefined, glow: string, metal: string): THRE
   return null;
 }
 
-function Elf({ id, anim, gear }: { id: number; anim: React.MutableRefObject<HeroAnim>; gear?: GearLook }) {
-  const gltf = useLoader(GLTFLoader, ELF_URL as any) as unknown as { scene: THREE.Group; animations: THREE.AnimationClip[] };
+function shieldMesh(color: string, metal: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const face = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.03, 20), new THREE.MeshLambertMaterial({ color }));
+  const boss = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshLambertMaterial({ color: metal }));
+  boss.position.y = 0.02;
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.015, 6, 24), new THREE.MeshLambertMaterial({ color: metal }));
+  rim.rotation.x = Math.PI / 2;
+  g.add(face, boss, rim);
+  // Strapped to the back of the hand, facing out from the palm.
+  g.rotation.z = Math.PI / 2;
+  g.position.set(-0.06, 0.06, 0);
+  return g;
+}
+
+function Meshy({ id, body: B, anim, gear }: { id: number; body: Body; anim: React.MutableRefObject<HeroAnim>; gear?: GearLook }) {
+  const gltf = useLoader(GLTFLoader, B.url as any) as unknown as { scene: THREE.Group; animations: THREE.AnimationClip[] };
+  const SCALE = B.height / MODEL_H;
   const look = useMemo(() => (HERO_LOOKS[id] ? withGear(HERO_LOOKS[id], gear) : null), [id, gear]);
   const rig = useMemo(() => {
     const scene = cloneSkinned(gltf.scene) as THREE.Group;
@@ -81,18 +131,18 @@ function Elf({ id, anim, gear }: { id: number; anim: React.MutableRefObject<Hero
       }
     });
     const mixer = new THREE.AnimationMixer(scene);
-    const byName = (n: string) => gltf.animations.find((c) => c.name === n);
-    const actions = {} as Record<Clip, THREE.AnimationAction>;
-    const walk = byName('walk')!;
-    // Standing pose: the walk's first frame, held.
-    const idleClip = walk.clone(); idleClip.name = 'idle';
-    actions.idle = mixer.clipAction(idleClip);
-    actions.walk = mixer.clipAction(walk);
-    actions.run = mixer.clipAction(byName('run')!);
-    actions.cast = mixer.clipAction(byName('cast')!);
-    actions.dance = mixer.clipAction(byName('dance')!);
-    actions.idle.timeScale = 0;
-    for (const a of Object.values(actions)) { a.play(); a.setEffectiveWeight(0); }
+    const actions: Record<string, THREE.AnimationAction> = {};
+    for (const c of gltf.animations) actions[c.name] = mixer.clipAction(c);
+    if (typeof B.idle === 'string') actions.idle = actions[B.idle];
+    else {
+      // A held frame of another clip; cloned so it runs as its own action.
+      const still = gltf.animations.find((c) => c.name === (B.idle as { clip: string }).clip)!.clone();
+      still.name = 'idle';
+      actions.idle = mixer.clipAction(still);
+      actions.idle.timeScale = 0;
+      actions.idle.time = (B.idle as { frame: number }).frame;
+    }
+    for (const [name, a] of Object.entries(actions)) { a.timeScale = name === 'idle' && typeof B.idle !== 'string' ? 0 : B.speed?.[name] ?? 1; a.play(); a.setEffectiveWeight(0); }
     actions.idle.setEffectiveWeight(1);
     return { scene, materials, mixer, actions, spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
@@ -100,21 +150,23 @@ function Elf({ id, anim, gear }: { id: number; anim: React.MutableRefObject<Hero
   // The hero's weapon in hand: bows in the left, everything else in the right.
   useEffect(() => {
     if (!look) return;
+    const held: [THREE.Object3D, THREE.Bone | null][] = [];
     const w = weaponMesh(look.weapon, gear?.weapon?.glow ?? look.glow ?? '#ffffff', look.metal);
-    const hand = look.weapon === 'bow' ? rig.handL : rig.handR;
-    if (!w || !hand) return;
+    if (w) held.push([w, look.weapon === 'bow' ? rig.handL : rig.handR]);
+    if (look.offHand === 'roundShield' || look.offHand === 'kiteShield' || look.offHand === 'towerShield') held.push([shieldMesh(look.shieldColor ?? look.secondary, look.metal), rig.handL]);
     // Bones are in model units (metres); the hand bone points down the fingers (+Y).
-    hand.add(w);
-    return () => {
-      w.removeFromParent();
-      w.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } });
-    };
+    for (const [o, hand] of held) hand?.add(o);
+    return () => held.forEach(([o]) => {
+      o.removeFromParent();
+      o.traverse((x) => { const m = x as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } });
+    });
   }, [rig, look, gear?.weapon?.glow]);
 
   useEffect(() => () => { rig.mixer.stopAllAction(); rig.materials.forEach((m) => m.dispose()); }, [rig]);
 
   const fallRef = useRef<THREE.Group>(null);
-  const weights = useRef<Record<Clip, number>>({ idle: 1, walk: 0, run: 0, cast: 0, dance: 0 });
+  const weights = useRef<Record<string, number>>({ idle: 1 });
+  const playing = useRef('');
   const lastAt = useRef(-99);
   const flashCol = useMemo(() => new THREE.Color('#ff4a3a'), []);
   const frozenCol = useMemo(() => new THREE.Color('#9fd6ff'), []);
@@ -125,21 +177,24 @@ function Elf({ id, anim, gear }: { id: number; anim: React.MutableRefObject<Hero
     // A fresh action restarts its clip from the top.
     if (a.at !== lastAt.current && a.kind) {
       lastAt.current = a.at;
-      const clip = a.kind === 'dance' ? A.dance : A.cast;
-      clip.reset().play();
+      playing.current = a.kind === 'dance' ? B.flourish ?? B.act.default : B.act[a.kind] ?? B.act.default;
+      A[playing.current]?.reset().play();
     }
     const at = t - a.at;
-    let want: Clip = 'idle';
-    if (a.kind === 'dance' && at < A.dance.getClip().duration) want = 'dance';
-    else if (a.kind && at < ACTION_S) want = 'cast';
-    else if (a.speed > 1.6) want = 'run';
-    else if (a.speed > 0.05) want = 'walk';
+    const cur = A[playing.current];
+    let want = 'idle';
+    if (a.kind === 'dance' && cur && at < cur.getClip().duration / cur.timeScale) want = playing.current;
+    else if (a.kind && a.kind !== 'dance' && at < ACTION_S) want = playing.current;
+    else if (a.defending && B.guard) want = B.guard;
+    else if (a.speed > 1.6) want = B.run;
+    else if (a.speed > 0.05) want = B.walk;
     if (!a.alive || a.frozen) want = 'idle';
-    A.walk.timeScale = Math.max(0.6, Math.min(1.6, a.speed / 0.9));
+    A[B.walk].timeScale = Math.max(0.6, Math.min(1.6, a.speed / 0.9));
     const k = 1 - Math.exp(-dt * 10);
-    for (const c of Object.keys(weights.current) as Clip[]) {
+    weights.current[want] ??= 0;
+    for (const c of Object.keys(weights.current)) {
       weights.current[c] += ((c === want ? 1 : 0) - weights.current[c]) * k;
-      A[c].setEffectiveWeight(weights.current[c]);
+      A[c]?.setEffectiveWeight(weights.current[c]);
     }
     rig.mixer.update(a.frozen ? 0 : dt);
 
@@ -147,7 +202,7 @@ function Elf({ id, anim, gear }: { id: number; anim: React.MutableRefObject<Hero
     if (rig.spine) {
       const ht = t - a.hit;
       let x = weights.current.idle * 0.02 * Math.sin(t * 2.2);
-      if (a.defending) x += 0.25;
+      if (a.defending && !B.guard) x += 0.25;
       if (ht >= 0 && ht < 0.35) x -= 0.35 * (1 - ht / 0.35);
       rig.spine.rotation.x += x;
     }
@@ -177,18 +232,18 @@ function Elf({ id, anim, gear }: { id: number; anim: React.MutableRefObject<Hero
 class Fallback extends Component<{ fallback: React.ReactNode; children: React.ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(e: unknown) { console.warn('Elf model failed, using the built hero', e); }
+  componentDidCatch(e: unknown) { console.warn('Meshy model failed, using the built hero', e); }
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 
-/** A sheet model for one elf hero, by candidate id. */
-export function elfModel(id: number) {
-  return function ElfHero(props: { anim: React.MutableRefObject<HeroAnim>; gear?: GearLook }) {
+/** A sheet model for one hero on a race body, by candidate id. */
+export function meshyModel(id: number, body: BodyName) {
+  return function MeshyHero(props: { anim: React.MutableRefObject<HeroAnim>; gear?: GearLook }) {
     const fallback = HERO_LOOKS[id] ? <HeroModel look={HERO_LOOKS[id]} {...props} /> : null;
     return (
       <Fallback fallback={fallback}>
         <React.Suspense fallback={fallback}>
-          <Elf id={id} {...props} />
+          <Meshy id={id} body={BODIES[body]} {...props} />
         </React.Suspense>
       </Fallback>
     );
