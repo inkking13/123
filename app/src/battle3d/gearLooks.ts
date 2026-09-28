@@ -37,7 +37,7 @@ const WEAPON: Record<string, Weapon> = {
 const WEAPON_GLOW: Record<string, string> = { 'rw-enchant1': '#8a6aff', 'rw-enchant2': '#ff7a2a', 'uw-charfields': '#ff9a4a' };
 const HELM: Record<string, HelmKind> = { h1: 'cap', h2: 'nasal', h3: 'horned', h4: 'cap', 'uh-parishruins': 'infernal', 'uh-desertersfort': 'plague' };
 /** Helmets drawn with a Meshy model instead of the built piece. */
-const HELM_MODEL: Record<string, HelmModelName> = { h2: 'knight', h4: 'veil', 'uh-desertersfort': 'warden' };
+const HELM_MODEL: Record<string, HelmModelName> = { h2: 'knight', h3: 'viking', h4: 'veil', 'uh-desertersfort': 'warden' };
 const CHEST: Record<string, ChestKind> = {
   a1: 'leather', a2: 'chain', a3: 'plate', a4: 'plate', a5: 'plate',
   'ua-road': 'cloak', 'ua-wolfrifts': 'bone', 'ua-parishruins': 'plate', 'ua-debtorsjail': 'plate', 'ua-smugglercatacombs': 'cloak',

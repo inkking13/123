@@ -21,6 +21,8 @@ export const HELM_MODELS = {
   veil: { url: url(require('../../assets/models/helm-veil.glb')), crown: 0.84, eye: 0.3, z: 0.05, open: -0.2 },
   // Ragged, strapped hood and mantle over a covered face.
   warden: { url: url(require('../../assets/models/helm-warden.glb')), crown: 0.84, eye: 0.35, z: 0.05, open: 0 },
+  // Iron dome with brass bands, a nasal, cheek guards and a pair of horns; the face is open.
+  viking: { url: url(require('../../assets/models/helm-viking.glb')), crown: 0.58, eye: -0.17, z: 0, open: -0.9 },
 };
 export type HelmModelName = keyof typeof HELM_MODELS;
 
