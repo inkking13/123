@@ -17,7 +17,7 @@ export function GearScreen({ engine }: { engine: GameEngine }) {
   const cur = chosen.find((c) => c.id === pickId) || chosen[0];
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 16, paddingBottom: 110 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <GhostLink label="Отряд" icon="arrow-left" onPress={() => engine.go('roster')} />
@@ -46,8 +46,8 @@ export function GearScreen({ engine }: { engine: GameEngine }) {
       </ScrollView>
 
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-        <LinearGradient colors={['rgba(22,24,38,0)', colors.bg]} style={{ height: 30 }} />
-        <View style={{ backgroundColor: colors.bg, paddingHorizontal: 16, paddingTop: 4, paddingBottom: Math.max(20, insets.bottom + 12) }}>
+        <LinearGradient colors={['rgba(14,15,24,0)', 'rgba(14,15,24,0.9)']} style={{ height: 30 }} />
+        <View style={{ backgroundColor: 'rgba(14,15,24,0.9)', paddingHorizontal: 16, paddingTop: 4, paddingBottom: Math.max(20, insets.bottom + 12) }}>
           <PrimaryButton label="В подземелье" icon="door-open" onPress={() => engine.goDungeon()} />
         </View>
       </View>

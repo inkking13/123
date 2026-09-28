@@ -17,7 +17,7 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
 
   if (!vm) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20 }}>
           <GhostLink label="Назад" icon="arrow-left" onPress={() => engine.go('char')} />
           <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 20, fontFamily: font.regular }}>
@@ -32,7 +32,7 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
   const recipes = engine.recipesVM(cc);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <GhostLink label={cc.name} icon="arrow-left" onPress={() => engine.go('char')} />
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, marginTop: 16, fontFamily: font.regular }}>Прокачка профессии</Text>

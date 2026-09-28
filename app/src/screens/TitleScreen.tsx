@@ -16,7 +16,7 @@ const FOCUS_X = 0.5;
 export function TitleScreen({ engine }: { engine: GameEngine }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }} onTouchStart={askMotionPermission}>
+    <View style={{ flex: 1 }} onTouchStart={askMotionPermission}>
       <TiltArt testID="title-art" source={ART} aspect={ART_ASPECT} focusX={FOCUS_X} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%' }} />
       <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 24, paddingBottom: 40 + insets.bottom, paddingTop: insets.top }}>
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textDim, marginBottom: 14, fontFamily: font.regular }}>

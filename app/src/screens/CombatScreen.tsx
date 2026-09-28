@@ -208,7 +208,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 14, paddingBottom: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           {isBossFight && bossArt ? (
@@ -522,7 +522,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
       </ScrollView>
 
       {/* Action panel */}
-      <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg, paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(14, insets.bottom + 10) }}>
+      <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: 'rgba(14,15,24,0.9)', paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(14, insets.bottom + 10) }}>
         {!s.over ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 8 }}>
             <Chip testID="speed-toggle" label={engine.settings.speed >= 2 ? '×2' : '×1'} icon="fast-forward" on={engine.settings.speed >= 2} onPress={() => engine.toggleSpeed()} />

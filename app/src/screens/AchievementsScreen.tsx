@@ -14,7 +14,7 @@ export function AchievementsScreen({ engine }: { engine: GameEngine }) {
   const doneCount = achievements.filter((a) => a.claimed).length;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, marginTop: 16, fontFamily: font.regular }}>Отдел кадров</Text>

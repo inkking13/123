@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { ImageBackground, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -77,10 +77,11 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {/* A torch-lit dungeon wall behind every screen; the screens themselves are see-through. */}
+      <ImageBackground source={require('./assets/ui/stone-bg.jpg')} resizeMode="cover" style={{ flex: 1, backgroundColor: colors.bg }}>
         <Root engine={engine} />
         <StatusBar style="light" />
-      </View>
+      </ImageBackground>
     </SafeAreaProvider>
   );
 }
