@@ -9,7 +9,10 @@ export const MODEL_HEIGHT = { human: 1.12, dwarf: 0.92, orc: 1.26, elf: 1.2, gno
 export const SHEET_MODELS: Record<number, { height: number; Model: typeof WandererModel; dance?: boolean }> = {
   4: { height: VEX_HEIGHT, Model: VexModel }, // Векс — the textured hooded rogue (falls back to the built wanderer)
   // Meshy race base bodies with their own animation clips.
-  1: { height: BODIES.dwarf.height, Model: meshyModel(1, 'dwarf'), dance: true }, // Борин
+  0: { height: BODIES.human.height, Model: meshyModel(0, 'human'), dance: true }, // Каелен
+  1: { height: BODIES.dwarf.height, Model: meshyModel(1, 'dwarf', { weapon: 'runeAxe' }), dance: true }, // Борин, рунный топор
+  3: { height: BODIES.human.height, Model: meshyModel(3, 'human', { act: { ability: 'cast2', melee: 'cast3' } }), dance: true }, // Тэдиус
+  8: { height: BODIES.human.height, Model: meshyModel(8, 'human'), dance: true }, // Родерик
   6: { height: BODIES.elf.height, Model: meshyModel(6, 'elf'), dance: true }, // Сильвана
   7: { height: BODIES.elf.height, Model: meshyModel(7, 'elf'), dance: true }, // Элара
 };

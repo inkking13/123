@@ -33,6 +33,8 @@ interface Body {
   guard?: string;
   /** Second tap on the equipment preview. */
   flourish?: string;
+  /** Played once when the hero falls, instead of tipping the model over. */
+  death?: string;
 }
 
 export const BODIES = {
@@ -47,7 +49,44 @@ export const BODIES = {
     idle: 'idle', walk: 'walk', run: 'run', act: { default: 'bash', rally: 'shout', ability: 'shout' },
     speed: { bash: 1.5, shout: 2.2 }, guard: 'alert', flourish: 'shout',
   },
+  // Human male: combat stance, sword attack, blade spins, eight spell casts, knocked flying.
+  human: {
+    url: url(require('../../assets/models/human.glb')), height: 1.12,
+    idle: 'stance', walk: 'walk', run: 'run',
+    act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
+    speed: { attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2, hit: 1.2 },
+    flourish: 'spinjump', death: 'hit',
+  },
 } satisfies Record<string, Body>;
+
+/** Meshy-made weapons that replace a hero's built one. */
+const PROPS = {
+  // Boar-headed double axe with runes, 1.9 units long along Y, grip on the leather wrap.
+  runeAxe: { url: url(require('../../assets/models/rune-axe.glb')), scale: 0.5, grip: -0.55, rot: [-2.2, 0, 0] as const },
+};
+export type PropName = keyof typeof PROPS;
+
+/** Loads a prop and puts it in the given hand bone; nothing is drawn by the component itself. */
+function HeldProp({ name, hand }: { name: PropName; hand: THREE.Bone }) {
+  const P = PROPS[name];
+  const gltf = useLoader(GLTFLoader, P.url as any) as unknown as { scene: THREE.Group };
+  useEffect(() => {
+    const prop = gltf.scene.clone();
+    prop.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) { const std = m.material as THREE.MeshStandardMaterial; m.material = new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap }); }
+    });
+    prop.scale.setScalar(P.scale);
+    prop.position.y = -P.grip * P.scale;
+    const pivot = new THREE.Group();
+    pivot.rotation.set(P.rot[0], P.rot[1], P.rot[2]);
+    pivot.position.set(0, 0.08, 0.02);
+    pivot.add(prop);
+    hand.add(pivot);
+    return () => { pivot.removeFromParent(); prop.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); };
+  }, [gltf, hand, P]);
+  return null;
+}
 export type BodyName = keyof typeof BODIES;
 
 const MODEL_H = 1.7;
@@ -56,6 +95,14 @@ const ACTION_S = 1.4;
 
 function weaponMesh(kind: string | undefined, glow: string, metal: string): THREE.Object3D | null {
   const g = new THREE.Group();
+  if (kind === 'mace') {
+    const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.02, 0.5, 8), new THREE.MeshLambertMaterial({ color: '#4a3424' }));
+    haft.position.y = 0.16;
+    const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.075, 0), new THREE.MeshLambertMaterial({ color: metal }));
+    head.position.y = 0.42;
+    g.add(haft, head);
+    return g;
+  }
   if (kind === 'bow') {
     // Held in the left hand, limbs along the forearm's line.
     const wood = new THREE.MeshLambertMaterial({ color: '#5a3e26' });
@@ -107,14 +154,14 @@ function shieldMesh(color: string, metal: string): THREE.Object3D {
   return g;
 }
 
-function Meshy({ id, body: B, anim, gear }: { id: number; body: Body; anim: React.MutableRefObject<HeroAnim>; gear?: GearLook }) {
+function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim: React.MutableRefObject<HeroAnim>; gear?: GearLook; opts: HeroOpts }) {
   const gltf = useLoader(GLTFLoader, B.url as any) as unknown as { scene: THREE.Group; animations: THREE.AnimationClip[] };
   const SCALE = B.height / MODEL_H;
   const look = useMemo(() => (HERO_LOOKS[id] ? withGear(HERO_LOOKS[id], gear) : null), [id, gear]);
   const rig = useMemo(() => {
     const scene = cloneSkinned(gltf.scene) as THREE.Group;
     const materials: THREE.MeshLambertMaterial[] = [];
-    let spine: THREE.Bone | null = null; let handL: THREE.Bone | null = null; let handR: THREE.Bone | null = null;
+    let hips: THREE.Bone | null = null; let spine: THREE.Bone | null = null; let handL: THREE.Bone | null = null; let handR: THREE.Bone | null = null;
     scene.traverse((o) => {
       const m = o as THREE.SkinnedMesh;
       if (m.isSkinnedMesh) {
@@ -125,6 +172,7 @@ function Meshy({ id, body: B, anim, gear }: { id: number; body: Body; anim: Reac
         m.frustumCulled = false;
       }
       if ((o as THREE.Bone).isBone) {
+        if (o.name.endsWith('Hips')) hips = o as THREE.Bone;
         if (o.name.endsWith('Spine2')) spine = o as THREE.Bone;
         if (o.name.endsWith('LeftHand')) handL = o as THREE.Bone;
         if (o.name.endsWith('RightHand')) handR = o as THREE.Bone;
@@ -144,14 +192,15 @@ function Meshy({ id, body: B, anim, gear }: { id: number; body: Body; anim: Reac
     }
     for (const [name, a] of Object.entries(actions)) { a.timeScale = name === 'idle' && typeof B.idle !== 'string' ? 0 : B.speed?.[name] ?? 1; a.play(); a.setEffectiveWeight(0); }
     actions.idle.setEffectiveWeight(1);
-    return { scene, materials, mixer, actions, spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
+    const h = hips as THREE.Bone | null;
+    return { scene, materials, mixer, actions, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
 
   // The hero's weapon in hand: bows in the left, everything else in the right.
   useEffect(() => {
     if (!look) return;
     const held: [THREE.Object3D, THREE.Bone | null][] = [];
-    const w = weaponMesh(look.weapon, gear?.weapon?.glow ?? look.glow ?? '#ffffff', look.metal);
+    const w = opts.weapon ? null : weaponMesh(look.weapon, gear?.weapon?.glow ?? look.glow ?? '#ffffff', look.metal);
     if (w) held.push([w, look.weapon === 'bow' ? rig.handL : rig.handR]);
     if (look.offHand === 'roundShield' || look.offHand === 'kiteShield' || look.offHand === 'towerShield') held.push([shieldMesh(look.shieldColor ?? look.secondary, look.metal), rig.handL]);
     // Bones are in model units (metres); the hand bone points down the fingers (+Y).
@@ -160,7 +209,7 @@ function Meshy({ id, body: B, anim, gear }: { id: number; body: Body; anim: Reac
       o.removeFromParent();
       o.traverse((x) => { const m = x as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } });
     });
-  }, [rig, look, gear?.weapon?.glow]);
+  }, [rig, look, gear?.weapon?.glow, opts.weapon]);
 
   useEffect(() => () => { rig.mixer.stopAllAction(); rig.materials.forEach((m) => m.dispose()); }, [rig]);
 
@@ -177,7 +226,7 @@ function Meshy({ id, body: B, anim, gear }: { id: number; body: Body; anim: Reac
     // A fresh action restarts its clip from the top.
     if (a.at !== lastAt.current && a.kind) {
       lastAt.current = a.at;
-      playing.current = a.kind === 'dance' ? B.flourish ?? B.act.default : B.act[a.kind] ?? B.act.default;
+      playing.current = a.kind === 'dance' ? B.flourish ?? B.act.default : opts.act?.[a.kind] ?? B.act[a.kind] ?? B.act.default;
       A[playing.current]?.reset().play();
     }
     const at = t - a.at;
@@ -188,7 +237,17 @@ function Meshy({ id, body: B, anim, gear }: { id: number; body: Body; anim: Reac
     else if (a.defending && B.guard) want = B.guard;
     else if (a.speed > 1.6) want = B.run;
     else if (a.speed > 0.05) want = B.walk;
-    if (!a.alive || a.frozen) want = 'idle';
+    if (a.frozen) want = 'idle';
+    if (!a.alive) {
+      if (B.death && A[B.death]) {
+        // Once, held on its last frame.
+        const d = A[B.death];
+        if (d.loop !== THREE.LoopOnce) { d.setLoop(THREE.LoopOnce, 1); d.clampWhenFinished = true; d.reset().play(); if (a.deadAt < 0 || t - a.deadAt > 3) d.time = d.getClip().duration; }
+        want = B.death;
+      } else want = 'idle';
+    } else if (B.death && A[B.death]?.loop === THREE.LoopOnce) {
+      A[B.death].setLoop(THREE.LoopRepeat, Infinity); A[B.death].clampWhenFinished = false;
+    }
     A[B.walk].timeScale = Math.max(0.6, Math.min(1.6, a.speed / 0.9));
     const k = 1 - Math.exp(-dt * 10);
     weights.current[want] ??= 0;
@@ -197,6 +256,8 @@ function Meshy({ id, body: B, anim, gear }: { id: number; body: Body; anim: Reac
       A[c]?.setEffectiveWeight(weights.current[c]);
     }
     rig.mixer.update(a.frozen ? 0 : dt);
+    // Clips play in place: lunges and knock-backs would carry the body off its tile.
+    if (rig.hips) { rig.hips.position.x = rig.hipsXZ[0]; rig.hips.position.z = rig.hipsXZ[1]; }
 
     // Breathing, a guard hunch and a flinch on top of the clips.
     if (rig.spine) {
@@ -207,7 +268,7 @@ function Meshy({ id, body: B, anim, gear }: { id: number; body: Body; anim: Reac
       rig.spine.rotation.x += x;
     }
 
-    const fall = a.alive ? 0 : a.deadAt >= 0 ? Math.min(1, (t - a.deadAt) / 0.55) : 1;
+    const fall = a.alive || B.death ? 0 : a.deadAt >= 0 ? Math.min(1, (t - a.deadAt) / 0.55) : 1;
     const eased = 1 - (1 - fall) * (1 - fall);
     if (fallRef.current) { fallRef.current.rotation.x = -1.45 * eased; fallRef.current.position.y = -0.05 * eased; }
 
@@ -224,6 +285,7 @@ function Meshy({ id, body: B, anim, gear }: { id: number; body: Body; anim: Reac
       <group scale={[SCALE, SCALE, SCALE]}>
         <primitive object={rig.scene} />
       </group>
+      {opts.weapon && rig.handR ? <React.Suspense fallback={null}><HeldProp name={opts.weapon} hand={rig.handR} /></React.Suspense> : null}
     </group>
   );
 }
@@ -236,14 +298,21 @@ class Fallback extends Component<{ fallback: React.ReactNode; children: React.Re
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 
+interface HeroOpts {
+  /** A Meshy-made weapon in the right hand instead of the built one. */
+  weapon?: PropName;
+  /** Per-hero choice of clip for an action kind. */
+  act?: Partial<Record<string, string>>;
+}
+
 /** A sheet model for one hero on a race body, by candidate id. */
-export function meshyModel(id: number, body: BodyName) {
+export function meshyModel(id: number, body: BodyName, opts: HeroOpts = {}) {
   return function MeshyHero(props: { anim: React.MutableRefObject<HeroAnim>; gear?: GearLook }) {
     const fallback = HERO_LOOKS[id] ? <HeroModel look={HERO_LOOKS[id]} {...props} /> : null;
     return (
       <Fallback fallback={fallback}>
         <React.Suspense fallback={fallback}>
-          <Meshy id={id} body={BODIES[body]} {...props} />
+          <Meshy id={id} body={BODIES[body]} opts={opts} {...props} />
         </React.Suspense>
       </Fallback>
     );
