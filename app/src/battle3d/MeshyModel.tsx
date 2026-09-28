@@ -127,19 +127,38 @@ const TO_FIST = 0.075, TO_PALM = 0.025, TO_BACK = 0.05;
 
 const UPRIGHT = new Set<PropName>(['staff', 'bow', 'orb', 'flask']);
 
-/** A prop's turn and place in a hand bone whose rest turn is `rest`; `left` for the left hand. */
-function gripIn(rest: THREE.Quaternion, left: boolean, how: 'fist' | 'upright' | 'shield') {
+/**
+ * A prop's turn and place in a hand bone whose rest turn is `rest` and idle turn is `pose`
+ * (both in model space); `left` for the left hand. The rigs have no finger bones and each
+ * animation twists the hand its own way, so the aim is set from how the hand stands in idle.
+ */
+function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, how: 'fist' | 'upright' | 'shield') {
   const toBone = rest.clone().invert();
   // The hand at rest, in model space: fingers, thumb (towards the front), palm.
   const F = new THREE.Vector3(0, 1, 0).applyQuaternion(rest);
   const T = new THREE.Vector3(0, 0, 1).addScaledVector(F, -F.z).normalize();
   const P = left ? F.clone().cross(T) : T.clone().cross(F);
-  // Where the prop's X and Y go; Z follows. A staff, bow, orb or flask stands
-  // up the forearm, leaning out past the thumb, instead of lying across the fist.
+  // Rest model space to idle model space.
+  const toIdle = pose.clone().multiply(toBone);
+  const out = left ? 1 : -1;
+  // Where the prop's Y goes; X lies across the palm and Z follows.
   let x: THREE.Vector3, y: THREE.Vector3;
   if (how === 'shield') { x = P; y = F.clone().negate(); }
-  else if (how === 'upright') { y = F.clone().negate().addScaledVector(T, 0.35).normalize(); x = y.clone().cross(P).normalize(); }
-  else { x = F.clone().negate(); y = T; }
+  else {
+    if (how === 'upright') {
+      // A staff, bow, orb or flask stands straight up in idle.
+      y = new THREE.Vector3(0.1 * out, 1, 0.1).normalize().applyQuaternion(toIdle.clone().invert());
+    } else {
+      // A blade leaves the fist on whichever side of it faces up, forward and out in idle,
+      // turned between the thumb and the forearm as far as the grip allows.
+      const want = new THREE.Vector3(0.5 * out, 0.8, 1);
+      const thumb = want.dot(T.clone().applyQuaternion(toIdle));
+      const arm = want.dot(F.clone().negate().applyQuaternion(toIdle));
+      const turn = THREE.MathUtils.clamp(Math.atan2(arm, Math.abs(thumb)), -0.3, 1);
+      y = T.clone().multiplyScalar(Math.sign(thumb || 1) * Math.cos(turn)).addScaledVector(F, -Math.sin(turn)).normalize();
+    }
+    x = y.clone().cross(P).normalize();
+  }
   const basis = new THREE.Matrix4().makeBasis(x, y, x.clone().cross(y));
   const quaternion = toBone.clone().multiply(new THREE.Quaternion().setFromRotationMatrix(basis));
   const position = new THREE.Vector3(0, TO_FIST, 0).add(P.clone().multiplyScalar(how === 'shield' ? -TO_BACK : TO_PALM).applyQuaternion(toBone));
@@ -147,7 +166,7 @@ function gripIn(rest: THREE.Quaternion, left: boolean, how: 'fist' | 'upright' |
 }
 
 /** Loads a prop and puts it in the given hand bone; nothing is drawn by the component itself. */
-function HeldProp({ name, hand, unit, rest, left, glow }: { name: PropName; hand: THREE.Bone; unit: number; rest: THREE.Quaternion; left: boolean; glow?: string }) {
+function HeldProp({ name, hand, unit, rest, pose, left, glow }: { name: PropName; hand: THREE.Bone; unit: number; rest: THREE.Quaternion; pose: THREE.Quaternion; left: boolean; glow?: string }) {
   const P = PROPS[name];
   const gltf = useLoader(GLTFLoader, P.url as any) as unknown as { scene: THREE.Group };
   useEffect(() => {
@@ -168,7 +187,7 @@ function HeldProp({ name, hand, unit, rest, left, glow }: { name: PropName; hand
     }
     prop.scale.setScalar(P.scale);
     prop.position.y = -P.grip * P.scale;
-    const g = gripIn(rest, left, name === 'roundShield' || name === 'skullShield' ? 'shield' : UPRIGHT.has(name) ? 'upright' : 'fist');
+    const g = gripIn(rest, pose, left, name === 'roundShield' || name === 'skullShield' ? 'shield' : UPRIGHT.has(name) ? 'upright' : 'fist');
     const holder = new THREE.Group();
     holder.quaternion.copy(g.quaternion);
     holder.position.copy(g.position).multiplyScalar(unit);
@@ -176,7 +195,7 @@ function HeldProp({ name, hand, unit, rest, left, glow }: { name: PropName; hand
     holder.add(prop);
     hand.add(holder);
     return () => { holder.removeFromParent(); prop.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); };
-  }, [gltf, hand, P, unit, rest, left, name, glow]);
+  }, [gltf, hand, P, unit, rest, pose, left, name, glow]);
   return null;
 }
 export type BodyName = keyof typeof BODIES;
@@ -277,9 +296,14 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       return q;
     };
     const restR = restOf(handR), restL = restOf(handL);
+    // And in the first frame of idle, which aims what they hold.
+    mixer.update(0);
+    scene.updateMatrixWorld(true);
+    const poseOf = (b: THREE.Bone | null) => (b ? b.getWorldQuaternion(new THREE.Quaternion()) : new THREE.Quaternion());
+    const poseR = poseOf(handR as THREE.Bone | null), poseL = poseOf(handL as THREE.Bone | null);
     // Bone space per metre: 100 on a centimetre rig, so held things are scaled back.
     const unit = handR ? 1 / new THREE.Vector3().setFromMatrixScale((handR as THREE.Bone).matrixWorld).x : 1;
-    return { scene, unit, restR, restL, materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
+    return { scene, unit, restR, restL, poseR, poseL, materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
 
   // Meshy-made things in hand: the hero's own pick, else the model for their weapon and off-hand.
@@ -394,8 +418,8 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       <group scale={[SCALE, SCALE, SCALE]} rotation={[0, B.turn ?? 0, 0]}>
         <primitive object={rig.scene} />
       </group>
-      {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} rest={look?.weapon === 'bow' ? rig.restL : rig.restR} left={look?.weapon === 'bow'} glow={glow} /></React.Suspense> : null}
-      {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} rest={rig.restL} left glow={glow} /></React.Suspense> : null}
+      {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} rest={look?.weapon === 'bow' ? rig.restL : rig.restR} pose={look?.weapon === 'bow' ? rig.poseL : rig.poseR} left={look?.weapon === 'bow'} glow={glow} /></React.Suspense> : null}
+      {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} rest={rig.restL} pose={rig.poseL} left glow={glow} /></React.Suspense> : null}
       <WornHelm name={gear?.helm?.model} head={rig.head} />
     </group>
   );
