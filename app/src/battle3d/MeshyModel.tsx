@@ -46,8 +46,6 @@ interface Body {
   hit?: string;
   /** What a body with no hero look holds. */
   hold?: { right?: PropName; left?: PropName };
-  /** Hand bones turned unlike Mixamo's: the rotation taking a Mixamo hand's frame to this rig's, per hand. */
-  hands?: { right: readonly [number, number, number]; left: readonly [number, number, number] };
 }
 
 /** Meshy's combat set runs 2–4 s a clip; sped up so the blow lands inside a turn. */
@@ -89,38 +87,33 @@ export const BODIES = {
     act: { default: 'Heavy_Hammer_Swing', ability: 'Triple_Combo_Attack', rally: 'Chest_Pound_Taunt', heal: 'Chest_Pound_Taunt' },
     speed: { ...COMBAT_SPEED, Heavy_Hammer_Swing: 1.4, Chest_Pound_Taunt: 1.6 },
     guard: 'Block1', flourish: 'Chest_Pound_Taunt', death: 'Dead', hit: 'Hit_Reaction',
-    // From the two rigs' bind poses.
-    hands: { right: [2.815, -0.189, 2.407], left: [2.823, 0.369, -2.403] },
   },
 } satisfies Record<string, Body>;
 
-/** A fist's grip: the weapon out of the hand, past the thumb. */
-const GRIP = [-2.2, 0, 0] as const;
-const FIST = [0, 0.08, 0.02] as const;
-
 // Meshy-made weapons and shields. All but the rune axe were baked in metres
-// with the grip at the origin and the head or blade up +Y; shields face -X.
-const prop = (mod: number, rot: readonly [number, number, number] = GRIP, at: readonly [number, number, number] = FIST, scale = 1, grip = 0, shine?: number) => ({ url: url(mod), rot, at, scale, grip, shine });
-/** Held upright in the palm, like a cup. */
-const PALM = [0, 0, 0] as const;
+// with the grip at the origin, the head or blade up +Y and its width along X;
+// shields face -X. The grip comes from the hand's pose at rest (arms down,
+// thumbs forward), so it is the same on every rig however its hand bone is
+// turned: the haft runs out past the thumb, the edge faces where the fingers
+// point, and a shield is strapped to the back of the hand.
+const prop = (mod: number, scale = 1, grip = 0, shine?: number) => ({ url: url(mod), scale, grip, shine });
 const PROPS = {
   // Boar-headed double axe with runes, 1.9 units long along Y, grip on the leather wrap.
-  runeAxe: prop(require('../../assets/models/rune-axe.glb'), GRIP, FIST, 0.5, -0.55),
+  runeAxe: prop(require('../../assets/models/rune-axe.glb'), 0.5, -0.55),
   warhammer: prop(require('../../assets/models/weapon-warhammer.glb')),
   greatAxe: prop(require('../../assets/models/weapon-greataxe.glb')),
   longsword: prop(require('../../assets/models/weapon-longsword.glb')),
   boneSword: prop(require('../../assets/models/weapon-bone-sword.glb')),
   dagger: prop(require('../../assets/models/weapon-dagger.glb')),
   staff: prop(require('../../assets/models/weapon-staff.glb')),
-  // In the left hand, limbs along the forearm's line like the built bow.
-  bow: prop(require('../../assets/models/weapon-bow.glb'), [0, 0, 0], [0, 0.05, 0]),
-  roundShield: prop(require('../../assets/models/shield-round.glb'), [0, 0, 0], [-0.06, 0.06, 0]),
-  skullShield: prop(require('../../assets/models/shield-skull.glb'), [0, 0, 0], [-0.06, 0.06, 0]),
+  bow: prop(require('../../assets/models/weapon-bow.glb')),
+  roundShield: prop(require('../../assets/models/shield-round.glb')),
+  skullShield: prop(require('../../assets/models/shield-skull.glb')),
   mace: prop(require('../../assets/models/weapon-mace.glb')),
   handAxe: prop(require('../../assets/models/weapon-hand-axe.glb')),
   // Glowing in the hero's colour; `shine` is the height of the glowing part.
-  orb: prop(require('../../assets/models/weapon-orb.glb'), PALM, [0, 0.06, 0.05], 1, 0, 0.12),
-  flask: prop(require('../../assets/models/weapon-flask.glb'), PALM, [0, 0.06, 0.05], 1, 0, 0.02),
+  orb: prop(require('../../assets/models/weapon-orb.glb'), 1, 0, 0.12),
+  flask: prop(require('../../assets/models/weapon-flask.glb'), 1, 0, 0.02),
 };
 export type PropName = keyof typeof PROPS;
 
@@ -128,8 +121,32 @@ export type PropName = keyof typeof PROPS;
 const WEAPON_PROP: Partial<Record<string, PropName>> = { sword: 'longsword', greatHammer: 'warhammer', greatAxe: 'greatAxe', dagger: 'dagger', staff: 'staff', bow: 'bow', mace: 'mace', axe: 'handAxe', orb: 'orb', flask: 'flask' };
 const OFFHAND_PROP: Partial<Record<string, PropName>> = { roundShield: 'roundShield', kiteShield: 'roundShield', towerShield: 'roundShield', dagger: 'dagger', flask: 'flask' };
 
+/** From the wrist to the middle of the fist, in metres: along the fingers, then into the palm (or out of the back of the hand for a shield). */
+const TO_FIST = 0.075, TO_PALM = 0.025, TO_BACK = 0.05;
+
+const UPRIGHT = new Set<PropName>(['staff', 'bow', 'orb', 'flask']);
+
+/** A prop's turn and place in a hand bone whose rest turn is `rest`; `left` for the left hand. */
+function gripIn(rest: THREE.Quaternion, left: boolean, how: 'fist' | 'upright' | 'shield') {
+  const toBone = rest.clone().invert();
+  // The hand at rest, in model space: fingers, thumb (towards the front), palm.
+  const F = new THREE.Vector3(0, 1, 0).applyQuaternion(rest);
+  const T = new THREE.Vector3(0, 0, 1).addScaledVector(F, -F.z).normalize();
+  const P = left ? F.clone().cross(T) : T.clone().cross(F);
+  // Where the prop's X and Y go; Z follows. A staff, bow, orb or flask stands
+  // up the forearm, leaning out past the thumb, instead of lying across the fist.
+  let x: THREE.Vector3, y: THREE.Vector3;
+  if (how === 'shield') { x = P; y = F.clone().negate(); }
+  else if (how === 'upright') { y = F.clone().negate().addScaledVector(T, 0.35).normalize(); x = y.clone().cross(P).normalize(); }
+  else { x = F.clone().negate(); y = T; }
+  const basis = new THREE.Matrix4().makeBasis(x, y, x.clone().cross(y));
+  const quaternion = toBone.clone().multiply(new THREE.Quaternion().setFromRotationMatrix(basis));
+  const position = new THREE.Vector3(0, TO_FIST, 0).add(P.clone().multiplyScalar(how === 'shield' ? -TO_BACK : TO_PALM).applyQuaternion(toBone));
+  return { quaternion, position };
+}
+
 /** Loads a prop and puts it in the given hand bone; nothing is drawn by the component itself. */
-function HeldProp({ name, hand, unit, frame, glow }: { name: PropName; hand: THREE.Bone; unit: number; frame?: readonly [number, number, number]; glow?: string }) {
+function HeldProp({ name, hand, unit, rest, left, glow }: { name: PropName; hand: THREE.Bone; unit: number; rest: THREE.Quaternion; left: boolean; glow?: string }) {
   const P = PROPS[name];
   const gltf = useLoader(GLTFLoader, P.url as any) as unknown as { scene: THREE.Group };
   useEffect(() => {
@@ -150,17 +167,15 @@ function HeldProp({ name, hand, unit, frame, glow }: { name: PropName; hand: THR
     }
     prop.scale.setScalar(P.scale);
     prop.position.y = -P.grip * P.scale;
-    const pivot = new THREE.Group();
-    pivot.rotation.set(P.rot[0], P.rot[1], P.rot[2]);
-    pivot.position.set(P.at[0] * unit, P.at[1] * unit, P.at[2] * unit);
-    pivot.scale.setScalar(unit);
-    pivot.add(prop);
+    const g = gripIn(rest, left, name === 'roundShield' || name === 'skullShield' ? 'shield' : UPRIGHT.has(name) ? 'upright' : 'fist');
     const holder = new THREE.Group();
-    if (frame) holder.rotation.set(frame[0], frame[1], frame[2]);
-    holder.add(pivot);
+    holder.quaternion.copy(g.quaternion);
+    holder.position.copy(g.position).multiplyScalar(unit);
+    holder.scale.setScalar(unit);
+    holder.add(prop);
     hand.add(holder);
     return () => { holder.removeFromParent(); prop.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); };
-  }, [gltf, hand, P, unit, frame, glow]);
+  }, [gltf, hand, P, unit, rest, left, name, glow]);
   return null;
 }
 export type BodyName = keyof typeof BODIES;
@@ -251,9 +266,19 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     for (const [name, a] of Object.entries(actions)) { a.timeScale = name === 'idle' && typeof B.idle !== 'string' ? 0 : B.speed?.[name] ?? 1; a.play(); a.setEffectiveWeight(0); }
     actions.idle.setEffectiveWeight(1);
     const h = hips as THREE.Bone | null;
+    // The hands' turn at rest, from the skin's bind pose.
+    const restOf = (b: THREE.Bone | null) => {
+      const q = new THREE.Quaternion();
+      for (const { mesh } of meshes) {
+        const i = mesh.skeleton.bones.indexOf(b as THREE.Bone);
+        if (i >= 0) { mesh.skeleton.boneInverses[i].clone().invert().decompose(new THREE.Vector3(), q, new THREE.Vector3()); break; }
+      }
+      return q;
+    };
+    const restR = restOf(handR), restL = restOf(handL);
     // Bone space per metre: 100 on a centimetre rig, so held things are scaled back.
     const unit = handR ? 1 / new THREE.Vector3().setFromMatrixScale((handR as THREE.Bone).matrixWorld).x : 1;
-    return { scene, unit, materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
+    return { scene, unit, restR, restL, materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
 
   // Meshy-made things in hand: the hero's own pick, else the model for their weapon and off-hand.
@@ -368,8 +393,8 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       <group scale={[SCALE, SCALE, SCALE]} rotation={[0, B.turn ?? 0, 0]}>
         <primitive object={rig.scene} />
       </group>
-      {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} frame={look?.weapon === 'bow' ? B.hands?.left : B.hands?.right} glow={glow} /></React.Suspense> : null}
-      {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} frame={B.hands?.left} glow={glow} /></React.Suspense> : null}
+      {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} rest={look?.weapon === 'bow' ? rig.restL : rig.restR} left={look?.weapon === 'bow'} glow={glow} /></React.Suspense> : null}
+      {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} rest={rig.restL} left glow={glow} /></React.Suspense> : null}
       <WornHelm name={gear?.helm?.model} head={rig.head} />
     </group>
   );
