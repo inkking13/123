@@ -1,0 +1,215 @@
+{
+ "Meshy_AI_dwarf_Combat_Set_1_withSkin.glb": {
+  "bytes": 5069200,
+  "skins": 1,
+  "clips": [
+   "Idle",
+   "Attack",
+   "Dead",
+   "RunFast",
+   "Walk_Fight_Forward",
+   "Victory_Cheer",
+   "Combat_Stance",
+   "Double_Combo_Attack",
+   "Triple_Combo_Attack",
+   "Charged_Spell_Cast"
+  ]
+ },
+ "Meshy_AI_dwarf_Combat_Set_2_withSkin.glb": {
+  "bytes": 4773112,
+  "skins": 1,
+  "clips": [
+   "Block1",
+   "Stand_Dodge",
+   "Roll_Dodge",
+   "Hit_Reaction",
+   "dying_backwards",
+   "Charged_Slash"
+  ]
+ },
+ "Meshy_AI_dwarf_rigged.glb": {
+  "bytes": 2646884,
+  "skins": 1,
+  "clips": [
+   "Armature|clip0|baselayer"
+  ]
+ },
+ "Meshy_AI_elf_Combat_Set_1_withSkin.glb": {
+  "bytes": 4843768,
+  "skins": 1,
+  "clips": [
+   "Idle",
+   "Attack",
+   "Dead",
+   "RunFast",
+   "Walk_Fight_Forward",
+   "Victory_Cheer",
+   "Combat_Stance",
+   "Double_Combo_Attack",
+   "Triple_Combo_Attack",
+   "Charged_Spell_Cast"
+  ]
+ },
+ "Meshy_AI_elf_Combat_Set_2_withSkin.glb": {
+  "bytes": 4545332,
+  "skins": 1,
+  "clips": [
+   "Block1",
+   "Stand_Dodge",
+   "Roll_Dodge",
+   "Hit_Reaction",
+   "dying_backwards",
+   "Charged_Slash"
+  ]
+ },
+ "Meshy_AI_elf_rigged.glb": {
+  "bytes": 2496504,
+  "skins": 1,
+  "clips": [
+   "Armature|clip0|baselayer"
+  ]
+ },
+ "Meshy_AI_human_Combat_Set_1_withSkin.glb": {
+  "bytes": 4534804,
+  "skins": 1,
+  "clips": [
+   "Idle",
+   "Attack",
+   "Dead",
+   "RunFast",
+   "Walk_Fight_Forward",
+   "Victory_Cheer",
+   "Combat_Stance",
+   "Double_Combo_Attack",
+   "Triple_Combo_Attack",
+   "Charged_Spell_Cast"
+  ]
+ },
+ "Meshy_AI_human_Combat_Set_2_withSkin.glb": {
+  "bytes": 4218476,
+  "skins": 1,
+  "clips": [
+   "Block1",
+   "Stand_Dodge",
+   "Roll_Dodge",
+   "Hit_Reaction",
+   "dying_backwards",
+   "Charged_Slash"
+  ]
+ },
+ "Meshy_AI_human_rigged.glb": {
+  "bytes": 2646952,
+  "skins": 1,
+  "clips": [
+   "Armature|clip0|baselayer"
+  ]
+ },
+ "Meshy_AI_orc_Combat_Set_1_withSkin.glb": {
+  "bytes": 4045932,
+  "skins": 1,
+  "clips": [
+   "Idle",
+   "Attack",
+   "Dead",
+   "RunFast",
+   "Walk_Fight_Forward",
+   "Victory_Cheer",
+   "Chest_Pound_Taunt",
+   "Combat_Stance",
+   "Double_Combo_Attack",
+   "Triple_Combo_Attack"
+  ]
+ },
+ "Meshy_AI_orc_Combat_Set_2_withSkin.glb": {
+  "bytes": 3909404,
+  "skins": 1,
+  "clips": [
+   "Charged_Spell_Cast",
+   "Heavy_Hammer_Swing",
+   "Block1",
+   "Stand_Dodge",
+   "Roll_Dodge",
+   "Hit_Reaction",
+   "dying_backwards",
+   "Charged_Axe_Chop",
+   "Charged_Slash"
+  ]
+ },
+ "Meshy_AI_orc_rigged.glb": {
+  "bytes": 2154644,
+  "skins": 1,
+  "clips": [
+   "Armature|clip0|baselayer"
+  ]
+ },
+ "Meshy_AI_skeleton_Combat_Set_1_withSkin.glb": {
+  "bytes": 5490120,
+  "skins": 1,
+  "clips": [
+   "Idle",
+   "Attack",
+   "Dead",
+   "RunFast",
+   "Walk_Fight_Forward",
+   "Victory_Cheer",
+   "Combat_Stance",
+   "Double_Combo_Attack",
+   "Triple_Combo_Attack",
+   "Charged_Spell_Cast"
+  ]
+ },
+ "Meshy_AI_skeleton_Combat_Set_2_withSkin.glb": {
+  "bytes": 5187724,
+  "skins": 1,
+  "clips": [
+   "Block1",
+   "Stand_Dodge",
+   "Roll_Dodge",
+   "Hit_Reaction",
+   "dying_backwards",
+   "Charged_Slash"
+  ]
+ },
+ "Meshy_AI_skeleton_rigged.glb": {
+  "bytes": 3026748,
+  "skins": 1,
+  "clips": [
+   "Armature|clip0|baselayer"
+  ]
+ },
+ "Meshy_AI_vex_Combat_Set_1_withSkin.glb": {
+  "bytes": 4352024,
+  "skins": 1,
+  "clips": [
+   "Idle",
+   "Attack",
+   "Dead",
+   "RunFast",
+   "Walk_Fight_Forward",
+   "Victory_Cheer",
+   "Combat_Stance",
+   "Double_Combo_Attack",
+   "Triple_Combo_Attack",
+   "Charged_Spell_Cast"
+  ]
+ },
+ "Meshy_AI_vex_Combat_Set_2_withSkin.glb": {
+  "bytes": 4048340,
+  "skins": 1,
+  "clips": [
+   "Block1",
+   "Stand_Dodge",
+   "Roll_Dodge",
+   "Hit_Reaction",
+   "dying_backwards",
+   "Charged_Slash"
+  ]
+ },
+ "Meshy_AI_vex_rigged.glb": {
+  "bytes": 2292608,
+  "skins": 1,
+  "clips": [
+   "Armature|clip0|baselayer"
+  ]
+ }
+}
