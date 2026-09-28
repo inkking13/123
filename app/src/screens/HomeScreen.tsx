@@ -144,7 +144,7 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
   }));
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }} onTouchStart={askMotionPermission}>
+    <View style={{ flex: 1 }} onTouchStart={askMotionPermission}>
       {/* Art behind the top of camp; the page scrolls over it. */}
       <TiltArt testID="camp-art" source={CAMP_ART} aspect={1600 / 893} focusX={0.66} fadeFrom={0.5} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 400 + insets.top }} />
       <LinearGradient pointerEvents="none" colors={['rgba(22,24,38,0.75)', 'rgba(22,24,38,0)']} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120 + insets.top }} />

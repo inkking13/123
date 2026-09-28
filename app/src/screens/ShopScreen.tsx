@@ -19,7 +19,7 @@ export function ShopScreen({ engine }: { engine: GameEngine }) {
   const sellRows = engine.shopSellVM();
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />

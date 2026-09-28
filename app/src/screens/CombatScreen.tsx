@@ -10,7 +10,7 @@ import { SkillIcon } from '../components/SkillIcon';
 import { ProgressBar } from '../components/ProgressBar';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
-import { BOSS_ART, MONSTER_ART, ROOM_ART } from '../data/monsterArt';
+import { BOSS_ART, MONSTER_ART, roomArtFor } from '../data/monsterArt';
 import { AuraRing, Crosshair, DebtCoin, DefendBadge, FoeCell, Floaters, FrozenOverlay, IceShellOverlay, PoisonBubbles, Projectile, RallyWave, Tether, impactDelay, useActorMotion, useHpFloaters, useSlideIn } from '../components/CombatFx';
 import { FootShadow, Floor, TileGlow, TileImpact } from '../components/Stage25D';
 import { fieldGeometry } from '../combat/perspective';
@@ -76,7 +76,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   // Arena rivals are other guilds' squads, not monsters, so they keep the plain skull.
   const dungeonForArt = engine.inArena ? null : engine.currentDungeon();
   const bossArt = dungeonForArt && BOSS_ART[dungeonForArt.id] ? MONSTER_ART[BOSS_ART[dungeonForArt.id]] : undefined;
-  const roomArt = dungeonForArt ? ROOM_ART[dungeonForArt.locationId] : undefined;
+  const roomArt = dungeonForArt ? roomArtFor(dungeonForArt) : undefined;
   const theme = BATTLE_THEMES[dungeonForArt ? dungeonForArt.locationId : 'arena'] ?? BATTLE_THEMES.outskirts;
   const focusId = engine.focusEnemy()?.id;
   const stunnedNow = s.stunned || s.vulnerableRounds > 0;
@@ -94,6 +94,8 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const foeSizeAt = (row: number) => (isBossFight ? bossSize : geo ? roomFoeSize * geo.tileScale(row, 0) / geo.tileScale(1, 0) : 0);
   /** Feet of an enemy figure: the centre of the boss's footprint, or a room enemy's own cell. */
   const foeFootOf = (enemyId: number) => {
+    const minion = s.minions.find((m) => m.id === enemyId);
+    if (minion) return { foot: geo!.foot(minion.row, minion.col), size: roomFoeSize * geo!.tileScale(minion.row, 0) / geo!.tileScale(1, 0) };
     if (s.bossPos || enemyId < 0) {
       const p = s.bossPos ?? { row: 0, col: Math.floor((GRID_COLS - BOSS_W) / 2) };
       return { foot: geo!.footAt(p.row + (BOSS_H - 1) / 2, p.col + (BOSS_W - 1) / 2), size: bossSize };
@@ -206,7 +208,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 14, paddingBottom: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           {isBossFight && bossArt ? (
@@ -321,7 +323,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               ) : null}
             </View>
             <Text style={{ fontSize: 10.5, color: colors.textFaint, fontFamily: font.regular }}>
-              {isBossFight ? 'Ближний бой — вплотную к врагу' : 'Нажмите на врага, чтобы выбрать цель'}
+              {isBossFight ? (s.minions.some((m) => m.alive) ? 'Нажмите на скелета или босса, чтобы выбрать цель' : 'Ближний бой — вплотную к врагу') : 'Нажмите на врага, чтобы выбрать цель'}
             </Text>
           </View>
           <View onLayout={(e) => setFieldW(e.nativeEvent.layout.width)}>
@@ -413,6 +415,21 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                           />
                         </Glide>
                       ) });
+                      // Skeletons the boss has raised.
+                      s.minions.forEach((m) => {
+                        const { foot: mf, size: ms } = foeFootOf(m.id);
+                        figs.push({ y: mf.y + (m.alive ? 0.4 : 0), node: (
+                          <Glide key={'minion' + m.id} x={mf.x - ms / 2} y={mf.y - ms} passThrough={s.movePhase} style={{ width: ms, height: ms, zIndex: Math.round(mf.y) + (m.alive ? 1 : 0) }}>
+                            <FootShadow at={{ x: ms / 2, y: ms }} width={ms * 0.9} />
+                            <FoeCell
+                              testID={'enemy-' + m.id} icon={ENEMY_ICON.brute} name={m.name}
+                              hp={m.hp} maxHp={m.maxHp} alive={m.alive} focused={m.alive && m.id === focusId} isBoss={false}
+                              poisoned={false} stunned={false} fx={s.fx} onPress={() => engine.setFocus(m.id)}
+                              art={roomArt ? MONSTER_ART[roomArt.brute] : undefined} windup={false}
+                            />
+                          </Glide>
+                        ) });
+                      });
                     } else {
                       s.enemies.forEach((e) => {
                         const { foot: f, size } = foeFootOf(e.id);
@@ -505,7 +522,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
       </ScrollView>
 
       {/* Action panel */}
-      <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg, paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(14, insets.bottom + 10) }}>
+      <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: 'rgba(14,15,24,0.9)', paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(14, insets.bottom + 10) }}>
         {!s.over ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 8 }}>
             <Chip testID="speed-toggle" label={engine.settings.speed >= 2 ? '×2' : '×1'} icon="fast-forward" on={engine.settings.speed >= 2} onPress={() => engine.toggleSpeed()} />

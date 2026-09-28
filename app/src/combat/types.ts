@@ -142,7 +142,7 @@ export interface LogEntry {
 export type EncounterType = 'room' | 'boss';
 
 /** One per location-final boss — each asks the party to respond in a different way. */
-export type SignatureKind = 'devour' | 'iceShell' | 'feast' | 'debt' | 'backstab' | 'execution' | 'lava' | 'quota';
+export type SignatureKind = 'devour' | 'iceShell' | 'feast' | 'debt' | 'backstab' | 'execution' | 'lava' | 'quota' | 'raise';
 
 export type TurnEntry = { kind: 'raider'; id: number } | { kind: 'boss' };
 
@@ -182,6 +182,8 @@ export interface Sim {
   /** Top-left cell of the boss's BOSS_W × BOSS_H footprint (boss fights only). */
   bossPos: { row: number; col: number } | null;
   enemies: Enemy[];
+  /** Boss fights only: skeletons the boss has raised (the 'raise' signature). They fight beside it, but the fight ends with the boss. */
+  minions: Enemy[];
   focusId: number | null;
   fx: CombatFx;
   /** Bumped when a telegraphed zone lands, so the cells it covered can burst. */

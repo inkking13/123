@@ -23,7 +23,7 @@ export function RosterScreen({ engine }: { engine: GameEngine }) {
   const warnColor = ready && (tanks === 0 || heals === 0) ? colors.danger : colors.good;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 16, paddingBottom: 210 }}>
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>
           Личные дела · {engine.pool.length} в штате
@@ -99,8 +99,8 @@ export function RosterScreen({ engine }: { engine: GameEngine }) {
       </ScrollView>
 
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom }}>
-        <LinearGradient colors={['rgba(22,24,38,0)', colors.bg]} style={{ height: 30 }} />
-        <View style={{ backgroundColor: colors.bg, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14 }}>
+        <LinearGradient colors={['rgba(14,15,24,0)', 'rgba(14,15,24,0.9)']} style={{ height: 30 }} />
+        <View style={{ backgroundColor: 'rgba(14,15,24,0.9)', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <Text style={{ fontSize: 12, color: colors.textMuted, fontFamily: font.regular }}>
               {engine.selected.size}/5 · Танк {tanks} · Хилер {heals} · ДПС {dps}

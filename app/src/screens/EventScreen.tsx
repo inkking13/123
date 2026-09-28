@@ -14,7 +14,7 @@ export function EventScreen({ engine }: { engine: GameEngine }) {
   const ev = engine.activeEvent!;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 32, paddingHorizontal: 20, paddingBottom: Math.max(24, insets.bottom + 16) }}>
         <View style={{ width: 34, height: 3, backgroundColor: colors.accent, marginBottom: 16 }} />
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Отдел кадров</Text>

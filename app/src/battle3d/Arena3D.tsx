@@ -12,6 +12,7 @@ import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
 import { Stage } from './Stage';
+import { Tile, TileState } from './BoardTiles';
 import {
   BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
 } from './world';
@@ -254,7 +255,8 @@ function FoeFigure({
   /** Low-poly body; without one the enemy stays a portrait card. */
   monster?: MonsterLook;
 }) {
-  const mscale = isBoss ? 2.1 : 1.15 * FIGURE_SCALE;
+  const life = !!monster && 'lifeSize' in monster && !!monster.lifeSize;
+  const mscale = life ? FIGURE_SCALE : isBoss ? 2.1 : 1.15 * FIGURE_SCALE;
   const mH = monster ? monster.height * mscale : 0;
   const model = useRef<THREE.Group>(null);
   const yaw = useRef(0);
@@ -370,7 +372,7 @@ function FoeFigure({
     center.set(g.position.x, cy + s / 2, g.position.z);
   });
 
-  const baseR = isBoss ? 1.25 : 0.4;
+  const baseR = isBoss && !life ? 1.25 : isBoss ? 0.55 : 0.4;
   return (
     <group ref={root}>
       <Base radius={baseR} color={alive ? colors.danger : '#44444c'} />
@@ -412,36 +414,6 @@ function FoeFigure({
         </Card>
       )}
     </group>
-  );
-}
-
-type TileState = 'plain' | 'reachable' | 'self' | 'danger' | 'lava' | 'foe';
-const TILE_COLOR: Record<Exclude<TileState, 'plain'>, string> = {
-  reachable: '#9184d9', self: '#d2cefd', danger: '#d1685c', lava: '#ff7a2a', foe: '#7a2a30',
-};
-
-function Tile({ row, col, state, activeColor, theme }: { row: number; col: number; state: TileState; activeColor: string | null; theme: BattleTheme }) {
-  const mat = useRef<THREE.MeshLambertMaterial>(null);
-  const plain = useMemo(() => new THREE.Color(theme.floor.near).lerp(new THREE.Color('#ffffff'), 0.12), [theme]);
-  useFrame((st) => {
-    const m = mat.current; if (!m) return;
-    const t = st.clock.elapsedTime;
-    if (state === 'plain') {
-      m.color.copy(plain);
-      m.emissive.set(activeColor ?? '#000000');
-      m.emissiveIntensity = activeColor ? 0.25 + 0.2 * Math.sin(t * 4) : 0;
-    } else {
-      m.color.set(TILE_COLOR[state]);
-      m.emissive.set(TILE_COLOR[state]);
-      const pulse = state === 'danger' || state === 'lava' ? 0.35 + 0.3 * Math.sin(t * (state === 'danger' ? 6 : 3)) : state === 'foe' ? 0.15 : 0.3;
-      m.emissiveIntensity = pulse;
-    }
-  });
-  return (
-    <mesh position={[colX(col), 0.012, rowZ(row)]} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry args={[TILE_SIZE, TILE_SIZE]} />
-      <meshLambertMaterial ref={mat} transparent opacity={state === 'plain' ? 0.55 : 0.85} />
-    </mesh>
   );
 }
 
@@ -713,7 +685,8 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
   const bp = sim.bossPos ? bossPos(sim.bossPos.row, sim.bossPos.col) : bossPos(0, Math.floor((GRID_COLS - BOSS_W) / 2));
   const sun = useMemo(() => sunDirection(theme).multiplyScalar(20), [theme]);
   const stunned = sim.stunned || sim.vulnerableRounds > 0;
-  const foeKeyFor = (enemyId: number) => (isBoss || enemyId < 0 ? 'boss' : 'e' + enemyId);
+  // Raised skeletons in a boss fight are keyed like room enemies.
+  const foeKeyFor = (enemyId: number) => (enemyId < 0 || (isBoss && !sim.minions.some((m) => m.id === enemyId)) ? 'boss' : 'e' + enemyId);
   return (
     <>
       <fog attach="fog" args={[theme.sky[2], 12, 55]} />
@@ -729,10 +702,11 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
           id="boss" art={bossArt} monster={bossMonster} x={bp.x} z={bp.z} size={BOSS_CARD} alive={sim.boss.hp > 0} hp={sim.boss.hp} focused={false}
           stunned={stunned} windup={sim.windup} poisoned={!!sim.bossPoison} shell={sim.iceShell} phase={sim.phase} isBoss fx={sim.fx} proj={proj}
         />
-      ) : sim.enemies.map((e) => (
+      ) : null}
+      {(isBoss ? sim.minions : sim.enemies).map((e) => (
         <FoeFigure
           key={e.id} id={'e' + e.id} art={roomArt ? roomArt[e.role] : undefined} monster={roomMonsters?.[e.role]} x={colX(e.col)} z={rowZ(e.row)}
-          size={ROOM_CARD} alive={e.alive} hp={e.hp} focused={e.alive && e.id === focusId} stunned={stunned} windup={sim.windup}
+          size={ROOM_CARD} alive={e.alive} hp={e.hp} focused={e.alive && e.id === focusId} stunned={!isBoss && stunned} windup={!isBoss && sim.windup}
           poisoned={sim.bossPoison?.enemyId === e.id} shell={false} phase={1} isBoss={false} fx={sim.fx} proj={proj}
         />
       ))}

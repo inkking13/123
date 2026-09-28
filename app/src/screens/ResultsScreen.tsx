@@ -38,7 +38,7 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
   const curio = res.curioFound ? CURIOS.find((c) => c.name === res.curioFound) : null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 32, paddingHorizontal: 20, paddingBottom: Math.max(24, insets.bottom + 16) }}>
         <Animated.View
           style={{

@@ -40,7 +40,10 @@ export type MonsterArtId =
   | 'void-spawn-parasite'
   | 'weaver-of-dreams'
   | 'wyrm-of-the-wasteland'
-  | 'necromancer';
+  | 'necromancer'
+  | 'skeleton-warrior'
+  | 'skeleton-archer'
+  | 'skeleton-mage';
 
 export const MONSTER_ART: Record<MonsterArtId, any> = {
   'blood-feathered-raptor': require('../../assets/monsters/blood-feathered-raptor.jpg'),
@@ -83,6 +86,9 @@ export const MONSTER_ART: Record<MonsterArtId, any> = {
   'wyrm-of-the-wasteland': require('../../assets/monsters/wyrm-of-the-wasteland.jpg'),
   // Rendered from the Meshy model, not the bestiary sheets.
   necromancer: require('../../assets/monsters/necromancer.jpg'),
+  'skeleton-warrior': require('../../assets/monsters/skeleton-warrior.jpg'),
+  'skeleton-archer': require('../../assets/monsters/skeleton-archer.jpg'),
+  'skeleton-mage': require('../../assets/monsters/skeleton-mage.jpg'),
 };
 
 /** One portrait per boss, picked to match its description. */
@@ -113,9 +119,11 @@ export const BOSS_ART: Record<string, MonsterArtId> = {
   boardroom: 'blood-soaked-warden',
 };
 
-/** Each location fields its own brute / archer / shaman in room fights. */
+/** Each location fields its own brute / archer / shaman in room fights; a dungeon id overrides its location. */
 export const ROOM_ART: Record<string, Record<EnemyRole, MonsterArtId>> = {
   outskirts: { brute: 'rot-carcass-scavenger', archer: 'shadow-wolf', shaman: 'hooded-cultist' },
+  // Разрушенная крепость: its dead garrison, the Meshy skeleton with sword, bow or staff.
+  wastes: { brute: 'skeleton-warrior', archer: 'skeleton-archer', shaman: 'skeleton-mage' },
   icefrontier: { brute: 'darkwood-treant', archer: 'crystal-spiderling', shaman: 'gloom-stalker-wraith' },
   ashlands: { brute: 'cinder-kin-fiend', archer: 'grave-dust-ghoul', shaman: 'hooded-cultist' },
   debtprovince: { brute: 'chitinous-scorpiid', archer: 'shadow-silk-weaver', shaman: 'corrupted-ooze' },
@@ -124,3 +132,6 @@ export const ROOM_ART: Record<string, Record<EnemyRole, MonsterArtId>> = {
   dragonwastes: { brute: 'cinder-kin-fiend', archer: 'blood-feathered-raptor', shaman: 'fetid-swamp-thing' },
   hierarchy: { brute: 'void-spawn-parasite', archer: 'shadow-weaver-sprite', shaman: 'hooded-cultist' },
 };
+
+/** The room trio for a dungeon: its own, else its location's. */
+export const roomArtFor = (d: { id: string; locationId: string }): Record<EnemyRole, MonsterArtId> | undefined => ROOM_ART[d.id] ?? ROOM_ART[d.locationId];

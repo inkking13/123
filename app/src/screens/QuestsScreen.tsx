@@ -16,7 +16,7 @@ export function QuestsScreen({ engine }: { engine: GameEngine }) {
   const dailyDoneCount = dailies.filter((q) => q.claimed).length;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 24 }}>
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Отдел кадров</Text>
         <Text style={{ fontSize: 30, fontFamily: font.medium, color: colors.text, marginTop: 4, marginBottom: 4, letterSpacing: -0.6 }}>KPI гильдии</Text>

@@ -134,8 +134,9 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
           );
         }))}
         {isBoss ? (
-          <FoeOverlay proj={proj} keyName="boss" hp={sim.boss.hp} maxHp={sim.boss.maxHp} alive={sim.boss.hp > 0} isBoss sim={sim} focused={false} />
-        ) : sim.enemies.map((e) => (
+          <FoeOverlay proj={proj} keyName="boss" hp={sim.boss.hp} maxHp={sim.boss.maxHp} alive={sim.boss.hp > 0} isBoss sim={sim} focused={false} onPress={sim.minions.length ? () => engine.setFocus(-1) : undefined} />
+        ) : null}
+        {(isBoss ? sim.minions : sim.enemies).map((e) => (
           <FoeOverlay
             key={e.id} proj={proj} keyName={'e' + e.id} testID={'enemy-' + e.id} name={e.name} hp={e.hp} maxHp={e.maxHp} alive={e.alive}
             isBoss={false} sim={sim} focused={e.alive && e.id === focusId} onPress={() => engine.setFocus(e.id)}

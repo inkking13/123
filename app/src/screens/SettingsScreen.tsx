@@ -14,7 +14,7 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
   const [confirmReset, setConfirmReset] = useState(false);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
         <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 10, marginBottom: 22, letterSpacing: -0.5 }}>Настройки</Text>

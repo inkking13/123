@@ -42,15 +42,17 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView>
         <View style={{ height: 300 }}>
           <Avatar id={cc.id} size={402} radius={0} style={{ width: '100%', height: 300 }} />
           <LinearGradient
-            colors={['rgba(22,24,38,0.55)', 'rgba(22,24,38,0.1)', colors.bg]}
+            colors={['rgba(14,15,24,0.55)', 'rgba(14,15,24,0.1)', 'rgba(14,15,24,0.92)']}
             locations={[0, 0.45, 1]}
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           />
+          {/* Carries the shade on over the stone wall, so the portrait has no hard bottom edge. */}
+          <LinearGradient pointerEvents="none" colors={['rgba(14,15,24,0.92)', 'rgba(14,15,24,0)']} style={{ position: 'absolute', left: 0, right: 0, top: 300, height: 90 }} />
           <Pressable
             onPress={() => engine.go('roster')}
             style={{

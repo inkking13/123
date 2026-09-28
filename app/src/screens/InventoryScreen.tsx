@@ -19,7 +19,7 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
   const reagents = engine.reagentInventoryVM();
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
         <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 10, marginBottom: 14, letterSpacing: -0.5 }}>Инвентарь</Text>
