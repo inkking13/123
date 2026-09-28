@@ -10,6 +10,7 @@ import { CreatureAnim, CreatureModel } from './CreatureModel';
 import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
+import { Stage } from './Stage';
 import {
   BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
 } from './world';
@@ -471,10 +472,7 @@ function Board({ sim, theme, current, reachable, proj }: { sim: Sim; theme: Batt
   };
   return (
     <>
-      <mesh position={[0, -0.07, 0]}>
-        <boxGeometry args={[GRID_COLS + 0.5, 0.14, GRID_ROWS + 0.5]} />
-        <meshLambertMaterial color={theme.floor.far} />
-      </mesh>
+      <Stage theme={theme} />
       {Array.from({ length: GRID_ROWS }).flatMap((_, row) => Array.from({ length: GRID_COLS }).map((__, col) => (
         <Tile
           key={row + '-' + col} row={row} col={col} state={stateOf(row, col)} theme={theme}

@@ -315,7 +315,8 @@ export function Scenery({ theme, weather = 1 }: { theme: BattleTheme; weather?: 
     <>
       <SkyDome theme={theme} />
       <Sun theme={theme} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, -10]}>
+      {/* Sunk under a stage model's floor, which would otherwise be hidden. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, theme.stage ? -0.5 : -0.02, -10]}>
         <planeGeometry args={[140, 90]} />
         <meshLambertMaterial color={theme.ground[0]} />
       </mesh>

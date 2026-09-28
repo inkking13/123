@@ -20,6 +20,8 @@ export interface BattleTheme {
   particles: Particles;
   /** Floor slab gradient (far → near) and the plain tile tint. */
   floor: { far: string; near: string; tile: string; stroke: string };
+  /** 3D battle only: a Meshy battlefield model the board sits in (see battle3d/Stage). */
+  stage?: 'cursedBattlefield';
 }
 
 export const BATTLE_THEMES: Record<string, BattleTheme> = {
@@ -87,6 +89,7 @@ export const BATTLE_THEMES: Record<string, BattleTheme> = {
     ],
     fog: 'rgba(160,165,185,0.35)', ground: ['#23222a', '#111015'], particles: 'wisps',
     floor: { far: '#2c2b33', near: '#3b3a44', tile: 'rgba(210,210,230,0.07)', stroke: 'rgba(210,210,230,0.2)' },
+    stage: 'cursedBattlefield',
   },
   dragonwastes: {
     sky: ['#1b0a08', '#5a1a0e', '#c2521c'],
