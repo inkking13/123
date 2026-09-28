@@ -90,7 +90,8 @@ export const BODIES = {
   },
 } satisfies Record<string, Body>;
 
-// Meshy-made weapons and shields. All but the rune axe were baked in metres
+// Meshy-made weapons and shields, scaled to a 1.7 m hero (a long sword to the
+// hip, a staff to the shoulder, a bow near head height). All but the rune axe were baked in metres
 // with the grip at the origin, the head or blade up +Y and its width along X;
 // shields face -X. The grip comes from the hand's pose at rest (arms down,
 // thumbs forward), so it is the same on every rig however its hand bone is
@@ -100,20 +101,20 @@ const prop = (mod: number, scale = 1, grip = 0, shine?: number) => ({ url: url(m
 const PROPS = {
   // Boar-headed double axe with runes, 1.9 units long along Y, grip on the leather wrap.
   runeAxe: prop(require('../../assets/models/rune-axe.glb'), 0.5, -0.55),
-  warhammer: prop(require('../../assets/models/weapon-warhammer.glb')),
-  greatAxe: prop(require('../../assets/models/weapon-greataxe.glb')),
+  warhammer: prop(require('../../assets/models/weapon-warhammer.glb'), 0.85),
+  greatAxe: prop(require('../../assets/models/weapon-greataxe.glb'), 1.15),
   longsword: prop(require('../../assets/models/weapon-longsword.glb')),
   boneSword: prop(require('../../assets/models/weapon-bone-sword.glb')),
-  dagger: prop(require('../../assets/models/weapon-dagger.glb')),
-  staff: prop(require('../../assets/models/weapon-staff.glb')),
-  bow: prop(require('../../assets/models/weapon-bow.glb')),
-  roundShield: prop(require('../../assets/models/shield-round.glb')),
-  skullShield: prop(require('../../assets/models/shield-skull.glb')),
+  dagger: prop(require('../../assets/models/weapon-dagger.glb'), 0.85),
+  staff: prop(require('../../assets/models/weapon-staff.glb'), 1.25),
+  bow: prop(require('../../assets/models/weapon-bow.glb'), 1.55),
+  roundShield: prop(require('../../assets/models/shield-round.glb'), 1.2),
+  skullShield: prop(require('../../assets/models/shield-skull.glb'), 1.35),
   mace: prop(require('../../assets/models/weapon-mace.glb')),
   handAxe: prop(require('../../assets/models/weapon-hand-axe.glb')),
   // Glowing in the hero's colour; `shine` is the height of the glowing part.
-  orb: prop(require('../../assets/models/weapon-orb.glb'), 1, 0, 0.12),
-  flask: prop(require('../../assets/models/weapon-flask.glb'), 1, 0, 0.02),
+  orb: prop(require('../../assets/models/weapon-orb.glb'), 0.6, 0, 0.12),
+  flask: prop(require('../../assets/models/weapon-flask.glb'), 0.6, 0, 0.02),
 };
 export type PropName = keyof typeof PROPS;
 
