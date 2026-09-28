@@ -8,6 +8,7 @@ import { useFrame, useLoader } from './r3f';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { GearLook, withGear } from './gearLooks';
 import { HERO_LOOKS, HeroLook } from './heroLooks';
+import { HERO_SKINS } from './heroSkins';
 import { HeadFit, WornHelm, tuckHair } from './HelmModel';
 
 // Race base bodies from Meshy: rigged bipeds with their own animation clips.
@@ -476,6 +477,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} size={B.propScale ?? 1} fist={B.fist} steady={rig.steady} rest={bow ? rig.restL : rig.restR} pose={bow ? rig.poseL : rig.poseR} left={bow} glow={glow} /></React.Suspense> : null}
       {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} size={B.propScale ?? 1} fist={B.fist} steady={rig.steady} rest={rig.restL} pose={rig.poseL} left glow={glow} /></React.Suspense> : null}
       <WornHelm name={gear?.helm?.model} head={rig.head} />
+      {HERO_SKINS[id] != null ? <React.Suspense fallback={null}><Skin mod={HERO_SKINS[id]} materials={rig.materials} /></React.Suspense> : null}
     </group>
   );
 }
@@ -486,6 +488,19 @@ class Fallback extends Component<{ fallback: React.ReactNode; children: React.Re
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(e: unknown) { console.warn('Meshy model failed, using the built hero', e); }
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
+}
+
+/** Puts a hero's own outfit texture on their body's materials once it has loaded. */
+function Skin({ mod, materials }: { mod: number; materials: THREE.MeshLambertMaterial[] }) {
+  const tex = useLoader(THREE.TextureLoader, url(mod) as any) as unknown as THREE.Texture;
+  useEffect(() => {
+    // glTF UVs: no flip, and colour data in sRGB like the body's own map.
+    tex.flipY = false; tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true;
+    const before = materials.map((m) => m.map);
+    for (const m of materials) { m.map = tex; m.needsUpdate = true; }
+    return () => materials.forEach((m, i) => { m.map = before[i]; m.needsUpdate = true; });
+  }, [tex, materials]);
+  return null;
 }
 
 interface HeroOpts {
