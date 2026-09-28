@@ -109,7 +109,7 @@ export const BODIES = {
   // Некромант, boss of Разрушенная крепость, on a Mixamo skeleton: upright stance, walk, run,
   // nine spell casts, a finger-wag taunt and a fall. Clip_A/B/C came out of Meshy under task ids.
   necromancer: {
-    url: url(require('../../assets/models/necromancer.glb')), height: 1.5,
+    url: url(require('../../assets/models/necromancer.glb')), height: 1.12,
     idle: 'Clip_B_3s', walk: 'Walking', run: 'Running',
     act: { default: 'mage_soell_cast_2', ranged: 'mage_soell_cast_6', ability: 'mage_soell_cast_5', heal: 'mage_soell_cast_1', rally: 'Finger_Wag_No' },
     speed: { mage_soell_cast_1: 1.8, mage_soell_cast_2: 1.6, mage_soell_cast_5: 4, mage_soell_cast_6: 1.3, Finger_Wag_No: 2, Dead: 1.3 },

@@ -255,7 +255,8 @@ function FoeFigure({
   /** Low-poly body; without one the enemy stays a portrait card. */
   monster?: MonsterLook;
 }) {
-  const mscale = isBoss ? 2.1 : 1.15 * FIGURE_SCALE;
+  const life = !!monster && 'lifeSize' in monster && !!monster.lifeSize;
+  const mscale = life ? FIGURE_SCALE : isBoss ? 2.1 : 1.15 * FIGURE_SCALE;
   const mH = monster ? monster.height * mscale : 0;
   const model = useRef<THREE.Group>(null);
   const yaw = useRef(0);
@@ -371,7 +372,7 @@ function FoeFigure({
     center.set(g.position.x, cy + s / 2, g.position.z);
   });
 
-  const baseR = isBoss ? 1.25 : 0.4;
+  const baseR = isBoss && !life ? 1.25 : isBoss ? 0.55 : 0.4;
   return (
     <group ref={root}>
       <Base radius={baseR} color={alive ? colors.danger : '#44444c'} />
