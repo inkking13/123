@@ -4,6 +4,7 @@ import { useFrame, useThree } from './r3f';
 import { useArt } from './textures';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
+import { MeshyFoe } from './MeshyModel';
 import { MODEL_HEIGHT, SHEET_MODELS } from './heroFigures';
 import { GearLook } from './gearLooks';
 import { CreatureAnim, CreatureModel } from './CreatureModel';
@@ -381,7 +382,9 @@ function FoeFigure({
       </mesh>
       {monster ? (<>
         <group ref={model}>
-          {'humanoid' in monster ? <HeroModel look={monster.humanoid} anim={heroAnim} /> : <CreatureModel look={monster.creature} anim={creAnim} />}
+          {'humanoid' in monster
+            ? monster.meshy ? <MeshyFoe body={monster.meshy} look={monster.humanoid} anim={heroAnim} /> : <HeroModel look={monster.humanoid} anim={heroAnim} />
+            : <CreatureModel look={monster.creature} anim={creAnim} />}
         </group>
         {/* wind-up halo and ice shell wrap the whole figure */}
         <mesh ref={glow} position={[0, mH * 0.5, 0]}>

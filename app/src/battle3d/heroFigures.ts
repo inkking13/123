@@ -16,5 +16,5 @@ export const SHEET_MODELS: Record<number, { height: number; Model: typeof Wander
   3: { height: BODIES.human.height, Model: meshyModel(3, 'human', { act: { ability: 'cast2', melee: 'cast3' } }), dance: true }, // Тэдиус
   8: { height: BODIES.human.height, Model: meshyModel(8, 'human'), dance: true }, // Родерик
   6: { height: BODIES.elf.height, Model: meshyModel(6, 'elf'), dance: true }, // Сильвана
-  7: { height: BODIES.elf.height, Model: meshyModel(7, 'elf'), dance: true }, // Элара
+  7: { height: BODIES.elf.height, Model: meshyModel(7, 'elf', { act: { ability: 'cast2', heal: 'cast1', ranged: 'cast6', rally: 'cast4' } }), dance: true }, // Элара, ведьма
 };

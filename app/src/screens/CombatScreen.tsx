@@ -16,7 +16,7 @@ import { FootShadow, Floor, TileGlow, TileImpact } from '../components/Stage25D'
 import { fieldGeometry } from '../combat/perspective';
 import { BATTLE_THEMES, BattleBackdrop, BattleParticles } from '../components/BattleBackdrop';
 import { Battle3D, canRender3D } from '../battle3d/Battle3D';
-import { ARENA_CHAMPION, MONSTER_LOOKS } from '../battle3d/monsterLooks';
+import { ARENA_CHAMPION, MONSTER_LOOKS, ROOM_BODIES } from '../battle3d/monsterLooks';
 import { gearLookOf } from '../battle3d/gearLooks';
 import { TIPS, Tip } from '../data/features';
 import { BossIntro } from '../components/BossIntro';
@@ -330,7 +330,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               engine={engine} sim={s} theme={theme} height={Math.round(fieldW * 1.12)} isBoss={isBossFight}
               bossArt={bossArt} roomArt={roomArt ? { brute: MONSTER_ART[roomArt.brute], archer: MONSTER_ART[roomArt.archer], shaman: MONSTER_ART[roomArt.shaman] } : undefined}
               bossMonster={engine.inArena ? ARENA_CHAMPION : dungeonForArt && BOSS_ART[dungeonForArt.id] ? MONSTER_LOOKS[BOSS_ART[dungeonForArt.id]] : undefined}
-              roomMonsters={roomArt ? { brute: MONSTER_LOOKS[roomArt.brute], archer: MONSTER_LOOKS[roomArt.archer], shaman: MONSTER_LOOKS[roomArt.shaman] } : undefined}
+              roomMonsters={roomArt ? { brute: MONSTER_LOOKS[roomArt.brute], archer: MONSTER_LOOKS[roomArt.archer], shaman: MONSTER_LOOKS[roomArt.shaman], ...ROOM_BODIES[dungeonForArt!.locationId] } : undefined}
               focusId={focusId} current={current} reachable={reachableCells} heroGear={heroGear} intro={!!engine.bossIntro}
               onFail={(e) => { console.warn('3D battlefield failed, falling back to 2.5D', e); setFailed3d(true); }}
             />

@@ -7,7 +7,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { useFrame, useLoader } from './r3f';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { GearLook, withGear } from './gearLooks';
-import { HERO_LOOKS } from './heroLooks';
+import { HERO_LOOKS, HeroLook } from './heroLooks';
 
 // Race base bodies from Meshy: rigged (Mixamo skeleton) bipeds with their
 // own animation clips. Each race's uploaded exports (one GLB per clip, same
@@ -38,10 +38,11 @@ interface Body {
 }
 
 export const BODIES = {
-  // Female elf: walk, run, spell cast, dance. No idle clip: the walk's first frame, held.
+  // Female elf: walk, run, five spell casts, dance. No idle clip: the walk's first frame, held.
   elf: {
     url: url(require('../../assets/models/elf.glb')), height: 1.2,
     idle: { clip: 'walk', frame: 0 }, walk: 'walk', run: 'run', act: { default: 'cast' }, flourish: 'dance',
+    speed: { cast1: 1.8, cast2: 1.6, cast4: 1.3, cast6: 1.3 },
   },
   // Braided dwarf: breathing idle, shield bash, war cry, shield-up alert.
   dwarf: {
@@ -56,6 +57,12 @@ export const BODIES = {
     act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
     speed: { attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2, hit: 1.2 },
     flourish: 'spinjump', death: 'hit',
+  },
+  // Skeleton warrior in a loincloth (1.62 tall in its file): idle, claw attack, spin attack, block, knocked flying.
+  skeleton: {
+    url: url(require('../../assets/models/skeleton.glb')), height: 1.2,
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'attack', ability: 'spin' },
+    speed: { attack: 2, spin: 2, hit: 1.2 }, guard: 'block', flourish: 'spin', death: 'hit',
   },
 } satisfies Record<string, Body>;
 
@@ -303,6 +310,18 @@ interface HeroOpts {
   weapon?: PropName;
   /** Per-hero choice of clip for an action kind. */
   act?: Partial<Record<string, string>>;
+}
+
+/** A monster on a Meshy body, falling back to its built look. */
+export function MeshyFoe({ body, look, anim }: { body: BodyName; look: HeroLook; anim: React.MutableRefObject<HeroAnim> }) {
+  const fallback = <HeroModel look={look} anim={anim} />;
+  return (
+    <Fallback fallback={fallback}>
+      <React.Suspense fallback={fallback}>
+        <Meshy id={-1} body={BODIES[body]} opts={{}} anim={anim} />
+      </React.Suspense>
+    </Fallback>
+  );
 }
 
 /** A sheet model for one hero on a race body, by candidate id. */
