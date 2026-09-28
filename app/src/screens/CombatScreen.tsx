@@ -10,7 +10,7 @@ import { SkillIcon } from '../components/SkillIcon';
 import { ProgressBar } from '../components/ProgressBar';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
-import { BOSS_ART, MONSTER_ART, ROOM_ART } from '../data/monsterArt';
+import { BOSS_ART, MONSTER_ART, roomArtFor } from '../data/monsterArt';
 import { AuraRing, Crosshair, DebtCoin, DefendBadge, FoeCell, Floaters, FrozenOverlay, IceShellOverlay, PoisonBubbles, Projectile, RallyWave, Tether, impactDelay, useActorMotion, useHpFloaters, useSlideIn } from '../components/CombatFx';
 import { FootShadow, Floor, TileGlow, TileImpact } from '../components/Stage25D';
 import { fieldGeometry } from '../combat/perspective';
@@ -76,7 +76,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   // Arena rivals are other guilds' squads, not monsters, so they keep the plain skull.
   const dungeonForArt = engine.inArena ? null : engine.currentDungeon();
   const bossArt = dungeonForArt && BOSS_ART[dungeonForArt.id] ? MONSTER_ART[BOSS_ART[dungeonForArt.id]] : undefined;
-  const roomArt = dungeonForArt ? ROOM_ART[dungeonForArt.locationId] : undefined;
+  const roomArt = dungeonForArt ? roomArtFor(dungeonForArt) : undefined;
   const theme = BATTLE_THEMES[dungeonForArt ? dungeonForArt.locationId : 'arena'] ?? BATTLE_THEMES.outskirts;
   const focusId = engine.focusEnemy()?.id;
   const stunnedNow = s.stunned || s.vulnerableRounds > 0;

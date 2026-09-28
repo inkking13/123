@@ -60,6 +60,10 @@ export const MONSTER_LOOKS: Record<MonsterArtId, MonsterLook> = {
   'wyrm-of-the-wasteland': cre({ kind: 'serpent', variant: 'wyrm', body: '#b8904a', belly: '#e0c88a', eyes: '#ff8a2a', spikes: '#7a5a2a' }, 0.9),
   // The Meshy necromancer; the built hooded caster stands in while it loads.
   necromancer: { ...hum({ skin: '#b8a898', primary: '#2a2426', secondary: '#1a1618', headGear: 'hood', outfit: 'robe', eyes: '#8aff9a', weapon: 'orb', glow: '#8aff9a' }, 1.3), meshy: 'necromancer' } as MonsterLook,
+  // The Meshy skeleton warrior in three kits; the built skeleton stands in while it loads.
+  'skeleton-warrior': { ...hum({ skin: '#d8d2c0', primary: '#5a4a3a', secondary: '#2a221c', skeleton: true, eyes: '#8aff9a', weapon: 'sword', offHand: 'kiteShield' }, 1.2), meshy: 'skeleton' } as MonsterLook,
+  'skeleton-archer': { ...hum({ skin: '#d8d2c0', primary: '#4a4a3a', secondary: '#2a2a1c', skeleton: true, eyes: '#8aff9a', weapon: 'bow' }, 1.2), meshy: 'skeletonArcher' } as MonsterLook,
+  'skeleton-mage': { ...hum({ skin: '#d8d2c0', primary: '#3a2a4a', secondary: '#1c1428', skeleton: true, eyes: '#8adcff', weapon: 'staff', glow: '#8adcff' }, 1.2), meshy: 'skeletonMage' } as MonsterLook,
 };
 
 /** Arena rivals are another guild's champion — a dark knight, not a monster. */

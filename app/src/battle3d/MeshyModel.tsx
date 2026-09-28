@@ -84,6 +84,20 @@ export const BODIES = {
     speed: { ...COMBAT_SPEED, attack: 2 }, guard: 'block', flourish: 'spin', death: 'Dead', hit: 'Hit_Reaction',
     hold: { right: 'boneSword', left: 'skullShield' },
   },
+  // The same skeleton with a bow in the left hand, loosing with the spell-cast reach.
+  skeletonArcher: {
+    url: url(require('../../assets/models/skeleton.glb')), height: 1.2,
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'Charged_Spell_Cast' },
+    speed: COMBAT_SPEED, guard: 'Block1', flourish: 'Victory_Cheer', death: 'Dead', hit: 'Hit_Reaction',
+    hold: { right: 'bow' },
+  },
+  // And with a mage's staff, casting.
+  skeletonMage: {
+    url: url(require('../../assets/models/skeleton.glb')), height: 1.2,
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'Charged_Spell_Cast', ability: 'Charged_Slash' },
+    speed: COMBAT_SPEED, guard: 'Block1', flourish: 'Victory_Cheer', death: 'Dead', hit: 'Hit_Reaction',
+    hold: { right: 'staff' },
+  },
   // Громмаш, on Meshy's rig: relaxed idle, fighting stance, hammer swing, axe chop, chest-pound war cry, and the combat set.
   orc: {
     url: url(require('../../assets/models/orc.glb')), height: 1.3, modelH: 2.0, propScale: 1.4,
@@ -339,7 +353,9 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
   // Meshy-made things in hand: the hero's own pick, else the model for their weapon and off-hand.
   const main = opts.weapon ?? (look ? WEAPON_PROP[look.weapon] : B.hold?.right);
   const off = look ? OFFHAND_PROP[look.offHand] : B.hold?.left;
-  const mainHand = look?.weapon === 'bow' ? rig.handL : rig.handR;
+  // Bows go in the left hand, whether the hero's look or the body's own kit holds one.
+  const bow = look ? look.weapon === 'bow' : main === 'bow';
+  const mainHand = bow ? rig.handL : rig.handR;
 
   // The rest built from primitives: bows in the left, everything else in the right.
   useEffect(() => {
@@ -449,7 +465,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       <group scale={[SCALE, SCALE, SCALE]} rotation={[0, B.turn ?? 0, 0]}>
         <primitive object={rig.scene} />
       </group>
-      {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} size={B.propScale ?? 1} fist={B.fist} steady={rig.steady} rest={look?.weapon === 'bow' ? rig.restL : rig.restR} pose={look?.weapon === 'bow' ? rig.poseL : rig.poseR} left={look?.weapon === 'bow'} glow={glow} /></React.Suspense> : null}
+      {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} size={B.propScale ?? 1} fist={B.fist} steady={rig.steady} rest={bow ? rig.restL : rig.restR} pose={bow ? rig.poseL : rig.poseR} left={bow} glow={glow} /></React.Suspense> : null}
       {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} size={B.propScale ?? 1} fist={B.fist} steady={rig.steady} rest={rig.restL} pose={rig.poseL} left glow={glow} /></React.Suspense> : null}
       <WornHelm name={gear?.helm?.model} head={rig.head} />
     </group>
