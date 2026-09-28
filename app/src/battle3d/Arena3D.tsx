@@ -12,6 +12,7 @@ import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
 import { Stage } from './Stage';
+import { Tile, TileState } from './BoardTiles';
 import {
   BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
 } from './world';
@@ -412,36 +413,6 @@ function FoeFigure({
         </Card>
       )}
     </group>
-  );
-}
-
-type TileState = 'plain' | 'reachable' | 'self' | 'danger' | 'lava' | 'foe';
-const TILE_COLOR: Record<Exclude<TileState, 'plain'>, string> = {
-  reachable: '#9184d9', self: '#d2cefd', danger: '#d1685c', lava: '#ff7a2a', foe: '#7a2a30',
-};
-
-function Tile({ row, col, state, activeColor, theme }: { row: number; col: number; state: TileState; activeColor: string | null; theme: BattleTheme }) {
-  const mat = useRef<THREE.MeshLambertMaterial>(null);
-  const plain = useMemo(() => new THREE.Color(theme.floor.near).lerp(new THREE.Color('#ffffff'), 0.12), [theme]);
-  useFrame((st) => {
-    const m = mat.current; if (!m) return;
-    const t = st.clock.elapsedTime;
-    if (state === 'plain') {
-      m.color.copy(plain);
-      m.emissive.set(activeColor ?? '#000000');
-      m.emissiveIntensity = activeColor ? 0.25 + 0.2 * Math.sin(t * 4) : 0;
-    } else {
-      m.color.set(TILE_COLOR[state]);
-      m.emissive.set(TILE_COLOR[state]);
-      const pulse = state === 'danger' || state === 'lava' ? 0.35 + 0.3 * Math.sin(t * (state === 'danger' ? 6 : 3)) : state === 'foe' ? 0.15 : 0.3;
-      m.emissiveIntensity = pulse;
-    }
-  });
-  return (
-    <mesh position={[colX(col), 0.012, rowZ(row)]} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry args={[TILE_SIZE, TILE_SIZE]} />
-      <meshLambertMaterial ref={mat} transparent opacity={state === 'plain' ? 0.55 : 0.85} />
-    </mesh>
   );
 }
 
