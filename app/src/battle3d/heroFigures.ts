@@ -17,4 +17,11 @@ export const SHEET_MODELS: Record<number, { height: number; Model: typeof Wander
   8: { height: BODIES.human.height, Model: meshyModel(8, 'human'), dance: true }, // Родерик
   6: { height: BODIES.elf.height, Model: meshyModel(6, 'elf'), dance: true }, // Сильвана
   7: { height: BODIES.elf.height, Model: meshyModel(7, 'elf', { act: { ability: 'cast2', heal: 'cast1', ranged: 'cast6', rally: 'cast4' } }), dance: true }, // Элара, ведьма
+  // The rest on the nearest existing Meshy body.
+  2: { height: BODIES.human.height, Model: meshyModel(2, 'human', { act: { default: 'cast1', melee: 'cast3', ability: 'cast2', ranged: 'cast6' } }), dance: true }, // Фаэлар, маг с посохом
+  9: { height: BODIES.dwarf.height, Model: meshyModel(9, 'dwarf'), dance: true }, // Освальд, двуручный молот
+  10: { height: BODIES.elf.height, Model: meshyModel(10, 'elf', { act: { default: 'cast1', ability: 'cast2', rally: 'cast4' } }), dance: true }, // Ирма, полевой врач
+  11: { height: BODIES.dwarf.height, Model: meshyModel(11, 'dwarf'), dance: true }, // Джаспер, гном с колбами
+  12: { height: BODIES.human.height, Model: meshyModel(12, 'human'), dance: true }, // Гаррет, топор
+  13: { height: BODIES.elf.height, Model: meshyModel(13, 'elf', { act: { ability: 'cast2', ranged: 'cast6', heal: 'cast1', rally: 'cast4' } }), dance: true }, // Мортана, огонь в ладони
 };

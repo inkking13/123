@@ -124,6 +124,14 @@ function weaponMesh(kind: string | undefined, glow: string, metal: string): THRE
     g.add(limb, string);
     return g;
   }
+  if (kind === 'greatHammer') {
+    const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.024, 0.8, 8), new THREE.MeshLambertMaterial({ color: '#4a3424' }));
+    haft.position.y = 0.26;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.13, 0.13), new THREE.MeshLambertMaterial({ color: metal }));
+    head.position.y = 0.64;
+    g.add(haft, head);
+    return g;
+  }
   if (kind === 'axe') {
     const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.62, 8), new THREE.MeshLambertMaterial({ color: '#5a3e26' }));
     haft.position.y = 0.2;
@@ -261,7 +269,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     // A fresh action restarts its clip from the top.
     if (a.at !== lastAt.current && a.kind) {
       lastAt.current = a.at;
-      playing.current = a.kind === 'dance' ? B.flourish ?? B.act.default : opts.act?.[a.kind] ?? B.act[a.kind] ?? B.act.default;
+      playing.current = a.kind === 'dance' ? B.flourish ?? B.act.default : opts.act?.[a.kind] ?? B.act[a.kind] ?? opts.act?.default ?? B.act.default;
       A[playing.current]?.reset().play();
     }
     const at = t - a.at;
