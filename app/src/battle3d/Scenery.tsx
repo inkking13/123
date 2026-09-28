@@ -309,7 +309,9 @@ function Weather({ kind, density }: { kind: string; density: number }) {
 export function Scenery({ theme, weather = 1 }: { theme: BattleTheme; weather?: number }) {
   const pieces = useMemo(() => {
     const bands = theme.layers.length === 1 ? [BANDS[1]] : theme.layers.length === 2 ? [BANDS[0], BANDS[1]] : BANDS;
-    return theme.layers.flatMap((l, i) => buildLayer(l.shape, l.color, l.accent, l.height, l.seed, bands[i]));
+    // A stage model has its own walls and ruins; only the farthest skyline shows behind them.
+    const layers = theme.stage ? theme.layers.slice(0, 1) : theme.layers;
+    return layers.flatMap((l, i) => buildLayer(l.shape, l.color, l.accent, l.height, l.seed, bands[i]));
   }, [theme]);
   return (
     <>

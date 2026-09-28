@@ -31,6 +31,8 @@ interface Body {
   turn?: number;
   /** Size of held weapons against a 1.7 m hero's, for a bulkier body. */
   propScale?: number;
+  /** From the wrist to the middle of the closed fist, metres; the fingers are curled in the file. */
+  fist?: number;
   idle: string | { clip: string; frame: number };
   walk: string;
   run: string;
@@ -56,21 +58,21 @@ const COMBAT_SPEED = { Attack: 2, Double_Combo_Attack: 2.1, Triple_Combo_Attack:
 export const BODIES = {
   // Female elf: idle, walk, run, five spell casts, dance, and the combat set.
   elf: {
-    url: url(require('../../assets/models/elf.glb')), height: 1.2,
+    url: url(require('../../assets/models/elf.glb')), height: 1.2, fist: 0.08,
     idle: 'Idle', walk: 'walk', run: 'run', act: { default: 'cast' }, flourish: 'dance',
     speed: { ...COMBAT_SPEED, cast1: 1.8, cast2: 1.6, cast4: 1.3, cast6: 1.3 },
     guard: 'Block1', death: 'Dead', hit: 'Hit_Reaction',
   },
   // Braided dwarf: breathing idle, shield bash, war cry, and the combat set.
   dwarf: {
-    url: url(require('../../assets/models/dwarf.glb')), height: 1.0,
+    url: url(require('../../assets/models/dwarf.glb')), height: 1.0, fist: 0.125,
     idle: 'idle', walk: 'walk', run: 'run', act: { default: 'bash', rally: 'shout', ability: 'shout' },
     speed: { ...COMBAT_SPEED, bash: 1.5, shout: 2.2 }, guard: 'Block1', flourish: 'Victory_Cheer', death: 'Dead', hit: 'Hit_Reaction',
   },
-  // Human male: combat stance, sword attack, blade spins, eight spell casts, and the combat set.
+  // Human male: relaxed idle, combat stance, sword attack, blade spins, eight spell casts, and the combat set.
   human: {
-    url: url(require('../../assets/models/human.glb')), height: 1.12,
-    idle: 'stance', walk: 'walk', run: 'run',
+    url: url(require('../../assets/models/human.glb')), height: 1.12, fist: 0.11,
+    idle: 'Idle', walk: 'walk', run: 'run',
     act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
     speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
     guard: 'Block1', flourish: 'spinjump', death: 'Dead', hit: 'Hit_Reaction',
@@ -82,13 +84,22 @@ export const BODIES = {
     speed: { ...COMBAT_SPEED, attack: 2 }, guard: 'block', flourish: 'spin', death: 'Dead', hit: 'Hit_Reaction',
     hold: { right: 'boneSword', left: 'skullShield' },
   },
-  // Громмаш, on Meshy's rig: fighting stance, hammer swing, axe chop, chest-pound war cry, and the combat set.
+  // Громмаш, on Meshy's rig: relaxed idle, fighting stance, hammer swing, axe chop, chest-pound war cry, and the combat set.
   orc: {
     url: url(require('../../assets/models/orc.glb')), height: 1.3, modelH: 2.0, propScale: 1.4,
-    idle: 'Combat_Stance', walk: 'Walk_Fight_Forward', run: 'RunFast',
+    idle: 'Idle', walk: 'Walk_Fight_Forward', run: 'RunFast',
     act: { default: 'Heavy_Hammer_Swing', ability: 'Triple_Combo_Attack', rally: 'Chest_Pound_Taunt', heal: 'Chest_Pound_Taunt' },
     speed: { ...COMBAT_SPEED, Heavy_Hammer_Swing: 1.4, Chest_Pound_Taunt: 1.6 },
     guard: 'Block1', flourish: 'Chest_Pound_Taunt', death: 'Dead', hit: 'Hit_Reaction',
+  },
+  // Некромант, boss of Пустошь Новобранцев, on a Mixamo skeleton: upright stance, walk, run,
+  // nine spell casts, a finger-wag taunt and a fall. Clip_A/B/C came out of Meshy under task ids.
+  necromancer: {
+    url: url(require('../../assets/models/necromancer.glb')), height: 1.5,
+    idle: 'Clip_B_3s', walk: 'Walking', run: 'Running',
+    act: { default: 'mage_soell_cast_2', ranged: 'mage_soell_cast_6', ability: 'mage_soell_cast_5', heal: 'mage_soell_cast_1', rally: 'Finger_Wag_No' },
+    speed: { mage_soell_cast_1: 1.8, mage_soell_cast_2: 1.6, mage_soell_cast_5: 4, mage_soell_cast_6: 1.3, Finger_Wag_No: 2, Dead: 1.3 },
+    flourish: 'Finger_Wag_No', death: 'Dead',
   },
 } satisfies Record<string, Body>;
 
@@ -134,7 +145,7 @@ const UPRIGHT = new Set<PropName>(['staff', 'bow', 'orb', 'flask']);
  * (both in model space); `left` for the left hand. The rigs have no finger bones and each
  * animation twists the hand its own way, so the aim is set in the first frame of idle.
  */
-function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, how: 'fist' | 'upright' | 'shield') {
+function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, how: 'fist' | 'upright' | 'shield', toFist = TO_FIST) {
   const toBone = rest.clone().invert();
   // The hand at rest, in model space: fingers, thumb (towards the front), palm.
   const F = new THREE.Vector3(0, 1, 0).applyQuaternion(rest);
@@ -164,12 +175,12 @@ function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, h
   }
   const basis = new THREE.Matrix4().makeBasis(x, y, x.clone().cross(y));
   const quaternion = toBone.clone().multiply(new THREE.Quaternion().setFromRotationMatrix(basis));
-  const position = new THREE.Vector3(0, TO_FIST, 0).add(P.clone().multiplyScalar(how === 'shield' ? -TO_BACK : TO_PALM).applyQuaternion(toBone));
+  const position = new THREE.Vector3(0, how === 'shield' ? TO_FIST : toFist, 0).add(P.clone().multiplyScalar(how === 'shield' ? -TO_BACK : TO_PALM).applyQuaternion(toBone));
   return { quaternion, position };
 }
 
 /** Loads a prop and puts it in the given hand bone; nothing is drawn by the component itself. */
-function HeldProp({ name, hand, unit, size, rest, pose, left, glow, steady }: { name: PropName; hand: THREE.Bone; unit: number; size: number; rest: THREE.Quaternion; pose: THREE.Quaternion; left: boolean; glow?: string; steady: Steady[] }) {
+function HeldProp({ name, hand, unit, size, fist, rest, pose, left, glow, steady }: { name: PropName; hand: THREE.Bone; unit: number; size: number; fist?: number; rest: THREE.Quaternion; pose: THREE.Quaternion; left: boolean; glow?: string; steady: Steady[] }) {
   const P = PROPS[name];
   const gltf = useLoader(GLTFLoader, P.url as any) as unknown as { scene: THREE.Group };
   useEffect(() => {
@@ -190,25 +201,25 @@ function HeldProp({ name, hand, unit, size, rest, pose, left, glow, steady }: { 
     }
     prop.scale.setScalar(P.scale * size);
     prop.position.y = -P.grip * P.scale * size;
-    const g = gripIn(rest, pose, left, name === 'roundShield' || name === 'skullShield' ? 'shield' : UPRIGHT.has(name) ? 'upright' : 'fist');
+    const g = gripIn(rest, pose, left, name === 'roundShield' || name === 'skullShield' ? 'shield' : UPRIGHT.has(name) ? 'upright' : 'fist', fist);
     const holder = new THREE.Group();
     holder.quaternion.copy(g.quaternion);
     holder.position.copy(g.position).multiplyScalar(unit);
     holder.scale.setScalar(unit);
     holder.add(prop);
     hand.add(holder);
-    // A staff or bow keeps its idle stand while the hand sways; see steadyProps.
+    // Held things keep their idle stand while the hand sways in idle; see steadyProps.
     const s: Steady = { holder, hand, grip: g.quaternion, idle: pose.clone().multiply(g.quaternion) };
-    if (UPRIGHT.has(name)) steady.push(s);
+    steady.push(s);
     return () => { steady.splice(steady.indexOf(s) >>> 0, 1); holder.removeFromParent(); prop.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); };
-  }, [gltf, hand, P, unit, size, rest, pose, left, name, glow, steady]);
+  }, [gltf, hand, P, unit, size, fist, rest, pose, left, name, glow, steady]);
   return null;
 }
 
-/** An upright prop's holder, its grip in the hand, and its turn in model space in idle. */
+/** A held prop's holder, its grip in the hand, and its turn in model space in idle. */
 interface Steady { holder: THREE.Object3D; hand: THREE.Bone; grip: THREE.Quaternion; idle: THREE.Quaternion }
 const _hq = new THREE.Quaternion(), _cq = new THREE.Quaternion();
-/** Holds upright props at their idle stand in proportion to how much idle is playing, so they follow the hand only in actions. */
+/** Holds props at their idle stand in proportion to how much idle is playing, so they follow the hand only in actions. */
 function steadyProps(steady: Steady[], root: THREE.Object3D, idle: number) {
   for (const s of steady) {
     _hq.identity();
@@ -438,8 +449,8 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       <group scale={[SCALE, SCALE, SCALE]} rotation={[0, B.turn ?? 0, 0]}>
         <primitive object={rig.scene} />
       </group>
-      {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} size={B.propScale ?? 1} steady={rig.steady} rest={look?.weapon === 'bow' ? rig.restL : rig.restR} pose={look?.weapon === 'bow' ? rig.poseL : rig.poseR} left={look?.weapon === 'bow'} glow={glow} /></React.Suspense> : null}
-      {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} size={B.propScale ?? 1} steady={rig.steady} rest={rig.restL} pose={rig.poseL} left glow={glow} /></React.Suspense> : null}
+      {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} size={B.propScale ?? 1} fist={B.fist} steady={rig.steady} rest={look?.weapon === 'bow' ? rig.restL : rig.restR} pose={look?.weapon === 'bow' ? rig.poseL : rig.poseR} left={look?.weapon === 'bow'} glow={glow} /></React.Suspense> : null}
+      {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} size={B.propScale ?? 1} fist={B.fist} steady={rig.steady} rest={rig.restL} pose={rig.poseL} left glow={glow} /></React.Suspense> : null}
       <WornHelm name={gear?.helm?.model} head={rig.head} />
     </group>
   );
