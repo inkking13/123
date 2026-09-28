@@ -64,11 +64,12 @@ export const BODIES = {
     guard: 'Block1', death: 'Dead', hit: 'Hit_Reaction',
   },
   // Male elf (Meshy rig, mesh cut to ~14k triangles): breathing idle, walk, run, a proud strut and eight spell casts.
-  // No combat set yet, and the fingers are not curled into a fist.
+  // Fingers curled into a fist in the file; block, flinch and fall taken from the female elf.
   elfMale: {
-    url: url(require('../../assets/models/elf-male.glb')), height: 1.2,
+    url: url(require('../../assets/models/elf-male.glb')), height: 1.2, fist: 0.08,
     idle: 'Long_Breathe_and_Look_Around', walk: 'Walking', run: 'Running', act: { default: 'mage_soell_cast' }, flourish: 'Proud_Strut',
-    speed: { mage_soell_cast: 1.4, mage_soell_cast_1: 1.8, mage_soell_cast_2: 1.6, mage_soell_cast_3: 1.6, mage_soell_cast_4: 1.3, mage_soell_cast_6: 1.3, mage_soell_cast_7: 1.4, Proud_Strut: 1.2 },
+    speed: { ...COMBAT_SPEED, mage_soell_cast: 1.4, mage_soell_cast_1: 1.8, mage_soell_cast_2: 1.6, mage_soell_cast_3: 1.6, mage_soell_cast_4: 1.3, mage_soell_cast_6: 1.3, mage_soell_cast_7: 1.4, Proud_Strut: 1.2 },
+    guard: 'Block1', death: 'Dead', hit: 'Hit_Reaction',
   },
   // Braided dwarf: breathing idle, shield bash, war cry, and the combat set.
   dwarf: {
