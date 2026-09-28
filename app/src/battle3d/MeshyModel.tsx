@@ -29,6 +29,8 @@ interface Body {
   modelH?: number;
   /** Turn about Y for a file that faces another way. */
   turn?: number;
+  /** Size of held weapons against a 1.7 m hero's, for a bulkier body. */
+  propScale?: number;
   idle: string | { clip: string; frame: number };
   walk: string;
   run: string;
@@ -82,7 +84,7 @@ export const BODIES = {
   },
   // Громмаш, on Meshy's rig: fighting stance, hammer swing, axe chop, chest-pound war cry, and the combat set.
   orc: {
-    url: url(require('../../assets/models/orc.glb')), height: 1.3, modelH: 2.0,
+    url: url(require('../../assets/models/orc.glb')), height: 1.3, modelH: 2.0, propScale: 1.4,
     idle: 'Combat_Stance', walk: 'Walk_Fight_Forward', run: 'RunFast',
     act: { default: 'Heavy_Hammer_Swing', ability: 'Triple_Combo_Attack', rally: 'Chest_Pound_Taunt', heal: 'Chest_Pound_Taunt' },
     speed: { ...COMBAT_SPEED, Heavy_Hammer_Swing: 1.4, Chest_Pound_Taunt: 1.6 },
@@ -130,7 +132,7 @@ const UPRIGHT = new Set<PropName>(['staff', 'bow', 'orb', 'flask']);
 /**
  * A prop's turn and place in a hand bone whose rest turn is `rest` and idle turn is `pose`
  * (both in model space); `left` for the left hand. The rigs have no finger bones and each
- * animation twists the hand its own way, so the aim is set from how the hand stands in idle.
+ * animation twists the hand its own way, so the aim is set in the first frame of idle.
  */
 function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, how: 'fist' | 'upright' | 'shield') {
   const toBone = rest.clone().invert();
@@ -149,15 +151,16 @@ function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, h
       // A staff, bow, orb or flask stands straight up in idle.
       y = new THREE.Vector3(0.1 * out, 1, 0.1).normalize().applyQuaternion(toIdle.clone().invert());
     } else {
-      // A blade leaves the fist on whichever side of it faces up, forward and out in idle,
-      // turned between the thumb and the forearm as far as the grip allows.
-      const want = new THREE.Vector3(0.5 * out, 0.8, 1);
-      const thumb = want.dot(T.clone().applyQuaternion(toIdle));
-      const arm = want.dot(F.clone().negate().applyQuaternion(toIdle));
-      const turn = THREE.MathUtils.clamp(Math.atan2(arm, Math.abs(thumb)), -0.3, 1);
-      y = T.clone().multiplyScalar(Math.sign(thumb || 1) * Math.cos(turn)).addScaledVector(F, -Math.sin(turn)).normalize();
+      // A blade or head rises up, forward and a little out in idle, but not back along the forearm.
+      const want = new THREE.Vector3(0.3 * out, 1, 0.9).normalize();
+      const arm = F.clone().negate().applyQuaternion(toIdle);
+      const along = want.dot(arm);
+      if (along > 0.5) want.addScaledVector(arm, 0.5 - along).normalize();
+      y = want.applyQuaternion(toIdle.clone().invert());
     }
-    x = y.clone().cross(P).normalize();
+    x = y.clone().cross(P);
+    if (x.lengthSq() < 1e-4) x = y.clone().cross(F);
+    x.normalize();
   }
   const basis = new THREE.Matrix4().makeBasis(x, y, x.clone().cross(y));
   const quaternion = toBone.clone().multiply(new THREE.Quaternion().setFromRotationMatrix(basis));
@@ -166,7 +169,7 @@ function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, h
 }
 
 /** Loads a prop and puts it in the given hand bone; nothing is drawn by the component itself. */
-function HeldProp({ name, hand, unit, rest, pose, left, glow }: { name: PropName; hand: THREE.Bone; unit: number; rest: THREE.Quaternion; pose: THREE.Quaternion; left: boolean; glow?: string }) {
+function HeldProp({ name, hand, unit, size, rest, pose, left, glow, steady }: { name: PropName; hand: THREE.Bone; unit: number; size: number; rest: THREE.Quaternion; pose: THREE.Quaternion; left: boolean; glow?: string; steady: Steady[] }) {
   const P = PROPS[name];
   const gltf = useLoader(GLTFLoader, P.url as any) as unknown as { scene: THREE.Group };
   useEffect(() => {
@@ -185,8 +188,8 @@ function HeldProp({ name, hand, unit, rest, pose, left, glow }: { name: PropName
       halo.position.y = P.shine;
       prop.add(halo);
     }
-    prop.scale.setScalar(P.scale);
-    prop.position.y = -P.grip * P.scale;
+    prop.scale.setScalar(P.scale * size);
+    prop.position.y = -P.grip * P.scale * size;
     const g = gripIn(rest, pose, left, name === 'roundShield' || name === 'skullShield' ? 'shield' : UPRIGHT.has(name) ? 'upright' : 'fist');
     const holder = new THREE.Group();
     holder.quaternion.copy(g.quaternion);
@@ -194,9 +197,25 @@ function HeldProp({ name, hand, unit, rest, pose, left, glow }: { name: PropName
     holder.scale.setScalar(unit);
     holder.add(prop);
     hand.add(holder);
-    return () => { holder.removeFromParent(); prop.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); };
-  }, [gltf, hand, P, unit, rest, pose, left, name, glow]);
+    // A staff or bow keeps its idle stand while the hand sways; see steadyProps.
+    const s: Steady = { holder, hand, grip: g.quaternion, idle: pose.clone().multiply(g.quaternion) };
+    if (UPRIGHT.has(name)) steady.push(s);
+    return () => { steady.splice(steady.indexOf(s) >>> 0, 1); holder.removeFromParent(); prop.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); };
+  }, [gltf, hand, P, unit, size, rest, pose, left, name, glow, steady]);
   return null;
+}
+
+/** An upright prop's holder, its grip in the hand, and its turn in model space in idle. */
+interface Steady { holder: THREE.Object3D; hand: THREE.Bone; grip: THREE.Quaternion; idle: THREE.Quaternion }
+const _hq = new THREE.Quaternion(), _cq = new THREE.Quaternion();
+/** Holds upright props at their idle stand in proportion to how much idle is playing, so they follow the hand only in actions. */
+function steadyProps(steady: Steady[], root: THREE.Object3D, idle: number) {
+  for (const s of steady) {
+    _hq.identity();
+    for (let b: THREE.Object3D | null = s.hand; b && b !== root; b = b.parent) _hq.premultiply(b.quaternion);
+    _cq.copy(_hq).multiply(s.grip).slerp(s.idle, idle);
+    s.holder.quaternion.copy(_hq.invert()).multiply(_cq);
+  }
 }
 export type BodyName = keyof typeof BODIES;
 
@@ -303,7 +322,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     const poseR = poseOf(handR as THREE.Bone | null), poseL = poseOf(handL as THREE.Bone | null);
     // Bone space per metre: 100 on a centimetre rig, so held things are scaled back.
     const unit = handR ? 1 / new THREE.Vector3().setFromMatrixScale((handR as THREE.Bone).matrixWorld).x : 1;
-    return { scene, unit, restR, restL, poseR, poseL, materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
+    return { scene, unit, restR, restL, poseR, poseL, steady: [] as Steady[], materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
 
   // Meshy-made things in hand: the hero's own pick, else the model for their weapon and off-hand.
@@ -400,6 +419,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       if (ht >= 0 && ht < 0.35) x -= 0.35 * (1 - ht / 0.35);
       rig.spine.rotation.x += x;
     }
+    steadyProps(rig.steady, rig.scene, weights.current.idle ?? 0);
 
     const fall = a.alive || B.death ? 0 : a.deadAt >= 0 ? Math.min(1, (t - a.deadAt) / 0.55) : 1;
     const eased = 1 - (1 - fall) * (1 - fall);
@@ -418,8 +438,8 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       <group scale={[SCALE, SCALE, SCALE]} rotation={[0, B.turn ?? 0, 0]}>
         <primitive object={rig.scene} />
       </group>
-      {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} rest={look?.weapon === 'bow' ? rig.restL : rig.restR} pose={look?.weapon === 'bow' ? rig.poseL : rig.poseR} left={look?.weapon === 'bow'} glow={glow} /></React.Suspense> : null}
-      {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} rest={rig.restL} pose={rig.poseL} left glow={glow} /></React.Suspense> : null}
+      {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} size={B.propScale ?? 1} steady={rig.steady} rest={look?.weapon === 'bow' ? rig.restL : rig.restR} pose={look?.weapon === 'bow' ? rig.poseL : rig.poseR} left={look?.weapon === 'bow'} glow={glow} /></React.Suspense> : null}
+      {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} size={B.propScale ?? 1} steady={rig.steady} rest={rig.restL} pose={rig.poseL} left glow={glow} /></React.Suspense> : null}
       <WornHelm name={gear?.helm?.model} head={rig.head} />
     </group>
   );
