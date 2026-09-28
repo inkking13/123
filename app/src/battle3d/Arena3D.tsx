@@ -4,12 +4,14 @@ import { useFrame, useThree } from './r3f';
 import { useArt } from './textures';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
+import { MeshyFoe } from './MeshyModel';
 import { MODEL_HEIGHT, SHEET_MODELS } from './heroFigures';
 import { GearLook } from './gearLooks';
 import { CreatureAnim, CreatureModel } from './CreatureModel';
 import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
+import { Stage } from './Stage';
 import {
   BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
 } from './world';
@@ -380,7 +382,9 @@ function FoeFigure({
       </mesh>
       {monster ? (<>
         <group ref={model}>
-          {'humanoid' in monster ? <HeroModel look={monster.humanoid} anim={heroAnim} /> : <CreatureModel look={monster.creature} anim={creAnim} />}
+          {'humanoid' in monster
+            ? monster.meshy ? <MeshyFoe body={monster.meshy} look={monster.humanoid} anim={heroAnim} /> : <HeroModel look={monster.humanoid} anim={heroAnim} />
+            : <CreatureModel look={monster.creature} anim={creAnim} />}
         </group>
         {/* wind-up halo and ice shell wrap the whole figure */}
         <mesh ref={glow} position={[0, mH * 0.5, 0]}>
@@ -471,10 +475,7 @@ function Board({ sim, theme, current, reachable, proj }: { sim: Sim; theme: Batt
   };
   return (
     <>
-      <mesh position={[0, -0.07, 0]}>
-        <boxGeometry args={[GRID_COLS + 0.5, 0.14, GRID_ROWS + 0.5]} />
-        <meshLambertMaterial color={theme.floor.far} />
-      </mesh>
+      <Stage theme={theme} />
       {Array.from({ length: GRID_ROWS }).flatMap((_, row) => Array.from({ length: GRID_COLS }).map((__, col) => (
         <Tile
           key={row + '-' + col} row={row} col={col} state={stateOf(row, col)} theme={theme}

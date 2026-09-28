@@ -1,12 +1,14 @@
 import { MonsterArtId } from '../data/monsterArt';
 import { HeroLook } from './heroLooks';
 import { CreatureLook } from './CreatureModel';
+import type { BodyName } from './MeshyModel';
+import { EnemyRole } from '../combat/types';
 
 // Every bestiary monster as a low-poly figure, matched to its portrait: the
 // man-shaped ones reuse the hero rig (with monster extras), the rest use the
 // creature rigs. `height` is the figure's rough standing height at scale 1.
 
-export type MonsterLook = { humanoid: HeroLook; height: number } | { creature: CreatureLook; height: number };
+export type MonsterLook = { humanoid: HeroLook; height: number; meshy?: BodyName } | { creature: CreatureLook; height: number };
 
 const hum = (l: Partial<HeroLook> & Pick<HeroLook, 'skin' | 'primary'>, height = 1.2): MonsterLook => ({
   humanoid: {
@@ -63,3 +65,9 @@ export const ARENA_CHAMPION: MonsterLook = hum({
   skin: '#d0a086', hair: '#2a2020', hairStyle: 'short', beard: 'short', primary: '#3a3440', secondary: '#241f28', metal: '#8a8494',
   outfit: 'plate', weapon: 'greatAxe', cape: '#6a1a24', eyes: '#ff5a4a',
 }, 1.25);
+
+/** Room monsters drawn on a Meshy body instead of their built look, by location. */
+export const ROOM_BODIES: Record<string, Partial<Record<EnemyRole, MonsterLook>>> = {
+  // Забытый Легион: its nameless rank and file are the Meshy skeleton warrior.
+  forgottenlegion: { brute: { ...MONSTER_LOOKS['grave-dust-ghoul'], meshy: 'skeleton' } as MonsterLook },
+};
