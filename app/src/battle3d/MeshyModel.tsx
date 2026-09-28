@@ -67,10 +67,10 @@ export const BODIES = {
     idle: 'idle', walk: 'walk', run: 'run', act: { default: 'bash', rally: 'shout', ability: 'shout' },
     speed: { ...COMBAT_SPEED, bash: 1.5, shout: 2.2 }, guard: 'Block1', flourish: 'Victory_Cheer', death: 'Dead', hit: 'Hit_Reaction',
   },
-  // Human male: combat stance, sword attack, blade spins, eight spell casts, and the combat set.
+  // Human male: relaxed idle, combat stance, sword attack, blade spins, eight spell casts, and the combat set.
   human: {
     url: url(require('../../assets/models/human.glb')), height: 1.12,
-    idle: 'stance', walk: 'walk', run: 'run',
+    idle: 'Idle', walk: 'walk', run: 'run',
     act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
     speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
     guard: 'Block1', flourish: 'spinjump', death: 'Dead', hit: 'Hit_Reaction',
@@ -82,10 +82,10 @@ export const BODIES = {
     speed: { ...COMBAT_SPEED, attack: 2 }, guard: 'block', flourish: 'spin', death: 'Dead', hit: 'Hit_Reaction',
     hold: { right: 'boneSword', left: 'skullShield' },
   },
-  // Громмаш, on Meshy's rig: fighting stance, hammer swing, axe chop, chest-pound war cry, and the combat set.
+  // Громмаш, on Meshy's rig: relaxed idle, fighting stance, hammer swing, axe chop, chest-pound war cry, and the combat set.
   orc: {
     url: url(require('../../assets/models/orc.glb')), height: 1.3, modelH: 2.0, propScale: 1.4,
-    idle: 'Combat_Stance', walk: 'Walk_Fight_Forward', run: 'RunFast',
+    idle: 'Idle', walk: 'Walk_Fight_Forward', run: 'RunFast',
     act: { default: 'Heavy_Hammer_Swing', ability: 'Triple_Combo_Attack', rally: 'Chest_Pound_Taunt', heal: 'Chest_Pound_Taunt' },
     speed: { ...COMBAT_SPEED, Heavy_Hammer_Swing: 1.4, Chest_Pound_Taunt: 1.6 },
     guard: 'Block1', flourish: 'Chest_Pound_Taunt', death: 'Dead', hit: 'Hit_Reaction',
