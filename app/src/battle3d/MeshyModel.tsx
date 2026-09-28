@@ -8,6 +8,7 @@ import { useFrame, useLoader } from './r3f';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { GearLook, withGear } from './gearLooks';
 import { HERO_LOOKS, HeroLook } from './heroLooks';
+import { HeadFit, WornHelm } from './HelmModel';
 
 // Race base bodies from Meshy: rigged (Mixamo skeleton) bipeds with their
 // own animation clips. Each race's uploaded exports (one GLB per clip, same
@@ -169,6 +170,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     const scene = cloneSkinned(gltf.scene) as THREE.Group;
     const materials: THREE.MeshLambertMaterial[] = [];
     let hips: THREE.Bone | null = null; let spine: THREE.Bone | null = null; let handL: THREE.Bone | null = null; let handR: THREE.Bone | null = null;
+    let headBone: THREE.Bone | null = null; let headTop: THREE.Bone | null = null;
     scene.traverse((o) => {
       const m = o as THREE.SkinnedMesh;
       if (m.isSkinnedMesh) {
@@ -183,8 +185,18 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
         if (o.name.endsWith('Spine2')) spine = o as THREE.Bone;
         if (o.name.endsWith('LeftHand')) handL = o as THREE.Bone;
         if (o.name.endsWith('RightHand')) handR = o as THREE.Bone;
+        if (o.name.endsWith('Head')) headBone = o as THREE.Bone;
+        if (o.name.endsWith('HeadTop_End')) headTop = o as THREE.Bone;
       }
     });
+    // Where the head sits at rest, for fitting a helmet.
+    scene.updateMatrixWorld(true);
+    let head: HeadFit | null = null;
+    if (headBone && headTop) {
+      const hb = headBone as THREE.Bone;
+      const top = new THREE.Vector3().setFromMatrixPosition((headTop as THREE.Bone).matrixWorld);
+      head = { bone: hb, rest: hb.matrixWorld.clone(), top, height: top.y - hb.matrixWorld.elements[13] + 0.02 };
+    }
     const mixer = new THREE.AnimationMixer(scene);
     const actions: Record<string, THREE.AnimationAction> = {};
     for (const c of gltf.animations) actions[c.name] = mixer.clipAction(c);
@@ -200,7 +212,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     for (const [name, a] of Object.entries(actions)) { a.timeScale = name === 'idle' && typeof B.idle !== 'string' ? 0 : B.speed?.[name] ?? 1; a.play(); a.setEffectiveWeight(0); }
     actions.idle.setEffectiveWeight(1);
     const h = hips as THREE.Bone | null;
-    return { scene, materials, mixer, actions, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
+    return { scene, materials, mixer, actions, head, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
 
   // The hero's weapon in hand: bows in the left, everything else in the right.
@@ -293,6 +305,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
         <primitive object={rig.scene} />
       </group>
       {opts.weapon && rig.handR ? <React.Suspense fallback={null}><HeldProp name={opts.weapon} hand={rig.handR} /></React.Suspense> : null}
+      <WornHelm name={gear?.helm?.model} head={rig.head} />
     </group>
   );
 }

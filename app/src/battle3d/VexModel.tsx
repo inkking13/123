@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useFrame, useLoader } from './r3f';
 import { HeroAnim } from './HeroModel';
 import { GearLook } from './gearLooks';
+import { HeadFit, WornHelm } from './HelmModel';
 import { WandererModel } from './WandererModel';
 import { ARM_REST, HIP, aimBlades, armFists, makeSkeleton, skinGeometry } from './vexRig';
 
@@ -46,7 +47,9 @@ function Rogue({ anim, gear }: { anim: React.MutableRefObject<HeroAnim>; gear?: 
     skinned.frustumCulled = false;
     // Fists round the grips of his two red blades.
     const blades = armFists(s, bladeColor);
-    return { skinned, material, s, blades };
+    // Top of the hood and hood-to-chin, in model units.
+    const head: HeadFit = { bone: s.head, rest: s.head.matrixWorld.clone(), top: new THREE.Vector3(0, 0.95, 0.03), height: 0.4 };
+    return { skinned, material, s, blades, head };
   }, [gltf, bladeColor]);
   useEffect(() => () => {
     rig.material.dispose();
@@ -131,6 +134,7 @@ function Rogue({ anim, gear }: { anim: React.MutableRefObject<HeroAnim>; gear?: 
     <group ref={fallRef}>
       <group scale={[SCALE, SCALE, SCALE]} position={[0, -FEET * SCALE, 0]}>
         <primitive object={rig.skinned} />
+        <WornHelm name={gear?.helm?.model} head={rig.head} />
       </group>
     </group>
   );

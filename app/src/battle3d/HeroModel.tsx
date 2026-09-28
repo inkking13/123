@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from './r3f';
 import { HeroLook } from './heroLooks';
+import { BuiltHeadHelm } from './HelmModel';
 import { GearLook, TWO_HANDED, withGear } from './gearLooks';
 import { Pattern, surface } from './texgen';
 
@@ -253,6 +254,7 @@ function makeGearMats(): GearMats {
 }
 
 function HelmMesh({ gear, gm }: { gear: NonNullable<GearLook['helm']>; gm: GearMats }) {
+  if (gear.model) return <BuiltHeadHelm name={gear.model} />;
   const trim = gm.of(gear.rarity);
   switch (gear.kind) {
     case 'cap': return (<>

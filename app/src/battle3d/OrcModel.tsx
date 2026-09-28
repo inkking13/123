@@ -7,6 +7,7 @@ import { useFrame, useLoader } from './r3f';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { GearLook, withGear } from './gearLooks';
 import { HERO_LOOKS } from './heroLooks';
+import { HeadFit, WornHelm } from './HelmModel';
 
 // Громмаш as the Meshy orc warrior (repo: models/raw/Meshy_AI_Orc_Warrior_
 // Blueprint…glb on the models-upload branch, repacked with 1K JPEG textures
@@ -186,7 +187,9 @@ function Orc({ anim, gear }: { anim: React.MutableRefObject<HeroAnim>; gear?: Ge
     skinned.updateMatrixWorld(true);
     skinned.bind(new THREE.Skeleton(s.bones));
     skinned.frustumCulled = false;
-    return { skinned, material, s };
+    // Crown of the bald head and crown-to-chin, in model units.
+    const head: HeadFit = { bone: s.head, rest: s.head.matrixWorld.clone(), top: new THREE.Vector3(0, 0.97, 0.07), height: 0.42 };
+    return { skinned, material, s, head };
   }, [gltf]);
   useEffect(() => () => { rig.material.dispose(); rig.skinned.geometry.dispose(); }, [rig]);
 
@@ -268,6 +271,7 @@ function Orc({ anim, gear }: { anim: React.MutableRefObject<HeroAnim>; gear?: Ge
     <group ref={fallRef}>
       <group scale={[SCALE, SCALE, SCALE]} position={[0, -FEET * SCALE, 0]}>
         <primitive object={rig.skinned} />
+        <WornHelm name={gear?.helm?.model} head={rig.head} />
       </group>
     </group>
   );

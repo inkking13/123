@@ -2,6 +2,7 @@ import { GearSlotKey } from '../data/types';
 import { GEAR } from '../data/gear';
 import { RARITY_COLOR, rarityOf } from '../data/gearInfo';
 import { HeroLook, Weapon } from './heroLooks';
+import type { HelmModelName } from './HelmModel';
 
 // What worn gear looks like on a low-poly hero: each item maps to a piece
 // kind (a horned helm, a chain shirt, clawed gloves…) and carries its
@@ -16,7 +17,7 @@ export interface GearPiece<K> { kind: K; rarity: string; rich: boolean }
 
 export interface GearLook {
   weapon?: GearPiece<Weapon> & { glow?: string };
-  helm?: GearPiece<HelmKind>;
+  helm?: GearPiece<HelmKind> & { model?: HelmModelName };
   chest?: GearPiece<ChestKind>;
   hands?: GearPiece<HandKind>;
   feet?: GearPiece<FeetKind>;
@@ -34,7 +35,9 @@ const WEAPON: Record<string, Weapon> = {
   'rw-blacksmith1': 'sword', 'rw-blacksmith2': 'axe', 'rw-enchant1': 'sword', 'rw-enchant2': 'sword',
 };
 const WEAPON_GLOW: Record<string, string> = { 'rw-enchant1': '#8a6aff', 'rw-enchant2': '#ff7a2a', 'uw-charfields': '#ff9a4a' };
-const HELM: Record<string, HelmKind> = { h1: 'cap', h2: 'nasal', h3: 'horned', 'uh-parishruins': 'infernal', 'uh-desertersfort': 'plague' };
+const HELM: Record<string, HelmKind> = { h1: 'cap', h2: 'nasal', h3: 'horned', h4: 'cap', 'uh-parishruins': 'infernal', 'uh-desertersfort': 'plague' };
+/** Helmets drawn with a Meshy model instead of the built piece. */
+const HELM_MODEL: Record<string, HelmModelName> = { h2: 'knight', h4: 'veil', 'uh-desertersfort': 'warden' };
 const CHEST: Record<string, ChestKind> = {
   a1: 'leather', a2: 'chain', a3: 'plate', a4: 'plate', a5: 'plate',
   'ua-road': 'cloak', 'ua-wolfrifts': 'bone', 'ua-parishruins': 'plate', 'ua-debtorsjail': 'plate', 'ua-smugglercatacombs': 'cloak',
@@ -59,7 +62,8 @@ export function gearLookOf(equipment: Partial<Record<GearSlotKey, string>> | und
   const g: GearLook = {};
   const w = piece('weapon', equipment.weapon ?? 'none', WEAPON, 'sword');
   if (w) g.weapon = { ...w, glow: WEAPON_GLOW[equipment.weapon!] };
-  g.helm = piece('helm', equipment.helm ?? 'none', HELM, 'cap');
+  const h = piece('helm', equipment.helm ?? 'none', HELM, 'cap');
+  if (h) g.helm = { ...h, model: HELM_MODEL[equipment.helm!] };
   g.chest = piece('armor', equipment.armor ?? 'none', CHEST, 'leather');
   g.hands = piece('gloves', equipment.gloves ?? 'none', HANDS, 'leather');
   g.feet = piece('boots', equipment.boots ?? 'none', FEET, 'leather');
