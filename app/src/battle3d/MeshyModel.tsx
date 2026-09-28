@@ -109,6 +109,14 @@ export const BODIES = {
     speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
     guard: 'Block1', flourish: 'spinjump', death: 'Dead', hit: 'Hit_Reaction',
   },
+  // The human body in the owner's templar armour: closed helm, white tabard with the red cross, red cloak.
+  humanTemplar: {
+    url: url(require('../../assets/models/kaelen-templar.glb')), height: 1.12, fist: 0.11,
+    idle: 'Idle', walk: 'walk', run: 'run',
+    act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
+    speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
+    guard: 'Block1', flourish: 'spinjump', death: 'Dead', hit: 'Hit_Reaction',
+  },
   // Skeleton warrior in a loincloth (1.62 tall in its file): idle, claw attack, spin attack, block, and the combat set.
   skeleton: {
     url: url(require('../../assets/models/skeleton.glb')), height: 1.2,

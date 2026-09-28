@@ -8,7 +8,7 @@ export const MODEL_HEIGHT = { human: 1.12, dwarf: 0.92, orc: 1.26, elf: 1.2, gno
 export const SHEET_MODELS: Record<number, { height: number; Model: typeof WandererModel; dance?: boolean }> = {
   5: { height: BODIES.orc.height, Model: meshyModel(5, 'orc'), dance: true }, // Громмаш, секира, на риге Meshy
   // Meshy race base bodies with their own animation clips.
-  0: { height: BODIES.human.height, Model: meshyModel(0, 'human'), dance: true }, // Каелен
+  0: { height: BODIES.humanTemplar.height, Model: meshyModel(0, 'humanTemplar'), dance: true }, // Каелен, в латах тамплиера
   1: { height: BODIES.dwarf.height, Model: meshyModel(1, 'dwarf', { weapon: 'runeAxe' }), dance: true }, // Борин, рунный топор
   3: { height: BODIES.human.height, Model: meshyModel(3, 'human', { act: { ability: 'cast2', melee: 'cast3' } }), dance: true }, // Тэдиус
   8: { height: BODIES.humanKnight.height, Model: meshyModel(8, 'humanKnight'), dance: true }, // Родерик, в рыцарских латах
