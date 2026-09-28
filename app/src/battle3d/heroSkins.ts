@@ -7,7 +7,7 @@ export const HERO_SKINS: Record<number, number> = {
   1: require('../../assets/skins/hero-1.jpg'), // Борин: латы поверх кольчуги, рыжая борода
   2: require('../../assets/skins/hero-2.jpg'), // Фаэлар: оливковая мантия с капюшоном
   3: require('../../assets/skins/hero-3.jpg'), // Тэдиус: кожаный фартук, пояс с колбами
-  4: require('../../assets/skins/hero-4.jpg'), // Векс: чёрная кожа, маска, багровый кушак
+  // Векс (4) wears the modelled leather set instead (see BODIES.humanLeather).
   5: require('../../assets/skins/hero-5.jpg'), // Громмаш: ремни на голом торсе, меховая набедренная повязка
   6: require('../../assets/skins/hero-6.jpg'), // Сильвана: зелёная кожаная туника следопыта
   7: require('../../assets/skins/hero-7.jpg'), // Элара: тёмный корсет ведьмы
