@@ -92,7 +92,7 @@ export const BODIES = {
     speed: { ...COMBAT_SPEED, Heavy_Hammer_Swing: 1.4, Chest_Pound_Taunt: 1.6 },
     guard: 'Block1', flourish: 'Chest_Pound_Taunt', death: 'Dead', hit: 'Hit_Reaction',
   },
-  // Некромант, boss of Пустошь Новобранцев, on a Mixamo skeleton: upright stance, walk, run,
+  // Некромант, boss of Разрушенная крепость, on a Mixamo skeleton: upright stance, walk, run,
   // nine spell casts, a finger-wag taunt and a fall. Clip_A/B/C came out of Meshy under task ids.
   necromancer: {
     url: url(require('../../assets/models/necromancer.glb')), height: 1.5,
