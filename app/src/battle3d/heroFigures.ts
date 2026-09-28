@@ -15,7 +15,7 @@ export const SHEET_MODELS: Record<number, { height: number; Model: typeof Wander
   6: { height: BODIES.elf.height, Model: meshyModel(6, 'elf'), dance: true }, // Сильвана
   7: { height: BODIES.elf.height, Model: meshyModel(7, 'elf', { act: { ability: 'cast2', heal: 'cast1', ranged: 'cast6', rally: 'cast4' } }), dance: true }, // Элара, ведьма
   // The rest on the nearest existing Meshy body.
-  2: { height: BODIES.human.height, Model: meshyModel(2, 'human', { act: { default: 'cast1', melee: 'cast3', ability: 'cast2', ranged: 'cast6' } }), dance: true }, // Фаэлар, маг с посохом
+  2: { height: BODIES.elfMale.height, Model: meshyModel(2, 'elfMale', { act: { default: 'mage_soell_cast_1', melee: 'mage_soell_cast_3', ability: 'mage_soell_cast_2', ranged: 'mage_soell_cast_6', heal: 'mage_soell_cast_4', rally: 'mage_soell_cast_7' } }), dance: true }, // Фаэлар, эльф с посохом, на мужском эльфе Meshy
   9: { height: BODIES.dwarf.height, Model: meshyModel(9, 'dwarf', { act: { default: 'Double_Combo_Attack', ability: 'Charged_Slash' } }), dance: true }, // Освальд, двуручный молот
   10: { height: BODIES.elf.height, Model: meshyModel(10, 'elf', { act: { default: 'cast1', ability: 'cast2', rally: 'cast4' } }), dance: true }, // Ирма, полевой врач
   11: { height: BODIES.dwarf.height, Model: meshyModel(11, 'dwarf'), dance: true }, // Джаспер, гном с колбами
