@@ -31,16 +31,6 @@ const STAGES: Record<string, { pieces: Piece[]; slab: boolean }> = {
   // Ruined keep: stone floor ringed by broken walls, an arch and banner towers behind the enemy rows.
   // The export is 1.9 units across with its floor at y = -0.39; scaled so the floor holds the board.
   cursedBattlefield: { slab: false, pieces: [{ url: url(require('../../assets/models/battlefield.glb')), scale: 7, floorY: -0.39, drop: 0.04 }] },
-  // Guild outskirts: a crenellated wall with a round tower and a gate behind the enemy rows,
-  // and a broken arched wall at each back corner. Both files are 1.9 units wide, facing +Z.
-  ruinedFort: {
-    slab: true,
-    pieces: [
-      { url: url(require('../../assets/models/env-fortress.glb')), scale: 5.2, floorY: -0.35, at: [0, -6] },
-      { url: url(require('../../assets/models/env-wall.glb')), scale: 2.2, floorY: -0.68, at: [-4.9, -4.3], turn: 0.75 },
-      { url: url(require('../../assets/models/env-wall.glb')), scale: 2.2, floorY: -0.68, at: [4.9, -4.3], turn: -0.75 },
-    ],
-  },
 };
 export type StageName = keyof typeof STAGES;
 

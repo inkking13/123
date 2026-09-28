@@ -21,7 +21,7 @@ export interface BattleTheme {
   /** Floor slab gradient (far → near) and the plain tile tint. */
   floor: { far: string; near: string; tile: string; stroke: string };
   /** 3D battle only: a Meshy battlefield model the board sits in (see battle3d/Stage). */
-  stage?: 'cursedBattlefield' | 'ruinedFort';
+  stage?: 'cursedBattlefield';
 }
 
 export const BATTLE_THEMES: Record<string, BattleTheme> = {
@@ -35,7 +35,7 @@ export const BATTLE_THEMES: Record<string, BattleTheme> = {
     ],
     fog: 'rgba(210,150,110,0.25)', ground: ['#2b2126', '#17131a'], particles: 'dust',
     floor: { far: '#3a2e33', near: '#4a3b3c', tile: 'rgba(230,200,170,0.07)', stroke: 'rgba(240,210,170,0.22)' },
-    stage: 'ruinedFort',
+    stage: 'cursedBattlefield',
   },
   icefrontier: {
     sky: ['#0d1a33', '#27466e', '#8fb4d6'],
