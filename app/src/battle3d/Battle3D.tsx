@@ -1,5 +1,6 @@
 import React, { Component, Suspense, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Canvas } from './r3f';
 import { qualityProfile } from './quality';
 import { Arena3D, ArenaProps } from './Arena3D';
@@ -104,6 +105,19 @@ function TileTarget({ proj, row, col, enabled, onPress }: { proj: Projection; ro
   );
 }
 
+/** Darkened edges over the 3D view, so the eye goes to the board. */
+function Vignette() {
+  const dark = 'rgba(6,4,10,0.6)'; const clear = 'rgba(6,4,10,0)';
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}>
+      <LinearGradient colors={[dark, clear]} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '16%' }} />
+      <LinearGradient colors={[clear, dark]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '20%' }} />
+      <LinearGradient colors={[dark, clear]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '12%' }} />
+      <LinearGradient colors={[clear, dark]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '12%' }} />
+    </View>
+  );
+}
+
 export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine; height: number; onFail: (e: unknown) => void }) {
   const { engine, sim, height, onFail, isBoss, focusId, current, reachable } = props;
   const proj = useRef(new Projection()).current;
@@ -121,6 +135,7 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
           </Suspense>
         </Canvas>
       </Guard>
+      <Vignette />
       <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}>
         {Array.from({ length: GRID_ROWS }).flatMap((_, row) => Array.from({ length: GRID_COLS }).map((__, col) => {
           const isSelf = !!current && current.row === row && current.col === col;
