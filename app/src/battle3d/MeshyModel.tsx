@@ -44,6 +44,10 @@ interface Body {
   death?: string;
   /** Played when struck while idle, walking or guarding. */
   hit?: string;
+  /** What a body with no hero look holds. */
+  hold?: { right?: PropName; left?: PropName };
+  /** Hand bones turned unlike Mixamo's: the rotation taking a Mixamo hand's frame to this rig's, per hand. */
+  hands?: { right: readonly [number, number, number]; left: readonly [number, number, number] };
 }
 
 /** Meshy's combat set runs 2–4 s a clip; sped up so the blow lands inside a turn. */
@@ -76,6 +80,7 @@ export const BODIES = {
     url: url(require('../../assets/models/skeleton.glb')), height: 1.2,
     idle: 'idle', walk: 'walk', run: 'run', act: { default: 'attack', ability: 'Double_Combo_Attack' },
     speed: { ...COMBAT_SPEED, attack: 2 }, guard: 'block', flourish: 'spin', death: 'Dead', hit: 'Hit_Reaction',
+    hold: { right: 'boneSword', left: 'skullShield' },
   },
   // Громмаш, on Meshy's rig: fighting stance, hammer swing, axe chop, chest-pound war cry, and the combat set.
   orc: {
@@ -84,18 +89,40 @@ export const BODIES = {
     act: { default: 'Heavy_Hammer_Swing', ability: 'Triple_Combo_Attack', rally: 'Chest_Pound_Taunt', heal: 'Chest_Pound_Taunt' },
     speed: { ...COMBAT_SPEED, Heavy_Hammer_Swing: 1.4, Chest_Pound_Taunt: 1.6 },
     guard: 'Block1', flourish: 'Chest_Pound_Taunt', death: 'Dead', hit: 'Hit_Reaction',
+    // From the two rigs' bind poses.
+    hands: { right: [2.815, -0.189, 2.407], left: [2.823, 0.369, -2.403] },
   },
 } satisfies Record<string, Body>;
 
-/** Meshy-made weapons that replace a hero's built one. */
+/** A fist's grip: the weapon out of the hand, past the thumb. */
+const GRIP = [-2.2, 0, 0] as const;
+const FIST = [0, 0.08, 0.02] as const;
+
+// Meshy-made weapons and shields. All but the rune axe were baked in metres
+// with the grip at the origin and the head or blade up +Y; shields face -X.
+const prop = (mod: number, rot: readonly [number, number, number] = GRIP, at: readonly [number, number, number] = FIST, scale = 1, grip = 0) => ({ url: url(mod), rot, at, scale, grip });
 const PROPS = {
   // Boar-headed double axe with runes, 1.9 units long along Y, grip on the leather wrap.
-  runeAxe: { url: url(require('../../assets/models/rune-axe.glb')), scale: 0.5, grip: -0.55, rot: [-2.2, 0, 0] as const },
+  runeAxe: prop(require('../../assets/models/rune-axe.glb'), GRIP, FIST, 0.5, -0.55),
+  warhammer: prop(require('../../assets/models/weapon-warhammer.glb')),
+  greatAxe: prop(require('../../assets/models/weapon-greataxe.glb')),
+  longsword: prop(require('../../assets/models/weapon-longsword.glb')),
+  boneSword: prop(require('../../assets/models/weapon-bone-sword.glb')),
+  dagger: prop(require('../../assets/models/weapon-dagger.glb')),
+  staff: prop(require('../../assets/models/weapon-staff.glb')),
+  // In the left hand, limbs along the forearm's line like the built bow.
+  bow: prop(require('../../assets/models/weapon-bow.glb'), [0, 0, 0], [0, 0.05, 0]),
+  roundShield: prop(require('../../assets/models/shield-round.glb'), [0, 0, 0], [-0.06, 0.06, 0]),
+  skullShield: prop(require('../../assets/models/shield-skull.glb'), [0, 0, 0], [-0.06, 0.06, 0]),
 };
 export type PropName = keyof typeof PROPS;
 
+/** The Meshy model for a hero's weapon kind or off-hand, where there is one. */
+const WEAPON_PROP: Partial<Record<string, PropName>> = { sword: 'longsword', greatHammer: 'warhammer', greatAxe: 'greatAxe', dagger: 'dagger', staff: 'staff', bow: 'bow' };
+const OFFHAND_PROP: Partial<Record<string, PropName>> = { roundShield: 'roundShield', kiteShield: 'roundShield', towerShield: 'roundShield', dagger: 'dagger' };
+
 /** Loads a prop and puts it in the given hand bone; nothing is drawn by the component itself. */
-function HeldProp({ name, hand }: { name: PropName; hand: THREE.Bone }) {
+function HeldProp({ name, hand, unit, frame }: { name: PropName; hand: THREE.Bone; unit: number; frame?: readonly [number, number, number] }) {
   const P = PROPS[name];
   const gltf = useLoader(GLTFLoader, P.url as any) as unknown as { scene: THREE.Group };
   useEffect(() => {
@@ -108,11 +135,15 @@ function HeldProp({ name, hand }: { name: PropName; hand: THREE.Bone }) {
     prop.position.y = -P.grip * P.scale;
     const pivot = new THREE.Group();
     pivot.rotation.set(P.rot[0], P.rot[1], P.rot[2]);
-    pivot.position.set(0, 0.08, 0.02);
+    pivot.position.set(P.at[0] * unit, P.at[1] * unit, P.at[2] * unit);
+    pivot.scale.setScalar(unit);
     pivot.add(prop);
-    hand.add(pivot);
-    return () => { pivot.removeFromParent(); prop.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); };
-  }, [gltf, hand, P]);
+    const holder = new THREE.Group();
+    if (frame) holder.rotation.set(frame[0], frame[1], frame[2]);
+    holder.add(pivot);
+    hand.add(holder);
+    return () => { holder.removeFromParent(); prop.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); };
+  }, [gltf, hand, P, unit, frame]);
   return null;
 }
 export type BodyName = keyof typeof BODIES;
@@ -150,27 +181,6 @@ function weaponMesh(kind: string | undefined, glow: string, metal: string): THRE
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.13, 0.13), new THREE.MeshLambertMaterial({ color: metal }));
     head.position.y = 0.64;
     g.add(haft, head);
-    return g;
-  }
-  if (kind === 'greatAxe') {
-    // Long haft, a crescent blade on each side.
-    const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 1.0, 8), new THREE.MeshLambertMaterial({ color: '#4a3424' }));
-    haft.position.y = 0.3;
-    g.add(haft);
-    for (const side of [1, -1]) {
-      const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.02, 16, 1, false, 0, Math.PI), new THREE.MeshLambertMaterial({ color: metal }));
-      blade.rotation.set(Math.PI / 2, 0, side > 0 ? 0 : Math.PI);
-      blade.position.set(0.02 * side, 0.68, 0);
-      g.add(blade);
-    }
-    return g;
-  }
-  if (kind === 'dagger') {
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.26, 0.01), new THREE.MeshLambertMaterial({ color: metal }));
-    blade.position.y = 0.19;
-    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.025), new THREE.MeshLambertMaterial({ color: '#3a2a20' }));
-    guard.position.y = 0.06;
-    g.add(blade, guard);
     return g;
   }
   if (kind === 'axe') {
@@ -272,21 +282,25 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     return { scene, unit, materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
 
-  // The hero's weapon in hand: bows in the left, everything else in the right.
+  // Meshy-made things in hand: the hero's own pick, else the model for their weapon and off-hand.
+  const main = opts.weapon ?? (look ? WEAPON_PROP[look.weapon] : B.hold?.right);
+  const off = look ? OFFHAND_PROP[look.offHand] : B.hold?.left;
+  const mainHand = look?.weapon === 'bow' ? rig.handL : rig.handR;
+
+  // The rest built from primitives: bows in the left, everything else in the right.
   useEffect(() => {
     if (!look) return;
     const held: [THREE.Object3D, THREE.Bone | null][] = [];
-    const w = opts.weapon ? null : weaponMesh(look.weapon, gear?.weapon?.glow ?? look.glow ?? '#ffffff', look.metal);
+    const w = main ? null : weaponMesh(look.weapon, gear?.weapon?.glow ?? look.glow ?? '#ffffff', look.metal);
     if (w) held.push([w, look.weapon === 'bow' ? rig.handL : rig.handR]);
-    if (look.offHand === 'roundShield' || look.offHand === 'kiteShield' || look.offHand === 'towerShield') held.push([shieldMesh(look.shieldColor ?? look.secondary, look.metal), rig.handL]);
-    if (look.offHand === 'dagger') { const d = weaponMesh('dagger', '#ffffff', look.metal); if (d) held.push([d, rig.handL]); }
+    if (!off && (look.offHand === 'roundShield' || look.offHand === 'kiteShield' || look.offHand === 'towerShield')) held.push([shieldMesh(look.shieldColor ?? look.secondary, look.metal), rig.handL]);
     // Meshes are in metres; the hand bone points down the fingers (+Y).
     for (const [o, hand] of held) { o.scale.multiplyScalar(rig.unit); o.position.multiplyScalar(rig.unit); hand?.add(o); }
     return () => held.forEach(([o]) => {
       o.removeFromParent();
       o.traverse((x) => { const m = x as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } });
     });
-  }, [rig, look, gear?.weapon?.glow, opts.weapon]);
+  }, [rig, look, gear?.weapon?.glow, main, off]);
 
   useEffect(() => () => { rig.mixer.stopAllAction(); rig.materials.forEach((m) => m.dispose()); }, [rig]);
 
@@ -379,7 +393,8 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       <group scale={[SCALE, SCALE, SCALE]} rotation={[0, B.turn ?? 0, 0]}>
         <primitive object={rig.scene} />
       </group>
-      {opts.weapon && rig.handR ? <React.Suspense fallback={null}><HeldProp name={opts.weapon} hand={rig.handR} /></React.Suspense> : null}
+      {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} frame={look?.weapon === 'bow' ? B.hands?.left : B.hands?.right} /></React.Suspense> : null}
+      {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} frame={B.hands?.left} /></React.Suspense> : null}
       <WornHelm name={gear?.helm?.model} head={rig.head} />
     </group>
   );
