@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useLoader } from './r3f';
 import { BattleTheme } from '../components/BattleBackdrop';
 import { GRID_COLS, GRID_ROWS } from '../combat/types';
+import { TILE } from './world';
 
 // Meshy-made battlefields the board sits in, replacing the flat ground and
 // the board's slab. Each file is one static textured mesh, simplified to
@@ -39,14 +40,16 @@ function StageMesh({ name }: { name: StageName }) {
   }, [gltf]);
   useEffect(() => () => materials.forEach((m) => m.dispose()), [materials]);
   // Floor just under the tiles, so its bumps don't poke through them.
-  return <primitive object={scene} scale={[S.scale, S.scale, S.scale]} position={[0, -S.floorY * S.scale - S.drop, 0]} />;
+  // Grown with the tile so the floor still holds the whole board.
+  const k = S.scale * TILE;
+  return <primitive object={scene} scale={[k, k, k]} position={[0, -S.floorY * k - S.drop, 0]} />;
 }
 
 /** The board's own slab, drawn while the stage loads or if it can't. */
 function Slab({ theme }: { theme: BattleTheme }) {
   return (
     <mesh position={[0, -0.07, 0]}>
-      <boxGeometry args={[GRID_COLS + 0.5, 0.14, GRID_ROWS + 0.5]} />
+      <boxGeometry args={[(GRID_COLS + 0.5) * TILE, 0.14, (GRID_ROWS + 0.5) * TILE]} />
       <meshLambertMaterial color={theme.floor.far} />
     </mesh>
   );
