@@ -236,13 +236,13 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
   useEffect(() => () => { rig.mixer.stopAllAction(); rig.materials.forEach((m) => m.dispose()); }, [rig]);
 
   // Under a helmet the hair is pressed onto the skull so it doesn't poke through.
-  const helmed = !!gear?.helm?.model;
+  const helmed = gear?.helm?.model;
   useEffect(() => {
     if (!helmed || !rig.head) return;
     const head = rig.head;
     const swapped = rig.meshes.map(({ mesh: m, rest }) => {
       const own = m.geometry;
-      m.geometry = tuckHair(own, rest, head);
+      m.geometry = tuckHair(own, rest, head, helmed);
       return [m, own] as const;
     });
     return () => swapped.forEach(([m, own]) => { m.geometry = own; });
