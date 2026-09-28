@@ -39,7 +39,8 @@ export type MonsterArtId =
   | 'void-serpent'
   | 'void-spawn-parasite'
   | 'weaver-of-dreams'
-  | 'wyrm-of-the-wasteland';
+  | 'wyrm-of-the-wasteland'
+  | 'necromancer';
 
 export const MONSTER_ART: Record<MonsterArtId, any> = {
   'blood-feathered-raptor': require('../../assets/monsters/blood-feathered-raptor.jpg'),
@@ -80,11 +81,13 @@ export const MONSTER_ART: Record<MonsterArtId, any> = {
   'void-spawn-parasite': require('../../assets/monsters/void-spawn-parasite.jpg'),
   'weaver-of-dreams': require('../../assets/monsters/weaver-of-dreams.jpg'),
   'wyrm-of-the-wasteland': require('../../assets/monsters/wyrm-of-the-wasteland.jpg'),
+  // Rendered from the Meshy model, not the bestiary sheets.
+  necromancer: require('../../assets/monsters/necromancer.jpg'),
 };
 
 /** One portrait per boss, picked to match its description. */
 export const BOSS_ART: Record<string, MonsterArtId> = {
-  wastes: 'carrion-rat-king',
+  wastes: 'necromancer',
   road: 'chimera-corruptor',
   groblot: 'plague-bringer',
   frostpass: 'storm-wrought-golem',

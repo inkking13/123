@@ -92,6 +92,15 @@ export const BODIES = {
     speed: { ...COMBAT_SPEED, Heavy_Hammer_Swing: 1.4, Chest_Pound_Taunt: 1.6 },
     guard: 'Block1', flourish: 'Chest_Pound_Taunt', death: 'Dead', hit: 'Hit_Reaction',
   },
+  // Некромант, boss of Пустошь Новобранцев, on a Mixamo skeleton: upright stance, walk, run,
+  // nine spell casts, a finger-wag taunt and a fall. Clip_A/B/C came out of Meshy under task ids.
+  necromancer: {
+    url: url(require('../../assets/models/necromancer.glb')), height: 1.5,
+    idle: 'Clip_B_3s', walk: 'Walking', run: 'Running',
+    act: { default: 'mage_soell_cast_2', ranged: 'mage_soell_cast_6', ability: 'mage_soell_cast_5', heal: 'mage_soell_cast_1', rally: 'Finger_Wag_No' },
+    speed: { mage_soell_cast_1: 1.8, mage_soell_cast_2: 1.6, mage_soell_cast_5: 4, mage_soell_cast_6: 1.3, Finger_Wag_No: 2, Dead: 1.3 },
+    flourish: 'Finger_Wag_No', death: 'Dead',
+  },
 } satisfies Record<string, Body>;
 
 // Meshy-made weapons and shields, scaled to a 1.7 m hero (a long sword to the
