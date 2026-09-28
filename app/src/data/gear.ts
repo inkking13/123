@@ -13,7 +13,7 @@ export const GEAR: Record<GearSlotKey, GearOption[]> = {
     { id: 'w3', name: 'Кровопийца Гроблота', mult: 1.32, hpMult: 0.90, desc: '+32% к урону/лечению, но -10% к HP.', icon: 'proklyatyy-mech', price: 160 },
     { id: 'w4', name: 'Посох Некроманта', mult: 1.18, desc: '+18% к урону/лечению.', icon: 'posoh-nekromanta', price: 110 },
     { id: 'w5', name: 'Коса Жнеца', mult: 1.42, desc: '+42% к урону/лечению.', icon: 'kosa-zhnetsa', price: 220 },
-    { id: 'uw-wastes', name: 'Топор Вожака Свалки', mult: 1.46, desc: '+46% к урону/лечению. Трофей с Вожака Свалки.', icon: 'topor-bezumnogo-vozhdya' },
+    { id: 'uw-wastes', name: 'Топор Павшего Коменданта', mult: 1.46, desc: '+46% к урону/лечению. Трофей из Разрушенной крепости — некромант поднял его хозяина, но не топор.', icon: 'topor-bezumnogo-vozhdya' },
     { id: 'uw-frostpass', name: 'Топор Тролля-Исполина', mult: 1.52, desc: '+52% к урону/лечению. Трофей с Тролля-Исполина Перевала.', icon: 'boevoy-topor' },
     { id: 'uw-charfields', name: 'Осколок Косы Пепельного Жнеца', mult: 1.60, desc: '+60% к урону/лечению. Трофей с Пепельного Жнеца.', icon: 'oskolok-kosy-zhnetsa-dush' },
     { id: 'uw-mortgagedfarms', name: 'Цеп Управляющего Фермами', mult: 1.68, desc: '+68% к урону/лечению. Трофей с Управляющего Фермами.', icon: 'shipastyy-tsep' },

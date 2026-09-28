@@ -81,7 +81,13 @@ const ENEMY_NAME_ACC: Record<EnemyRole, string> = { brute: 'громилу', arc
 const ARCHER_DMG = 8;
 
 // Location-final boss signatures: boss turns between casts (the first comes on the 2nd boss turn).
-const SIG_COOLDOWN: Record<SignatureKind, number> = { devour: 4, iceShell: 5, feast: 0, debt: 4, backstab: 3, execution: 5, lava: 4, quota: 5 };
+const SIG_COOLDOWN: Record<SignatureKind, number> = { devour: 4, iceShell: 5, feast: 0, debt: 4, backstab: 3, execution: 5, lava: 4, quota: 5, raise: 3 };
+// 'raise': raised skeletons, ids from MINION_ID0 so they never clash with the boss (-1) or room enemies.
+const MINION_ID0 = 100;
+const MINION_MAX = 3;
+const MINION_PER_CAST = 2;
+const MINION_HP_SHARE = 0.07;
+const MINION_DMG = 10;
 const ICE_SHELL_MULT = 0.25;
 const FEAST_HEAL_SHARE = 0.004;
 const FEAST_THRESHOLD = 0.4;
@@ -1532,7 +1538,7 @@ export class GameEngine {
     return {
       boss: { name: enc.enemyName, maxHp: enemies.length ? enemies.reduce((a, e) => a + e.maxHp, 0) : encHp, hp: enemies.length ? enemies.reduce((a, e) => a + e.hp, 0) : encHp },
       bossPos: enemies.length ? null : { ...BOSS_START },
-      enemies, focusId: enemies.length ? enemies[0].id : null,
+      enemies, minions: [], focusId: enemies.length ? enemies[0].id : null,
       fx: { seq: 0, actor: null, kind: null, crit: false, targetEnemy: null, targetRaider: null },
       impact: { seq: 0, cells: [], kind: null }, shakeSeq: 0, windup: false, moveFx: null,
       signature: enc.type === 'boss' && !this.inArena ? this.currentDungeon().signature ?? null : null,
@@ -2091,8 +2097,12 @@ export class GameEngine {
   foeRects(): FoeRect[] {
     const s = this.sim;
     if (!s) return [];
-    if (!s.enemies.length) return s.bossPos && s.boss.hp > 0 ? [{ id: -1, row: s.bossPos.row, col: s.bossPos.col, w: BOSS_W, h: BOSS_H }] : [];
-    return s.enemies.filter((e) => e.alive).map((e) => ({ id: e.id, row: e.row, col: e.col, w: 1, h: 1 }));
+    const one = (e: Enemy): FoeRect => ({ id: e.id, row: e.row, col: e.col, w: 1, h: 1 });
+    if (!s.enemies.length) {
+      const boss: FoeRect[] = s.bossPos && s.boss.hp > 0 ? [{ id: -1, row: s.bossPos.row, col: s.bossPos.col, w: BOSS_W, h: BOSS_H }] : [];
+      return [...boss, ...s.minions.filter((m) => m.alive).map(one)];
+    }
+    return s.enemies.filter((e) => e.alive).map(one);
   }
   /** Chebyshev distance from a cell to the nearest cell of a footprint — 1 means standing right next to it. */
   static rectDist(row: number, col: number, f: { row: number; col: number; w: number; h: number }): number {
@@ -2171,7 +2181,9 @@ export class GameEngine {
     if (r.ability.kind === 'berserk' && r.ability.active) { m *= 2; tags.push('берсерк'); }
     const allies = this.frontAllies(r);
     if (allies > 0) { m *= 1 + FORMATION_BONUS * allies; tags.push('строй'); }
-    const target = this.focusEnemy();
+    // In a boss fight a raised skeleton can be the target: the focused one in reach, or one blocking a melee raider.
+    const target = s.enemies.length ? this.focusEnemy() : this.attackTarget(r);
+    const onMinion = !s.enemies.length && !!target;
     if (s.bossPoison && (s.bossPoison.enemyId == null || s.bossPoison.enemyId === target?.id)) { m *= POISONED_BOSS_MULT; tags.push('яд'); }
     if (s.vulnerableRounds > 0) { m *= VULNERABLE_MULT; tags.push('оглушён'); }
     if (s.iceShell) { m *= ICE_SHELL_MULT; tags.push('панцирь'); }
@@ -2180,7 +2192,7 @@ export class GameEngine {
     if (s.debt && s.debt.targetId === r.id) s.debt.paid = true;
     if (s.quota) s.quota.dealt += dmg;
     if (target) tags.unshift('→ ' + target.name);
-    if (s.vulnerableRounds === 0 && !s.stunned && staggerGain > 0 && s.boss.hp > 0) {
+    if (!onMinion && s.vulnerableRounds === 0 && !s.stunned && staggerGain > 0 && s.boss.hp > 0) {
       s.stagger = Math.min(STAGGER_MAX, s.stagger + staggerGain);
       if (s.stagger >= STAGGER_MAX) {
         s.stagger = 0;
@@ -2195,11 +2207,21 @@ export class GameEngine {
   }
   focusEnemy(): Enemy | null {
     const s = this.sim!;
-    if (!s.enemies.length) return null;
+    if (!s.enemies.length) return s.minions.find((m) => m.id === s.focusId && m.alive) ?? null;
     return s.enemies.find((e) => e.id === s.focusId && e.alive) || s.enemies.find((e) => e.alive) || null;
   }
   /** Melee can only hit what it stands next to: its focus if adjacent, otherwise the nearest adjacent foe. */
   attackTarget(r: Raider): Enemy | null {
+    const s = this.sim!;
+    if (!s.enemies.length) {
+      // Boss fight: a focused skeleton in reach, else the boss (null) — unless only skeletons stand next to a melee raider.
+      const m = this.focusEnemy();
+      if (r.attackRange !== 'melee') return m;
+      const adj = this.adjacentFoes(r).map((f) => f.id);
+      if (m && adj.includes(m.id)) return m;
+      if (adj.includes(-1)) return null;
+      return s.minions.find((x) => x.alive && adj.includes(x.id)) ?? null;
+    }
     const focus = this.focusEnemy();
     if (!focus || r.attackRange !== 'melee') return focus;
     const adj = this.adjacentFoes(r).map((f) => f.id);
@@ -2208,14 +2230,34 @@ export class GameEngine {
   }
   setFocus(enemyId: number) {
     const s = this.sim;
-    if (!s || !s.enemies.some((e) => e.id === enemyId && e.alive)) return;
+    if (!s) return;
+    // Tapping the boss drops a skeleton focus; skeletons and room enemies take it.
+    if (!s.enemies.length && enemyId < 0) { s.focusId = null; this.notify(); return; }
+    if (![...s.enemies, ...s.minions].some((e) => e.id === enemyId && e.alive)) return;
     s.focusId = enemyId;
     this.notify();
   }
   /** Applies damage to a room enemy (or the boss), handles deaths and keeps the group total in s.boss in sync. */
   private damageFoe(dmg: number, enemyId: number | null) {
     const s = this.sim!;
-    if (!s.enemies.length) { s.boss.hp = Math.max(0, s.boss.hp - dmg); return; }
+    if (!s.enemies.length) {
+      const m = enemyId != null && enemyId >= MINION_ID0 ? s.minions.find((x) => x.id === enemyId && x.alive) : undefined;
+      if (m) {
+        m.hp = Math.max(0, m.hp - dmg);
+        if (m.hp === 0) {
+          m.alive = false;
+          this.log(m.name + ' рассыпается грудой костей.', 'ok');
+          if (s.focusId === m.id) s.focusId = null;
+        }
+        return;
+      }
+      s.boss.hp = Math.max(0, s.boss.hp - dmg);
+      if (s.boss.hp === 0 && s.minions.some((x) => x.alive)) {
+        for (const x of s.minions) x.alive = false;
+        this.log('Без хозяина поднятые скелеты рассыпаются.', 'ok');
+      }
+      return;
+    }
     const e = s.enemies.find((x) => x.id === enemyId && x.alive) || s.enemies.find((x) => x.alive);
     if (!e) return;
     e.hp = Math.max(0, e.hp - dmg);
@@ -2335,6 +2377,7 @@ export class GameEngine {
     if (key === 'attack' && r.attackRange === 'melee') {
       const t = this.attackTarget(r);
       if (t && t.id !== s.focusId) s.focusId = t.id;
+      else if (!t && !s.enemies.length) s.focusId = null; // swinging at the boss, not a skeleton out of reach
     }
     s.fx = { seq: s.fx.seq + 1, actor: fxKind ? r.id : null, kind: fxKind, crit: false, targetEnemy: aimsAtEnemy ? (this.focusEnemy()?.id ?? -1) : null, targetRaider: null };
     switch (key) {
@@ -2472,7 +2515,7 @@ export class GameEngine {
       }
       case 'venom':
         a.cd = a.cdMax;
-        s.bossPoison = { roundsLeft: 3, dmgPerTick: Math.round(9 * this.outMult(r) * ATTACK_TURN_SCALE * 0.5), enemyId: this.focusEnemy()?.id ?? null };
+        s.bossPoison = { roundsLeft: 3, dmgPerTick: Math.round(9 * this.outMult(r) * ATTACK_TURN_SCALE * 0.5), enemyId: s.enemies.length ? this.focusEnemy()?.id ?? null : null };
         this.log(r.name + ' смазывает клинки ядом василиска.', 'ok');
         break;
       case 'berserk':
@@ -2518,7 +2561,7 @@ export class GameEngine {
     }
     if (s.vulnerableRounds === 0) s.stagger = Math.max(0, s.stagger - STAGGER_DECAY);
     s.fx = { seq: s.fx.seq + 1, actor: 'enemy', kind: 'enemy', crit: false, targetEnemy: null, targetRaider: null };
-    if (!s.enemies.length) { this.leaderTurn(); return; }
+    if (!s.enemies.length) { this.leaderTurn(); this.minionTurn(); return; }
     const has = (role: EnemyRole) => s.enemies.some((e) => e.role === role && e.alive);
     if (has('brute')) this.leaderTurn();
     for (const e of s.enemies) if (e.alive && e.role !== 'brute') this.repositionSkirmisher(e);
@@ -2816,8 +2859,54 @@ export class GameEngine {
         this.log(s.boss.name + ' требует квартальный отчёт: нанесите ' + s.quota.need + ' урона до его следующего хода!', 'warn');
         return true;
       }
+      case 'raise': {
+        const up = s.minions.filter((m) => m.alive).length;
+        const lead = this.leaderRect();
+        if (!lead || up >= MINION_MAX) return false;
+        // Cells right around the boss, the party's side first.
+        const raiderCells = new Set(alive.map((r) => r.row + ',' + r.col));
+        const free: { row: number; col: number }[] = [];
+        for (let row = 0; row < GRID_ROWS; row++) for (let col = 0; col < GRID_COLS; col++) {
+          if (GameEngine.rectDist(row, col, lead) === 1 && !this.foeAt(row, col) && !raiderCells.has(row + ',' + col)) free.push({ row, col });
+        }
+        free.sort((a, b) => b.row - a.row || Math.random() - 0.5);
+        const n = Math.min(MINION_PER_CAST, MINION_MAX - up, free.length);
+        if (!n) return false;
+        const hp = Math.max(1, Math.round(s.boss.maxHp * MINION_HP_SHARE));
+        for (const at of free.slice(0, n)) {
+          s.minions.push({ id: MINION_ID0 + s.minions.length, role: 'brute', name: 'Скелет', maxHp: hp, hp, alive: true, ...at });
+        }
+        s.shakeSeq++;
+        this.log(s.boss.name + ' поднимает мертвецов: ' + (n === 1 ? 'скелет встаёт' : n + ' скелета встают') + ' из земли!', 'warn');
+        return true;
+      }
       case 'feast':
         return false;
+    }
+  }
+
+  /** Raised skeletons: each hits a raider next to it (tanks first), or shambles one cell toward the nearest. */
+  private minionTurn() {
+    const s = this.sim!;
+    for (const m of s.minions) {
+      if (!m.alive) continue;
+      const alive = this.alive();
+      if (!alive.length) return;
+      const f: FoeRect = { id: m.id, row: m.row, col: m.col, w: 1, h: 1 };
+      const near = () => alive.filter((r) => GameEngine.rectDist(r.row, r.col, f) <= 1);
+      if (!near().length) {
+        const t = alive.reduce((a, b) => (GameEngine.rectDist(b.row, b.col, f) < GameEngine.rectDist(a.row, a.col, f) ? b : a));
+        const to = this.stepFoe(f, 1, (row, col) => GameEngine.rectDist(t.row, t.col, { ...f, row, col }));
+        m.row = f.row = to.row; m.col = f.col = to.col;
+      }
+      const front = near();
+      if (!front.length) continue;
+      const tanks = front.filter((r) => r.role === 'tank');
+      const pool = tanks.length ? tanks : front;
+      const t = pool[Math.floor(Math.random() * pool.length)];
+      const dmg = Math.round((MINION_DMG + Math.random() * 5) * this.bossDmgMult());
+      this.hurt(t, dmg);
+      this.log(m.name + ' бьёт ' + t.name + ' (-' + dmg + ').', 'warn');
     }
   }
 

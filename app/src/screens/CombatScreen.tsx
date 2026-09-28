@@ -94,6 +94,8 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   const foeSizeAt = (row: number) => (isBossFight ? bossSize : geo ? roomFoeSize * geo.tileScale(row, 0) / geo.tileScale(1, 0) : 0);
   /** Feet of an enemy figure: the centre of the boss's footprint, or a room enemy's own cell. */
   const foeFootOf = (enemyId: number) => {
+    const minion = s.minions.find((m) => m.id === enemyId);
+    if (minion) return { foot: geo!.foot(minion.row, minion.col), size: roomFoeSize * geo!.tileScale(minion.row, 0) / geo!.tileScale(1, 0) };
     if (s.bossPos || enemyId < 0) {
       const p = s.bossPos ?? { row: 0, col: Math.floor((GRID_COLS - BOSS_W) / 2) };
       return { foot: geo!.footAt(p.row + (BOSS_H - 1) / 2, p.col + (BOSS_W - 1) / 2), size: bossSize };
@@ -321,7 +323,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               ) : null}
             </View>
             <Text style={{ fontSize: 10.5, color: colors.textFaint, fontFamily: font.regular }}>
-              {isBossFight ? 'Ближний бой — вплотную к врагу' : 'Нажмите на врага, чтобы выбрать цель'}
+              {isBossFight ? (s.minions.some((m) => m.alive) ? 'Нажмите на скелета или босса, чтобы выбрать цель' : 'Ближний бой — вплотную к врагу') : 'Нажмите на врага, чтобы выбрать цель'}
             </Text>
           </View>
           <View onLayout={(e) => setFieldW(e.nativeEvent.layout.width)}>
@@ -413,6 +415,21 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                           />
                         </Glide>
                       ) });
+                      // Skeletons the boss has raised.
+                      s.minions.forEach((m) => {
+                        const { foot: mf, size: ms } = foeFootOf(m.id);
+                        figs.push({ y: mf.y + (m.alive ? 0.4 : 0), node: (
+                          <Glide key={'minion' + m.id} x={mf.x - ms / 2} y={mf.y - ms} passThrough={s.movePhase} style={{ width: ms, height: ms, zIndex: Math.round(mf.y) + (m.alive ? 1 : 0) }}>
+                            <FootShadow at={{ x: ms / 2, y: ms }} width={ms * 0.9} />
+                            <FoeCell
+                              testID={'enemy-' + m.id} icon={ENEMY_ICON.brute} name={m.name}
+                              hp={m.hp} maxHp={m.maxHp} alive={m.alive} focused={m.alive && m.id === focusId} isBoss={false}
+                              poisoned={false} stunned={false} fx={s.fx} onPress={() => engine.setFocus(m.id)}
+                              art={roomArt ? MONSTER_ART[roomArt.brute] : undefined} windup={false}
+                            />
+                          </Glide>
+                        ) });
+                      });
                     } else {
                       s.enemies.forEach((e) => {
                         const { foot: f, size } = foeFootOf(e.id);

@@ -713,7 +713,8 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
   const bp = sim.bossPos ? bossPos(sim.bossPos.row, sim.bossPos.col) : bossPos(0, Math.floor((GRID_COLS - BOSS_W) / 2));
   const sun = useMemo(() => sunDirection(theme).multiplyScalar(20), [theme]);
   const stunned = sim.stunned || sim.vulnerableRounds > 0;
-  const foeKeyFor = (enemyId: number) => (isBoss || enemyId < 0 ? 'boss' : 'e' + enemyId);
+  // Raised skeletons in a boss fight are keyed like room enemies.
+  const foeKeyFor = (enemyId: number) => (enemyId < 0 || (isBoss && !sim.minions.some((m) => m.id === enemyId)) ? 'boss' : 'e' + enemyId);
   return (
     <>
       <fog attach="fog" args={[theme.sky[2], 12, 55]} />
@@ -729,10 +730,11 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
           id="boss" art={bossArt} monster={bossMonster} x={bp.x} z={bp.z} size={BOSS_CARD} alive={sim.boss.hp > 0} hp={sim.boss.hp} focused={false}
           stunned={stunned} windup={sim.windup} poisoned={!!sim.bossPoison} shell={sim.iceShell} phase={sim.phase} isBoss fx={sim.fx} proj={proj}
         />
-      ) : sim.enemies.map((e) => (
+      ) : null}
+      {(isBoss ? sim.minions : sim.enemies).map((e) => (
         <FoeFigure
           key={e.id} id={'e' + e.id} art={roomArt ? roomArt[e.role] : undefined} monster={roomMonsters?.[e.role]} x={colX(e.col)} z={rowZ(e.row)}
-          size={ROOM_CARD} alive={e.alive} hp={e.hp} focused={e.alive && e.id === focusId} stunned={stunned} windup={sim.windup}
+          size={ROOM_CARD} alive={e.alive} hp={e.hp} focused={e.alive && e.id === focusId} stunned={!isBoss && stunned} windup={!isBoss && sim.windup}
           poisoned={sim.bossPoison?.enemyId === e.id} shell={false} phase={1} isBoss={false} fx={sim.fx} proj={proj}
         />
       ))}
