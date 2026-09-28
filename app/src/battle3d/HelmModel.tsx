@@ -49,8 +49,9 @@ export function HelmOn({ name, head }: { name: HelmModelName; head: HeadFit }) {
     return g;
   }, [gltf]);
   useEffect(() => {
-    // Crown on the top of the head, the face opening at eye height (0.45 of the way down).
-    const s = (head.height * 0.45) / (H.crown - H.eye);
+    // Crown on the top of the head, the face opening at eye height (0.45 of the way down),
+    // a little roomy so the pressed-down hair stays inside.
+    const s = (1.05 * head.height * 0.45) / (H.crown - H.eye);
     const want = new THREE.Matrix4().compose(
       new THREE.Vector3(head.top.x, head.top.y - H.crown * s, head.top.z - H.z * s),
       new THREE.Quaternion(),
@@ -76,4 +77,46 @@ export function BuiltHeadHelm({ name }: { name: HelmModelName }) {
   const [group, setGroup] = React.useState<THREE.Group | null>(null);
   const head = useMemo<HeadFit | null>(() => (group ? { bone: group, rest: new THREE.Matrix4(), top: new THREE.Vector3(0, 0.125, 0), height: 0.27 } : null), [group]);
   return <group ref={setGroup}><WornHelm name={name} head={head} /></group>;
+}
+
+const smooth = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+const tucked = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
+
+/**
+ * A copy of a scanned body's geometry with the hair pressed down onto the
+ * skull, so it stays inside a helmet: every vertex above the neck that lies
+ * outside an ellipsoid round the skull is pulled onto it, except the face.
+ * Hair below the neck is left alone and hangs out from under the helmet.
+ * `toHead` takes the geometry's positions into the space `head` is in.
+ */
+export function tuckHair(src: THREE.BufferGeometry, toHead: THREE.Matrix4, head: Pick<HeadFit, 'top' | 'height'>): THREE.BufferGeometry {
+  const hit = tucked.get(src);
+  if (hit) return hit;
+  const g = src.clone();
+  const pos = g.attributes.position as THREE.BufferAttribute;
+  const back = toHead.clone().invert();
+  const { top, height: H } = head;
+  const c = new THREE.Vector3(top.x, top.y - 0.44 * H, top.z - 0.01);
+  const r = new THREE.Vector3(0.33 * H, 0.4 * H, 0.35 * H);
+  const neckY = top.y - H + 0.02;
+  const browY = top.y - 0.3 * H;
+  const p = new THREE.Vector3(); const d = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    p.fromBufferAttribute(pos, i).applyMatrix4(toHead);
+    const k = smooth(neckY - 0.01, neckY + 0.04, p.y);
+    if (k <= 0) continue;
+    if (p.z > c.z + 0.02 && p.y < browY) continue; // the face
+    d.copy(p).sub(c).divide(r);
+    const len = d.length();
+    if (len <= 1) continue;
+    d.multiplyScalar(1 / len).multiply(r).add(c);
+    p.lerp(d, k).applyMatrix4(back);
+    pos.setXYZ(i, p.x, p.y, p.z);
+  }
+  g.computeVertexNormals();
+  tucked.set(src, g);
+  return g;
 }

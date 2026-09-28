@@ -8,7 +8,7 @@ import { useFrame, useLoader } from './r3f';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { GearLook, withGear } from './gearLooks';
 import { HERO_LOOKS, HeroLook } from './heroLooks';
-import { HeadFit, WornHelm } from './HelmModel';
+import { HeadFit, WornHelm, tuckHair } from './HelmModel';
 
 // Race base bodies from Meshy: rigged (Mixamo skeleton) bipeds with their
 // own animation clips. Each race's uploaded exports (one GLB per clip, same
@@ -169,6 +169,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
   const rig = useMemo(() => {
     const scene = cloneSkinned(gltf.scene) as THREE.Group;
     const materials: THREE.MeshLambertMaterial[] = [];
+    const meshes: { mesh: THREE.SkinnedMesh; rest: THREE.Matrix4 }[] = [];
     let hips: THREE.Bone | null = null; let spine: THREE.Bone | null = null; let handL: THREE.Bone | null = null; let handR: THREE.Bone | null = null;
     let headBone: THREE.Bone | null = null; let headTop: THREE.Bone | null = null;
     scene.traverse((o) => {
@@ -179,6 +180,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
         const lam = new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap });
         m.material = lam; materials.push(lam);
         m.frustumCulled = false;
+        meshes.push({ mesh: m, rest: new THREE.Matrix4() });
       }
       if ((o as THREE.Bone).isBone) {
         if (o.name.endsWith('Hips')) hips = o as THREE.Bone;
@@ -189,8 +191,9 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
         if (o.name.endsWith('HeadTop_End')) headTop = o as THREE.Bone;
       }
     });
-    // Where the head sits at rest, for fitting a helmet.
+    // Where the head and body sit at rest, for fitting a helmet.
     scene.updateMatrixWorld(true);
+    for (const m of meshes) m.rest.copy(m.mesh.matrixWorld);
     let head: HeadFit | null = null;
     if (headBone && headTop) {
       const hb = headBone as THREE.Bone;
@@ -212,7 +215,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     for (const [name, a] of Object.entries(actions)) { a.timeScale = name === 'idle' && typeof B.idle !== 'string' ? 0 : B.speed?.[name] ?? 1; a.play(); a.setEffectiveWeight(0); }
     actions.idle.setEffectiveWeight(1);
     const h = hips as THREE.Bone | null;
-    return { scene, materials, mixer, actions, head, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
+    return { scene, materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
 
   // The hero's weapon in hand: bows in the left, everything else in the right.
@@ -231,6 +234,19 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
   }, [rig, look, gear?.weapon?.glow, opts.weapon]);
 
   useEffect(() => () => { rig.mixer.stopAllAction(); rig.materials.forEach((m) => m.dispose()); }, [rig]);
+
+  // Under a helmet the hair is pressed onto the skull so it doesn't poke through.
+  const helmed = !!gear?.helm?.model;
+  useEffect(() => {
+    if (!helmed || !rig.head) return;
+    const head = rig.head;
+    const swapped = rig.meshes.map(({ mesh: m, rest }) => {
+      const own = m.geometry;
+      m.geometry = tuckHair(own, rest, head);
+      return [m, own] as const;
+    });
+    return () => swapped.forEach(([m, own]) => { m.geometry = own; });
+  }, [rig, helmed]);
 
   const fallRef = useRef<THREE.Group>(null);
   const weights = useRef<Record<string, number>>({ idle: 1 });
