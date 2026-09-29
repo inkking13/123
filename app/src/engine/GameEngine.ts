@@ -371,6 +371,8 @@ export interface PersonnelVM {
 
 export class GameEngine {
   screen: Screen = 'title';
+  /** A saved game was found at launch: the title offers to continue it. */
+  hasSave = false;
   charId: number | null = null;
   payrollNotice: PayrollNotice | null = null;
   resignationNotice: ResignationNotice | null = null;
@@ -568,7 +570,7 @@ export class GameEngine {
   async load() {
     try {
       const raw = await AsyncStorage.getItem(SAVE_KEY);
-      if (raw) this.applySave(JSON.parse(raw));
+      if (raw) { this.applySave(JSON.parse(raw)); this.hasSave = true; }
     } catch {
       // corrupt or unavailable storage — start fresh rather than crash
     }
@@ -615,6 +617,7 @@ export class GameEngine {
     this.raises = {}; this.feud = null; this.strikeTrips = 0;
     this.payrollNotice = null; this.resignationNotice = null; this.activeEvent = null; this.employeeOfMonthNotice = null;
     try { await AsyncStorage.removeItem(SAVE_KEY); } catch {}
+    this.hasSave = false;
     this.screen = 'title';
     this.notify();
   }
