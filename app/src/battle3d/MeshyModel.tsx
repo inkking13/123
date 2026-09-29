@@ -78,7 +78,7 @@ export const BODIES = {
   },
   // Braided dwarf: breathing idle, shield bash, war cry, and the combat set.
   dwarf: {
-    url: url(require('../../assets/models/dwarf.glb')), height: 1.0, fist: 0.125,
+    url: url(require('../../assets/models/dwarf.glb')), height: 1.0, fist: 0.125, wardrobe: 'dwarf',
     idle: 'idle', walk: 'walk', run: 'run', act: { default: 'bash', rally: 'shout', ability: 'shout' },
     speed: { ...COMBAT_SPEED, bash: 1.5, shout: 2.2 }, guard: 'Block1', flourish: 'Victory_Cheer', death: 'Dead', hit: 'Hit_Reaction',
   },
@@ -113,7 +113,7 @@ export const BODIES = {
   },
   // Громмаш, on Meshy's rig: relaxed idle, fighting stance, hammer swing, axe chop, chest-pound war cry, and the combat set.
   orc: {
-    url: url(require('../../assets/models/orc.glb')), height: 1.3, modelH: 2.0, propScale: 1.4,
+    url: url(require('../../assets/models/orc.glb')), height: 1.3, modelH: 2.0, propScale: 1.4, wardrobe: 'orc',
     idle: 'Idle', walk: 'Walk_Fight_Forward', run: 'RunFast',
     act: { default: 'Heavy_Hammer_Swing', ability: 'Triple_Combo_Attack', rally: 'Chest_Pound_Taunt', heal: 'Chest_Pound_Taunt' },
     speed: { ...COMBAT_SPEED, Heavy_Hammer_Swing: 1.4, Chest_Pound_Taunt: 1.6 },
