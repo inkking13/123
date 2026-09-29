@@ -110,7 +110,7 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
             })}
           </View>
           <Text style={{ fontSize: 12, lineHeight: 17, color: colors.textDim, marginTop: 10, fontFamily: font.regular }}>
-            {QUALITY_HINT[engine.settings.quality]} Если бой в 3D тормозит, выберите «Низкое» или переключите поле на 2D прямо в бою.
+            {QUALITY_HINT[engine.settings.quality]} Если игра тормозит, выберите «Низкое».
           </Text>
         </View>
 

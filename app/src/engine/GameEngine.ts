@@ -144,7 +144,7 @@ interface SaveData {
   curiosOwned: string[];
   claimedAchievementIds: string[];
   everCrafted: boolean;
-  settings: { haptics: boolean; view3d?: boolean; speed?: number; auto?: boolean; quality?: Quality; sound?: boolean; music?: boolean };
+  settings: { haptics: boolean; view3d?: boolean; speed?: number; auto?: boolean; quality?: Quality; qualityPicked?: boolean; sound?: boolean; music?: boolean };
   statsRoomWins: number;
   statsBossWins: number;
   statsWipes: number;
@@ -439,7 +439,8 @@ export class GameEngine {
   strikeTrips = 0;
   seenTips = new Set<Tip>();
 
-  settings: { haptics: boolean; speed: number; auto: boolean; quality: Quality; sound: boolean; music: boolean } = { haptics: true, speed: 1, auto: false, quality: 'medium', sound: true, music: true };
+  // Phones start on the lightest graphics (budget GPUs stutter otherwise); the web starts on medium.
+  settings: { haptics: boolean; speed: number; auto: boolean; quality: Quality; qualityPicked?: boolean; sound: boolean; music: boolean } = { haptics: true, speed: 1, auto: false, quality: Platform.OS === 'web' ? 'medium' : 'low', sound: true, music: true };
 
   private turnTimer: ReturnType<typeof setTimeout> | null = null;
   private subs = new Set<() => void>();
@@ -538,7 +539,10 @@ export class GameEngine {
     if (data.curiosOwned) this.curiosOwned = new Set(data.curiosOwned);
     if (data.claimedAchievementIds) this.claimedAchievementIds = new Set(data.claimedAchievementIds);
     if (typeof data.everCrafted === 'boolean') this.everCrafted = data.everCrafted;
-    if (data.settings) { const { view3d: _retired, ...saved } = data.settings; this.settings = { ...this.settings, ...saved }; }
+    if (data.settings) { const { view3d: _retired, ...saved } = data.settings; this.settings = { ...this.settings, ...saved };
+      // Older saves stored the old default (medium) without the player ever choosing it: phones drop to low once.
+      if (!saved.qualityPicked && Platform.OS !== 'web') this.settings.quality = 'low';
+    }
     if (typeof data.statsRoomWins === 'number') this.statsRoomWins = data.statsRoomWins;
     if (typeof data.statsBossWins === 'number') this.statsBossWins = data.statsBossWins;
     if (typeof data.statsWipes === 'number') this.statsWipes = data.statsWipes;
@@ -634,6 +638,7 @@ export class GameEngine {
   }
   setQuality(q: Quality) {
     this.settings.quality = q;
+    this.settings.qualityPicked = true;
     this.notify();
   }
   private pace(ms: number) {

@@ -3,6 +3,7 @@ import { PanResponder, Platform, View } from 'react-native';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from './r3f';
 import { Quality, qualityProfile } from './quality';
+import { FrameCap } from './FrameCap';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
 import { MODEL_HEIGHT, SHEET_MODELS } from './heroFigures';
@@ -93,7 +94,8 @@ export function HeroPreview3D({ id, width, height, onFail, gear, quality = 'medi
   return (
     <View testID="hero-3d" style={[{ width, height }, NO_SELECT]}>
       <Guard onFail={onFail}>
-        <Canvas key={quality} camera={camera} style={{ flex: 1 }} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
+        <Canvas key={quality} camera={camera} style={{ flex: 1 }} frameloop={q.fps ? 'demand' : 'always'} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
+          <FrameCap fps={q.fps} />
           <Stage id={id} spin={spin} gear={gear} />
         </Canvas>
       </Guard>

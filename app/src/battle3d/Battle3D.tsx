@@ -3,6 +3,7 @@ import { Animated, PanResponder, Platform, Pressable, Text, View } from 'react-n
 import { LinearGradient } from 'expo-linear-gradient';
 import { Canvas } from './r3f';
 import { qualityProfile } from './quality';
+import { FrameCap } from './FrameCap';
 import { Arena3D, ArenaProps, Orbit } from './Arena3D';
 import { Projection } from './projection';
 import { CAMERA_HOME } from './world';
@@ -206,7 +207,8 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
   return (
     <View {...pan.panHandlers} style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: props.theme.sky[2] }}>
       <Guard onFail={onFail}>
-        <Canvas key={quality} camera={camera} style={{ flex: 1 }} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
+        <Canvas key={quality} camera={camera} style={{ flex: 1 }} frameloop={q.fps ? 'demand' : 'always'} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
+          <FrameCap fps={q.fps} />
           <Suspense fallback={null}>
             <Arena3D {...props} proj={proj} closeUp={closeUp} weather={q.weather} orbit={orbit} />
             <Loaded onLoad={() => setLoaded(true)} />
