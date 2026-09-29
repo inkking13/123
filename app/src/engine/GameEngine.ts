@@ -744,7 +744,7 @@ export class GameEngine {
     return this.itemOwned(gearId) - this.itemInUseCount(slot, gearId, c.id, slot) > 0;
   }
   inventoryVM() {
-    const rows: { slot: GearSlotKey; slotLabel: string; name: string; desc: string; icon?: ItemIconId; owned: number; free: number; wornBy: string[] }[] = [];
+    const rows: { slot: GearSlotKey; slotLabel: string; name: string; desc: string; icon?: ItemIconId; owned: number; free: number; wornBy: string[]; rarity: ReturnType<typeof rarityOf> }[] = [];
     for (const kind of GEAR_KINDS) {
       const slot = slotsForKind(kind)[0];
       for (const o of GEAR[kind]) {
@@ -752,7 +752,7 @@ export class GameEngine {
         const owned = this.itemOwned(o.id);
         if (owned <= 0) continue;
         const wornBy = this.pool.filter((c) => SLOT_ORDER.some((s2) => c.equipment[s2] === o.id)).map((c) => c.name);
-        rows.push({ slot, slotLabel: SLOT_LABEL[slot], name: o.name, desc: o.desc, icon: o.icon, owned, free: owned - wornBy.length, wornBy });
+        rows.push({ slot, slotLabel: SLOT_LABEL[slot], name: o.name, desc: o.desc, icon: o.icon, owned, free: owned - wornBy.length, wornBy, rarity: rarityOf(o) });
       }
     }
     return rows;

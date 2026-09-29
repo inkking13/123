@@ -6,6 +6,18 @@ import { colors, font } from '../theme/theme';
 import { GhostLink } from '../components/Buttons';
 import { ItemIcon } from '../components/ItemIcon';
 import { useEngineVersion } from '../engine/useEngine';
+import { RARITY_COLOR } from '../data/gearInfo';
+
+const RANK = ['unique', 'legendary', 'rare', 'magic', 'common'] as const;
+const RARITY_NAME: Record<string, string> = { unique: 'Уникальные', legendary: 'Легендарные', rare: 'Редкие', magic: 'Магические', common: 'Обычные' };
+
+function Chip({ label, active, color, onPress }: { label: string; active: boolean; color?: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={{ paddingHorizontal: 10, height: 30, borderRadius: 15, borderWidth: 1, justifyContent: 'center', borderColor: active ? (color ?? colors.accent) : colors.border, backgroundColor: active ? colors.accentWash : 'transparent' }}>
+      <Text style={{ fontSize: 11.5, fontFamily: font.medium, color: active ? (color ?? colors.accentSoft) : colors.textDim }}>{label}</Text>
+    </Pressable>
+  );
+}
 
 type Tab = 'gear' | 'curios' | 'reagents';
 
@@ -13,7 +25,14 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('gear');
-  const rows = engine.inventoryVM();
+  const [slot, setSlot] = useState<string | null>(null);
+  const [rarity, setRarity] = useState<string | null>(null);
+  const all = engine.inventoryVM();
+  const slots = [...new Set(all.map((r) => r.slotLabel))];
+  const rarities = RANK.filter((k) => all.some((r) => r.rarity === k));
+  const rows = all
+    .filter((r) => (!slot || r.slotLabel === slot) && (!rarity || r.rarity === rarity))
+    .sort((a, b) => RANK.indexOf(a.rarity) - RANK.indexOf(b.rarity) || a.slotLabel.localeCompare(b.slotLabel) || a.name.localeCompare(b.name));
   const curios = engine.curioVM();
   const foundCount = curios.filter((c) => c.owned).length;
   const reagents = engine.reagentInventoryVM();
@@ -44,9 +63,20 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
 
         {tab === 'gear' ? (
           <>
-            <Text style={{ fontSize: 13, color: colors.textDim, marginBottom: 18, fontFamily: font.regular }}>
+            <Text style={{ fontSize: 13, color: colors.textDim, marginBottom: 12, fontFamily: font.regular }}>
               Общий склад гильдии. Предметы приходят с боссов — на всех может не хватить.
             </Text>
+            {all.length ? (
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 8 }}>
+                  <Chip label={`Все (${all.length})`} active={!slot} onPress={() => setSlot(null)} />
+                  {slots.map((sl) => <Chip key={sl} label={sl} active={slot === sl} onPress={() => setSlot(slot === sl ? null : sl)} />)}
+                </ScrollView>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 14 }}>
+                  {rarities.map((k) => <Chip key={k} label={RARITY_NAME[k]} color={RARITY_COLOR[k]} active={rarity === k} onPress={() => setRarity(rarity === k ? null : k)} />)}
+                </ScrollView>
+              </>
+            ) : null}
             {rows.length === 0 ? (
               <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 20, alignItems: 'center' }}>
                 <Text style={{ fontSize: 13, color: colors.textFaint, fontFamily: font.regular, textAlign: 'center' }}>
@@ -55,12 +85,12 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
               </View>
             ) : (
               rows.map((row) => (
-                <View key={row.slot + row.name} style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 10, backgroundColor: colors.surface }}>
+                <View key={row.slot + row.name} style={{ borderWidth: 1, borderColor: colors.borderStrong, borderLeftWidth: 3, borderLeftColor: RARITY_COLOR[row.rarity], borderRadius: 8, padding: 12, marginBottom: 10, backgroundColor: colors.surface }}>
                   <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
                     <ItemIcon id={row.icon} size={44} radius={8} />
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 10, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>{row.slotLabel}</Text>
-                      <Text style={{ fontSize: 15, fontFamily: font.medium, color: colors.text, marginTop: 2 }}>{row.name}</Text>
+                      <Text style={{ fontSize: 15, fontFamily: font.medium, color: RARITY_COLOR[row.rarity], marginTop: 2 }}>{row.name}</Text>
                       <Text style={{ fontSize: 12, color: colors.textDim, marginTop: 3, lineHeight: 17, fontFamily: font.regular }}>{row.desc}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>

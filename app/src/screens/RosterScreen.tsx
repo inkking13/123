@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { XP_PER_LEVEL, MAX_LEVEL } from '../data/characters';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +22,8 @@ export function RosterScreen({ engine }: { engine: GameEngine }) {
   const dps = chosen.filter((c) => c.role === 'dps').length;
   const warn = !ready ? '' : tanks === 0 ? 'Нет танка' : heals === 0 ? 'Нет хилера' : 'Состав готов';
   const warnColor = ready && (tanks === 0 || heals === 0) ? colors.danger : colors.good;
+  const [role, setRole] = useState<'tank' | 'heal' | 'dps' | null>(null);
+  const shown = engine.pool.filter((c) => !role || c.role === role);
 
   return (
     <View style={{ flex: 1 }}>
@@ -33,7 +36,33 @@ export function RosterScreen({ engine }: { engine: GameEngine }) {
           Выбери пятерых на смену. Без танка и хилера поход закончится в первой комнате.
         </Text>
 
-        {engine.pool.map((c) => {
+        {/* The five on shift: tap one to send them home. */}
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+          {Array.from({ length: 5 }).map((_, i) => {
+            const m = chosen[i];
+            return (
+              <Pressable key={i} onPress={() => m && engine.toggleSelect(m.id)} style={{ flex: 1, aspectRatio: 0.8, borderRadius: 6, borderWidth: 1, borderColor: m ? roleColor[m.role] : colors.border, borderStyle: m ? 'solid' : 'dashed', overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgAlt }}>
+                {m ? (
+                  <>
+                    <Avatar id={m.id} size={64} radius={0} style={{ width: '100%', height: '100%' }} />
+                    <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.85)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '45%' }} />
+                    <Text numberOfLines={1} style={{ position: 'absolute', bottom: 4, left: 2, right: 2, textAlign: 'center', fontSize: 10, color: '#f0e6cc', fontFamily: font.medium }}>{m.name}</Text>
+                  </>
+                ) : <Text style={{ fontSize: 18, color: colors.textFaint }}>+</Text>}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
+          {([null, 'tank', 'heal', 'dps'] as const).map((r) => (
+            <Pressable key={r ?? 'all'} onPress={() => setRole(r)} style={{ paddingHorizontal: 12, height: 30, borderRadius: 15, borderWidth: 1, justifyContent: 'center', borderColor: role === r ? (r ? roleColor[r] : colors.accent) : colors.border, backgroundColor: role === r ? colors.accentWash : 'transparent' }}>
+              <Text style={{ fontSize: 11.5, fontFamily: font.medium, color: role === r ? (r ? roleColor[r] : colors.accentSoft) : colors.textDim }}>{r ? roleName[r] : `Все (${engine.pool.length})`}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {shown.map((c) => {
           const sel = engine.selected.has(c.id);
           const stats = c.role === 'heal'
             ? `HP ${c.hp} · хил ${c.healPower}/с · ГС ${c.gs}`
@@ -73,6 +102,11 @@ export function RosterScreen({ engine }: { engine: GameEngine }) {
                     fontFamily: font.regular,
                   }}>{roleName[c.role]}</Text>
                   <Text style={{ fontSize: 11, color: colors.textDim, fontFamily: font.regular }}>Ур. {c.level}</Text>
+                  {c.level < MAX_LEVEL ? (
+                    <View style={{ width: 36, height: 3, borderRadius: 2, backgroundColor: colors.border, overflow: 'hidden' }}>
+                      <View style={{ height: '100%', width: `${Math.min(100, (c.xp / XP_PER_LEVEL) * 100)}%`, backgroundColor: colors.accent }} />
+                    </View>
+                  ) : null}
                   <Text style={{ fontSize: 11, color: colors.textDim, fontFamily: font.regular }}>{stats}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 8 }}>
