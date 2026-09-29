@@ -122,7 +122,7 @@ export const BODIES = {
   necromancer: {
     url: url(require('../../assets/models/necromancer.glb')), height: 1.12,
     idle: 'Clip_B_3s', walk: 'Walking', run: 'Running',
-    act: { default: 'mage_soell_cast_2', ranged: 'mage_soell_cast_6', ability: 'mage_soell_cast_5', heal: 'mage_soell_cast_1', rally: 'Finger_Wag_No' },
+    act: { default: 'mage_soell_cast_2', ranged: 'mage_soell_cast_6', ability: 'mage_soell_cast_3', heal: 'mage_soell_cast_1', rally: 'Finger_Wag_No' },
     speed: { mage_soell_cast_1: 1.8, mage_soell_cast_2: 1.6, mage_soell_cast_5: 4, mage_soell_cast_6: 1.3, Finger_Wag_No: 2, Dead: 1.3 },
     flourish: 'Finger_Wag_No', death: 'Dead',
   },
@@ -253,8 +253,12 @@ function steadyProps(steady: Steady[], root: THREE.Object3D, idle: number) {
 export type BodyName = keyof typeof BODIES;
 
 const MODEL_H = 1.7;
-/** How long an action holds its clip before blending back, seconds. */
-const ACTION_S = 1.4;
+/** Actions play their whole clip, sped up only as far as it takes to fit this long, seconds. */
+const ACTION_S = 2.2;
+/** No clip is played faster than this: beyond it motion looks wound up. */
+const MAX_SPEED = 1.6;
+/** Played speed of a clip: its body's wish, capped at MAX_SPEED, but fast enough to end within ACTION_S. */
+const clipSpeed = (wish: number, dur: number) => Math.max(Math.min(wish, MAX_SPEED), dur / ACTION_S);
 
 /** A built stand-in for weapon kinds with no Meshy model. */
 function weaponMesh(kind: string | undefined, metal: string): THREE.Object3D | null {
@@ -335,7 +339,11 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       actions.idle.timeScale = 0;
       actions.idle.time = (B.idle as { frame: number }).frame;
     }
-    for (const [name, a] of Object.entries(actions)) { a.timeScale = name === 'idle' && typeof B.idle !== 'string' ? 0 : B.speed?.[name] ?? 1; a.play(); a.setEffectiveWeight(0); }
+    for (const [name, a] of Object.entries(actions)) {
+      const wish = B.speed?.[name] ?? 1;
+      a.timeScale = name === 'idle' && typeof B.idle !== 'string' ? 0 : wish > 1 ? clipSpeed(wish, a.getClip().duration) : wish;
+      a.play(); a.setEffectiveWeight(0);
+    }
     actions.idle.setEffectiveWeight(1);
     const h = hips as THREE.Bone | null;
     // The hands' turn at rest, from the skin's bind pose.
@@ -355,6 +363,8 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     const poseR = poseOf(handR as THREE.Bone | null), poseL = poseOf(handL as THREE.Bone | null);
     // Bone space per metre: 100 on a centimetre rig, so held things are scaled back.
     const unit = handR ? 1 / new THREE.Vector3().setFromMatrixScale((handR as THREE.Bone).matrixWorld).x : 1;
+    // Heroes breathe out of step with each other: each idle starts at its own point and runs a touch faster or slower.
+    if (typeof B.idle === 'string') { actions.idle.time = Math.random() * actions.idle.getClip().duration; actions.idle.timeScale *= 0.9 + Math.random() * 0.2; }
     return { scene, unit, restR, restL, poseR, poseL, steady: [] as Steady[], materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
   const bodyMeshes = useMemo(() => rig.meshes.map((m) => m.mesh), [rig]);
@@ -402,6 +412,8 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
   const playing = useRef('');
   const lastAt = useRef(-99);
   const lastHit = useRef(-99);
+  /** How long the action now playing lasts, seconds. */
+  const actLen = useRef(ACTION_S);
   const flashCol = useMemo(() => new THREE.Color('#ff4a3a'), []);
   const frozenCol = useMemo(() => new THREE.Color('#9fd6ff'), []);
 
@@ -412,14 +424,17 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     if (a.at !== lastAt.current && a.kind) {
       lastAt.current = a.at;
       playing.current = a.kind === 'dance' ? B.flourish ?? B.act.default : opts.act?.[a.kind] ?? B.act[a.kind] ?? opts.act?.default ?? B.act.default;
-      A[playing.current]?.reset().play();
+      const c = A[playing.current];
+      c?.reset().play();
+      actLen.current = c ? Math.min(ACTION_S, c.getClip().duration / Math.max(0.01, c.timeScale)) : ACTION_S;
     }
     const at = t - a.at;
     const cur = A[playing.current];
     let want = 'idle';
     if (a.kind === 'dance' && cur && at < cur.getClip().duration / cur.timeScale) want = playing.current;
-    else if (a.kind && a.kind !== 'dance' && at < ACTION_S) want = playing.current;
-    else if (B.hit && A[B.hit] && a.hit >= 0 && at >= ACTION_S && t - a.hit < A[B.hit].getClip().duration / A[B.hit].timeScale) {
+    // The whole swing or cast, then a soft blend back as it ends.
+    else if (a.kind && a.kind !== 'dance' && at < actLen.current - 0.2) want = playing.current;
+    else if (B.hit && A[B.hit] && a.hit >= 0 && at >= actLen.current - 0.2 && t - a.hit < A[B.hit].getClip().duration / A[B.hit].timeScale) {
       if (lastHit.current !== a.hit) { lastHit.current = a.hit; A[B.hit].reset().play(); }
       want = B.hit;
     } else if (a.defending && B.guard) want = B.guard;
@@ -437,7 +452,9 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       A[B.death].setLoop(THREE.LoopRepeat, Infinity); A[B.death].clampWhenFinished = false;
     }
     A[B.walk].timeScale = Math.max(0.6, Math.min(1.6, a.speed / 0.9));
-    const k = 1 - Math.exp(-dt * 10);
+    // Into an action or a flinch quickly; back to standing, walking or guarding gently.
+    const rate = want === playing.current || want === B.hit || want === B.death ? 12 : 5;
+    const k = 1 - Math.exp(-dt * rate);
     weights.current[want] ??= 0;
     for (const c of Object.keys(weights.current)) {
       weights.current[c] += ((c === want ? 1 : 0) - weights.current[c]) * k;
