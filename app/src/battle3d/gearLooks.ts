@@ -88,7 +88,14 @@ export function gearLookOf(equipment: Partial<Record<GearSlotKey, string>> | und
     const a = armourOf(equipment[slot]);
     if (a) for (const piece of ITEM_PIECES[a.item]) pieces.push({ set: a.set.id, piece, closedHelm: a.set.closedHelm });
   }
-  if (pieces.length) g.pieces = pieces;
+  // The bodies' own hands are baked mitts with no finger bones, so a hero is never
+  // drawn bare-handed: without set gloves they wear the gloves of their torso's
+  // set (or leather) for looks only — stats still come from the gloves slot.
+  if (!pieces.some((p) => p.piece === 'gloves')) {
+    const torso = armourOf(equipment.chest);
+    pieces.push({ set: torso?.set.id ?? 'leather', piece: 'gloves', closedHelm: false });
+  }
+  g.pieces = pieces;
   return g;
 }
 

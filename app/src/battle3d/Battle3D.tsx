@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Canvas } from './r3f';
 import { qualityProfile } from './quality';
 import { FrameCap } from './FrameCap';
+import { ModelEnvironment, setModelQuality } from './materials';
 import { Arena3D, ArenaProps, Orbit } from './Arena3D';
 import { Projection } from './projection';
 import { CAMERA_HOME } from './world';
@@ -175,6 +176,7 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
   use3dProbe();
   const quality = engine.settings.quality;
   const q = useMemo(() => qualityProfile(quality), [quality]);
+  setModelQuality(quality);
   // Close-up by default: on a phone the whole board makes the figures tiny.
   const [closeUp, setCloseUp] = useState(true);
   // Drag sideways anywhere on the field to walk the camera round the board (taps still reach tiles and foes).
@@ -209,6 +211,7 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
       <Guard onFail={onFail}>
         <Canvas key={quality} camera={camera} style={{ flex: 1 }} frameloop={q.fps ? 'demand' : 'always'} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
           <FrameCap fps={q.fps} />
+          <ModelEnvironment quality={quality} />
           <Suspense fallback={null}>
             <Arena3D {...props} proj={proj} closeUp={closeUp} weather={q.weather} orbit={orbit} />
             <Loaded onLoad={() => setLoaded(true)} />

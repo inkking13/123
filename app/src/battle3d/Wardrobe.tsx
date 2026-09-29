@@ -4,6 +4,7 @@ import { Asset } from 'expo-asset';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useLoader } from './r3f';
+import { Finish, modelMaterial } from './materials';
 import { ArmourPiece, ArmourSetId } from '../data/armourSets';
 
 // Worn armour-set pieces on a Meshy hero. Each set was fitted offline to each
@@ -74,6 +75,16 @@ const COVERS: Partial<Record<ArmourPiece, Part[]>> = {
   boots: ['foot', 'shin'],
 };
 
+/** How a set's piece catches the light: plate shines, cloaks and robes stay matte. */
+function pieceFinish(set: ArmourSetId, piece: ArmourPiece): Finish {
+  if (piece === 'cloak') return 'cloth';
+  if (piece === 'belt') return 'leather';
+  if (set === 'knight') return 'metal';
+  if (set === 'templar') return piece === 'jacket' ? 'cloth' : 'metal';
+  if (set === 'arcane') return piece === 'gloves' || piece === 'boots' ? 'leather' : 'cloth';
+  return 'leather';
+}
+
 export function Wardrobe({ body, pieces, bodyMeshes, materials }: {
   body: WardrobeBody; pieces: WornPiece[]; bodyMeshes: THREE.SkinnedMesh[]; materials: THREE.Material[];
 }) {
@@ -98,9 +109,7 @@ export function Wardrobe({ body, pieces, bodyMeshes, materials }: {
         hoodBack = Math.max(hoodBack ?? -Infinity, src.geometry.boundingBox!.min.z);
         hoodTop = Math.min(hoodTop, src.geometry.boundingBox!.max.y);
       }
-      const std = src.material as THREE.MeshStandardMaterial;
-      // Lambert like the rest of the cast, so it sits in the same light.
-      const mat = new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap });
+      const mat = modelMaterial(src.material as THREE.Material, pieceFinish(p.set, p.piece));
       const m = new THREE.SkinnedMesh(src.geometry, mat);
       m.frustumCulled = false;
       const skel = new THREE.Skeleton(src.skeleton.bones.map((b) => bones.get(b.name) ?? b), src.skeleton.boneInverses);

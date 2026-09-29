@@ -4,6 +4,7 @@ import { Asset } from 'expo-asset';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useLoader } from './r3f';
+import { modelMaterial } from './materials';
 import { BattleTheme } from '../components/BattleBackdrop';
 import { GRID_COLS, GRID_ROWS } from '../combat/types';
 import { TILE } from './world';
@@ -74,9 +75,7 @@ function PieceMesh({ piece: S }: { piece: Piece }) {
     scene.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) {
-        // Lambert like the rest of the arena, so it sits in the same light.
-        const std = m.material as THREE.MeshStandardMaterial;
-        const lam = new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap });
+        const lam = modelMaterial(m.material as THREE.Material, 'stone');
         m.material = lam; materials.push(lam);
       }
     });
