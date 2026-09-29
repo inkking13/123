@@ -20,7 +20,7 @@ import { gearLookOf } from '../battle3d/gearLooks';
 const CAMP_ART = require('../../assets/title/camp-art.jpg');
 
 const DUNGEON_ICON: Record<string, IconName> = {
-  wastes: 'trash-simple', road: 'path', groblot: 'skull',
+  wastes: 'skull', road: 'path', groblot: 'skull',
   frostpass: 'drop', wolfrifts: 'target', icepeaks: 'snowflake',
   charfields: 'flame', parishruins: 'campfire', ashen: 'fire',
   mortgagedfarms: 'scroll', debtorsjail: 'shield-chevron', mines: 'coins',
