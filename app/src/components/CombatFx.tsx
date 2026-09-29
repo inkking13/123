@@ -44,29 +44,32 @@ export function Floaters({ items, remove }: { items: FloaterItem[]; remove: (id:
 
 function Floater({ item, onDone }: { item: FloaterItem; onDone: () => void }) {
   const v = useRef(new Animated.Value(0)).current;
+  const drift = useRef((Math.random() - 0.5) * 26).current;
   useEffect(() => {
     Animated.sequence([
       Animated.delay(item.delay),
-      Animated.timing(v, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(v, { toValue: 1, duration: item.big ? 1250 : 950, easing: Easing.out(Easing.quad), useNativeDriver: true }),
     ]).start(onDone);
   }, [v]); // eslint-disable-line react-hooks/exhaustive-deps
   const heal = item.delta > 0;
   return (
     <Animated.Text
       pointerEvents="none"
+      numberOfLines={1}
       style={{
-        position: 'absolute', top: -6, left: -20, right: -20, textAlign: 'center', zIndex: 10,
-        fontSize: item.big ? 17 : 13, fontFamily: font.bold,
-        color: heal ? colors.good : item.big ? colors.warn : '#ff9d8f',
-        textShadowColor: 'rgba(0,0,0,0.85)', textShadowRadius: 3, textShadowOffset: { width: 0, height: 1 },
+        position: 'absolute', top: -6, left: -70, right: -70, textAlign: 'center', zIndex: 10,
+        fontSize: item.big ? 24 : heal ? 15 : 16, fontFamily: font.bold,
+        color: heal ? '#8ff0a4' : item.big ? '#ffd24a' : '#ff8a78',
+        textShadowColor: item.big ? 'rgba(120,40,0,0.95)' : 'rgba(0,0,0,0.9)', textShadowRadius: item.big ? 6 : 3, textShadowOffset: { width: 0, height: 1 },
         opacity: v.interpolate({ inputRange: [0, 0.01, 0.65, 1], outputRange: [0, 1, 1, 0] }),
         transform: [
-          { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -30] }) },
-          { scale: v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0.5, item.big ? 1.35 : 1.1, 1] }) },
+          { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, item.big ? -44 : -34] }) },
+          { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, drift] }) },
+          { scale: v.interpolate({ inputRange: [0, 0.12, 0.3, 1], outputRange: [0.4, item.big ? 1.9 : 1.25, item.big ? 1.3 : 1, item.big ? 1.15 : 0.95] }) },
         ],
       }}
     >
-      {(heal ? '+' : '−') + Math.abs(item.delta)}
+      {(item.big ? 'КРИТ! ' : '') + (heal ? '+' : '−') + Math.abs(item.delta)}
     </Animated.Text>
   );
 }

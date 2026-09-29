@@ -6,6 +6,7 @@ import { colors, font } from '../theme/theme';
 import { Icon } from '../components/Icon';
 import { GhostLink, PrimaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 export function WeeklyChallengeScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -16,8 +17,8 @@ export function WeeklyChallengeScreen({ engine }: { engine: GameEngine }) {
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, marginTop: 16, fontFamily: font.regular }}>Отдел кадров</Text>
-        <Text style={{ fontSize: 30, fontFamily: font.medium, color: colors.text, marginTop: 4, marginBottom: 4, letterSpacing: -0.6 }}>Испытание недели</Text>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, marginTop: 16, fontFamily: font.medium }}>Отдел кадров</Text>
+        <ScreenTitle style={{ marginTop: 4, marginBottom: 4 }}>Испытание недели</ScreenTitle>
         <Text style={{ fontSize: 13, color: colors.textDim, marginBottom: 22, fontFamily: font.regular }}>
           Повторный контракт на уже зачищенного босса с особыми условиями — награда весомее, риск выше. Обновляется раз в неделю.
         </Text>
@@ -62,6 +63,7 @@ export function WeeklyChallengeScreen({ engine }: { engine: GameEngine }) {
             ) : (
               <PrimaryButton label="Принять испытание" icon="sword" onPress={vm.onFight} />
             )}
+            <Corners color="#8a7650" />
           </View>
         )}
       </ScrollView>

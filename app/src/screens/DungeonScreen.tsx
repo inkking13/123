@@ -9,6 +9,7 @@ import { Avatar } from '../components/Avatar';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
 import { SIGNATURE_INFO } from '../data/dungeons';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 export function DungeonScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -35,8 +36,8 @@ export function DungeonScreen({ engine }: { engine: GameEngine }) {
           ))}
         </View>
 
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>{dungeon.name}</Text>
-        <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 4, marginBottom: 8, letterSpacing: -0.5 }}>{enc.name}</Text>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>{dungeon.name}</Text>
+        <ScreenTitle style={{ marginTop: 4, marginBottom: 8 }}>{enc.name}</ScreenTitle>
         <Text style={{ fontSize: 13.5, lineHeight: 20, color: colors.textMuted, marginBottom: 18, fontFamily: font.regular }}>{enc.desc}</Text>
 
         <View style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 14, marginBottom: 18, backgroundColor: colors.surface }}>
@@ -64,9 +65,10 @@ export function DungeonScreen({ engine }: { engine: GameEngine }) {
               <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>{SIGNATURE_INFO[dungeon.signature].desc}</Text>
             </View>
           ) : null}
+          <Corners color="#8a7650" />
         </View>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Состояние отряда</Text>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>Состояние отряда</Text>
         {chosen.map((c) => {
           const r = engine.sim ? engine.sim.raiders.find((x) => x.candidateId === c.id) : null;
           const pct = r ? Math.max(0, Math.round((r.hp / r.maxHp) * 100)) : 100;

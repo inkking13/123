@@ -8,6 +8,7 @@ import { GhostLink } from '../components/Buttons';
 import { ItemIcon } from '../components/ItemIcon';
 import { Icon } from '../components/Icon';
 import { useEngineVersion } from '../engine/useEngine';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 type Tab = 'buy' | 'sell';
 
@@ -28,7 +29,7 @@ export function ShopScreen({ engine }: { engine: GameEngine }) {
             <Text style={{ fontSize: 15, fontFamily: font.medium, color: colors.warn }}>{engine.gold}</Text>
           </View>
         </View>
-        <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 10, marginBottom: 14, letterSpacing: -0.5 }}>Отдел закупок</Text>
+        <ScreenTitle style={{ marginTop: 10, marginBottom: 14 }}>Отдел закупок</ScreenTitle>
 
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
           {(['buy', 'sell'] as Tab[]).map((t) => (
@@ -73,6 +74,7 @@ export function ShopScreen({ engine }: { engine: GameEngine }) {
                 >
                   <Text style={{ fontSize: 13, fontFamily: font.medium, color: row.affordable ? colors.accentSoft : colors.textFaint }}>{row.price}</Text>
                 </Pressable>
+                <Corners color="#8a7650" />
               </View>
             ))}
           </>
@@ -102,6 +104,7 @@ export function ShopScreen({ engine }: { engine: GameEngine }) {
                   >
                     <Text style={{ fontSize: 13, fontFamily: font.medium, color: colors.textMuted }}>+{row.sellPrice}</Text>
                   </Pressable>
+                  <Corners color="#8a7650" />
                 </View>
               ))
             )}

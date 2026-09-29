@@ -163,7 +163,7 @@ export function EquipmentPanel({ engine, c }: { engine: GameEngine; c: Candidate
   const picked = slot.stash.find((i) => i.id === itemId) || slot.equipped || slot.stash[0] || null;
 
   const [failed3d, setFailed3d] = useState(false);
-  const show3d = useMemo(() => engine.settings.view3d && canRender3D(), [engine.settings.view3d]) && !failed3d;
+  const show3d = useMemo(canRender3D, []) && !failed3d;
   const wornKey = JSON.stringify(c.equipment);
   const gear = useMemo(() => gearLookOf(c.equipment), [wornKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const pickSlot = (k: GearSlotKey) => { setSlotKey(k); setItemId(null); };

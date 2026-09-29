@@ -1,11 +1,13 @@
-import React, { Component, Suspense, useMemo, useRef, useState } from 'react';
+import React, { Component, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, Pressable, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Canvas } from './r3f';
 import { qualityProfile } from './quality';
+import { FrameCap } from './FrameCap';
 import { Arena3D, ArenaProps, Orbit } from './Arena3D';
 import { Projection } from './projection';
 import { CAMERA_HOME } from './world';
+import { use3dProbe } from './probe3d';
 import { GameEngine } from '../engine/GameEngine';
 import { GRID_COLS, GRID_ROWS, Raider, Sim } from '../combat/types';
 import { Floaters, impactDelay, useHpFloaters } from '../components/CombatFx';
@@ -24,7 +26,16 @@ export function canRender3D(): boolean {
   }
 }
 
-/** Any render error inside the 3D view drops the fight back to the 2.5D stage instead of crashing it. */
+/** How long the 3D field may take to load before the fight offers a retry on lighter graphics (weak phones can stall for good). */
+const LOAD_TIMEOUT_MS = 30000;
+
+/** Mounted once everything under the Suspense boundary has loaded. */
+function Loaded({ onLoad }: { onLoad: () => void }) {
+  useEffect(() => { onLoad(); }, []);
+  return null;
+}
+
+/** Any render error inside a 3D view is reported (the fight offers a retry) instead of crashing the app. */
 export class Guard extends Component<{ onFail: (e: unknown) => void; children: React.ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
@@ -106,6 +117,46 @@ function TileTarget({ proj, row, col, enabled, onPress }: { proj: Projection; ro
 }
 
 /** Darkened edges over the 3D view, so the eye goes to the board. */
+/** A white flash when a crit lands; a red glow breathing round the edges while the enemy winds up a heavy blow. */
+function Flashes({ sim }: { sim: Sim }) {
+  const flash = useRef(new Animated.Value(0)).current;
+  const warn = useRef(new Animated.Value(0)).current;
+  const seen = useRef(sim.fx.seq);
+  useEffect(() => {
+    const f = sim.fx;
+    if (f.seq === seen.current) return;
+    seen.current = f.seq;
+    if (!f.crit || typeof f.actor !== 'number') return;
+    flash.setValue(0);
+    Animated.sequence([
+      Animated.delay(impactDelay(f)),
+      Animated.timing(flash, { toValue: 1, duration: 40, useNativeDriver: true }),
+      Animated.timing(flash, { toValue: 0, duration: 260, useNativeDriver: true }),
+    ]).start();
+  }, [sim.fx.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!sim.windup) { warn.stopAnimation(); Animated.timing(warn, { toValue: 0, duration: 250, useNativeDriver: true }).start(); return; }
+    const a = Animated.loop(Animated.sequence([
+      Animated.timing(warn, { toValue: 1, duration: 420, useNativeDriver: true }),
+      Animated.timing(warn, { toValue: 0.35, duration: 420, useNativeDriver: true }),
+    ]));
+    a.start();
+    return () => a.stop();
+  }, [sim.windup, warn]);
+  const red = 'rgba(200,20,10,0.38)', none = 'rgba(200,20,10,0)';
+  return (
+    <>
+      <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, opacity: warn }}>
+        <LinearGradient colors={[red, none]} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '14%' }} />
+        <LinearGradient colors={[none, red]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '14%' }} />
+        <LinearGradient colors={[red, none]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '10%' }} />
+        <LinearGradient colors={[none, red]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '10%' }} />
+      </Animated.View>
+      <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundColor: '#fff6dc', opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.32] }) }} />
+    </>
+  );
+}
+
 function Vignette() {
   const dark = 'rgba(6,4,10,0.6)'; const clear = 'rgba(6,4,10,0)';
   return (
@@ -121,6 +172,7 @@ function Vignette() {
 export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine; height: number; onFail: (e: unknown) => void; full?: boolean; onToggleFull?: () => void; overlay?: React.ReactNode }) {
   const { engine, sim, height, onFail, isBoss, focusId, current, reachable } = props;
   const proj = useRef(new Projection()).current;
+  use3dProbe();
   const quality = engine.settings.quality;
   const q = useMemo(() => qualityProfile(quality), [quality]);
   // Close-up by default: on a phone the whole board makes the figures tiny.
@@ -144,17 +196,32 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
     },
     onPanResponderTerminationRequest: () => false,
   }), []);
+  // Say it's loading instead of showing an empty field, and give up on 3D if it never arrives.
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    if (loaded) return;
+    const t = setTimeout(() => onFail(new Error('3D battlefield did not load in time')), LOAD_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [loaded]);
   const camera = useMemo(() => ({ position: CAMERA_HOME.toArray() as [number, number, number], fov: 50, near: 0.1, far: 200 }), []);
   return (
     <View {...pan.panHandlers} style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: props.theme.sky[2] }}>
       <Guard onFail={onFail}>
-        <Canvas key={quality} camera={camera} style={{ flex: 1 }} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
+        <Canvas key={quality} camera={camera} style={{ flex: 1 }} frameloop={q.fps ? 'demand' : 'always'} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
+          <FrameCap fps={q.fps} />
           <Suspense fallback={null}>
             <Arena3D {...props} proj={proj} closeUp={closeUp} weather={q.weather} orbit={orbit} />
+            <Loaded onLoad={() => setLoaded(true)} />
           </Suspense>
         </Canvas>
       </Guard>
+      {!loaded ? (
+        <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 13, color: colors.textMuted, fontFamily: font.medium }}>Загружаю поле боя…</Text>
+        </View>
+      ) : null}
       <Vignette />
+      <Flashes sim={sim} />
       <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}>
         {Array.from({ length: GRID_ROWS }).flatMap((_, row) => Array.from({ length: GRID_COLS }).map((__, col) => {
           const isSelf = !!current && current.row === row && current.col === col;

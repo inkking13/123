@@ -1,54 +1,56 @@
 import { CandidateDef } from './types';
 
+// The nine a new guild picks its first five from (StartDraftScreen), for
+// `hireCost` each out of DRAFT_BUDGET; the rest stay on the hiring market.
 export const POOL: CandidateDef[] = [
   {
-    id: 0, name: 'Каелен', epithet: 'Инквизитор', role: 'tank', attackRange: 'melee', hp: 220, dps: 6, gs: 82, trait: 'steady', morale: 70,
+    id: 0, name: 'Каелен', epithet: 'Инквизитор', role: 'tank', attackRange: 'melee', hp: 220, dps: 6, gs: 82, trait: 'steady', morale: 70, hireCost: 120,
     bio: 'Охотник на ведьм, который сам взялся за тёмную магию, чтобы побеждать её.',
     story: 'Каелен держит в руках Librum Tenebris — гримуар, отобранный у колдуньи, которую он сжёг. Он понял: светом тьму не победить. С каждым ритуалом он теряет частицу души, а его факел горит чёрным пламенем, что не согревает — лишь высвечивает грехи.',
   },
   {
-    id: 1, name: 'Борин', epithet: 'Воин', role: 'tank', attackRange: 'melee', hp: 180, dps: 5, gs: 61, trait: 'novice', morale: 70,
+    id: 1, name: 'Борин', epithet: 'Воин', role: 'tank', attackRange: 'melee', hp: 180, dps: 5, gs: 61, trait: 'novice', morale: 70, hireCost: 90,
     bio: 'Последний из своего клана, ищущий не славы, а достойного боя.',
     story: 'Борин стоит на поле, где полегли все его братья. Топор и щит покрыты вмятинами сотен сражений. Он не служит ни королю, ни золоту — он не умеет жить в мире. Он ищет демона, уничтожившего его подземное королевство, чтобы умереть в бою, а не в одиночестве от старости.',
   },
   {
-    id: 2, name: 'Фаэлар', epithet: 'Хранитель тлена', role: 'heal', attackRange: 'ranged', hp: 130, dps: 2, healPower: 9, gs: 75, trait: 'steady', morale: 70,
+    id: 2, name: 'Фаэлар', epithet: 'Хранитель тлена', role: 'heal', attackRange: 'ranged', hp: 130, dps: 2, healPower: 9, gs: 75, trait: 'steady', morale: 70, hireCost: 110,
     bio: 'Друид Подземья, считающий мёртвых честнее живых.',
     story: 'Фаэлар живёт там, где никогда не бывает света. Он не друид в привычном смысле — он хранитель разложения, уверенный, что жизнь рождается из смерти. Его посох пророс не листьями, а грибами-паразитами. Он охраняет древние гробницы, поднимая кости предков: мёртвые, по его мнению, хранят тайны лучше живых, которые всегда лгут.',
   },
   {
-    id: 3, name: 'Тэдиус', epithet: 'Алхимик', role: 'heal', attackRange: 'ranged', hp: 110, dps: 1, healPower: 6, gs: 54, trait: 'novice', morale: 70,
+    id: 3, name: 'Тэдиус', epithet: 'Алхимик', role: 'heal', attackRange: 'ranged', hp: 110, dps: 1, healPower: 6, gs: 54, trait: 'novice', morale: 70, hireCost: 80,
     bio: 'Одержим созданием эликсира, исцеляющего любую болезнь — какой бы ни была цена.',
     story: 'Тэдиус одержим идеей «Эликсира Чистоты». Проблема в том, что ингредиенты требуют жертв: его лаборатория полна банок с органами, а руки покрыты язвами от экспериментов. Он продаёт знати зелья, вызывающие зависимость и безумие, — чтобы финансировать свои настоящие, куда более страшные исследования.',
   },
   {
-    id: 4, name: 'Векс', epithet: 'Ассасин', role: 'dps', attackRange: 'melee', hp: 120, dps: 14, gs: 88, trait: 'egoist', morale: 70,
+    id: 4, name: 'Векс', epithet: 'Ассасин', role: 'dps', attackRange: 'melee', hp: 120, dps: 14, gs: 88, trait: 'egoist', morale: 70, hireCost: 130,
     bio: 'Рождён с демонической кровью и обречён гореть на костре — но выжил в тени.',
     story: 'Векс был спасён Гильдией Теней от костра, на который его отправили за демоническую кровь. Его клинки смазаны ядом василиска. Он работает на ту самую Церковь Света, что его ненавидит, убивая её врагов в тёмных переулках, и верит: только тьма способна очистить прогнивший мир.',
   },
   {
-    id: 5, name: 'Громмаш', epithet: '«Кровавый Череп»', role: 'dps', attackRange: 'melee', hp: 120, dps: 13, gs: 80, trait: 'steady', morale: 70,
+    id: 5, name: 'Громмаш', epithet: '«Кровавый Череп»', role: 'dps', attackRange: 'melee', hp: 120, dps: 13, gs: 80, trait: 'steady', morale: 70, hireCost: 120,
     bio: 'Изгнан своим же кланом за жестокость, которая пугала даже орков.',
     story: 'Громмаш скитается по Ледяным Пикам, где его племя вырезали наёмники «цивилизованных» людей. Его булава украшена зубами тех, кто пытался его убить. Он ищет не славы, а достойной смерти в бою — но проклятие долголетия не позволяет ему умереть легко.',
   },
   {
-    id: 6, name: 'Сильвана', epithet: 'Шепчущая', role: 'dps', attackRange: 'ranged', hp: 115, dps: 12, gs: 77, trait: 'clicker', morale: 70,
+    id: 6, name: 'Сильвана', epithet: 'Шепчущая', role: 'dps', attackRange: 'ranged', hp: 115, dps: 12, gs: 77, trait: 'clicker', morale: 70, hireCost: 110,
     bio: 'Последняя хранительница Проклятого Леса, охотящаяся и на скверну, и на собственный орден.',
     story: 'Когда скверна начала превращать лес в мясные наросты, орден Сильваны решил сжечь его дотла. Она отказалась подчиниться. Теперь она охотится и на заражённых тварей, и на инквизиторов своей же королевы. Её зелёная стрела — концентрированный яд из собственных вен: каждый выстрел медленно убивает и её саму.',
   },
   {
-    id: 7, name: 'Элара', epithet: 'Ведьма', role: 'dps', attackRange: 'ranged', hp: 100, dps: 17, gs: 91, trait: 'legend', morale: 70,
+    id: 7, name: 'Элара', epithet: 'Ведьма', role: 'dps', attackRange: 'ranged', hp: 100, dps: 17, gs: 91, trait: 'legend', morale: 70, hireCost: 140,
     bio: 'Бывший лекарь, чьё зелёное пламя лечит болезнь, выжигая вместе с ней и жизнь.',
     story: 'Элара была лекарем, пока не поняла: спасти всех невозможно. «Огонь Душ» в её руках сжигает хвори ценой самой жизни. Она бродит по руинам старых замков, собирая армию скелетов — не для войны, а чтобы построить мир, где никто не болеет, потому что никто не жив.',
   },
   {
-    id: 8, name: 'Родерик', epithet: 'Паладин', role: 'dps', attackRange: 'melee', hp: 140, dps: 9, gs: 60, trait: 'ninjaLooter', morale: 70,
+    id: 8, name: 'Родерик', epithet: 'Паладин', role: 'dps', attackRange: 'melee', hp: 140, dps: 9, gs: 60, trait: 'ninjaLooter', morale: 70, hireCost: 90,
     bio: 'Герой войны, чья вера пошатнулась, когда он увидел, кого на самом деле карает.',
     story: 'Сияющий меч и щит Родерика — дар бога, что требует крови еретиков. Но всё чаще «еретики» оказываются просто бедняками, восставшими против гнёта церкви. Тяжёлые доспехи скрывают не только тело в бою, но и шрамы от пыток, которым его подвергло собственное начальство за сомнения.',
   },
 ];
 
-// Not hired at the start of a new game — surfaced in the hiring window
+// Never offered at the start of a new game — surfaced in the hiring window
 // (LevelMapScreen's sibling, HireScreen) and joins `pool` only after
 // `engine.hireRecruit(id)` is paid for out of the guild's budget.
 export const RECRUITS: CandidateDef[] = [
@@ -78,6 +80,10 @@ export const RECRUITS: CandidateDef[] = [
     story: 'Мортана третий месяц проходит стажировку без оформления и надеется, что поднятые ею скелеты хотя бы получат трудовую книжку. Её заклинания нестабильны, зато энтузиазма через край. Она уверена, что уже заслужила долю в добыче — просто пока об этом не знает бухгалтерия.',
   },
 ];
+
+/** What a new guild has to spend on its first five heroes; what's left goes to the treasury. */
+export const DRAFT_BUDGET = 500;
+export const DRAFT_SIZE = 5;
 
 export const ALL_CANDIDATES: CandidateDef[] = [...POOL, ...RECRUITS];
 

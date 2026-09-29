@@ -6,7 +6,8 @@ import { colors, font, roleColor } from '../theme/theme';
 import { DUNGEONS, LOCATIONS } from '../data/dungeons';
 import { Avatar } from '../components/Avatar';
 import { Icon, IconName } from '../components/Icon';
-import { TabBar } from '../components/TabBar';
+import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
+import { Corners, Frame, Ornament } from '../components/Frame';
 import { useEngineVersion } from '../engine/useEngine';
 import { FEATURES, FEATURE_ORDER, Feature, unlockHint } from '../data/features';
 import { TiltArt } from '../components/TiltArt';
@@ -30,45 +31,21 @@ const DUNGEON_ICON: Record<string, IconName> = {
   shareholderfloor: 'chart-line-up', councilantechamber: 'identification-card', boardroom: 'crown-simple',
 };
 
-/** A camp menu row; locked ones show what opens them instead of navigating. */
-function MenuCard({ title, sub, icon, onPress, lockedHint, caret }: {
-  title: string; sub: string; icon?: IconName; onPress: () => void; lockedHint?: string; caret?: boolean;
-}) {
-  const locked = !!lockedHint;
-  return (
-    <Pressable
-      onPress={locked ? undefined : onPress}
-      disabled={locked}
-      style={({ pressed }) => ({
-        borderWidth: 1, borderColor: locked ? colors.border : pressed ? colors.borderHover : colors.borderStrong,
-        borderRadius: 8, padding: 14, backgroundColor: locked ? 'transparent' : colors.surface, marginBottom: 22,
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', opacity: locked ? 0.55 : 1,
-      })}
-    >
-      <View style={{ flex: 1, paddingRight: 10 }}>
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>{title}</Text>
-        <Text style={{ fontSize: 13, color: locked ? colors.textFaint : colors.textMuted, marginTop: 4, fontFamily: font.regular }}>{locked ? lockedHint : sub}</Text>
-      </View>
-      <Icon name={locked ? 'lock-simple' : caret ? 'caret-right' : icon ?? 'caret-right'} size={locked || caret ? 16 : 18} color={locked ? colors.borderHover : colors.textDim} />
-    </Pressable>
-  );
-}
-
 /** A square camp menu tile: icon, title and a one-line status. */
 function MenuTile({ title, sub, icon, onPress }: { title: string; sub: string; icon: IconName; onPress: () => void }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        width: '48.5%', borderWidth: 1, borderColor: pressed ? GOLD : GOLD_DIM, borderRadius: 6,
-        backgroundColor: pressed ? 'rgba(201,176,109,0.10)' : 'rgba(24,21,17,0.92)', padding: 12, gap: 8, minHeight: 92,
-      })}
-    >
-      <View style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: GOLD_DIM, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1712' }}>
-        <Icon name={icon} size={17} color="#d9c595" />
-      </View>
-      <Text style={{ fontSize: 13, fontFamily: font.semibold, color: '#efe4c8' }}>{title}</Text>
-      <Text numberOfLines={2} style={{ fontSize: 11, lineHeight: 15, color: colors.textDim, fontFamily: font.regular }}>{sub}</Text>
+    <Pressable onPress={onPress} style={{ width: '48.5%' }}>
+      {({ pressed }) => (
+        <Frame pressed={pressed} contentStyle={{ padding: 12, minHeight: 86, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+          <View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: pressed ? GOLD : GOLD_DIM, alignItems: 'center', justifyContent: 'center', backgroundColor: '#15120e' }}>
+            <Icon name={icon} size={19} color="#e3cc93" />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={{ fontSize: 13.5, fontFamily: font.semibold, color: '#efe4c8' }}>{title}</Text>
+            <Text numberOfLines={3} style={{ fontSize: 11, lineHeight: 15, color: colors.textDim, fontFamily: font.regular }}>{sub}</Text>
+          </View>
+        </Frame>
+      )}
     </Pressable>
   );
 }
@@ -147,7 +124,7 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
   const fresh = engine.newUnlocks()[0];
 
   const [failed3d, setFailed3d] = useState(false);
-  const show3d = engine.settings.view3d && canRender3D() && !failed3d;
+  const show3d = canRender3D() && !failed3d;
   const gearKey = squad.map((m) => m.id + ':' + JSON.stringify(m.equipment)).join('|');
   const campGear = useMemo(() => Object.fromEntries(squad.map((m) => [m.id, gearLookOf(m.equipment)])), [gearKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const tiles: { title: string; sub: string; icon: IconName; onPress: () => void }[] = [];
@@ -191,26 +168,28 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
       {/* Art behind the top of camp; the page scrolls over it. */}
       <TiltArt testID="camp-art" source={CAMP_ART} aspect={1600 / 893} focusX={0.66} fadeFrom={0.5} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 400 + insets.top }} />
       <LinearGradient pointerEvents="none" colors={['rgba(22,24,38,0.75)', 'rgba(22,24,38,0)']} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120 + insets.top }} />
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 96 }}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 24 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <View>
-            <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Отдел кадров</Text>
-            <Text style={{ fontSize: 30, fontFamily: font.medium, color: colors.text, marginTop: 4, letterSpacing: -0.6 }}>Лагерь</Text>
+            <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>Отдел кадров</Text>
+            <Text style={{ fontSize: 32, fontFamily: font.semibold, color: '#f4e9cf', marginTop: 2, letterSpacing: -0.6, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 8 }}>Лагерь</Text>
+            <Ornament width={110} />
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Icon name="coins" size={15} color={colors.warn} />
-              <Text style={{ fontSize: 14, fontFamily: font.medium, color: colors.warn }}>{engine.gold}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            {/* Treasury: a gold chip, tap for the ledger once analytics opens. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 12, borderRadius: 18, borderWidth: 1, borderColor: GOLD, backgroundColor: 'rgba(20,16,12,0.85)' }}>
+              <Icon name="coins" size={17} color="#f0d58a" weight="fill" />
+              <Text style={{ fontSize: 15, fontFamily: font.semibold, color: '#f0d58a' }}>{engine.gold}</Text>
             </View>
             <Pressable
               onPress={() => engine.go('settings')}
               hitSlop={10}
-              style={{
-                width: 40, height: 40, borderRadius: 20,
-                borderWidth: 1, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center',
-              }}
+              style={({ pressed }) => ({
+                width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(20,16,12,0.85)',
+                borderWidth: 1, borderColor: pressed ? GOLD : GOLD_DIM, alignItems: 'center', justifyContent: 'center',
+              })}
             >
-              <Icon name="gear" size={18} color={colors.textDim} />
+              <Icon name="gear" size={18} color="#d9c595" />
             </Pressable>
           </View>
         </View>
@@ -218,6 +197,22 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
         <View style={{ height: fresh ? 22 : 60 }} />
 
         {fresh ? <UnlockBanner engine={engine} f={fresh} /> : null}
+
+        {engine.safeMode3d ? (
+          <View style={{ borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 18, borderColor: colors.warn, backgroundColor: 'rgba(212,160,80,0.08)' }}>
+            <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.textMuted, fontFamily: font.regular, marginBottom: 10 }}>
+              В прошлый раз игра закрылась при показе 3D, поэтому графика переключена на «Низкое». Вернуть её можно в настройках.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable onPress={() => engine.dismissSafeMode3d()} style={{ flex: 1, height: 34, borderRadius: 7, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 12.5, color: colors.accentSoft, fontFamily: font.medium }}>Понятно</Text>
+              </Pressable>
+              <Pressable onPress={() => engine.go('settings')} style={{ flex: 1, height: 34, borderRadius: 7, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 12.5, color: colors.textDim, fontFamily: font.medium }}>Настройки</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         {engine.payrollNotice ? (
           <Pressable
@@ -296,27 +291,32 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
               <Icon name="caret-right" size={12} color="#d9c595" />
             </View>
           </View>
+          <Corners color="#b39462" />
         </Pressable>
 
         {/* The next dungeon, one tap away. */}
         {nextDungeon ? (
-          <Pressable
-            onPress={nextDungeon.onTap}
-            style={({ pressed }) => ({ borderWidth: 1, borderColor: pressed ? '#c9b06d' : GOLD, borderRadius: 6, marginBottom: 14, overflow: 'hidden' })}
-          >
-            <LinearGradient colors={['#3a2a18', '#1e160f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: GOLD, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="path" size={20} color="#f0d58a" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 10.5, letterSpacing: 1.6, textTransform: 'uppercase', color: '#c9b06d', fontFamily: font.regular }}>В поход</Text>
-                <Text style={{ fontSize: 17, fontFamily: font.semibold, color: '#f4e9cf', marginTop: 2 }}>{nextDungeon.name}</Text>
-                <Text style={{ fontSize: 11.5, color: colors.textDim, marginTop: 2, fontFamily: font.regular }}>{nextDungeon.meta}</Text>
-              </View>
-              <Icon name="arrow-right" size={20} color="#f0d58a" />
-            </LinearGradient>
+          <Pressable onPress={nextDungeon.onTap} style={{ marginBottom: 8 }}>
+            {({ pressed }) => (
+              <Frame tone="gold" pressed={pressed} contentStyle={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 1, borderColor: '#c9b06d', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' }}>
+                  <Icon name="sword" size={22} color="#f0d58a" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 10.5, letterSpacing: 1.6, textTransform: 'uppercase', color: '#c9b06d', fontFamily: font.medium }}>{ready ? 'В поход' : 'Собрать отряд и в поход'}</Text>
+                  <Text style={{ fontSize: 18, fontFamily: font.semibold, color: '#f4e9cf', marginTop: 2 }}>{nextDungeon.name}</Text>
+                  <Text style={{ fontSize: 11.5, color: '#b9ab8e', marginTop: 2, fontFamily: font.regular }}>{nextDungeon.meta}</Text>
+                </View>
+                <Icon name="arrow-right" size={22} color="#f0d58a" />
+              </Frame>
+            )}
           </Pressable>
         ) : null}
+        <Pressable testID="all-dungeons" onPress={() => engine.go('levelmap')} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 18 }}>
+          <Icon name="path" size={13} color="#d9c595" />
+          <Text style={{ fontSize: 12, color: '#d9c595', fontFamily: font.medium }}>Карта походов</Text>
+          <Icon name="caret-right" size={12} color="#d9c595" />
+        </Pressable>
 
         {tiles.length ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, marginBottom: 22 }}>
@@ -325,49 +325,18 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
         ) : null}
 
         {nextUp.length ? (
-          <View testID="next-up" style={{ borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', borderRadius: 8, padding: 14, marginBottom: 22, gap: 6 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Icon name="lock-simple" size={13} color={colors.textFaint} />
-              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>
+          <Frame tone="muted" style={{ marginBottom: 22 }} contentStyle={{ padding: 14, gap: 6 }}>
+            <View testID="next-up" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="lock-simple" size={13} color={colors.textDim} />
+              <Text style={{ fontSize: 11.5, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.medium }}>
                 {unlockHint(nextUp[0])}
               </Text>
             </View>
             <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textMuted, fontFamily: font.regular }}>
               {nextUp.map((f) => FEATURES[f].title).join(', ')}
             </Text>
-          </View>
+          </Frame>
         ) : null}
-
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Походы</Text>
-        {locationGroups.map(({ loc, dungeons }) => {
-          const locUnlocked = dungeons.some((d) => !d.locked);
-          return (
-            <View key={loc.id} style={{ marginBottom: 18 }}>
-              <Text style={{ fontSize: 12.5, fontFamily: font.medium, color: locUnlocked ? colors.text : colors.textFaint, marginBottom: 8 }}>{loc.name}</Text>
-              {dungeons.map((d) => (
-                <Pressable
-                  key={d.key}
-                  onPress={d.onTap}
-                  disabled={d.locked}
-                  style={{
-                    borderWidth: 1, borderColor: d.locked ? colors.border : colors.borderStrong,
-                    borderRadius: 8, padding: 16, marginBottom: 10,
-                    backgroundColor: d.locked ? 'transparent' : colors.surface, opacity: d.locked ? 0.5 : 1,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 17, fontFamily: font.medium, color: colors.text, letterSpacing: -0.2 }}>{d.name}</Text>
-                      <Text style={{ fontSize: 12, color: colors.textDim, marginTop: 4, fontFamily: font.regular }}>{d.meta}</Text>
-                    </View>
-                    <Icon name={d.icon} size={20} color={d.iconColor} />
-                  </View>
-                  <Text style={{ fontSize: 12.5, lineHeight: 19, color: colors.textMuted, marginTop: 10, fontFamily: font.regular }}>{d.desc}</Text>
-                </Pressable>
-              ))}
-            </View>
-          );
-        })}
       </ScrollView>
       <TabBar engine={engine} />
     </View>

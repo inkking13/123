@@ -11,6 +11,7 @@ import { Icon } from '../components/Icon';
 import { PrimaryButton } from '../components/Buttons';
 import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
 import { useEngineVersion } from '../engine/useEngine';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 export function RosterScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -28,10 +29,10 @@ export function RosterScreen({ engine }: { engine: GameEngine }) {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 16, paddingBottom: 210 }}>
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>
           Личные дела · {engine.pool.length} в штате
         </Text>
-        <Text style={{ fontSize: 30, fontFamily: font.medium, color: colors.text, marginTop: 4, letterSpacing: -0.6 }}>Отряд</Text>
+        <ScreenTitle style={{ marginTop: 4 }}>Отряд</ScreenTitle>
         <Text style={{ fontSize: 13, color: colors.textDim, marginTop: 4, marginBottom: 18, fontFamily: font.regular }}>
           Выбери пятерых на смену. Без танка и хилера поход закончится в первой комнате.
         </Text>
@@ -76,7 +77,7 @@ export function RosterScreen({ engine }: { engine: GameEngine }) {
                 flexDirection: 'row', gap: 12, padding: 12, borderRadius: 8, marginBottom: 8,
                 alignItems: 'flex-start', borderWidth: 1,
                 borderColor: sel ? colors.accent : colors.border,
-                backgroundColor: sel ? colors.accentWash : 'transparent',
+                backgroundColor: sel ? colors.accentWash : 'rgba(18,16,20,0.55)',
               }}
             >
               <Pressable onPress={() => engine.toggleSelect(c.id)} style={{ position: 'relative' }}>
@@ -127,6 +128,7 @@ export function RosterScreen({ engine }: { engine: GameEngine }) {
               >
                 <Icon name="scroll" size={17} color={colors.textDim} />
               </Pressable>
+              <Corners color="#8a7650" />
             </View>
           );
         })}

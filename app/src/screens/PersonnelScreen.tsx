@@ -7,6 +7,7 @@ import { GhostLink } from '../components/Buttons';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { useEngineVersion } from '../engine/useEngine';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 function RosterCard({ c }: { c: PersonnelRosterEntry }) {
   return (
@@ -57,6 +58,7 @@ function DepartedRow({ d }: { d: DepartedEntry }) {
         </View>
       </View>
       <Text style={{ fontSize: 12, lineHeight: 17, color: colors.textFaint, marginTop: 8, fontFamily: font.regular }}>{d.story}</Text>
+      <Corners color="#8a7650" />
     </View>
   );
 }
@@ -70,8 +72,8 @@ export function PersonnelScreen({ engine }: { engine: GameEngine }) {
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, marginTop: 10, fontFamily: font.regular }}>Отдел кадров</Text>
-        <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 4, marginBottom: 18, letterSpacing: -0.5 }}>Личные дела</Text>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, marginTop: 10, fontFamily: font.medium }}>Отдел кадров</Text>
+        <ScreenTitle style={{ marginTop: 4, marginBottom: 18 }}>Личные дела</ScreenTitle>
 
         {(() => {
           const issues: { key: string; icon: 'warning' | 'coins'; text: string }[] = [];
@@ -82,17 +84,18 @@ export function PersonnelScreen({ engine }: { engine: GameEngine }) {
           if (!issues.length) return null;
           return (
             <View testID="hr-issues" style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 18, gap: 8, backgroundColor: colors.surface }}>
-              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Открытые вопросы</Text>
+              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', fontFamily: font.medium }}>Открытые вопросы</Text>
               {issues.map((i) => (
                 <View key={i.key} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
                   <Icon name={i.icon} size={14} color={i.icon === 'warning' ? colors.warn : colors.accentSoft} />
                   <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: colors.textMuted, fontFamily: font.regular }}>{i.text}</Text>
                 </View>
               ))}
+              <Corners color="#8a7650" />
             </View>
           );
         })()}
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
           Действующий состав ({vm.roster.length})
         </Text>
         {vm.roster.map((c) => <RosterCard key={c.id} c={c} />)}
@@ -100,7 +103,7 @@ export function PersonnelScreen({ engine }: { engine: GameEngine }) {
         <View style={{ height: 12 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <Icon name="scroll" size={13} color={colors.textDim} />
-          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>
+          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', fontFamily: font.medium }}>
             Архив ({vm.departed.length})
           </Text>
         </View>

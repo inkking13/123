@@ -6,6 +6,7 @@ import { colors, font } from '../theme/theme';
 import { Icon } from '../components/Icon';
 import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
 import { useEngineVersion } from '../engine/useEngine';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 export function QuestsScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -18,13 +19,13 @@ export function QuestsScreen({ engine }: { engine: GameEngine }) {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 24 }}>
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Отдел кадров</Text>
-        <Text style={{ fontSize: 30, fontFamily: font.medium, color: colors.text, marginTop: 4, marginBottom: 4, letterSpacing: -0.6 }}>KPI гильдии</Text>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>Отдел кадров</Text>
+        <ScreenTitle style={{ marginTop: 4, marginBottom: 4 }}>KPI гильдии</ScreenTitle>
         <Text style={{ fontSize: 13, color: colors.textDim, marginBottom: 22, fontFamily: font.regular }}>
           Выполнено {doneCount}/{quests.length} · каждый закрытый показатель поднимает мораль всей гильдии.
         </Text>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
           Ежедневные задачи · {dailyDoneCount}/{dailies.length}
         </Text>
         {dailies.map((q) => (
@@ -61,11 +62,12 @@ export function QuestsScreen({ engine }: { engine: GameEngine }) {
                 <Text style={{ fontSize: 13, fontFamily: font.medium, color: colors.warn }}>Забрать награду</Text>
               </Pressable>
             ) : null}
+            <Corners color="#8a7650" />
           </View>
         ))}
 
         <View style={{ height: 10 }} />
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
           Постоянные KPI
         </Text>
         {quests.map((q) => (
@@ -102,6 +104,7 @@ export function QuestsScreen({ engine }: { engine: GameEngine }) {
                 <Text style={{ fontSize: 13, fontFamily: font.medium, color: colors.accentSoft }}>Забрать награду</Text>
               </Pressable>
             ) : null}
+            <Corners color="#8a7650" />
           </View>
         ))}
       </ScrollView>

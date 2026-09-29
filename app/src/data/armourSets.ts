@@ -123,6 +123,10 @@ export const STARTING_OUTFITS: Record<number, ArmourSetId> = {
   4: 'leather', // Векс, the assassin
   5: 'templar', // Громмаш
   6: 'leather', // Сильвана, the archer
+  1: 'templar', // Борин
+  3: 'arcane', // Тэдиус
+  7: 'arcane', // Элара
+  8: 'knight', // Родерик
 };
 
 /** Put a hero's starting set on them: every armour slot that is still empty. */

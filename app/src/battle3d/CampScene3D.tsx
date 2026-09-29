@@ -5,10 +5,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { Canvas, useFrame, useLoader } from './r3f';
 import { Quality, qualityProfile } from './quality';
+import { FrameCap } from './FrameCap';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
 import { SHEET_MODELS } from './heroFigures';
 import { Guard } from './Battle3D';
+import { use3dProbe } from './probe3d';
 import { Flame, GroundMist } from './Atmosphere';
 import { GearLook } from './gearLooks';
 
@@ -91,11 +93,13 @@ function Camp({ ids, gear }: { ids: number[]; gear: Record<number, GearLook | un
 export function CampScene3D({ ids, gear, height, quality = 'medium', onFail }: {
   ids: number[]; gear: Record<number, GearLook | undefined>; height: number; quality?: Quality; onFail: (e: unknown) => void;
 }) {
+  use3dProbe();
   const q = useMemo(() => qualityProfile(quality), [quality]);
   const camera = useMemo(() => ({ position: [0, 1.45, 4.1] as [number, number, number], fov: 38, near: 0.05, far: 40 }), []);
   return (
     <Guard onFail={onFail}>
-      <Canvas key={quality} camera={camera} style={{ height }} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
+      <Canvas key={quality} camera={camera} style={{ height }} frameloop={q.fps ? 'demand' : 'always'} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
+        <FrameCap fps={q.fps} />
         <Camp ids={ids} gear={gear} />
       </Canvas>
     </Guard>

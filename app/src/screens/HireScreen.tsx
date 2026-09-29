@@ -7,6 +7,7 @@ import { GhostLink } from '../components/Buttons';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { useEngineVersion } from '../engine/useEngine';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 export function HireScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -23,8 +24,8 @@ export function HireScreen({ engine }: { engine: GameEngine }) {
             <Text style={{ fontSize: 15, fontFamily: font.medium, color: colors.warn }}>{engine.gold}</Text>
           </View>
         </View>
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, marginTop: 10, fontFamily: font.regular }}>Отдел кадров</Text>
-        <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 4, marginBottom: 14, letterSpacing: -0.5 }}>Найм героев</Text>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, marginTop: 10, fontFamily: font.medium }}>Отдел кадров</Text>
+        <ScreenTitle style={{ marginTop: 4, marginBottom: 14 }}>Найм героев</ScreenTitle>
         <Text style={{ fontSize: 13, color: colors.textDim, marginBottom: 18, lineHeight: 19, fontFamily: font.regular }}>
           Соискатели с рынка труда. Найм — разовая трата из бюджета гильдии, дальше герой ведёт себя как обычный сотрудник.
         </Text>
@@ -73,6 +74,7 @@ export function HireScreen({ engine }: { engine: GameEngine }) {
                   Нанять за {c.cost}
                 </Text>
               </Pressable>
+              <Corners color="#8a7650" />
             </View>
           ))
         )}

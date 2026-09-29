@@ -28,10 +28,13 @@ interface Piece {
   drop?: number;
   /** A burning brazier: its flame (and light) sits this high above the ground, metres. */
   flame?: number;
+  /** Ground clutter, left out on phones to spare their GPU. */
+  clutter?: boolean;
 }
 
 // Meshy decor, each file ~1.9 units across with its centre at the origin.
 const decor = (mod: number, scale: number, floorY: number) => (at: [number, number], turn = 0, flame?: number): Piece => ({ url: url(mod), scale, floorY, at, turn, flame });
+const clutter = (make: ReturnType<typeof decor>) => (at: [number, number], turn = 0): Piece => ({ ...make(at, turn), clutter: true });
 const brazier = decor(require('../../assets/models/decor-brazier.glb'), 0.54, -0.81);
 const bones = decor(require('../../assets/models/decor-bones.glb'), 0.5, -0.45);
 const weapons = decor(require('../../assets/models/decor-weapons.glb'), 0.46, -0.46);
@@ -39,17 +42,24 @@ const pillar = decor(require('../../assets/models/decor-pillar.glb'), 0.8, -0.82
 const grave = decor(require('../../assets/models/decor-grave.glb'), 0.42, -0.95);
 const banner = decor(require('../../assets/models/decor-banner.glb'), 0.98, -0.89);
 
+/**
+ * Phones get a lighter copy of the keep (55k triangles and 2048px textures instead of 369k and 4096px):
+ * the full one needs ~85 MB of video memory for one texture, more than a budget phone's GPU can give
+ * (on a Redmi 15C the fight drew nothing). In dev, ?mobile3d on the web previews it.
+ */
+const LIGHT_STAGE = Platform.OS !== 'web' || (__DEV__ && typeof location !== 'undefined' && location.search.includes('mobile3d'));
+
 const STAGES: Record<string, { pieces: Piece[]; slab: boolean }> = {
   // Ruined keep: stone floor ringed by broken walls, an arch and banner towers behind the enemy rows.
   // The export is 1.9 units across with its floor at y = -0.39; scaled so the floor holds the board.
   cursedBattlefield: {
     slab: false,
     pieces: [
-      { url: url(require('../../assets/models/battlefield.glb')), scale: 7, floorY: -0.39, drop: 0.04 },
+      { url: url(LIGHT_STAGE ? require('../../assets/models/battlefield-mobile.glb') : require('../../assets/models/battlefield.glb')), scale: 7, floorY: -0.39, drop: 0.04 },
       // Four braziers light the board's corners; bones, broken arms and a grave fill the ground round it.
       brazier([-4.3, 2.6], 0, 0.9), brazier([4.3, 2.6], 1, 0.9), brazier([-4.3, -2.3], 2, 0.9), brazier([4.3, -2.3], 3, 0.9),
-      bones([-2.6, 4.0], 0.6), weapons([2.3, 4.1], -0.4), bones([4.6, 0.3], 2.2), weapons([-4.7, 0.2], 1.3),
-      grave([-3.7, 4.7], 0.2), pillar([-4.6, 3.6], 0.5), pillar([4.7, 4.4], 2.1), grave([4.4, -0.9], -0.6),
+      clutter(bones)([-2.6, 4.0], 0.6), clutter(weapons)([2.3, 4.1], -0.4), clutter(bones)([4.6, 0.3], 2.2), clutter(weapons)([-4.7, 0.2], 1.3),
+      clutter(grave)([-3.7, 4.7], 0.2), clutter(pillar)([-4.6, 3.6], 0.5), clutter(pillar)([4.7, 4.4], 2.1), clutter(grave)([4.4, -0.9], -0.6),
       banner([-4.9, -3.6], 0.3), banner([4.9, -3.6], -0.3),
     ],
   },
@@ -126,7 +136,7 @@ export function Stage({ theme }: { theme: BattleTheme }) {
           </React.Suspense>
         </Fallback>
       ) : null}
-      {S.pieces.filter((p) => p !== floor).map((p, i) => <Piece key={i} piece={p} />)}
+      {S.pieces.filter((p) => p !== floor && !(LIGHT_STAGE && p.clutter)).map((p, i) => <Piece key={i} piece={p} />)}
     </>
   );
 }

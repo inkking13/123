@@ -1,23 +1,23 @@
 import React from 'react';
 import {
-  ArrowRight, ArrowLeft, CaretRight, SkullIcon, LockSimple, Scroll, Check,
+  ArrowRight, ArrowLeft, CaretRight, SkullIcon, LockSimple, Scroll, Check, Plus,
   ShieldChevron, DoorOpen, CrownSimple, Sword, HandPalm, Megaphone,
   Pause, Play, Shield, FirstAidKit, Campfire, UsersThree, PathIcon, SnowflakeIcon,
   FlaskIcon, DropIcon, FlameIcon, TargetIcon, FireIcon,
   GearSix, SpeakerHigh, SpeakerSlash, Vibrate, TrashSimple, Warning, CoinsIcon, Storefront, ChartLineUpIcon,
   TrophyIcon, IdentificationCardIcon, HardHat, HandFist, Boot, Diamond, FastForward, Robot,
-  TShirt, Pants, Belt, CoatHanger, Sparkle, ArrowsOutSimple, ArrowsInSimple,
+  TShirt, Pants, Belt, CoatHanger, Sparkle, ArrowsOutSimple, ArrowsInSimple, MusicNotes,
 } from 'phosphor-react-native';
 
 export type IconName =
-  | 'arrow-right' | 'arrow-left' | 'caret-right' | 'skull' | 'lock-simple' | 'scroll' | 'check'
+  | 'arrow-right' | 'arrow-left' | 'caret-right' | 'skull' | 'lock-simple' | 'scroll' | 'check' | 'plus'
   | 'shield-chevron' | 'door-open' | 'crown-simple' | 'sword' | 'hand-palm' | 'megaphone'
   | 'pause' | 'play' | 'shield' | 'first-aid-kit' | 'campfire' | 'users-three' | 'path' | 'snowflake'
   | 'flask' | 'drop' | 'flame' | 'target' | 'fire'
   | 'gear' | 'speaker-high' | 'speaker-slash' | 'vibrate' | 'trash-simple' | 'warning'
   | 'coins' | 'storefront' | 'chart-line-up' | 'trophy' | 'identification-card'
   | 'hard-hat' | 'hand-fist' | 'boot' | 'diamond' | 'fast-forward' | 'robot'
-  | 't-shirt' | 'pants' | 'belt' | 'coat-hanger' | 'sparkle' | 'arrows-out' | 'arrows-in';
+  | 't-shirt' | 'pants' | 'belt' | 'coat-hanger' | 'sparkle' | 'arrows-out' | 'arrows-in' | 'music-notes';
 
 const MAP: Record<IconName, React.ComponentType<any>> = {
   'arrow-right': ArrowRight,
@@ -27,6 +27,7 @@ const MAP: Record<IconName, React.ComponentType<any>> = {
   'lock-simple': LockSimple,
   scroll: Scroll,
   check: Check,
+  plus: Plus,
   'shield-chevron': ShieldChevron,
   'door-open': DoorOpen,
   'crown-simple': CrownSimple,
@@ -70,6 +71,7 @@ const MAP: Record<IconName, React.ComponentType<any>> = {
   sparkle: Sparkle,
   'arrows-out': ArrowsOutSimple,
   'arrows-in': ArrowsInSimple,
+  'music-notes': MusicNotes,
 };
 
 export function Icon({
