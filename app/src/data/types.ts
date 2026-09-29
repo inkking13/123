@@ -1,6 +1,9 @@
 export type Role = 'tank' | 'heal' | 'dps';
 export type TraitId = 'steady' | 'novice' | 'egoist' | 'clicker' | 'legend' | 'ninjaLooter';
-export type GearSlotKey = 'weapon' | 'helm' | 'armor' | 'gloves' | 'boots' | 'trinket' | 'ring';
+/** What an item is. Rings and accessories each fit two slots. */
+export type GearKind = 'weapon' | 'offhand' | 'helm' | 'necklace' | 'shoulders' | 'cloak' | 'chest' | 'belt' | 'gloves' | 'pants' | 'boots' | 'ring' | 'accessory';
+/** Where a hero wears it. */
+export type GearSlotKey = 'weapon' | 'offhand' | 'helm' | 'necklace' | 'shoulders' | 'cloak' | 'chest' | 'belt' | 'gloves' | 'pants' | 'boots' | 'ring1' | 'ring2' | 'acc1' | 'acc2';
 /** Melee must stand on the grid's front row to attack; ranged/healers can act from anywhere. */
 export type AttackRange = 'melee' | 'ranged';
 

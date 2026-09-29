@@ -1,11 +1,12 @@
-import { GearOption, GearSlotKey } from './types';
+import { GearKind, GearOption, GearSlotKey } from './types';
 
 export interface LootDrop {
-  slot: GearSlotKey;
+  /** The kind of item (not the slot it goes in). */
+  slot: GearKind;
   gearId: string;
 }
 
-export const GEAR: Record<GearSlotKey, GearOption[]> = {
+export const GEAR: Record<GearKind, GearOption[]> = {
   weapon: [
     { id: 'none', name: 'Без оружия', mult: 1, desc: 'Никаких бонусов.' },
     { id: 'w1', name: 'Верный клинок', mult: 1.10, desc: '+10% к урону/лечению.', icon: 'ostryy-stilet', price: 40 },
@@ -51,7 +52,7 @@ export const GEAR: Record<GearSlotKey, GearOption[]> = {
     { id: 'ub-wolfrifts', name: 'Поступь Матери Стаи', wardMult: 0.90, hpMult: 1.04, desc: '-10% к получаемому урону и +4% к HP. Трофей с Матери Стаи.', icon: 'latnye-sapogi' },
     { id: 'ub-smugglercatacombs', name: 'Сапоги Контрабандиста', cdMult: 0.85, wardMult: 0.94, desc: '-15% к перезарядке и -6% к получаемому урону. Трофей со Смотрителя Катакомб.', icon: 'kolchuzhnye-sapogi' },
   ],
-  armor: [
+  chest: [
     { id: 'none', name: 'Без брони', hpMult: 1, desc: 'Никаких бонусов.' },
     { id: 'a1', name: 'Кожаный нагрудник', hpMult: 1.10, desc: '+10% к HP.', icon: 'proklyatyy-nagrudnik', price: 40 },
     { id: 'a2', name: 'Кольчуга ветерана', hpMult: 1.20, desc: '+20% к HP.', icon: 'shlem-padshego-rytsarya', price: 90 },
@@ -71,7 +72,7 @@ export const GEAR: Record<GearSlotKey, GearOption[]> = {
     { id: 'ra-engineer1', name: 'Механический Наплечник', hpMult: 1.45, cdMult: 0.90, desc: '+45% к HP и -10% к перезарядке способности.', icon: 'shlem-vozhdya-orkov' },
     { id: 'ra-engineer2', name: 'Осадный Экзоскелет', hpMult: 2.00, cdMult: 0.80, desc: '+100% к HP и -20% к перезарядке способности.', icon: 'gerb-bessmertnogo-rytsarya' },
   ],
-  trinket: [
+  necklace: [
     { id: 'none', name: 'Без амулета', desc: 'Никаких бонусов.' },
     { id: 't1', name: 'Оберег стойкости', wardMult: 0.88, desc: '-12% к получаемому урону.', icon: 'obereg-maga', price: 40 },
     { id: 't2', name: 'Часы мага', cdMult: 0.85, desc: '-15% к перезарядке способности.', icon: 'oko-tenevogo-maga', price: 100 },
@@ -91,6 +92,24 @@ export const GEAR: Record<GearSlotKey, GearOption[]> = {
     { id: 'rt-alchemy1', name: 'Костяной Оберег', mult: 1.12, wardMult: 1.04, desc: '+12% к урону/лечению, но +4% к получаемому урону.', icon: 'filakteriya-proklyatogo-nekromanta' },
     { id: 'rt-alchemy2', name: 'Эликсир из Чешуи Виверны', mult: 1.22, wardMult: 1.08, desc: '+22% к урону/лечению, но +8% к получаемому урону.', icon: 'sklyanka-rtuti' },
   ],
+  offhand: [
+    { id: 'none', name: 'Пусто', desc: 'Никаких бонусов.' },
+  ],
+  shoulders: [
+    { id: 'none', name: 'Без наплечников', desc: 'Никаких бонусов.' },
+  ],
+  cloak: [
+    { id: 'none', name: 'Без плаща', desc: 'Никаких бонусов.' },
+  ],
+  belt: [
+    { id: 'none', name: 'Без пояса', desc: 'Никаких бонусов.' },
+  ],
+  pants: [
+    { id: 'none', name: 'Без штанов', desc: 'Никаких бонусов.' },
+  ],
+  accessory: [
+    { id: 'none', name: 'Без аксессуара', desc: 'Никаких бонусов.' },
+  ],
   ring: [
     { id: 'none', name: 'Без кольца', desc: 'Никаких бонусов.' },
     { id: 'rg1', name: 'Серебряный перстень', mult: 1.03, desc: '+3% к урону/лечению.', icon: 'serebryanoe-koltso', price: 40 },
@@ -106,45 +125,76 @@ export const GEAR: Record<GearSlotKey, GearOption[]> = {
 // dungeons so every single boss (not just the anchor ones) is worth farming.
 export const UNIQUE_BOSS_LOOT: Record<string, LootDrop> = {
   wastes: { slot: 'weapon', gearId: 'uw-wastes' },
-  road: { slot: 'armor', gearId: 'ua-road' },
-  groblot: { slot: 'trinket', gearId: 'ut-groblot' },
+  road: { slot: 'chest', gearId: 'ua-road' },
+  groblot: { slot: 'necklace', gearId: 'ut-groblot' },
   frostpass: { slot: 'weapon', gearId: 'uw-frostpass' },
-  wolfrifts: { slot: 'armor', gearId: 'ua-wolfrifts' },
-  icepeaks: { slot: 'trinket', gearId: 'ut-icepeaks' },
+  wolfrifts: { slot: 'chest', gearId: 'ua-wolfrifts' },
+  icepeaks: { slot: 'necklace', gearId: 'ut-icepeaks' },
   charfields: { slot: 'weapon', gearId: 'uw-charfields' },
-  parishruins: { slot: 'armor', gearId: 'ua-parishruins' },
-  ashen: { slot: 'trinket', gearId: 'ut-ashen' },
+  parishruins: { slot: 'chest', gearId: 'ua-parishruins' },
+  ashen: { slot: 'necklace', gearId: 'ut-ashen' },
   mortgagedfarms: { slot: 'weapon', gearId: 'uw-mortgagedfarms' },
-  debtorsjail: { slot: 'armor', gearId: 'ua-debtorsjail' },
-  mines: { slot: 'trinket', gearId: 'ut-mines' },
+  debtorsjail: { slot: 'chest', gearId: 'ua-debtorsjail' },
+  mines: { slot: 'necklace', gearId: 'ut-mines' },
   blackmarket: { slot: 'weapon', gearId: 'uw-blackmarket' },
-  smugglercatacombs: { slot: 'armor', gearId: 'ua-smugglercatacombs' },
-  nightsyndicate: { slot: 'trinket', gearId: 'ut-nightsyndicate' },
+  smugglercatacombs: { slot: 'chest', gearId: 'ua-smugglercatacombs' },
+  nightsyndicate: { slot: 'necklace', gearId: 'ut-nightsyndicate' },
   unmarkedgraves: { slot: 'weapon', gearId: 'uw-unmarkedgraves' },
-  desertersfort: { slot: 'armor', gearId: 'ua-desertersfort' },
-  deadlegion: { slot: 'trinket', gearId: 'ut-deadlegion' },
+  desertersfort: { slot: 'chest', gearId: 'ua-desertersfort' },
+  deadlegion: { slot: 'necklace', gearId: 'ut-deadlegion' },
   burntcliffs: { slot: 'weapon', gearId: 'uw-burntcliffs' },
-  wyvernlair: { slot: 'armor', gearId: 'ua-wyvernlair' },
-  ancientpeak: { slot: 'trinket', gearId: 'ut-ancientpeak' },
+  wyvernlair: { slot: 'chest', gearId: 'ua-wyvernlair' },
+  ancientpeak: { slot: 'necklace', gearId: 'ut-ancientpeak' },
   shareholderfloor: { slot: 'weapon', gearId: 'uw-shareholderfloor' },
-  councilantechamber: { slot: 'armor', gearId: 'ua-councilantechamber' },
-  boardroom: { slot: 'trinket', gearId: 'ut-boardroom' },
+  councilantechamber: { slot: 'chest', gearId: 'ua-councilantechamber' },
+  boardroom: { slot: 'necklace', gearId: 'ut-boardroom' },
 };
 
 // Sell price at the trader — half the buy price, rounded down.
 export const SELL_RATIO = 0.5;
 
 export const SLOT_LABEL: Record<GearSlotKey, string> = {
-  weapon: 'Оружие',
+  weapon: 'Правая рука',
+  offhand: 'Левая рука',
   helm: 'Шлем',
-  armor: 'Броня',
+  necklace: 'Ожерелье',
+  shoulders: 'Наплечники',
+  cloak: 'Плащ',
+  chest: 'Нагрудник',
+  belt: 'Пояс',
   gloves: 'Перчатки',
-  boots: 'Сапоги',
-  trinket: 'Амулет',
-  ring: 'Кольцо',
+  pants: 'Штаны',
+  boots: 'Ботинки',
+  ring1: 'Кольцо',
+  ring2: 'Кольцо',
+  acc1: 'Аксессуар',
+  acc2: 'Аксессуар',
 };
 
-export const SLOT_ORDER: GearSlotKey[] = ['weapon', 'helm', 'armor', 'gloves', 'boots', 'trinket', 'ring'];
+export const SLOT_ORDER: GearSlotKey[] = ['weapon', 'offhand', 'helm', 'necklace', 'shoulders', 'cloak', 'chest', 'belt', 'gloves', 'pants', 'boots', 'ring1', 'ring2', 'acc1', 'acc2'];
+
+/** Every kind of item, in slot order. */
+export const GEAR_KINDS: GearKind[] = ['weapon', 'offhand', 'helm', 'necklace', 'shoulders', 'cloak', 'chest', 'belt', 'gloves', 'pants', 'boots', 'ring', 'accessory'];
+
+/** Which kind of item each slot takes. */
+export const SLOT_KIND: Record<GearSlotKey, GearKind> = {
+  weapon: 'weapon', offhand: 'offhand', helm: 'helm', necklace: 'necklace', shoulders: 'shoulders', cloak: 'cloak',
+  chest: 'chest', belt: 'belt', gloves: 'gloves', pants: 'pants', boots: 'boots', ring1: 'ring', ring2: 'ring', acc1: 'accessory', acc2: 'accessory',
+};
+
+/** The catalogue a slot draws from. */
+export const slotGear = (slot: GearSlotKey): GearOption[] => GEAR[SLOT_KIND[slot]];
+
+/** Slots an item of this kind can go in. */
+export const slotsForKind = (kind: GearKind): GearSlotKey[] => SLOT_ORDER.filter((s) => SLOT_KIND[s] === kind);
+
+/** Old saves had armor / trinket / ring slots. */
+export function migrateEquipment(saved: Record<string, string> | undefined): Record<GearSlotKey, string> {
+  const e = { ...emptyEquipment() } as Record<string, string>;
+  const rename: Record<string, string> = { armor: 'chest', trinket: 'necklace', ring: 'ring1' };
+  for (const [k, v] of Object.entries(saved ?? {})) { const key = rename[k] ?? k; if (key in e) e[key] = v; }
+  return e as Record<GearSlotKey, string>;
+}
 
 export function emptyEquipment(): Record<GearSlotKey, string> {
   return Object.fromEntries(SLOT_ORDER.map((s) => [s, 'none'])) as Record<GearSlotKey, string>;
@@ -174,14 +224,14 @@ export const BOSS_LOOT_TABLE: LootDrop[] = [
   { slot: 'weapon', gearId: 'w3' },
   { slot: 'weapon', gearId: 'w4' },
   { slot: 'weapon', gearId: 'w5' },
-  { slot: 'armor', gearId: 'a2' },
-  { slot: 'armor', gearId: 'a3' },
-  { slot: 'armor', gearId: 'a4' },
-  { slot: 'armor', gearId: 'a5' },
-  { slot: 'trinket', gearId: 't2' },
-  { slot: 'trinket', gearId: 't3' },
-  { slot: 'trinket', gearId: 't4' },
-  { slot: 'trinket', gearId: 't5' },
+  { slot: 'chest', gearId: 'a2' },
+  { slot: 'chest', gearId: 'a3' },
+  { slot: 'chest', gearId: 'a4' },
+  { slot: 'chest', gearId: 'a5' },
+  { slot: 'necklace', gearId: 't2' },
+  { slot: 'necklace', gearId: 't3' },
+  { slot: 'necklace', gearId: 't4' },
+  { slot: 'necklace', gearId: 't5' },
   { slot: 'helm', gearId: 'h2' },
   { slot: 'helm', gearId: 'h3' },
   { slot: 'helm', gearId: 'h4' },
@@ -198,8 +248,8 @@ export const BOSS_LOOT_TABLE: LootDrop[] = [
 // rare loot.
 export const TRASH_LOOT_TABLE: LootDrop[] = [
   { slot: 'weapon', gearId: 'w1' },
-  { slot: 'armor', gearId: 'a1' },
-  { slot: 'trinket', gearId: 't1' },
+  { slot: 'chest', gearId: 'a1' },
+  { slot: 'necklace', gearId: 't1' },
   { slot: 'helm', gearId: 'h1' },
   { slot: 'gloves', gearId: 'g1' },
   { slot: 'boots', gearId: 'b1' },

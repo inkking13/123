@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { POOL, RECRUITS, ALL_CANDIDATES, XP_PER_LEVEL, MAX_LEVEL } from '../data/characters';
-import { GEAR, SLOT_LABEL, SLOT_ORDER, STARTING_INVENTORY, BOSS_LOOT_TABLE, TRASH_LOOT_TABLE, TRASH_LOOT_CHANCE, SELL_RATIO, UNIQUE_BOSS_LOOT, UNIQUE_BOSS_LOOT_EXTRA, emptyEquipment } from '../data/gear';
+import { GEAR, SLOT_LABEL, SLOT_ORDER, STARTING_INVENTORY, BOSS_LOOT_TABLE, TRASH_LOOT_TABLE, TRASH_LOOT_CHANCE, SELL_RATIO, UNIQUE_BOSS_LOOT, UNIQUE_BOSS_LOOT_EXTRA, emptyEquipment, SLOT_KIND, slotGear, slotsForKind, migrateEquipment, GEAR_KINDS } from '../data/gear';
 import { DUNGEONS, DungeonDef, LOCATIONS } from '../data/dungeons';
 import { ABILITY_BY_CANDIDATE } from '../data/abilities';
 import { ABILITY_ART, SkillArtId } from '../data/skillArt';
@@ -25,7 +25,7 @@ import { ItemIconId } from '../data/itemIcons';
 import { FEATURES, FEATURE_ORDER, Feature, Tip } from '../data/features';
 import { IconName } from '../components/Icon';
 import type { Quality } from '../battle3d/quality';
-import { AttackRange, Candidate, EncounterDef, GearOption, GearSlotKey, Role } from '../data/types';
+import { AttackRange, Candidate, EncounterDef, GearKind, GearOption, GearSlotKey, Role } from '../data/types';
 import {
   ACCENT, ATTACK_TURN_SCALE, HEAL_TURN_SCALE,
   GRID_ROWS, GRID_COLS, BACK_ROW, MOVE_RANGE, BOSS_W, BOSS_H, FOE_SPEED,
@@ -207,7 +207,7 @@ export interface EquipmentVM {
 export interface FoeRect { id: number; row: number; col: number; w: number; h: number }
 
 export interface LootItem {
-  slot: GearSlotKey;
+  slot: GearKind;
   gearId: string;
   name: string;
   assigned: number | null;
@@ -492,7 +492,7 @@ export class GameEngine {
           const def = byId.get(saved.id);
           if (!def) return null;
           return {
-            ...def, level: saved.level, xp: saved.xp, equipment: { ...emptyEquipment(), ...saved.equipment },
+            ...def, level: saved.level, xp: saved.xp, equipment: migrateEquipment(saved.equipment),
             talents: saved.talents, classId: saved.classId ?? null, professionId: saved.professionId ?? null,
             professionLevel: saved.professionLevel ?? 1, professionXp: saved.professionXp ?? 0, morale: saved.morale,
           };
@@ -703,7 +703,7 @@ export class GameEngine {
   gearMults(c: Candidate) {
     let outputMult = 1, hpMult = 1, wardMult = 1, cdMult = 1;
     for (const slot of SLOT_ORDER) {
-      const o = GEAR[slot].find((x) => x.id === c.equipment[slot]);
+      const o = slotGear(slot).find((x) => x.id === c.equipment[slot]);
       if (!o) continue;
       outputMult *= o.mult || 1;
       hpMult *= o.hpMult || 1;
@@ -717,22 +717,34 @@ export class GameEngine {
   itemOwned(gearId: string): number {
     return this.inventoryCounts[gearId] || 0;
   }
-  itemInUseCount(slot: GearSlotKey, gearId: string, excludeCandidateId?: number): number {
-    return this.pool.filter((c) => c.id !== excludeCandidateId && c.equipment[slot] === gearId).length;
+  itemInUseCount(slot: GearSlotKey, gearId: string, excludeCandidateId?: number, excludeSlot?: GearSlotKey): number {
+    let n = 0;
+    for (const c of this.pool) for (const s of slotsForKind(SLOT_KIND[slot])) {
+      if (c.id === excludeCandidateId && (excludeSlot === undefined || s === excludeSlot)) continue;
+      if (c.equipment[s] === gearId) n++;
+    }
+    return n;
+  }
+  /** How many of an item are worn by anyone, in any slot. */
+  wornCount(gearId: string): number {
+    let n = 0;
+    for (const c of this.pool) for (const s of SLOT_ORDER) if (c.equipment[s] === gearId) n++;
+    return n;
   }
   itemAvailable(c: Candidate, slot: GearSlotKey, gearId: string): boolean {
     if (gearId === 'none') return true;
     if (c.equipment[slot] === gearId) return true;
-    return this.itemOwned(gearId) - this.itemInUseCount(slot, gearId, c.id) > 0;
+    return this.itemOwned(gearId) - this.itemInUseCount(slot, gearId, c.id, slot) > 0;
   }
   inventoryVM() {
     const rows: { slot: GearSlotKey; slotLabel: string; name: string; desc: string; icon?: ItemIconId; owned: number; free: number; wornBy: string[] }[] = [];
-    for (const slot of SLOT_ORDER) {
-      for (const o of GEAR[slot]) {
+    for (const kind of GEAR_KINDS) {
+      const slot = slotsForKind(kind)[0];
+      for (const o of GEAR[kind]) {
         if (o.id === 'none') continue;
         const owned = this.itemOwned(o.id);
         if (owned <= 0) continue;
-        const wornBy = this.pool.filter((c) => c.equipment[slot] === o.id).map((c) => c.name);
+        const wornBy = this.pool.filter((c) => SLOT_ORDER.some((s2) => c.equipment[s2] === o.id)).map((c) => c.name);
         rows.push({ slot, slotLabel: SLOT_LABEL[slot], name: o.name, desc: o.desc, icon: o.icon, owned, free: owned - wornBy.length, wornBy });
       }
     }
@@ -741,7 +753,7 @@ export class GameEngine {
 
   // ── trader ───────────────────────────────────────────────
   buyItem(slot: GearSlotKey, gearId: string) {
-    const o = GEAR[slot].find((x) => x.id === gearId);
+    const o = slotGear(slot).find((x) => x.id === gearId);
     if (!o || !o.price || this.gold < o.price) return;
     this.gold -= o.price;
     this.inventoryCounts[gearId] = (this.inventoryCounts[gearId] || 0) + 1;
@@ -749,9 +761,9 @@ export class GameEngine {
     this.notify();
   }
   sellItem(slot: GearSlotKey, gearId: string) {
-    const o = GEAR[slot].find((x) => x.id === gearId);
+    const o = slotGear(slot).find((x) => x.id === gearId);
     if (!o || !o.price) return;
-    const wornBy = this.pool.filter((c) => c.equipment[slot] === gearId).length;
+    const wornBy = this.wornCount(gearId);
     const free = this.itemOwned(gearId) - wornBy;
     if (free <= 0) return;
     this.inventoryCounts[gearId] = this.itemOwned(gearId) - 1;
@@ -760,8 +772,9 @@ export class GameEngine {
   }
   shopBuyVM(): ShopBuyOption[] {
     const rows: ShopBuyOption[] = [];
-    for (const slot of SLOT_ORDER) {
-      for (const o of GEAR[slot]) {
+    for (const kind of GEAR_KINDS) {
+      const slot = slotsForKind(kind)[0];
+      for (const o of GEAR[kind]) {
         if (!o.price) continue;
         rows.push({
           slot, id: o.id, name: o.name, desc: o.desc, icon: o.icon, price: o.price,
@@ -774,12 +787,13 @@ export class GameEngine {
   }
   shopSellVM(): ShopSellRow[] {
     const rows: ShopSellRow[] = [];
-    for (const slot of SLOT_ORDER) {
-      for (const o of GEAR[slot]) {
+    for (const kind of GEAR_KINDS) {
+      const slot = slotsForKind(kind)[0];
+      for (const o of GEAR[kind]) {
         if (!o.price) continue;
         const owned = this.itemOwned(o.id);
         if (owned <= 0) continue;
-        const wornBy = this.pool.filter((c) => c.equipment[slot] === o.id).length;
+        const wornBy = this.wornCount(o.id);
         const free = owned - wornBy;
         if (free <= 0) continue;
         rows.push({
@@ -808,14 +822,14 @@ export class GameEngine {
 
   gearSlotsFor(c: Candidate): GearSlotVM[] {
     return SLOT_ORDER.map((slot) => {
-      const cur = GEAR[slot].find((x) => x.id === c.equipment[slot]) || GEAR[slot][0];
+      const cur = slotGear(slot).find((x) => x.id === c.equipment[slot]) || slotGear(slot)[0];
       return {
         label: SLOT_LABEL[slot],
         desc: cur.desc,
-        options: GEAR[slot].map((o) => {
+        options: slotGear(slot).map((o) => {
           const selected = o.id === cur.id;
           const available = this.itemAvailable(c, slot, o.id);
-          const free = o.id === 'none' ? Infinity : this.itemOwned(o.id) - this.itemInUseCount(slot, o.id, c.id);
+          const free = o.id === 'none' ? Infinity : this.itemOwned(o.id) - this.itemInUseCount(slot, o.id, c.id, slot);
           return {
             id: o.id,
             name: o.name,
@@ -847,10 +861,10 @@ export class GameEngine {
   // each piece carrying its rarity, stats and a diff against the worn one.
   equipmentVM(c: Candidate): EquipmentVM {
     const slots = SLOT_ORDER.map((slot): EquipSlotVM => {
-      const worn = GEAR[slot].find((x) => x.id === c.equipment[slot]) || GEAR[slot][0];
+      const worn = slotGear(slot).find((x) => x.id === c.equipment[slot]) || slotGear(slot)[0];
       const item = (o: GearOption): EquipItemVM => {
         const isWorn = o.id === worn.id;
-        const wornBy = this.pool.filter((p) => p.id !== c.id && p.equipment[slot] === o.id).map((p) => p.name);
+        const wornBy = this.pool.filter((p) => SLOT_ORDER.some((s2) => (p.id !== c.id || s2 !== slot) && p.equipment[s2] === o.id)).map((p) => p.name);
         return {
           id: o.id,
           name: o.name,
@@ -871,7 +885,7 @@ export class GameEngine {
         slot,
         label: SLOT_LABEL[slot],
         equipped: worn.id === 'none' ? null : item(worn),
-        stash: GEAR[slot].filter((o) => o.id !== 'none' && this.itemOwned(o.id) > 0).map(item),
+        stash: slotGear(slot).filter((o) => o.id !== 'none' && this.itemOwned(o.id) > 0).map(item),
         onUnequip: () => this.equipSlot(c, slot, 'none'),
       };
     });
@@ -967,8 +981,8 @@ export class GameEngine {
     return GEAR_SETS.map((set) => {
       let count = 0;
       if (c.equipment.weapon === set.weapon) count++;
-      if (c.equipment.armor === set.armor) count++;
-      if (c.equipment.trinket === set.trinket) count++;
+      if (c.equipment.chest === set.armor) count++;
+      if (c.equipment.necklace === set.trinket) count++;
       return { set, count };
     }).filter((x) => x.count > 0);
   }
@@ -1090,8 +1104,8 @@ export class GameEngine {
       return {
         id: r.id,
         name: r.name,
-        slot: r.slot,
-        slotLabel: SLOT_LABEL[r.slot],
+        slot: slotsForKind(r.slot)[0],
+        slotLabel: SLOT_LABEL[slotsForKind(r.slot)[0]],
         resultDesc: gearOpt.desc,
         resultIcon: gearOpt.icon,
         unlocked,
@@ -3031,7 +3045,7 @@ export class GameEngine {
     this.everAssignedLoot = true;
     this.inventoryCounts[item.gearId] = (this.inventoryCounts[item.gearId] || 0) + 1;
     const candidate = this.pool.find((c) => c.id === raider.candidateId);
-    if (candidate) candidate.equipment[item.slot] = item.gearId;
+    if (candidate) { const slots = slotsForKind(item.slot); const s2 = slots.find((x) => candidate.equipment[x] === 'none') ?? slots[0]; candidate.equipment[s2] = item.gearId; }
     this.adjustMorale(raider.candidateId, raider.trait === 'legend' ? 20 : 15);
     for (const o of this.sim!.raiders) {
       if (o.id === raider.id) continue;

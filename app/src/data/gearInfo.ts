@@ -74,10 +74,18 @@ export function compareLines(o: GearOption, worn: GearOption): StatLine[] {
 
 export const SLOT_SILHOUETTE: Record<GearSlotKey, IconName> = {
   weapon: 'sword',
+  offhand: 'shield',
   helm: 'hard-hat',
-  armor: 'shield',
+  necklace: 'crown-simple',
+  shoulders: 'shield-chevron',
+  cloak: 'coat-hanger',
+  chest: 't-shirt',
+  belt: 'belt',
   gloves: 'hand-fist',
+  pants: 'pants',
   boots: 'boot',
-  trinket: 'crown-simple',
-  ring: 'diamond',
+  ring1: 'diamond',
+  ring2: 'diamond',
+  acc1: 'sparkle',
+  acc2: 'sparkle',
 };

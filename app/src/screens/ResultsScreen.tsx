@@ -3,7 +3,7 @@ import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
 import { colors, font } from '../theme/theme';
-import { GEAR, SLOT_LABEL } from '../data/gear';
+import { GEAR, SLOT_LABEL, slotsForKind } from '../data/gear';
 import { CURIOS } from '../data/curios';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
@@ -137,7 +137,7 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
                     <ItemIcon id={GEAR[item.slot].find((o) => o.id === item.gearId)?.icon} size={40} radius={7} />
                     <View>
                       <Text style={{ fontSize: 14, fontFamily: font.medium, color: colors.accentSoft }}>{item.name}</Text>
-                      <Text style={{ fontSize: 10.5, letterSpacing: 0.5, textTransform: 'uppercase', color: colors.textFaint, marginTop: 2, fontFamily: font.regular }}>{SLOT_LABEL[item.slot]}</Text>
+                      <Text style={{ fontSize: 10.5, letterSpacing: 0.5, textTransform: 'uppercase', color: colors.textFaint, marginTop: 2, fontFamily: font.regular }}>{SLOT_LABEL[slotsForKind(item.slot)[0]]}</Text>
                     </View>
                   </View>
                   {item.assigned !== null ? (

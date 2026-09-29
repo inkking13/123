@@ -1,5 +1,5 @@
 import { GearSlotKey } from '../data/types';
-import { GEAR } from '../data/gear';
+import { SLOT_KIND, slotGear } from '../data/gear';
 import { RARITY_COLOR, rarityOf } from '../data/gearInfo';
 import { HeroLook, Weapon } from './heroLooks';
 import type { HelmModelName } from './HelmModel';
@@ -51,7 +51,7 @@ const RANK = ['common', 'magic', 'rare', 'legendary', 'unique'] as const;
 
 function piece<K>(slot: GearSlotKey, id: string, table: Record<string, K>, fallback: K): GearPiece<K> | undefined {
   if (!id || id === 'none') return undefined;
-  const o = GEAR[slot].find((x) => x.id === id);
+  const o = slotGear(slot).find((x) => x.id === id);
   if (!o) return undefined;
   const r = rarityOf(o);
   return { kind: table[id] ?? fallback, rarity: RARITY_COLOR[r], rich: RANK.indexOf(r) >= 2 };
@@ -64,16 +64,16 @@ export function gearLookOf(equipment: Partial<Record<GearSlotKey, string>> | und
   if (w) g.weapon = { ...w, glow: WEAPON_GLOW[equipment.weapon!] };
   const h = piece('helm', equipment.helm ?? 'none', HELM, 'cap');
   if (h) g.helm = { ...h, model: HELM_MODEL[equipment.helm!] };
-  g.chest = piece('armor', equipment.armor ?? 'none', CHEST, 'leather');
+  g.chest = piece('chest', equipment.chest ?? 'none', CHEST, 'leather');
   g.hands = piece('gloves', equipment.gloves ?? 'none', HANDS, 'leather');
   g.feet = piece('boots', equipment.boots ?? 'none', FEET, 'leather');
-  const t = piece('trinket', equipment.trinket ?? 'none', {} as Record<string, string>, 'amulet');
-  const rg = piece('ring', equipment.ring ?? 'none', {} as Record<string, string>, 'ring');
+  const t = piece('necklace', equipment.necklace ?? 'none', {} as Record<string, string>, 'amulet');
+  const rg = piece('ring1', equipment.ring1 ?? equipment.ring2 ?? 'none', {} as Record<string, string>, 'ring');
   if (t) g.amulet = t.rarity;
   if (rg) g.ring = rg.rarity;
   let best = -1;
   for (const slot of Object.keys(equipment) as GearSlotKey[]) {
-    const o = GEAR[slot]?.find((x) => x.id === equipment[slot]);
+    const o = SLOT_KIND[slot] ? slotGear(slot).find((x) => x.id === equipment[slot]) : undefined;
     if (!o || o.id === 'none') continue;
     const i = RANK.indexOf(rarityOf(o));
     if (i > best) { best = i; g.best = RARITY_COLOR[rarityOf(o)]; }
