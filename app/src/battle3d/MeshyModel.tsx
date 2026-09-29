@@ -138,7 +138,7 @@ export const BODIES = {
 // thumbs forward), so it is the same on every rig however its hand bone is
 // turned: the haft runs out past the thumb, the edge faces where the fingers
 // point, and a shield is strapped to the back of the hand.
-const prop = (mod: number, scale = 1, grip = 0, shine?: number) => ({ url: url(mod), scale, grip, shine });
+const prop = (mod: number, scale = 1, grip = 0, shine?: number, lean?: [number, number, number]) => ({ url: url(mod), scale, grip, shine, lean });
 const PROPS = {
   // Boar-headed double axe with runes, 1.9 units long along Y, grip on the leather wrap.
   runeAxe: prop(require('../../assets/models/rune-axe.glb'), 0.5, -0.55),
@@ -146,9 +146,11 @@ const PROPS = {
   greatAxe: prop(require('../../assets/models/weapon-greataxe.glb'), 1.15),
   longsword: prop(require('../../assets/models/weapon-longsword.glb')),
   boneSword: prop(require('../../assets/models/weapon-bone-sword.glb')),
-  dagger: prop(require('../../assets/models/weapon-dagger.glb'), 0.85),
+  // A dagger is short enough to hang straight by the thigh; leaning out like a sword, it jutted sideways from the fist.
+  dagger: prop(require('../../assets/models/weapon-dagger.glb'), 1, 0, undefined, [0.15, 1, 0.35]),
   staff: prop(require('../../assets/models/weapon-staff.glb'), 1.25),
-  bow: prop(require('../../assets/models/weapon-bow.glb'), 1.55),
+  // About the hero's height from grip to tips; bigger, held at the hip it towered over the head.
+  bow: prop(require('../../assets/models/weapon-bow.glb'), 1.15),
   roundShield: prop(require('../../assets/models/shield-round.glb'), 1.2),
   skullShield: prop(require('../../assets/models/shield-skull.glb'), 1.35),
   mace: prop(require('../../assets/models/weapon-mace.glb')),
@@ -175,7 +177,7 @@ const UPRIGHT = new Set<PropName>(['staff', 'bow', 'orb', 'flask']);
  * (both in model space); `left` for the left hand. The rigs have no finger bones and each
  * animation twists the hand its own way, so the aim is set in the first frame of idle.
  */
-function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, how: 'fist' | 'upright' | 'shield', toFist = TO_FIST) {
+function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, how: 'fist' | 'upright' | 'shield', toFist = TO_FIST, lean: [number, number, number] = [0.6, 1, 0.3]) {
   const toBone = rest.clone().invert();
   // The hand at rest, in model space: fingers, thumb (towards the front), palm.
   const F = new THREE.Vector3(0, 1, 0).applyQuaternion(rest);
@@ -194,7 +196,7 @@ function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, h
     } else {
       // In idle a blade or head is carried up at the hero's side, leaning out and a little forward,
       // so it clears the hip and thigh (more forward, it went through the leg).
-      y = new THREE.Vector3(0.6 * out, 1, 0.3).normalize().applyQuaternion(toIdle.clone().invert());
+      y = new THREE.Vector3(lean[0] * out, lean[1], lean[2]).normalize().applyQuaternion(toIdle.clone().invert());
     }
     x = y.clone().cross(P);
     if (x.lengthSq() < 1e-4) x = y.clone().cross(F);
@@ -228,7 +230,7 @@ function HeldProp({ name, hand, unit, size, fist, rest, pose, left, glow, steady
     }
     prop.scale.setScalar(P.scale * size);
     prop.position.y = -P.grip * P.scale * size;
-    const g = gripIn(rest, pose, left, name === 'roundShield' || name === 'skullShield' ? 'shield' : UPRIGHT.has(name) ? 'upright' : 'fist', fist);
+    const g = gripIn(rest, pose, left, name === 'roundShield' || name === 'skullShield' ? 'shield' : UPRIGHT.has(name) ? 'upright' : 'fist', fist, P.lean);
     const holder = new THREE.Group();
     holder.quaternion.copy(g.quaternion);
     holder.position.copy(g.position).multiplyScalar(unit);
