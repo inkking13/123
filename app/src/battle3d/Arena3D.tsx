@@ -13,6 +13,7 @@ import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
 import { Stage } from './Stage';
 import { Tile, TileState } from './BoardTiles';
+import { Burst, Comet, GroundRing, Slash } from './SpellFx';
 import {
   BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
 } from './world';
@@ -497,26 +498,6 @@ function Board({ sim, theme, current, reachable, proj }: { sim: Sim; theme: Batt
 
 // ── transient effects ──────────────────────────────────────
 
-function Bolt({ from, to, color, arc, onDone }: { from: THREE.Vector3; to: THREE.Vector3; color: string; arc: number; onDone: () => void }) {
-  const ref = useRef<THREE.Group>(null);
-  const start = useRef<number | null>(null);
-  useFrame((st) => {
-    const g = ref.current; if (!g) return;
-    if (start.current === null) start.current = st.clock.elapsedTime;
-    const k = Math.min(1, (st.clock.elapsedTime - start.current) / (PROJECTILE_MS / 1000));
-    const e = k * k;
-    g.position.lerpVectors(from, to, e);
-    g.position.y += Math.sin(Math.PI * e) * arc;
-    if (k >= 1) onDone();
-  });
-  return (
-    <group ref={ref} position={from.toArray() as [number, number, number]}>
-      <mesh><sphereGeometry args={[0.08, 12, 8]} /><meshBasicMaterial color="#ffffff" toneMapped={false} /></mesh>
-      <mesh><sphereGeometry args={[0.2, 12, 8]} /><meshBasicMaterial color={color} transparent opacity={0.55} depthWrite={false} toneMapped={false} /></mesh>
-    </group>
-  );
-}
-
 function Pillar({ row, col, hot, onDone }: { row: number; col: number; hot: boolean; onDone: () => void }) {
   const ref = useRef<THREE.Mesh>(null);
   const flash = useRef<THREE.Mesh>(null);
@@ -591,38 +572,83 @@ function Beam({ proj, a, b, color, width }: { proj: Projection; a: string; b: st
   );
 }
 
+/** Spell colour of a raider: their look's glow, else by what they do. */
+function fxColor(sim: Sim, raiderId: number, kind: string | null): string {
+  const r = sim.raiders.find((x) => x.id === raiderId);
+  const glow = r ? HERO_LOOKS[r.candidateId]?.glow : undefined;
+  if (kind === 'heal') return '#7dffa8';
+  return glow ?? (kind === 'ability' ? colors.accent : '#ffb35c');
+}
+
+type Fx =
+  | { t: 'comet'; key: string; from: THREE.Vector3; to: THREE.Vector3; color: string; arc: number; arrow: boolean; big: boolean; heal: boolean }
+  | { t: 'burst'; key: string; at: THREE.Vector3; color: string; n: number; speed: number; up: number; size: number; flash: number }
+  | { t: 'ring'; key: string; at: THREE.Vector3; color: string; radius: number }
+  | { t: 'slash'; key: string; at: THREE.Vector3; flip: boolean }
+  | { t: 'pillar'; key: string; row: number; col: number; hot: boolean }
+  | { t: 'wave'; key: string; at: THREE.Vector3 };
+
 function Effects({ sim, proj, foeKeyFor }: { sim: Sim; proj: Projection; foeKeyFor: (enemyId: number) => string }) {
-  const [bolts, setBolts] = useState<{ key: number; from: THREE.Vector3; to: THREE.Vector3; color: string; arc: number }[]>([]);
-  const [pillars, setPillars] = useState<{ key: string; row: number; col: number; hot: boolean }[]>([]);
-  const [waves, setWaves] = useState<{ key: number; at: THREE.Vector3 }[]>([]);
+  const [fx, setFx] = useState<Fx[]>([]);
+  const addFx = (...xs: Fx[]) => setFx((cur) => [...cur, ...xs]);
+  const drop = (key: string) => setFx((cur) => cur.filter((x) => x.key !== key));
   useEffect(() => {
-    const fx = sim.fx;
-    if (!fx.seq || typeof fx.actor !== 'number') return;
-    const from = proj.world.get('r' + fx.actor)?.clone();
+    const f = sim.fx;
+    if (!f.seq || typeof f.actor !== 'number') return;
+    const from = proj.world.get('r' + f.actor)?.clone();
     if (!from) return;
-    if (fx.kind === 'rally') setWaves((w) => [...w, { key: fx.seq, at: from }]);
-    let to: THREE.Vector3 | undefined; let color = '#ffb35c'; let arc = 0.9;
-    if ((fx.kind === 'ranged' || fx.kind === 'ability') && fx.targetEnemy != null) {
-      to = proj.world.get(foeKeyFor(fx.targetEnemy))?.clone();
-      if (fx.kind === 'ability') color = colors.accent;
-    } else if (fx.targetRaider != null && fx.targetRaider !== fx.actor) {
-      to = proj.world.get('r' + fx.targetRaider)?.clone(); color = colors.good; arc = 0.6;
+    const color = fxColor(sim, f.actor, f.kind);
+    const raider = sim.raiders.find((x) => x.id === f.actor);
+    const archer = !!raider && HERO_LOOKS[raider.candidateId]?.weapon === 'bow';
+    const k = String(f.seq);
+    if (f.kind === 'rally') addFx({ t: 'wave', key: 'w' + k, at: from }, { t: 'burst', key: 'rb' + k, at: from.clone().setY(0.3), color: colors.warn, n: 30, speed: 1.2, up: 2, size: 0.12, flash: 0 });
+    if ((f.kind === 'ranged' || f.kind === 'ability') && f.targetEnemy != null) {
+      const to = proj.world.get(foeKeyFor(f.targetEnemy))?.clone();
+      if (to) addFx({ t: 'comet', key: 'c' + k, from: from.clone().setY(from.y + 0.2), to, color, arc: archer ? 0.35 : 0.9, arrow: archer && f.kind === 'ranged', big: f.kind === 'ability', heal: false });
+      if (f.kind === 'ability') addFx({ t: 'burst', key: 'cast' + k, at: from.clone().setY(from.y + 0.3), color, n: 14, speed: 1, up: 1.5, size: 0.12, flash: 0.6 });
+    } else if (f.kind === 'melee' && f.targetEnemy != null) {
+      const to = proj.world.get(foeKeyFor(f.targetEnemy))?.clone();
+      if (to) {
+        const at = to.clone().lerp(from, 0.25);
+        setTimeout(() => addFx({ t: 'slash', key: 's' + k, at, flip: Math.random() < 0.5 }, { t: 'burst', key: 'sb' + k, at, color: f.crit ? '#ffd24a' : '#ffe9c8', n: f.crit ? 30 : 16, speed: f.crit ? 4 : 2.6, up: 0.2, size: 0.1, flash: f.crit ? 0.8 : 0.4 }), impactDelay(f));
+      }
+    } else if (f.targetRaider != null) {
+      const to = proj.world.get('r' + f.targetRaider)?.clone();
+      if (to && f.targetRaider !== f.actor) addFx({ t: 'comet', key: 'c' + k, from, to, color, arc: 0.6, arrow: false, big: false, heal: f.kind === 'heal' });
+      else if (to) addFx({ t: 'burst', key: 'h' + k, at: to.clone().setY(0.2), color, n: 26, speed: 0.8, up: 3, size: 0.13, flash: 0.5 }, { t: 'ring', key: 'hr' + k, at: to, color, radius: 1.1 });
     }
-    if (to) setBolts((b) => [...b, { key: fx.seq, from, to: to!, color, arc }]);
   }, [sim.fx.seq]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!sim.impact.seq || !sim.impact.cells.length) return;
     const hot = sim.impact.kind === 'meteor' || sim.impact.kind === 'devour';
-    setPillars((p) => [...p, ...sim.impact.cells.map((k) => {
-      const [row, col] = k.split(',').map(Number);
-      return { key: sim.impact.seq + ':' + k, row, col, hot };
-    })]);
+    addFx(...sim.impact.cells.flatMap((c): Fx[] => {
+      const [row, col] = c.split(',').map(Number);
+      const key = sim.impact.seq + ':' + c;
+      const at = new THREE.Vector3(colX(col), 0.25, rowZ(row));
+      return [{ t: 'pillar', key: 'p' + key, row, col, hot }, { t: 'burst', key: 'pb' + key, at, color: hot ? '#ff7a2a' : '#dfe4ff', n: 14, speed: 3, up: 0.8, size: 0.14, flash: 0.7 }];
+    }));
   }, [sim.impact.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  const arrive = (c: Extract<Fx, { t: 'comet' }>) => (at: THREE.Vector3) => {
+    drop(c.key);
+    if (c.heal) addFx({ t: 'burst', key: 'ha' + c.key, at: at.clone().setY(0.2), color: c.color, n: 26, speed: 0.8, up: 3, size: 0.13, flash: 0.5 }, { t: 'ring', key: 'hra' + c.key, at, color: c.color, radius: 1.1 });
+    else if (c.arrow) addFx({ t: 'burst', key: 'a' + c.key, at, color: '#e8dcc8', n: 10, speed: 2, up: 0.3, size: 0.08, flash: 0.3 });
+    else addFx(
+      { t: 'burst', key: 'a' + c.key, at, color: c.color, n: c.big ? 40 : 24, speed: c.big ? 4.5 : 3, up: 0.3, size: c.big ? 0.2 : 0.15, flash: 1 },
+      ...(c.big ? [{ t: 'ring', key: 'ar' + c.key, at, color: c.color, radius: 2 } as Fx] : []),
+    );
+  };
   return (
     <>
-      {bolts.map((b) => <Bolt key={b.key} from={b.from} to={b.to} color={b.color} arc={b.arc} onDone={() => setBolts((xs) => xs.filter((x) => x.key !== b.key))} />)}
-      {pillars.map((p) => <Pillar key={p.key} row={p.row} col={p.col} hot={p.hot} onDone={() => setPillars((xs) => xs.filter((x) => x.key !== p.key))} />)}
-      {waves.map((w) => <Wave key={w.key} at={w.at} onDone={() => setWaves((xs) => xs.filter((x) => x.key !== w.key))} />)}
+      {fx.map((x) => {
+        switch (x.t) {
+          case 'comet': return <Comet key={x.key} from={x.from} to={x.to} color={x.color} arc={x.arc} ms={PROJECTILE_MS} arrow={x.arrow} onArrive={arrive(x)} />;
+          case 'burst': return <Burst key={x.key} at={x.at} color={x.color} n={x.n} speed={x.speed} up={x.up} size={x.size} flash={x.flash} onDone={() => drop(x.key)} />;
+          case 'ring': return <GroundRing key={x.key} at={x.at} color={x.color} radius={x.radius} onDone={() => drop(x.key)} />;
+          case 'slash': return <Slash key={x.key} at={x.at} flip={x.flip} onDone={() => drop(x.key)} />;
+          case 'pillar': return <Pillar key={x.key} row={x.row} col={x.col} hot={x.hot} onDone={() => drop(x.key)} />;
+          case 'wave': return <Wave key={x.key} at={x.at} onDone={() => drop(x.key)} />;
+        }
+      })}
       {sim.pendingCast ? <Beam proj={proj} a="boss" b={'r' + sim.pendingCast.targetId} color={colors.danger} width={0.035} /> : null}
       {sim.chain ? <Beam proj={proj} a={'r' + sim.chain.aId} b={'r' + sim.chain.bId} color={colors.accent} width={0.025} /> : null}
     </>

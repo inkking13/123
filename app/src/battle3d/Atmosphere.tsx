@@ -57,7 +57,7 @@ function dataTexture(w: number, h: number, px: (x: number, y: number, i: number)
 
 /** A soft round blob, for mist puffs and flame glows. */
 let softDot: THREE.DataTexture | null = null;
-function softDotTexture() {
+export function softDotTexture() {
   if (softDot) return softDot;
   const n = 64;
   softDot = dataTexture(n, n, (x, y) => {
