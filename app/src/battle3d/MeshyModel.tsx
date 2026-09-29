@@ -231,7 +231,7 @@ function HeldProp({ name, hand, unit, size, fist, rest, pose, left, glow, steady
     holder.add(prop);
     hand.add(holder);
     // Held things keep their idle stand while the hand sways in idle; see steadyProps.
-    const s: Steady = { holder, hand, grip: g.quaternion, idle: pose.clone().multiply(g.quaternion) };
+    const s: Steady = { holder, hand, grip: g.quaternion, idle: pose.clone().multiply(g.quaternion), upright: UPRIGHT.has(name) };
     steady.push(s);
     return () => { steady.splice(steady.indexOf(s) >>> 0, 1); holder.removeFromParent(); prop.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); };
   }, [gltf, hand, P, unit, size, fist, rest, pose, left, name, glow, steady]);
@@ -239,14 +239,18 @@ function HeldProp({ name, hand, unit, size, fist, rest, pose, left, glow, steady
 }
 
 /** A held prop's holder, its grip in the hand, and its turn in model space in idle. */
-interface Steady { holder: THREE.Object3D; hand: THREE.Bone; grip: THREE.Quaternion; idle: THREE.Quaternion }
+interface Steady { holder: THREE.Object3D; hand: THREE.Bone; grip: THREE.Quaternion; idle: THREE.Quaternion; upright: boolean }
 const _hq = new THREE.Quaternion(), _cq = new THREE.Quaternion();
-/** Holds props at their idle stand in proportion to how much idle is playing, so they follow the hand only in actions. */
+/**
+ * Holds props at their idle stand in proportion to how much idle is playing, so they follow the hand only in actions.
+ * A staff, bow, orb or flask always stays upright (it rides the hand's position, not its twist): the casts and
+ * attacks wring the wrist about and would swing a two-metre staff flat or upside down.
+ */
 function steadyProps(steady: Steady[], root: THREE.Object3D, idle: number) {
   for (const s of steady) {
     _hq.identity();
     for (let b: THREE.Object3D | null = s.hand; b && b !== root; b = b.parent) _hq.premultiply(b.quaternion);
-    _cq.copy(_hq).multiply(s.grip).slerp(s.idle, idle);
+    _cq.copy(_hq).multiply(s.grip).slerp(s.idle, s.upright ? 1 : idle);
     s.holder.quaternion.copy(_hq.invert()).multiply(_cq);
   }
 }
