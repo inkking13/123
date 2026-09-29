@@ -56,7 +56,9 @@ interface Body {
 }
 
 /** Meshy's combat set runs 2–4 s a clip; sped up so the blow lands inside a turn. */
-const COMBAT_SPEED = { Attack: 2, Double_Combo_Attack: 2.1, Triple_Combo_Attack: 3, Charged_Slash: 1.6, Charged_Spell_Cast: 1.8, Hit_Reaction: 1.4, Dead: 1.3 };
+const COMBAT_SPEED = { Attack: 2, Double_Combo_Attack: 2.1, Triple_Combo_Attack: 3, Charged_Slash: 1.6, Charged_Spell_Cast: 1.8, Hit_Reaction: 1.4, Dead: 1.3,
+  // Weapon moves from Meshy's library, retargeted onto the race bodies.
+  Thrust_Slash: 1.4, Sword_Slash: 1.2, Shield_Push: 1.3, Sword_Parry: 1.2, Hammer_Swing: 1.2, Ground_Slam: 1.4, Archery_Shot: 1.3 };
 
 export const BODIES = {
   // Female elf: idle, walk, run, five spell casts, dance, and the combat set.
@@ -91,21 +93,21 @@ export const BODIES = {
   // Skeleton warrior in a loincloth (1.62 tall in its file): idle, claw attack, spin attack, block, and the combat set.
   skeleton: {
     url: url(require('../../assets/models/skeleton.glb')), height: 1.2,
-    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'attack', ability: 'Double_Combo_Attack' },
-    speed: { ...COMBAT_SPEED, attack: 2 }, guard: 'block', flourish: 'spin', death: 'Dead', hit: 'Hit_Reaction',
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'attack', melee: 'Thrust_Slash', ability: 'Double_Combo_Attack' },
+    speed: { ...COMBAT_SPEED, attack: 2 }, guard: 'Sword_Parry', flourish: 'spin', death: 'Dead', hit: 'Hit_Reaction',
     hold: { right: 'boneSword', left: 'skullShield' },
   },
   // The same skeleton with a bow in the left hand, loosing with the spell-cast reach.
   skeletonArcher: {
     url: url(require('../../assets/models/skeleton.glb')), height: 1.2,
-    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'Charged_Spell_Cast' },
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'Archery_Shot' },
     speed: COMBAT_SPEED, guard: 'Block1', flourish: 'Victory_Cheer', death: 'Dead', hit: 'Hit_Reaction',
     hold: { right: 'bow' },
   },
   // And with a mage's staff, casting.
   skeletonMage: {
     url: url(require('../../assets/models/skeleton.glb')), height: 1.2,
-    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'Charged_Spell_Cast', ability: 'Charged_Slash' },
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'Charged_Spell_Cast', ability: 'Ground_Slam' },
     speed: COMBAT_SPEED, guard: 'Block1', flourish: 'Victory_Cheer', death: 'Dead', hit: 'Hit_Reaction',
     hold: { right: 'staff' },
   },
