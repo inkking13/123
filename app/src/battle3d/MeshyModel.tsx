@@ -187,12 +187,9 @@ function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, h
       // A staff, bow, orb or flask stands straight up in idle.
       y = new THREE.Vector3(0.1 * out, 1, 0.1).normalize().applyQuaternion(toIdle.clone().invert());
     } else {
-      // A blade or head rises up, forward and a little out in idle, but not back along the forearm.
-      const want = new THREE.Vector3(0.3 * out, 1, 0.9).normalize();
-      const arm = F.clone().negate().applyQuaternion(toIdle);
-      const along = want.dot(arm);
-      if (along > 0.5) want.addScaledVector(arm, 0.5 - along).normalize();
-      y = want.applyQuaternion(toIdle.clone().invert());
+      // In idle a blade or head is carried up at the hero's side, leaning out and a little forward,
+      // so it clears the hip and thigh (more forward, it went through the leg).
+      y = new THREE.Vector3(0.6 * out, 1, 0.3).normalize().applyQuaternion(toIdle.clone().invert());
     }
     x = y.clone().cross(P);
     if (x.lengthSq() < 1e-4) x = y.clone().cross(F);
