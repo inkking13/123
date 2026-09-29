@@ -8,9 +8,7 @@ import {
 import { GameEngine } from './src/engine/GameEngine';
 import { useEngineVersion } from './src/engine/useEngine';
 import { initAudio, music, setAudioEnabled } from './src/audio/audio';
-import { CrashGuard, installCrashHandler } from './src/components/CrashScreen';
-
-installCrashHandler();
+import { CrashGuard } from './src/components/CrashScreen';
 import { colors } from './src/theme/theme';
 import { TitleScreen } from './src/screens/TitleScreen';
 import { HomeScreen } from './src/screens/HomeScreen';

@@ -8,13 +8,19 @@ type Fatal = { message: string; stack?: string };
 const listeners = new Set<(f: Fatal) => void>();
 let last: Fatal | null = null;
 
+/** Show the error screen for an error caught outside React (e.g. while loading modules). */
+export function reportFatal(e: any) {
+  last = { message: String(e?.message ?? e), stack: String(e?.stack ?? '') };
+  listeners.forEach((l) => l(last!));
+}
+
 /** Route uncaught errors (event handlers, timers, promises) here as well as render errors. */
 export function installCrashHandler() {
   const EU = (globalThis as any).ErrorUtils;
   if (!EU?.setGlobalHandler) return;
   const prev = EU.getGlobalHandler?.();
   EU.setGlobalHandler((e: any, isFatal?: boolean) => {
-    if (isFatal) { last = { message: String(e?.message ?? e), stack: String(e?.stack ?? '') }; listeners.forEach((l) => l(last!)); return; }
+    if (isFatal) { reportFatal(e); return; }
     prev?.(e, isFatal);
   });
 }
@@ -22,7 +28,7 @@ export function installCrashHandler() {
 export class CrashGuard extends Component<{ children: React.ReactNode; onReset?: () => void }, { fatal: Fatal | null }> {
   state = { fatal: last };
   private onFatal = (f: Fatal) => this.setState({ fatal: f });
-  componentDidMount() { listeners.add(this.onFatal); }
+  componentDidMount() { listeners.add(this.onFatal); if (last && !this.state.fatal) this.setState({ fatal: last }); }
   componentWillUnmount() { listeners.delete(this.onFatal); }
   static getDerivedStateFromError(e: any) { return { fatal: { message: String(e?.message ?? e), stack: String(e?.stack ?? '') } }; }
   render() {
