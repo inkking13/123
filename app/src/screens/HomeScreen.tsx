@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
@@ -12,6 +12,9 @@ import { FEATURES, FEATURE_ORDER, Feature, unlockHint } from '../data/features';
 import { TiltArt } from '../components/TiltArt';
 import { askMotionPermission } from '../components/useTilt';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CampScene3D } from '../battle3d/CampScene3D';
+import { canRender3D } from '../battle3d/Battle3D';
+import { gearLookOf } from '../battle3d/gearLooks';
 
 // The key art without its logo: burning castle on the left, the guild's heroes on the right.
 const CAMP_ART = require('../../assets/title/camp-art.jpg');
@@ -50,6 +53,27 @@ function MenuCard({ title, sub, icon, onPress, lockedHint, caret }: {
     </Pressable>
   );
 }
+
+/** A square camp menu tile: icon, title and a one-line status. */
+function MenuTile({ title, sub, icon, onPress }: { title: string; sub: string; icon: IconName; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: '48.5%', borderWidth: 1, borderColor: pressed ? GOLD : GOLD_DIM, borderRadius: 6,
+        backgroundColor: pressed ? 'rgba(201,176,109,0.10)' : 'rgba(24,21,17,0.92)', padding: 12, gap: 8, minHeight: 92,
+      })}
+    >
+      <View style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: GOLD_DIM, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1712' }}>
+        <Icon name={icon} size={17} color="#d9c595" />
+      </View>
+      <Text style={{ fontSize: 13, fontFamily: font.semibold, color: '#efe4c8' }}>{title}</Text>
+      <Text numberOfLines={2} style={{ fontSize: 11, lineHeight: 15, color: colors.textDim, fontFamily: font.regular }}>{sub}</Text>
+    </Pressable>
+  );
+}
+const GOLD = '#8a7650';
+const GOLD_DIM = '#4a4032';
 
 /** Where "Посмотреть" leads for a freshly opened system. */
 function openFeature(engine: GameEngine, f: Feature) {
@@ -122,6 +146,22 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
   const nextUp = upcoming.filter((f) => need(f) === nextNeed);
   const fresh = engine.newUnlocks()[0];
 
+  const [failed3d, setFailed3d] = useState(false);
+  const show3d = engine.settings.view3d && canRender3D() && !failed3d;
+  const gearKey = squad.map((m) => m.id + ':' + JSON.stringify(m.equipment)).join('|');
+  const campGear = useMemo(() => Object.fromEntries(squad.map((m) => [m.id, gearLookOf(m.equipment)])), [gearKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tiles: { title: string; sub: string; icon: IconName; onPress: () => void }[] = [];
+  if (engine.isUnlocked('gear')) {
+    tiles.push({ title: 'Снаряжение', icon: 'shield', onPress: () => engine.go('gear'), sub: 'Надеть добычу на героев' });
+    tiles.push({ title: 'Инвентарь', icon: 'scroll', onPress: () => engine.go('inventory'), sub: inventory.length === 0 ? 'Склад пуст' : inventory.length + ' видов · ' + freeItems + ' свободно' });
+  }
+  if (engine.isUnlocked('shop')) tiles.push({ title: 'Отдел закупок', icon: 'storefront', onPress: () => engine.go('shop'), sub: 'Купить и продать' });
+  if (engine.isUnlocked('hire')) tiles.push({ title: 'Найм героев', icon: 'door-open', onPress: () => engine.go('hire'), sub: hireCount === 0 ? 'Все наняты' : hireCount + ' на рынке труда' });
+  if (engine.isUnlocked('analytics')) tiles.push({ title: 'Аналитика', icon: 'chart-line-up', onPress: () => engine.go('analytics'), sub: 'Win-rate, бюджет, мораль' });
+  if (engine.isUnlocked('personnel')) tiles.push({ title: 'Личные дела', icon: 'identification-card', onPress: () => engine.go('personnel'), sub: 'Досье и архив' });
+  if (engine.isUnlocked('achievements')) tiles.push({ title: 'Достижения', icon: 'trophy', onPress: () => engine.go('achievements'), sub: engine.achievementVM().filter((a) => a.claimed).length + '/' + engine.achievementVM().length + ' получено' });
+  if (engine.isUnlocked('weekly')) tiles.push({ title: 'Испытание недели', icon: 'crown-simple', onPress: () => engine.go('weekly'), sub: weeklyVM.available ? (weeklyVM.claimed ? 'Награда получена' : weeklyVM.modifierName) : 'После первого босса' });
+
   const locationGroups = LOCATIONS.map((loc) => ({
     loc,
     dungeons: DUNGEONS.filter((d) => d.locationId === loc.id).map((d) => {
@@ -142,6 +182,9 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
       };
     }),
   }));
+
+  // The furthest open dungeon: where the next push goes.
+  const nextDungeon = [...locationGroups.flatMap((g) => g.dungeons)].reverse().find((d) => !d.locked);
 
   return (
     <View style={{ flex: 1 }} onTouchStart={askMotionPermission}>
@@ -172,7 +215,7 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
           </View>
         </View>
         {/* A window onto the art: the guild's heroes on the ridge. */}
-        <View style={{ height: fresh ? 22 : 150 }} />
+        <View style={{ height: fresh ? 22 : 60 }} />
 
         {fresh ? <UnlockBanner engine={engine} f={fresh} /> : null}
 
@@ -225,51 +268,60 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
           </Pressable>
         ) : null}
 
-        <Pressable
-          onPress={() => engine.go('roster')}
-          style={({ pressed }) => ({
-            borderWidth: 1, borderColor: pressed ? colors.borderHover : colors.borderStrong,
-            borderRadius: 8, padding: 14, backgroundColor: 'rgba(28,30,44,0.86)', marginBottom: 22,
-          })}
-        >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, fontFamily: font.regular }}>Текущий отряд</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{ fontSize: 12, color: colors.accent, fontFamily: font.regular }}>Изменить</Text>
-              <Icon name="caret-right" size={13} color={colors.accent} />
+        {/* The squad round the fire; tap to change it. */}
+        <Pressable onPress={() => engine.go('roster')} style={{ borderWidth: 1, borderColor: GOLD_DIM, borderRadius: 6, overflow: 'hidden', marginBottom: 14, backgroundColor: '#0d0b10' }}>
+          {show3d ? (
+            <CampScene3D ids={squad.map((m) => m.id)} gear={campGear} height={230} quality={engine.settings.quality} onFail={() => setFailed3d(true)} />
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 8, padding: 14, paddingBottom: 44 }}>
+              {squad.map((m) => (
+                <View key={m.id} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+                  <Avatar id={m.id} size={64} radius={8} style={{ width: '100%', aspectRatio: 1, height: undefined }} />
+                </View>
+              ))}
             </View>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {squad.map((m) => (
-              <View key={m.id} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
-                <Avatar id={m.id} size={64} radius={8} style={{ width: '100%', aspectRatio: 1, height: undefined }} />
-                <Text numberOfLines={1} style={{ fontSize: 10, color: colors.textMuted, fontFamily: font.regular }}>{m.name}</Text>
-                <View style={{ width: 16, height: 2, backgroundColor: roleColor[m.role] }} />
-              </View>
-            ))}
+          )}
+          <LinearGradient pointerEvents="none" colors={['rgba(13,11,16,0)', 'rgba(13,11,16,0.92)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 64 }} />
+          <View pointerEvents="none" style={{ position: 'absolute', left: 12, right: 12, bottom: 10, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {squad.map((m) => (
+                <View key={m.id} style={{ alignItems: 'center' }}>
+                  <Text numberOfLines={1} style={{ fontSize: 10, color: '#efe4c8', fontFamily: font.medium, textShadowColor: '#000', textShadowRadius: 3 }}>{m.name}</Text>
+                  <View style={{ width: 14, height: 2, marginTop: 2, backgroundColor: roleColor[m.role] }} />
+                </View>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ fontSize: 11, color: '#d9c595', fontFamily: font.medium }}>Отряд</Text>
+              <Icon name="caret-right" size={12} color="#d9c595" />
+            </View>
           </View>
         </Pressable>
 
-        {engine.isUnlocked('gear') ? (
-          <MenuCard title="Инвентарь" caret onPress={() => engine.go('inventory')} sub={inventory.length === 0 ? 'Склад пуст' : `${inventory.length} видов предметов · ${freeItems} свободно`} />
+        {/* The next dungeon, one tap away. */}
+        {nextDungeon ? (
+          <Pressable
+            onPress={nextDungeon.onTap}
+            style={({ pressed }) => ({ borderWidth: 1, borderColor: pressed ? '#c9b06d' : GOLD, borderRadius: 6, marginBottom: 14, overflow: 'hidden' })}
+          >
+            <LinearGradient colors={['#3a2a18', '#1e160f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: GOLD, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="path" size={20} color="#f0d58a" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 10.5, letterSpacing: 1.6, textTransform: 'uppercase', color: '#c9b06d', fontFamily: font.regular }}>В поход</Text>
+                <Text style={{ fontSize: 17, fontFamily: font.semibold, color: '#f4e9cf', marginTop: 2 }}>{nextDungeon.name}</Text>
+                <Text style={{ fontSize: 11.5, color: colors.textDim, marginTop: 2, fontFamily: font.regular }}>{nextDungeon.meta}</Text>
+              </View>
+              <Icon name="arrow-right" size={20} color="#f0d58a" />
+            </LinearGradient>
+          </Pressable>
         ) : null}
-        {engine.isUnlocked('shop') ? (
-          <MenuCard title="Отдел закупок" icon="storefront" onPress={() => engine.go('shop')} sub="Купить и продать снаряжение за бюджет гильдии" />
-        ) : null}
-        {engine.isUnlocked('hire') ? (
-          <MenuCard title="Найм героев" icon="door-open" onPress={() => engine.go('hire')} sub={hireCount === 0 ? 'Все соискатели наняты' : `${hireCount} соискател${hireCount === 1 ? 'ь' : hireCount < 5 ? 'я' : 'ей'} на рынке труда`} />
-        ) : null}
-        {engine.isUnlocked('analytics') ? (
-          <MenuCard title="Аналитика гильдии" icon="chart-line-up" onPress={() => engine.go('analytics')} sub="Win-rate, бюджет, мораль и KPI в динамике" />
-        ) : null}
-        {engine.isUnlocked('personnel') ? (
-          <MenuCard title="Личные дела" icon="identification-card" onPress={() => engine.go('personnel')} sub="Досье сотрудников и архив уволенных" />
-        ) : null}
-        {engine.isUnlocked('achievements') ? (
-          <MenuCard title="Достижения" icon="trophy" onPress={() => engine.go('achievements')} sub={`${engine.achievementVM().filter((a) => a.claimed).length}/${engine.achievementVM().length} получено`} />
-        ) : null}
-        {engine.isUnlocked('weekly') ? (
-          <MenuCard title="Испытание недели" icon="crown-simple" onPress={() => engine.go('weekly')} sub={weeklyVM.available ? (weeklyVM.claimed ? 'Награда уже получена' : weeklyVM.modifierName) : 'Откроется после первого босса'} />
+
+        {tiles.length ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, marginBottom: 22 }}>
+            {tiles.map((t) => <MenuTile key={t.title} {...t} />)}
+          </View>
         ) : null}
 
         {nextUp.length ? (
