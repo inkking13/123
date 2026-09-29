@@ -39,13 +39,20 @@ const pillar = decor(require('../../assets/models/decor-pillar.glb'), 0.8, -0.82
 const grave = decor(require('../../assets/models/decor-grave.glb'), 0.42, -0.95);
 const banner = decor(require('../../assets/models/decor-banner.glb'), 0.98, -0.89);
 
+/**
+ * Phones get a lighter copy of the keep (55k triangles and 2048px textures instead of 369k and 4096px):
+ * the full one needs ~85 MB of video memory for one texture, more than a budget phone's GPU can give
+ * (on a Redmi 15C the fight drew nothing). In dev, ?mobile3d on the web previews it.
+ */
+const LIGHT_STAGE = Platform.OS !== 'web' || (__DEV__ && typeof location !== 'undefined' && location.search.includes('mobile3d'));
+
 const STAGES: Record<string, { pieces: Piece[]; slab: boolean }> = {
   // Ruined keep: stone floor ringed by broken walls, an arch and banner towers behind the enemy rows.
   // The export is 1.9 units across with its floor at y = -0.39; scaled so the floor holds the board.
   cursedBattlefield: {
     slab: false,
     pieces: [
-      { url: url(require('../../assets/models/battlefield.glb')), scale: 7, floorY: -0.39, drop: 0.04 },
+      { url: url(LIGHT_STAGE ? require('../../assets/models/battlefield-mobile.glb') : require('../../assets/models/battlefield.glb')), scale: 7, floorY: -0.39, drop: 0.04 },
       // Four braziers light the board's corners; bones, broken arms and a grave fill the ground round it.
       brazier([-4.3, 2.6], 0, 0.9), brazier([4.3, 2.6], 1, 0.9), brazier([-4.3, -2.3], 2, 0.9), brazier([4.3, -2.3], 3, 0.9),
       bones([-2.6, 4.0], 0.6), weapons([2.3, 4.1], -0.4), bones([4.6, 0.3], 2.2), weapons([-4.7, 0.2], 1.3),
