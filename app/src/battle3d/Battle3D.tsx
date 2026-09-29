@@ -25,7 +25,7 @@ export function canRender3D(): boolean {
   }
 }
 
-/** How long the 3D field may take to load before the fight drops to 2.5D (weak phones can stall for good). */
+/** How long the 3D field may take to load before the fight offers a retry on lighter graphics (weak phones can stall for good). */
 const LOAD_TIMEOUT_MS = 30000;
 
 /** Mounted once everything under the Suspense boundary has loaded. */
@@ -34,7 +34,7 @@ function Loaded({ onLoad }: { onLoad: () => void }) {
   return null;
 }
 
-/** Any render error inside the 3D view drops the fight back to the 2.5D stage instead of crashing it. */
+/** Any render error inside a 3D view is reported (the fight offers a retry) instead of crashing the app. */
 export class Guard extends Component<{ onFail: (e: unknown) => void; children: React.ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }

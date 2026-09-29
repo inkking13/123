@@ -144,7 +144,7 @@ interface SaveData {
   curiosOwned: string[];
   claimedAchievementIds: string[];
   everCrafted: boolean;
-  settings: { haptics: boolean; view3d: boolean; speed?: number; auto?: boolean; quality?: Quality; sound?: boolean; music?: boolean };
+  settings: { haptics: boolean; view3d?: boolean; speed?: number; auto?: boolean; quality?: Quality; sound?: boolean; music?: boolean };
   statsRoomWins: number;
   statsBossWins: number;
   statsWipes: number;
@@ -427,7 +427,7 @@ export class GameEngine {
 
   /** A boss fight opens on its title card; the first turn waits until it's done. */
   bossIntro: { name: string; place: string; line: string } | null = null;
-  /** 3D was switched off at launch because the app died inside it last time (see probe3d). */
+  /** Graphics were dropped to «Низкое» at launch because the app died inside 3D last time (see probe3d). */
   safeMode3d = false;
   private introTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -439,7 +439,7 @@ export class GameEngine {
   strikeTrips = 0;
   seenTips = new Set<Tip>();
 
-  settings: { haptics: boolean; view3d: boolean; speed: number; auto: boolean; quality: Quality; sound: boolean; music: boolean } = { haptics: true, view3d: true, speed: 1, auto: false, quality: 'medium', sound: true, music: true };
+  settings: { haptics: boolean; speed: number; auto: boolean; quality: Quality; sound: boolean; music: boolean } = { haptics: true, speed: 1, auto: false, quality: 'medium', sound: true, music: true };
 
   private turnTimer: ReturnType<typeof setTimeout> | null = null;
   private subs = new Set<() => void>();
@@ -538,7 +538,7 @@ export class GameEngine {
     if (data.curiosOwned) this.curiosOwned = new Set(data.curiosOwned);
     if (data.claimedAchievementIds) this.claimedAchievementIds = new Set(data.claimedAchievementIds);
     if (typeof data.everCrafted === 'boolean') this.everCrafted = data.everCrafted;
-    if (data.settings) this.settings = { ...this.settings, ...data.settings };
+    if (data.settings) { const { view3d: _retired, ...saved } = data.settings; this.settings = { ...this.settings, ...saved }; }
     if (typeof data.statsRoomWins === 'number') this.statsRoomWins = data.statsRoomWins;
     if (typeof data.statsBossWins === 'number') this.statsBossWins = data.statsBossWins;
     if (typeof data.statsWipes === 'number') this.statsWipes = data.statsWipes;
@@ -568,8 +568,8 @@ export class GameEngine {
     } catch {
       // corrupt or unavailable storage — start fresh rather than crash
     }
-    // The phone killed the app inside a 3D view last time: start in 2D and say so.
-    if (await diedIn3dLastRun()) { this.settings.view3d = false; this.safeMode3d = true; }
+    // The phone killed the app inside a 3D view last time: lighten the graphics and say so.
+    if (await diedIn3dLastRun() && this.settings.quality !== 'low') { this.settings.quality = 'low'; this.safeMode3d = true; }
     this.loaded = true;
     this.notify();
   }
@@ -639,8 +639,7 @@ export class GameEngine {
   private pace(ms: number) {
     return ms / Math.max(1, this.settings.speed || 1);
   }
-  toggleView3d() {
-    this.settings.view3d = !this.settings.view3d;
+  dismissSafeMode3d() {
     this.safeMode3d = false;
     this.notify();
   }

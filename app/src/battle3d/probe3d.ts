@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // memory, a driver fault), which no JS error handler sees. So every 3D view
 // marks "3D starting" on mount and clears it once it has run for a while or
 // closes normally. If the mark is still there on the next launch, the app died
-// inside 3D: the game then starts in 2D rather than crashing again.
+// inside 3D: the game then starts on the lowest graphics rather than crashing again.
 
 const KEY = 'raid-commander.3d-probe';
 const SETTLED_MS = 8000;
