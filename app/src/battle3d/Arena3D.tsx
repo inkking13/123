@@ -106,6 +106,38 @@ function PulseRing({ radius, color, speed = 3, y = 0.07 }: { radius: number; col
   );
 }
 
+/**
+ * Walks `pos` toward `to` like a person would: it speeds up, keeps a steady
+ * pace, and slows to a stop on the cell instead of the old exponential slide
+ * (fast start, long crawl). Returns the speed, smoothed, for the walk/run clips.
+ */
+interface Stride { vel: number; speed: number; dir: THREE.Vector3 }
+const newStride = (): Stride => ({ vel: 0, speed: 0, dir: new THREE.Vector3(0, 0, -1) });
+const _step = new THREE.Vector3();
+function stride(pos: THREE.Vector3, to: THREE.Vector3, s: Stride, dt: number, vmax: number, accel: number): number {
+  _step.subVectors(to, pos); _step.y = 0;
+  const dist = _step.length();
+  if (dist < 1e-3) { pos.x = to.x; pos.z = to.z; s.vel = 0; }
+  else {
+    // As fast as it may go, but never faster than it can still stop in the distance left.
+    const want = Math.min(vmax, Math.sqrt(2 * accel * dist));
+    s.vel = s.vel < want ? Math.min(want, s.vel + accel * dt) : want;
+    const d = Math.min(dist, s.vel * dt);
+    _step.multiplyScalar(1 / dist);
+    s.dir.copy(_step);
+    pos.addScaledVector(_step, d);
+  }
+  s.speed += (s.vel - s.speed) * (1 - Math.exp(-dt * 12));
+  return s.speed;
+}
+/** Turns `yaw` toward `want` at a steady rate, the short way round. */
+function turnTo(yaw: number, want: number, rate: number, dt: number): number {
+  let diff = want - yaw;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return yaw + diff * (1 - Math.exp(-dt * rate));
+}
+
 function faceCamera(obj: THREE.Object3D, from: THREE.Vector3, camera: THREE.Camera) {
   obj.rotation.y = Math.atan2(camera.position.x - from.x, camera.position.z - from.z);
 }
@@ -122,6 +154,7 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
   const anim = useRef<HeroAnim>({ kind: '', at: -99, hit: -99, deadAt: r.alive ? -1 : -99, alive: r.alive, defending: false, speed: 0, frozen: false });
   const yaw = useRef(Math.PI);
   const prevPos = useMemo(() => new THREE.Vector3(), []);
+  const walk = useRef(newStride());
   const sheet = SHEET_MODELS[r.candidateId];
   const figH = sheet ? sheet.height * FIGURE_SCALE : look ? MODEL_HEIGHT[look.build] * FIGURE_SCALE : 0.08 + RAIDER_CARD;
   const prevHp = useRef(r.hp);
@@ -150,11 +183,13 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
     const g = root.current; if (!g) return;
     const t = st.clock.elapsedTime;
     prevPos.copy(pos.current);
-    pos.current.lerp(tilePos(r.row, r.col), 1 - Math.exp(-dt * (look ? 6 : 9)));
+    const speed = stride(pos.current, tilePos(r.row, r.col), walk.current, dt, look ? 1.5 : 4, look ? 5 : 12);
+    const walking = speed > 0.15;
     // Models face the nearest enemy while acting (lunges go that way too); waiting
-    // for their turn they stand three-quarters on to the camera, so faces show.
+    // for their turn they stand three-quarters on to the camera, so faces show;
+    // walking, they look where they are going.
     let fx = 0, fz = -1;
-    const busy = active || t - ev.current.lunge < 1.1 || prevPos.distanceToSquared(tilePos(r.row, r.col)) > 0.01;
+    const busy = active || t - ev.current.lunge < 1.1 || walking;
     if (look && r.alive) {
       let best: THREE.Vector3 | null = null; let bd = Infinity;
       for (const [k, v] of proj.world) {
@@ -171,10 +206,8 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
           const score = (y: number) => Math.cos(y) + Math.sin(y) * inward * 0.3;
           want = score(a) >= score(b) ? a : b;
         }
-        let diff = want - yaw.current;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        yaw.current += diff * (1 - Math.exp(-dt * (busy ? 8 : 3)));
+        if (walking) want = Math.atan2(walk.current.dir.x, walk.current.dir.z);
+        yaw.current = turnTo(yaw.current, want, walking ? 10 : busy ? 8 : 3, dt);
       }
       const face = look && r.alive && busy ? yaw.current : NaN;
       fx = Number.isNaN(face) ? 0 : Math.sin(face); fz = Number.isNaN(face) ? -1 : Math.cos(face);
@@ -197,7 +230,7 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
       const a = anim.current;
       a.kind = e.kind; a.at = e.lunge; a.hit = e.hit; a.deadAt = e.deadAt; a.alive = r.alive;
       a.defending = r.defending; a.frozen = r.alive && sim.frozen?.targetId === r.id;
-      a.speed = prevPos.distanceTo(pos.current) / Math.max(dt, 1e-3);
+      a.speed = speed;
     }
     const c = card.current;
     if (c) {
@@ -270,6 +303,8 @@ function FoeFigure({
   const ring = useRef<THREE.Mesh>(null);
   const ev = useRef({ lunge: -99, hit: -99, deadAt: alive ? -1 : -99, windAt: -99, phaseAt: -99, rear: 0 });
   const at = useRef(new THREE.Vector3(x, 0, z));
+  const walk = useRef(newStride());
+  const target = useMemo(() => new THREE.Vector3(), []);
   const prevHp = useRef(hp);
   const prevPhase = useRef(phase);
   const box = useMemo(() => [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], []);
@@ -306,13 +341,10 @@ function FoeFigure({
         const d = (v.x - at.current.x) ** 2 + (v.z - at.current.z) ** 2;
         if (d < bd) { bd = d; best = v; }
       }
-      if (best) {
-        const want = Math.atan2(best.x - at.current.x, best.z - at.current.z);
-        let diff = want - yaw.current;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        yaw.current += diff * (1 - Math.exp(-dt * 6));
-      }
+      // Walking, it looks where it is going; standing, at the nearest raider.
+      const walking = walk.current.speed > 0.15;
+      if (walking) yaw.current = turnTo(yaw.current, Math.atan2(walk.current.dir.x, walk.current.dir.z), 10, dt);
+      else if (best) yaw.current = turnTo(yaw.current, Math.atan2(best.x - at.current.x, best.z - at.current.z), 6, dt);
       fx0 = Math.sin(yaw.current); fz0 = Math.cos(yaw.current);
     }
     let dz = 0, dx = 0, sx = 0;
@@ -322,9 +354,7 @@ function FoeFigure({
     if (ht >= 0 && ht < 0.3) sx = Math.sin(ht * 70) * 0.08 * (1 - ht / 0.3);
     sx += e.rear * Math.sin(t * 80) * 0.03;
     // Walks to its new cell; a small bob while moving sells the step.
-    const before = at.current.clone();
-    at.current.lerp(new THREE.Vector3(x, 0, z), 1 - Math.exp(-dt * (isBoss ? 3 : 5)));
-    const moving = before.distanceTo(at.current) / Math.max(dt, 1e-3);
+    const moving = stride(at.current, target.set(x, 0, z), walk.current, dt, isBoss ? 1.2 : 1.5, isBoss ? 4 : 5);
     const bob = Math.min(1, moving) * Math.abs(Math.sin(t * 12)) * (isBoss ? 0.12 : 0.08);
     g.position.set(at.current.x + sx + dx, (monster ? 0 : e.rear * (isBoss ? 0.3 : 0.15)) + (monster ? 0 : bob), at.current.z + dz);
     if (monster && model.current) {
