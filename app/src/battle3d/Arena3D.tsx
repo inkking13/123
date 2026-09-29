@@ -640,7 +640,7 @@ function CameraRig({ sim, current, proj, closeUp, focusId, intro }: { sim: Sim; 
         focus.copy(hero);
         if (!sim.movePhase && target) focus.lerp(target, 0.4);
         // Look a little past the hero, so they stand in the lower part of the frame.
-        focus.z -= 1.1;
+        focus.z -= 1.7;
       }
       dist = sim.movePhase ? 0.84 : 0.72;
       pull = 0.9;

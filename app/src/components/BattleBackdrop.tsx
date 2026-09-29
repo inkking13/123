@@ -33,7 +33,7 @@ export const BATTLE_THEMES: Record<string, BattleTheme> = {
       { shape: 'tents', color: '#2e2130', height: 0.4, seed: 7, parallax: 0.3, accent: '#ffb46b' },
       { shape: 'palisade', color: '#1d1620', height: 0.3, seed: 11, parallax: 0.45 },
     ],
-    fog: 'rgba(210,150,110,0.25)', ground: ['#2b2126', '#17131a'], particles: 'dust',
+    fog: 'rgba(210,150,110,0.25)', ground: ['#2b2126', '#17131a'], particles: 'embers',
     floor: { far: '#3a2e33', near: '#4a3b3c', tile: 'rgba(230,200,170,0.07)', stroke: 'rgba(240,210,170,0.22)' },
     stage: 'cursedBattlefield',
   },

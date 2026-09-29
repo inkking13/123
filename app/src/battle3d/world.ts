@@ -24,7 +24,8 @@ export const BOSS_CARD = 2.3;
 // Pulled back with the tile, and a little more, so all seven columns fit a phone's width.
 const CAMERA_PULL = TILE * 1.12;
 export const CAMERA_HOME = new THREE.Vector3(0, 5.1, 6.5).multiplyScalar(CAMERA_PULL);
-export const CAMERA_LOOK = new THREE.Vector3(0, 0.2, -0.7).multiplyScalar(TILE);
+// Aimed a little past the middle of the board, so it sits low in the frame with the ruins above it.
+export const CAMERA_LOOK = new THREE.Vector3(0, 0.2, -1.4).multiplyScalar(TILE);
 
 /** Heroes and room monsters are drawn this much larger than their build size, to read on a phone. */
 export const FIGURE_SCALE = 1.3;

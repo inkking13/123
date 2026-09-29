@@ -63,6 +63,21 @@ export const BODIES = {
     speed: { ...COMBAT_SPEED, cast1: 1.8, cast2: 1.6, cast4: 1.3, cast6: 1.3 },
     guard: 'Block1', death: 'Dead', hit: 'Hit_Reaction',
   },
+  // Male elf (Meshy rig, mesh cut to ~14k triangles): breathing idle, walk, run, a proud strut and eight spell casts.
+  // Fingers curled into a fist in the file; block, flinch and fall taken from the female elf.
+  elfMale: {
+    url: url(require('../../assets/models/elf-male.glb')), height: 1.2, fist: 0.08,
+    idle: 'Long_Breathe_and_Look_Around', walk: 'Walking', run: 'Running', act: { default: 'mage_soell_cast' }, flourish: 'Proud_Strut',
+    speed: { ...COMBAT_SPEED, mage_soell_cast: 1.4, mage_soell_cast_1: 1.8, mage_soell_cast_2: 1.6, mage_soell_cast_3: 1.6, mage_soell_cast_4: 1.3, mage_soell_cast_6: 1.3, mage_soell_cast_7: 1.4, Proud_Strut: 1.2 },
+    guard: 'Block1', death: 'Dead', hit: 'Hit_Reaction',
+  },
+  // The male elf in the owner's arcane robe (hood, robe, cloak, gloves, trousers, boots), skinned like the leather set.
+  elfMaleArcane: {
+    url: url(require('../../assets/models/faelar-arcane.glb')), height: 1.2, fist: 0.08,
+    idle: 'Long_Breathe_and_Look_Around', walk: 'Walking', run: 'Running', act: { default: 'mage_soell_cast' }, flourish: 'Proud_Strut',
+    speed: { ...COMBAT_SPEED, mage_soell_cast: 1.4, mage_soell_cast_1: 1.8, mage_soell_cast_2: 1.6, mage_soell_cast_3: 1.6, mage_soell_cast_4: 1.3, mage_soell_cast_6: 1.3, mage_soell_cast_7: 1.4, Proud_Strut: 1.2 },
+    guard: 'Block1', death: 'Dead', hit: 'Hit_Reaction',
+  },
   // Braided dwarf: breathing idle, shield bash, war cry, and the combat set.
   dwarf: {
     url: url(require('../../assets/models/dwarf.glb')), height: 1.0, fist: 0.125,
@@ -72,6 +87,31 @@ export const BODIES = {
   // Human male: relaxed idle, combat stance, sword attack, blade spins, eight spell casts, and the combat set.
   human: {
     url: url(require('../../assets/models/human.glb')), height: 1.12, fist: 0.11,
+    idle: 'Idle', walk: 'walk', run: 'run',
+    act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
+    speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
+    guard: 'Block1', flourish: 'spinjump', death: 'Dead', hit: 'Hit_Reaction',
+  },
+  // The human body dressed in the leather set (hood, jerkin, cloak, gloves, trousers, boots), each piece
+  // skinned to the same skeleton from the nearest body vertex; only the head is left of the body itself.
+  humanLeather: {
+    url: url(require('../../assets/models/vex-leather.glb')), height: 1.12, fist: 0.11,
+    idle: 'Idle', walk: 'walk', run: 'run',
+    act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
+    speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
+    guard: 'Block1', flourish: 'spinjump', death: 'Dead', hit: 'Hit_Reaction',
+  },
+  // The human body in the owner's knight armour, closed helm and all (nothing of the body shows).
+  humanKnight: {
+    url: url(require('../../assets/models/roderick-knight.glb')), height: 1.12, fist: 0.11,
+    idle: 'Idle', walk: 'walk', run: 'run',
+    act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
+    speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
+    guard: 'Block1', flourish: 'spinjump', death: 'Dead', hit: 'Hit_Reaction',
+  },
+  // The human body in the owner's templar armour: closed helm, white tabard with the red cross, red cloak.
+  humanTemplar: {
+    url: url(require('../../assets/models/kaelen-templar.glb')), height: 1.12, fist: 0.11,
     idle: 'Idle', walk: 'walk', run: 'run',
     act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
     speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },

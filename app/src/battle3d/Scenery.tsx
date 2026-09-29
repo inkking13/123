@@ -2,6 +2,7 @@ import React, { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from './r3f';
 import { BattleTheme } from '../components/BattleBackdrop';
+import { GroundMist, HorizonGlow, StormClouds } from './Atmosphere';
 
 // The location's skyline built from low-poly primitives, in three depth bands
 // behind the arena, plus a gradient sky dome, sun/moon and ambient weather.
@@ -317,6 +318,9 @@ export function Scenery({ theme, weather = 1 }: { theme: BattleTheme; weather?: 
     <>
       <SkyDome theme={theme} />
       <Sun theme={theme} />
+      {/* A Meshy stage gets the full mood: clouds lit by a burning horizon, and mist on the ground. */}
+      {theme.stage ? <><HorizonGlow theme={theme} /><StormClouds theme={theme} /></> : null}
+      {theme.stage && weather > 0 ? <GroundMist /> : null}
       {/* Sunk under a stage model's floor, which would otherwise be hidden. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, theme.stage ? -0.5 : -0.02, -10]}>
         <planeGeometry args={[140, 90]} />
