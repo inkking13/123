@@ -190,6 +190,10 @@ export interface Sim {
   impact: { seq: number; cells: string[]; kind: DangerZone['kind'] | null };
   /** Bumped on heavy moments (big hits, deaths, phase changes) to shake the battlefield. */
   shakeSeq: number;
+  /** Bumped when raiders side-step an area blow that lands next to them; they play a dodge. */
+  dodge: { seq: number; ids: number[] };
+  /** The fight is won: the party celebrates for a moment before the results. */
+  victory: boolean;
   /** The enemy is rearing back for a heavy, telegraphed blow that lands this turn. */
   windup: boolean;
   /** Last grid move, so the token can glide from its old cell instead of teleporting. */

@@ -178,6 +178,13 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
     prevHp.current = r.hp;
   }, [r.hp]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { ev.current.deadAt = r.alive ? -1 : clock.elapsedTime; }, [r.alive, clock]);
+  // A side-step when an area blow lands beside them, and a cheer when the fight is won.
+  useEffect(() => {
+    if (sim.dodge.seq && sim.dodge.ids.includes(r.id)) { ev.current.lunge = clock.elapsedTime; ev.current.kind = 'dodge'; }
+  }, [sim.dodge.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (sim.victory && r.alive) { ev.current.lunge = clock.elapsedTime + Math.random() * 0.3; ev.current.kind = 'victory'; }
+  }, [sim.victory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFrame((st, dt) => {
     const g = root.current; if (!g) return;

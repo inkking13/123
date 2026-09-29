@@ -429,7 +429,11 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     // A fresh action restarts its clip from the top.
     if (a.at !== lastAt.current && a.kind) {
       lastAt.current = a.at;
-      playing.current = a.kind === 'dance' ? B.flourish ?? B.act.default : opts.act?.[a.kind] ?? B.act[a.kind] ?? opts.act?.default ?? B.act.default;
+      // A dodge and a victory cheer use the combat set's own clips where the body has them.
+      const own = a.kind === 'dodge' ? 'Stand_Dodge' : a.kind === 'victory' ? 'Victory_Cheer' : '';
+      playing.current = own && A[own] ? own
+        : a.kind === 'dance' || a.kind === 'victory' ? B.flourish ?? B.act.default
+          : a.kind === 'dodge' ? '' : opts.act?.[a.kind] ?? B.act[a.kind] ?? opts.act?.default ?? B.act.default;
       const c = A[playing.current];
       c?.reset().play();
       actLen.current = c ? Math.min(ACTION_S, c.getClip().duration / Math.max(0.01, c.timeScale)) : ACTION_S;
@@ -437,9 +441,10 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     const at = t - a.at;
     const cur = A[playing.current];
     let want = 'idle';
-    if (a.kind === 'dance' && cur && at < cur.getClip().duration / cur.timeScale) want = playing.current;
+    if ((a.kind === 'dance' || a.kind === 'victory') && cur && at >= 0 && at < cur.getClip().duration / cur.timeScale) want = playing.current;
+    else if (a.kind === 'victory' && at < 0) want = 'idle';
     // The whole swing or cast, then a soft blend back as it ends.
-    else if (a.kind && a.kind !== 'dance' && at < actLen.current - 0.2) want = playing.current;
+    else if (a.kind && a.kind !== 'dance' && a.kind !== 'victory' && cur && at < actLen.current - 0.2) want = playing.current;
     else if (B.hit && A[B.hit] && a.hit >= 0 && at >= actLen.current - 0.2 && t - a.hit < A[B.hit].getClip().duration / A[B.hit].timeScale) {
       if (lastHit.current !== a.hit) { lastHit.current = a.hit; A[B.hit].reset().play(); }
       want = B.hit;
