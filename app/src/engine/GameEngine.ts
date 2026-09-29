@@ -841,9 +841,9 @@ export class GameEngine {
             id: o.id,
             name: o.name,
             icon: o.icon,
-            border: selected ? ACCENT : '#3f424d',
-            bg: selected ? 'rgba(145,132,217,0.14)' : 'transparent',
-            color: selected ? '#d2cefd' : available ? '#9397ab' : '#595d6c',
+            border: selected ? ACCENT : '#574a38',
+            bg: selected ? 'rgba(201,163,107,0.14)' : 'transparent',
+            color: selected ? '#ecd9b0' : available ? '#9397ab' : '#595d6c',
             disabled: !available,
             stockLabel: o.id === 'none' ? '' : `в наличии: ${Math.max(0, free)}`,
             onPick: () => {

@@ -193,7 +193,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
                   opacity: cc.professionId && !o.selected ? 0.4 : 1,
                 }}
               >
-                <View style={{ width: 24, height: 24, borderRadius: 12, marginTop: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(145,132,217,0.14)' }}>
+                <View style={{ width: 24, height: 24, borderRadius: 12, marginTop: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(201,163,107,0.14)' }}>
                   <Icon name={o.icon} size={13} color={o.selected ? colors.accentSoft : colors.textDim} />
                 </View>
                 <View style={{ flex: 1 }}>

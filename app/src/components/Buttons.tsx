@@ -31,7 +31,7 @@ export function PrimaryButton({ label, onPress, icon, trailingIcon, disabled, he
         style={({ pressed }) => ({
           height, borderRadius: 8, borderWidth: 1,
           borderColor: pressed ? colors.accentBright : colors.accent,
-          backgroundColor: pressed ? colors.accentWashStrong : 'transparent',
+          backgroundColor: pressed ? colors.accentWashStrong : 'rgba(201,163,107,0.07)',
           alignItems: 'center', justifyContent: trailingIcon ? 'space-between' : 'center',
           flexDirection: 'row', paddingHorizontal: 20, opacity: disabled ? 0.4 : 1,
         })}

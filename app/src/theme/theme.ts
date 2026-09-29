@@ -1,22 +1,23 @@
-// Nocturne design-system tokens, taken verbatim from the concrete hex values
-// baked into the source `Raid Commander Mobile.dc.html` prototype.
+// Nocturne design-system tokens from the `Raid Commander Mobile.dc.html`
+// prototype, with the accent and borders moved to the dark gold of the
+// equipment screen so every screen shares one trim.
 
 export const colors = {
   bg: '#161826',
   bgAlt: '#0f1119',
   surface: '#1c1e2c',
-  border: '#292b31',
-  borderStrong: '#3f424d',
-  borderHover: '#595d6c',
+  border: '#312c26',
+  borderStrong: '#574a38',
+  borderHover: '#7a6749',
   text: '#e9e9ed',
   textMuted: '#b2b6ca',
   textDim: '#9397ab',
   textFaint: '#75798c',
-  accent: '#9184d9',
-  accentBright: '#b5abfc',
-  accentSoft: '#d2cefd',
-  accentWash: 'rgba(145,132,217,0.12)',
-  accentWashStrong: 'rgba(145,132,217,0.2)',
+  accent: '#c9a36b',
+  accentBright: '#e2bf85',
+  accentSoft: '#ecd9b0',
+  accentWash: 'rgba(201,163,107,0.12)',
+  accentWashStrong: 'rgba(201,163,107,0.2)',
   danger: '#d1685c',
   good: '#86b39a',
   warn: '#c9b06d',

@@ -81,7 +81,7 @@ export function QuestsScreen({ engine }: { engine: GameEngine }) {
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
               <View style={{
                 width: 26, height: 26, borderRadius: 13, marginTop: 1, alignItems: 'center', justifyContent: 'center',
-                backgroundColor: q.claimed ? 'transparent' : 'rgba(145,132,217,0.14)',
+                backgroundColor: q.claimed ? 'transparent' : 'rgba(201,163,107,0.14)',
                 borderWidth: q.claimed ? 1 : 0, borderColor: colors.borderStrong,
               }}>
                 <Icon name={q.claimed ? 'check' : 'scroll'} size={13} color={q.claimed ? colors.textFaint : colors.accent} weight={q.claimed ? 'fill' : 'regular'} />

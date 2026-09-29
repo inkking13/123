@@ -1,7 +1,7 @@
 import { AttackRange, Role, TraitId } from '../data/types';
 
 export const DANGER = '#d1685c';
-export const ACCENT = '#9184d9';
+export const ACCENT = '#c9a36b';
 
 // Tactical grid — one shared battlefield. The party deploys along the bottom
 // row, enemies come in from the top and walk the same cells. Melee has to
