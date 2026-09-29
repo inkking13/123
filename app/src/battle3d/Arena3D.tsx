@@ -657,7 +657,11 @@ function Effects({ sim, proj, foeKeyFor }: { sim: Sim; proj: Projection; foeKeyF
 
 // ── camera ─────────────────────────────────────────────────
 
-function CameraRig({ sim, current, proj, closeUp, focusId, intro }: { sim: Sim; current: Raider | null; proj: Projection; closeUp: boolean; focusId?: number; intro: boolean }) {
+/** The player's turn of the camera round the board, radians (a full circle either way); set by dragging the field. */
+export interface Orbit { yaw: number }
+
+function CameraRig({ sim, current, proj, closeUp, focusId, intro, orbit }: { sim: Sim; current: Raider | null; proj: Projection; closeUp: boolean; focusId?: number; intro: boolean; orbit?: React.MutableRefObject<Orbit> }) {
+  const yaw = useRef(0);
   const introAt = useRef(-1);
   const { camera, size } = useThree();
   const look = useRef(CAMERA_LOOK.clone());
@@ -712,6 +716,17 @@ function CameraRig({ sim, current, proj, closeUp, focusId, intro }: { sim: Sim; 
     want.copy(CAMERA_HOME).sub(CAMERA_LOOK).multiplyScalar(dist).add(wantLook);
     want.x += Math.sin(t * 0.35) * 0.12 + focus.x * pull * (closeUp ? 0.2 : 0.5);
     want.y += Math.sin(t * 0.5) * 0.05;
+    // Swing round the look point by the player's orbit (smoothed, so the camera arcs rather than cuts through).
+    const target = orbit?.current.yaw ?? 0;
+    yaw.current += (target - yaw.current) * (1 - Math.exp(-dt * 8));
+    if (Math.abs(yaw.current) > 1e-4) {
+      // Turn both the camera and its aim round the board's centre. The stage's ruins stand close
+      // behind the enemy rows, so the further round we go the more the camera draws in and rises.
+      const away = Math.abs(Math.sin(yaw.current / 2));
+      want.applyAxisAngle(UP, yaw.current);
+      wantLook.applyAxisAngle(UP, yaw.current);
+      want.x *= 1 - 0.4 * away; want.z *= 1 - 0.4 * away; want.y += 1.2 * away;
+    }
     const k = 1 - Math.exp(-dt * (sim.windup ? 3 : 2.4));
     camera.position.lerp(want, k);
     look.current.lerp(wantLook, k);
@@ -731,6 +746,7 @@ function CameraRig({ sim, current, proj, closeUp, focusId, intro }: { sim: Sim; 
 }
 
 export interface ArenaProps {
+  orbit?: React.MutableRefObject<Orbit>;
   sim: Sim; theme: BattleTheme; proj: Projection; isBoss: boolean; bossArt?: any; roomArt?: Record<EnemyRole, any>;
   focusId?: number; current: Raider | null; reachable: { row: number; col: number }[];
   /** How each hero's worn gear looks, by candidate id. */
@@ -744,7 +760,7 @@ export interface ArenaProps {
   bossMonster?: MonsterLook; roomMonsters?: Record<EnemyRole, MonsterLook>;
 }
 
-export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear, closeUp = false, intro = false, weather = 1 }: ArenaProps) {
+export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear, closeUp = false, intro = false, weather = 1, orbit }: ArenaProps) {
   const bp = sim.bossPos ? bossPos(sim.bossPos.row, sim.bossPos.col) : bossPos(0, Math.floor((GRID_COLS - BOSS_W) / 2));
   const sun = useMemo(() => sunDirection(theme).multiplyScalar(20), [theme]);
   const stunned = sim.stunned || sim.vulnerableRounds > 0;
@@ -777,7 +793,7 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
         <RaiderFigure key={r.id} r={r} sim={sim} proj={proj} active={current?.id === r.id} poisoned={sim.poison?.targetId === r.id} gear={heroGear?.[r.candidateId]} />
       ))}
       <Effects sim={sim} proj={proj} foeKeyFor={foeKeyFor} />
-      <CameraRig sim={sim} current={current} proj={proj} closeUp={closeUp} focusId={focusId} intro={intro} />
+      <CameraRig sim={sim} current={current} proj={proj} closeUp={closeUp} focusId={focusId} intro={intro} orbit={orbit} />
     </>
   );
 }
