@@ -8,6 +8,7 @@ import { Avatar } from '../components/Avatar';
 import { EquipmentPanel } from '../components/EquipmentPanel';
 import { GhostLink, PrimaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
+import { ScreenTitle } from '../components/Frame';
 
 export function GearScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -23,7 +24,7 @@ export function GearScreen({ engine }: { engine: GameEngine }) {
           <GhostLink label="Отряд" icon="arrow-left" onPress={() => engine.go('roster')} />
           <GhostLink label="Инвентарь" icon="scroll" onPress={() => engine.go('inventory')} />
         </View>
-        <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 10, marginBottom: 4, letterSpacing: -0.5 }}>Снаряжение</Text>
+        <ScreenTitle style={{ marginTop: 10, marginBottom: 4 }}>Снаряжение</ScreenTitle>
         <Text style={{ fontSize: 13, color: colors.textDim, marginBottom: 18, fontFamily: font.regular }}>
           Каждый слот меняет баланс между уроном, живучестью и перезарядкой. Предметы берутся из общего инвентаря гильдии — они не бесконечны.
         </Text>

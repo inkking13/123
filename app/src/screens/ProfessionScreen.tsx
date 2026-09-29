@@ -8,6 +8,7 @@ import { ItemIcon } from '../components/ItemIcon';
 import { ProgressBar } from '../components/ProgressBar';
 import { GhostLink } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 export function ProfessionScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -35,13 +36,13 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <GhostLink label={cc.name} icon="arrow-left" onPress={() => engine.go('char')} />
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, marginTop: 16, fontFamily: font.regular }}>Прокачка профессии</Text>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, marginTop: 16, fontFamily: font.medium }}>Прокачка профессии</Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8, marginBottom: 4 }}>
           <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(201,163,107,0.14)', alignItems: 'center', justifyContent: 'center' }}>
             <Icon name={vm.icon} size={20} color={colors.accent} />
           </View>
-          <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, letterSpacing: -0.5 }}>{vm.name}</Text>
+          <ScreenTitle>{vm.name}</ScreenTitle>
         </View>
         <Text style={{ fontSize: 13, color: colors.textDim, marginBottom: 22, fontFamily: font.regular }}>{vm.desc}</Text>
 
@@ -58,15 +59,16 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
         </View>
 
         <View style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 14, marginTop: 16, marginBottom: 14, backgroundColor: colors.surface }}>
-          <Text style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: colors.textFaint, marginBottom: 8, fontFamily: font.regular }}>Текущий бонус</Text>
+          <Text style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 8, fontFamily: font.medium }}>Текущий бонус</Text>
           {vm.currentBonusLines.map((line, i) => (
             <Text key={i} style={{ fontSize: 13, color: colors.accentSoft, fontFamily: font.medium, marginBottom: 3 }}>{line}</Text>
           ))}
+          <Corners color="#8a7650" />
         </View>
 
         {vm.nextBonusLines ? (
           <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 14, marginBottom: 22 }}>
-            <Text style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: colors.textFaint, marginBottom: 8, fontFamily: font.regular }}>На следующем уровне</Text>
+            <Text style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 8, fontFamily: font.medium }}>На следующем уровне</Text>
             {vm.nextBonusLines.map((line, i) => (
               <Text key={i} style={{ fontSize: 13, color: colors.textMuted, fontFamily: font.regular, marginBottom: 3 }}>{line}</Text>
             ))}
@@ -103,7 +105,7 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
           </>
         ) : null}
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginTop: 28, marginBottom: 10, fontFamily: font.regular }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginTop: 28, marginBottom: 10, fontFamily: font.medium }}>
           Рецепты крафта
         </Text>
         {recipes.map((r) => (
@@ -152,6 +154,7 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
                 </Pressable>
               </>
             )}
+            <Corners color="#8a7650" />
           </View>
         ))}
       </ScrollView>

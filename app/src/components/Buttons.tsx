@@ -74,11 +74,20 @@ export function SecondaryButton({ label, onPress, height = 46, style }: { label:
   );
 }
 
+/** Back links and small header actions: a dark pill in a bronze rim. */
 export function GhostLink({ label, onPress, icon }: { label: string; onPress: () => void; icon?: IconName }) {
   return (
-    <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}>
-      {icon ? <Icon name={icon} size={14} color={colors.textDim} /> : null}
-      <Text style={{ color: colors.textDim, fontFamily: font.regular, fontSize: 12 }}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      style={({ pressed }) => ({
+        flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+        height: 30, paddingHorizontal: 11, borderRadius: 15, borderWidth: 1,
+        borderColor: pressed ? '#b39462' : '#4a4032', backgroundColor: pressed ? 'rgba(201,163,107,0.12)' : 'rgba(20,16,12,0.8)',
+      })}
+    >
+      {icon ? <Icon name={icon} size={13} color="#d9c595" /> : null}
+      <Text style={{ color: '#d9c595', fontFamily: font.medium, fontSize: 12 }}>{label}</Text>
     </Pressable>
   );
 }

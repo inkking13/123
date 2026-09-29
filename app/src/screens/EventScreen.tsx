@@ -7,6 +7,7 @@ import { Icon } from '../components/Icon';
 import { PrimaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
 import { Avatar } from '../components/Avatar';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 export function EventScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -17,8 +18,8 @@ export function EventScreen({ engine }: { engine: GameEngine }) {
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 32, paddingHorizontal: 20, paddingBottom: Math.max(24, insets.bottom + 16) }}>
         <View style={{ width: 34, height: 3, backgroundColor: colors.accent, marginBottom: 16 }} />
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Отдел кадров</Text>
-        <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 6, marginBottom: 14, letterSpacing: -0.5 }}>{ev.title}</Text>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>Отдел кадров</Text>
+        <ScreenTitle style={{ marginTop: 6, marginBottom: 14 }}>{ev.title}</ScreenTitle>
         {ev.faces.length ? (
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
             {ev.faces.map((id) => (
@@ -44,12 +45,14 @@ export function EventScreen({ engine }: { engine: GameEngine }) {
               style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 14 }}
             >
               <Text style={{ fontSize: 14, fontFamily: font.medium, color: colors.text }}>{ev.labelA}</Text>
+              <Corners color="#8a7650" />
             </Pressable>
             <Pressable
               onPress={() => engine.chooseEvent('b')}
               style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 14 }}
             >
               <Text style={{ fontSize: 14, fontFamily: font.medium, color: colors.text }}>{ev.labelB}</Text>
+              <Corners color="#8a7650" />
             </Pressable>
           </View>
         ) : (

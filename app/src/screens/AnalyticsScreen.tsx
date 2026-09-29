@@ -7,6 +7,7 @@ import { colors, font } from '../theme/theme';
 import { GhostLink } from '../components/Buttons';
 import { ProgressBar } from '../components/ProgressBar';
 import { useEngineVersion } from '../engine/useEngine';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 const CHART_W = 300;
 const CHART_H = 64;
@@ -75,8 +76,8 @@ export function AnalyticsScreen({ engine }: { engine: GameEngine }) {
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, marginTop: 10, fontFamily: font.regular }}>Отдел кадров</Text>
-        <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 4, marginBottom: 18, letterSpacing: -0.5 }}>Аналитика гильдии</Text>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, marginTop: 10, fontFamily: font.medium }}>Отдел кадров</Text>
+        <ScreenTitle style={{ marginTop: 4, marginBottom: 18 }}>Аналитика гильдии</ScreenTitle>
 
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
           <StatTile label="Win rate" value={a.winRatePct == null ? '—' : `${a.winRatePct}%`} />
@@ -87,19 +88,21 @@ export function AnalyticsScreen({ engine }: { engine: GameEngine }) {
           <StatTile label="Ср. мораль" value={`${a.avgMorale}%`} />
         </View>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 4, fontFamily: font.regular }}>Бюджет гильдии</Text>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 4, fontFamily: font.medium }}>Бюджет гильдии</Text>
         <Text style={{ fontSize: 20, fontFamily: font.medium, color: colors.warn, marginBottom: 8 }}>{a.gold} золота</Text>
         <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, marginBottom: 22 }}>
           <Sparkline data={goldSeries} color={colors.warn} />
+          <Corners color="#8a7650" />
         </View>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 4, fontFamily: font.regular }}>Средняя мораль</Text>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 4, fontFamily: font.medium }}>Средняя мораль</Text>
         <Text style={{ fontSize: 20, fontFamily: font.medium, color: colors.good, marginBottom: 8 }}>{a.avgMorale}%</Text>
         <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, marginBottom: 22 }}>
           <Sparkline data={moraleSeries} color={colors.good} />
+          <Corners color="#8a7650" />
         </View>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 12, fontFamily: font.regular }}>Исход операций</Text>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 12, fontFamily: font.medium }}>Исход операций</Text>
         <BreakdownRow label="Комнаты зачищены" count={a.roomWins} max={maxOutcome} color={colors.good} />
         <BreakdownRow label="Боссы повержены" count={a.bossWins} max={maxOutcome} color={colors.accent} />
         <BreakdownRow label="Вайпы" count={a.wipes} max={maxOutcome} color={colors.danger} />

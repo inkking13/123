@@ -6,6 +6,7 @@ import { colors, font } from '../theme/theme';
 import { Icon } from '../components/Icon';
 import { GhostLink } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 export function AchievementsScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -17,8 +18,8 @@ export function AchievementsScreen({ engine }: { engine: GameEngine }) {
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, marginTop: 16, fontFamily: font.regular }}>Отдел кадров</Text>
-        <Text style={{ fontSize: 30, fontFamily: font.medium, color: colors.text, marginTop: 4, marginBottom: 4, letterSpacing: -0.6 }}>Достижения</Text>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, marginTop: 16, fontFamily: font.medium }}>Отдел кадров</Text>
+        <ScreenTitle style={{ marginTop: 4, marginBottom: 4 }}>Достижения</ScreenTitle>
         <Text style={{ fontSize: 13, color: colors.textDim, marginBottom: 22, fontFamily: font.regular }}>
           Получено {doneCount}/{achievements.length} · разовые вехи за весь путь гильдии, не сбрасываются.
         </Text>
@@ -57,6 +58,7 @@ export function AchievementsScreen({ engine }: { engine: GameEngine }) {
                 <Text style={{ fontSize: 13, fontFamily: font.medium, color: colors.good }}>Забрать награду</Text>
               </Pressable>
             ) : null}
+            <Corners color="#8a7650" />
           </View>
         ))}
       </ScrollView>

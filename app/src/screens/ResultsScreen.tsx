@@ -11,6 +11,7 @@ import { ItemIcon } from '../components/ItemIcon';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
 import { sfx } from '../audio/audio';
+import { Corners } from '../components/Frame';
 
 export function ResultsScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -53,7 +54,7 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
           }}
         >
           <View style={{ width: 34, height: 3, backgroundColor: accent, marginBottom: 16 }} />
-          <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>{kicker}</Text>
+          <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>{kicker}</Text>
           <Text style={{ fontSize: 34, fontFamily: font.medium, color: accent, marginTop: 6, marginBottom: 10, letterSpacing: -0.5 }}>{title}</Text>
           <Text style={{ fontSize: 13.5, lineHeight: 20, color: colors.textMuted, marginBottom: 22, fontFamily: font.regular }}>{text}</Text>
         </Animated.View>
@@ -126,12 +127,13 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
             <Text style={{ fontSize: 12.5, color: colors.textMuted, fontFamily: font.regular }}>
               +{res.reagentFound.qty} · {res.reagentFound.name}
             </Text>
+            <Corners color="#8a7650" />
           </View>
         ) : null}
 
         {res.loot.length > 0 ? (
           <View style={{ marginTop: 22 }}>
-            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Дележ добычи</Text>
+            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>Дележ добычи</Text>
             {res.loot.map((item, i) => {
               const assignedRaider = item.assigned !== null ? s.raiders.find((r) => r.id === item.assigned) : null;
               // A worn armour-set piece isn't swapped out: then the item waits in the stash.
@@ -160,6 +162,7 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
                       ))}
                     </View>
                   )}
+                  <Corners color="#8a7650" />
                 </View>
               );
             })}

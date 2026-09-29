@@ -7,6 +7,7 @@ import { GhostLink, PrimaryButton } from '../components/Buttons';
 import { Icon, IconName } from '../components/Icon';
 import { useEngineVersion } from '../engine/useEngine';
 import { Quality, QUALITY_HINT, QUALITY_LABEL } from '../battle3d/quality';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 function Toggle({ icon, on, onPress, title, text }: { icon: IconName; on: boolean; onPress: () => void; title: string; text: string }) {
   return (
@@ -32,6 +33,7 @@ function Toggle({ icon, on, onPress, title, text }: { icon: IconName; on: boolea
       <View style={{ width: 44, height: 26, borderRadius: 13, padding: 2, justifyContent: 'center', backgroundColor: on ? colors.accent : colors.border }}>
         <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.text, alignSelf: on ? 'flex-end' : 'flex-start' }} />
       </View>
+      <Corners color="#8a7650" />
     </Pressable>
   );
 }
@@ -45,9 +47,9 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
-        <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 10, marginBottom: 22, letterSpacing: -0.5 }}>Настройки</Text>
+        <ScreenTitle style={{ marginTop: 10, marginBottom: 22 }}>Настройки</ScreenTitle>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
           Обратная связь
         </Text>
         <Toggle icon="speaker-high" on={engine.settings.sound} onPress={() => engine.toggleSound()} title="Звуки" text="Удары, заклинания, лечение, победа и поражение." />
@@ -85,9 +87,10 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
             }}
             />
           </View>
+          <Corners color="#8a7650" />
         </Pressable>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
           Качество графики
         </Text>
         <View style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 22, backgroundColor: colors.surface }}>
@@ -112,6 +115,7 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
           <Text style={{ fontSize: 12, lineHeight: 17, color: colors.textDim, marginTop: 10, fontFamily: font.regular }}>
             {QUALITY_HINT[engine.settings.quality]} Если игра тормозит, выберите «Низкое».
           </Text>
+          <Corners color="#8a7650" />
         </View>
 
         <Pressable
@@ -130,9 +134,10 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
               {engine.seenTips.size === 0 ? 'Подсказки появятся в следующем бою.' : 'Как ходить, выбирать цель, уходить с красных клеток.'}
             </Text>
           </View>
+          <Corners color="#8a7650" />
         </Pressable>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
           Прогресс
         </Text>
         <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 14, marginBottom: 14 }}>

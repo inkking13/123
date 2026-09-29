@@ -10,6 +10,7 @@ import { colors, font } from '../theme/theme';
 import { Icon, IconName } from '../components/Icon';
 import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
 import { useEngineVersion } from '../engine/useEngine';
+import { ScreenTitle } from '../components/Frame';
 
 const DUNGEON_ICON: Record<string, IconName> = {
   wastes: 'skull', road: 'path', groblot: 'skull',
@@ -89,8 +90,8 @@ export function LevelMapScreen({ engine }: { engine: GameEngine }) {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 32 }}>
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Отдел кадров</Text>
-        <Text style={{ fontSize: 30, fontFamily: font.medium, color: colors.text, marginTop: 4, letterSpacing: -0.6 }}>Карта походов</Text>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>Отдел кадров</Text>
+        <ScreenTitle style={{ marginTop: 4 }}>Карта походов</ScreenTitle>
         <Text style={{ fontSize: 13, color: colors.textDim, marginTop: 4, marginBottom: 18, fontFamily: font.regular }}>
           Восемь земель гильдии, по три командировки в каждой — от разминки до самого верха. Каждая открывается победой над предыдущей.
         </Text>

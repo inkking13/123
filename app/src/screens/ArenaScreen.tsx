@@ -7,6 +7,7 @@ import { Icon } from '../components/Icon';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
 import { useEngineVersion } from '../engine/useEngine';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 export function ArenaScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -16,8 +17,8 @@ export function ArenaScreen({ engine }: { engine: GameEngine }) {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 24 }}>
-        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Отдел кадров</Text>
-        <Text style={{ fontSize: 30, fontFamily: font.medium, color: colors.text, marginTop: 4, marginBottom: 4, letterSpacing: -0.6 }}>Арена</Text>
+        <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>Отдел кадров</Text>
+        <ScreenTitle style={{ marginTop: 4, marginBottom: 4 }}>Арена</ScreenTitle>
         <Text style={{ fontSize: 13, color: colors.textDim, marginBottom: 22, fontFamily: font.regular }}>
           Товарищеские поединки с соседними гильдиями — за рейтинг и золото. Никакого урона репутации при проигрыше.
         </Text>
@@ -27,11 +28,13 @@ export function ArenaScreen({ engine }: { engine: GameEngine }) {
             <Text style={{ fontSize: 10.5, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Рейтинг</Text>
             <Text style={{ fontSize: 22, fontFamily: font.medium, color: colors.accent, marginTop: 4 }}>{vm.rating}</Text>
             <Text style={{ fontSize: 11.5, color: colors.textDim, marginTop: 2, fontFamily: font.regular }}>{vm.rank}</Text>
+            <Corners color="#8a7650" />
           </View>
           <View style={{ flex: 1, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 14, backgroundColor: colors.surface }}>
             <Text style={{ fontSize: 10.5, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Счёт</Text>
             <Text style={{ fontSize: 22, fontFamily: font.medium, color: colors.text, marginTop: 4 }}>{vm.wins}—{vm.losses}</Text>
             <Text style={{ fontSize: 11.5, color: colors.textDim, marginTop: 2, fontFamily: font.regular }}>побед—поражений</Text>
+            <Corners color="#8a7650" />
           </View>
         </View>
 
@@ -57,6 +60,7 @@ export function ArenaScreen({ engine }: { engine: GameEngine }) {
 
             <PrimaryButton label="Начать бой" icon="sword" onPress={vm.onFight} style={{ marginTop: 16 }} />
             <SecondaryButton label="Найти другого соперника" onPress={vm.onReroll} style={{ marginTop: 8 }} />
+            <Corners color="#8a7650" />
           </View>
         ) : null}
       </ScrollView>

@@ -7,6 +7,7 @@ import { GhostLink } from '../components/Buttons';
 import { ItemIcon } from '../components/ItemIcon';
 import { useEngineVersion } from '../engine/useEngine';
 import { RARITY_COLOR } from '../data/gearInfo';
+import { Corners, ScreenTitle } from '../components/Frame';
 
 const RANK = ['unique', 'legendary', 'rare', 'magic', 'common'] as const;
 const RARITY_NAME: Record<string, string> = { unique: 'Уникальные', legendary: 'Легендарные', rare: 'Редкие', magic: 'Магические', common: 'Обычные' };
@@ -41,7 +42,7 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
         <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
-        <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, marginTop: 10, marginBottom: 14, letterSpacing: -0.5 }}>Инвентарь</Text>
+        <ScreenTitle style={{ marginTop: 10, marginBottom: 14 }}>Инвентарь</ScreenTitle>
 
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
           {(['gear', 'reagents', 'curios'] as Tab[]).map((t) => (
@@ -103,6 +104,7 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
                       Носят: {row.wornBy.join(', ')}
                     </Text>
                   ) : null}
+                  <Corners color="#8a7650" />
                 </View>
               ))
             )}
@@ -127,6 +129,7 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
                     <Text style={{ fontSize: 12, color: colors.textDim, marginTop: 3, lineHeight: 17, fontFamily: font.regular }}>{r.desc}</Text>
                   </View>
                   <Text style={{ fontSize: 17, fontFamily: font.medium, color: colors.accentSoft }}>{r.owned}</Text>
+                  <Corners color="#8a7650" />
                 </View>
               ))
             )}
