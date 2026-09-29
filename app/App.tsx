@@ -7,6 +7,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { GameEngine } from './src/engine/GameEngine';
 import { useEngineVersion } from './src/engine/useEngine';
+import { initAudio, music, setAudioEnabled } from './src/audio/audio';
 import { colors } from './src/theme/theme';
 import { TitleScreen } from './src/screens/TitleScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -30,8 +31,19 @@ import { ProfessionScreen } from './src/screens/ProfessionScreen';
 import { AchievementsScreen } from './src/screens/AchievementsScreen';
 import { WeeklyChallengeScreen } from './src/screens/WeeklyChallengeScreen';
 
+/** The camp tune outside fights; the fight or boss theme from the dungeon until the results. */
+function useMusic(engine: GameEngine) {
+  const { sound, music: tracks } = engine.settings;
+  useEffect(() => { initAudio(); }, []);
+  useEffect(() => { setAudioEnabled(sound, tracks); }, [sound, tracks]);
+  const inFight = engine.screen === 'combat' || engine.screen === 'dungeon' || (engine.screen === 'results' && !!engine.result?.win && !engine.result?.isBoss);
+  const track = inFight ? (engine.sim?.encounterType === 'boss' && engine.screen === 'combat' ? 'boss' : 'battle') : 'camp';
+  useEffect(() => { music(track); }, [track]);
+}
+
 function Root({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
+  useMusic(engine);
   switch (engine.screen) {
     case 'title': return <TitleScreen engine={engine} />;
     case 'home': return <HomeScreen engine={engine} />;

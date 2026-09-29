@@ -20,6 +20,7 @@ import { ARENA_CHAMPION, MONSTER_LOOKS, ROOM_BODIES } from '../battle3d/monsterL
 import { gearLookOf } from '../battle3d/gearLooks';
 import { TIPS, Tip } from '../data/features';
 import { BossIntro } from '../components/BossIntro';
+import { useCombatSounds } from '../audio/useCombatSounds';
 
 const ACTION_ICON: Record<TurnActionKey, IconName> = {
   attack: 'sword',
@@ -75,6 +76,7 @@ const ENEMY_ICON: Record<EnemyRole, IconName> = { brute: 'shield', archer: 'targ
 
 export function CombatScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
+  useCombatSounds(engine.sim);
   const insets = useSafeAreaInsets();
   const [pickingTarget, setPickingTarget] = useState<TurnActionKey | null>(null);
   const [failed3d, setFailed3d] = useState(false);

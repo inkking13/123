@@ -143,7 +143,7 @@ interface SaveData {
   curiosOwned: string[];
   claimedAchievementIds: string[];
   everCrafted: boolean;
-  settings: { haptics: boolean; view3d: boolean; speed?: number; auto?: boolean; quality?: Quality };
+  settings: { haptics: boolean; view3d: boolean; speed?: number; auto?: boolean; quality?: Quality; sound?: boolean; music?: boolean };
   statsRoomWins: number;
   statsBossWins: number;
   statsWipes: number;
@@ -436,7 +436,7 @@ export class GameEngine {
   strikeTrips = 0;
   seenTips = new Set<Tip>();
 
-  settings: { haptics: boolean; view3d: boolean; speed: number; auto: boolean; quality: Quality } = { haptics: true, view3d: true, speed: 1, auto: false, quality: 'medium' };
+  settings: { haptics: boolean; view3d: boolean; speed: number; auto: boolean; quality: Quality; sound: boolean; music: boolean } = { haptics: true, view3d: true, speed: 1, auto: false, quality: 'medium', sound: true, music: true };
 
   private turnTimer: ReturnType<typeof setTimeout> | null = null;
   private subs = new Set<() => void>();
@@ -637,6 +637,14 @@ export class GameEngine {
   }
   toggleView3d() {
     this.settings.view3d = !this.settings.view3d;
+    this.notify();
+  }
+  toggleSound() {
+    this.settings.sound = !this.settings.sound;
+    this.notify();
+  }
+  toggleMusic() {
+    this.settings.music = !this.settings.music;
     this.notify();
   }
   toggleHaptics() {

@@ -1,4 +1,4 @@
-import React, { Component, Suspense, useMemo, useRef, useState } from 'react';
+import React, { Component, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, Pressable, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Canvas } from './r3f';
@@ -106,6 +106,46 @@ function TileTarget({ proj, row, col, enabled, onPress }: { proj: Projection; ro
 }
 
 /** Darkened edges over the 3D view, so the eye goes to the board. */
+/** A white flash when a crit lands; a red glow breathing round the edges while the enemy winds up a heavy blow. */
+function Flashes({ sim }: { sim: Sim }) {
+  const flash = useRef(new Animated.Value(0)).current;
+  const warn = useRef(new Animated.Value(0)).current;
+  const seen = useRef(sim.fx.seq);
+  useEffect(() => {
+    const f = sim.fx;
+    if (f.seq === seen.current) return;
+    seen.current = f.seq;
+    if (!f.crit || typeof f.actor !== 'number') return;
+    flash.setValue(0);
+    Animated.sequence([
+      Animated.delay(impactDelay(f)),
+      Animated.timing(flash, { toValue: 1, duration: 40, useNativeDriver: true }),
+      Animated.timing(flash, { toValue: 0, duration: 260, useNativeDriver: true }),
+    ]).start();
+  }, [sim.fx.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!sim.windup) { warn.stopAnimation(); Animated.timing(warn, { toValue: 0, duration: 250, useNativeDriver: true }).start(); return; }
+    const a = Animated.loop(Animated.sequence([
+      Animated.timing(warn, { toValue: 1, duration: 420, useNativeDriver: true }),
+      Animated.timing(warn, { toValue: 0.35, duration: 420, useNativeDriver: true }),
+    ]));
+    a.start();
+    return () => a.stop();
+  }, [sim.windup, warn]);
+  const red = 'rgba(200,20,10,0.38)', none = 'rgba(200,20,10,0)';
+  return (
+    <>
+      <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, opacity: warn }}>
+        <LinearGradient colors={[red, none]} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '14%' }} />
+        <LinearGradient colors={[none, red]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '14%' }} />
+        <LinearGradient colors={[red, none]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '10%' }} />
+        <LinearGradient colors={[none, red]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '10%' }} />
+      </Animated.View>
+      <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundColor: '#fff6dc', opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.32] }) }} />
+    </>
+  );
+}
+
 function Vignette() {
   const dark = 'rgba(6,4,10,0.6)'; const clear = 'rgba(6,4,10,0)';
   return (
@@ -155,6 +195,7 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
         </Canvas>
       </Guard>
       <Vignette />
+      <Flashes sim={sim} />
       <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}>
         {Array.from({ length: GRID_ROWS }).flatMap((_, row) => Array.from({ length: GRID_COLS }).map((__, col) => {
           const isSelf = !!current && current.row === row && current.col === col;

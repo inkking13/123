@@ -6,7 +6,7 @@ import {
   FlaskIcon, DropIcon, FlameIcon, TargetIcon, FireIcon,
   GearSix, SpeakerHigh, SpeakerSlash, Vibrate, TrashSimple, Warning, CoinsIcon, Storefront, ChartLineUpIcon,
   TrophyIcon, IdentificationCardIcon, HardHat, HandFist, Boot, Diamond, FastForward, Robot,
-  TShirt, Pants, Belt, CoatHanger, Sparkle, ArrowsOutSimple, ArrowsInSimple,
+  TShirt, Pants, Belt, CoatHanger, Sparkle, ArrowsOutSimple, ArrowsInSimple, MusicNotes,
 } from 'phosphor-react-native';
 
 export type IconName =
@@ -17,7 +17,7 @@ export type IconName =
   | 'gear' | 'speaker-high' | 'speaker-slash' | 'vibrate' | 'trash-simple' | 'warning'
   | 'coins' | 'storefront' | 'chart-line-up' | 'trophy' | 'identification-card'
   | 'hard-hat' | 'hand-fist' | 'boot' | 'diamond' | 'fast-forward' | 'robot'
-  | 't-shirt' | 'pants' | 'belt' | 'coat-hanger' | 'sparkle' | 'arrows-out' | 'arrows-in';
+  | 't-shirt' | 'pants' | 'belt' | 'coat-hanger' | 'sparkle' | 'arrows-out' | 'arrows-in' | 'music-notes';
 
 const MAP: Record<IconName, React.ComponentType<any>> = {
   'arrow-right': ArrowRight,
@@ -70,6 +70,7 @@ const MAP: Record<IconName, React.ComponentType<any>> = {
   sparkle: Sparkle,
   'arrows-out': ArrowsOutSimple,
   'arrows-in': ArrowsInSimple,
+  'music-notes': MusicNotes,
 };
 
 export function Icon({

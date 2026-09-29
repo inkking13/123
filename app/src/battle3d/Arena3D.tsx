@@ -628,6 +628,22 @@ function Effects({ sim, proj, foeKeyFor }: { sim: Sim; proj: Projection; foeKeyF
       return [{ t: 'pillar', key: 'p' + key, row, col, hot }, { t: 'burst', key: 'pb' + key, at, color: hot ? '#ff7a2a' : '#dfe4ff', n: 14, speed: 3, up: 0.8, size: 0.14, flash: 0.7 }];
     }));
   }, [sim.impact.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A foe falls: a puff of bone dust and a dark ring where it stood.
+  const standing = useRef(new Set<string>());
+  useEffect(() => {
+    const now = new Set([...sim.enemies, ...sim.minions].filter((e) => e.alive).map((e) => 'e' + e.id));
+    if (!sim.enemies.length && sim.boss.hp > 0) now.add('boss');
+    for (const k of standing.current) if (!now.has(k)) {
+      const at = proj.world.get(k)?.clone();
+      if (!at) continue;
+      const boss = k === 'boss', key = 'd' + k + ':' + sim.fx.seq;
+      setTimeout(() => addFx(
+        { t: 'burst', key: key + 'b', at: at.clone().setY(0.5), color: '#d8ccb0', n: boss ? 70 : 36, speed: boss ? 3.2 : 2.2, up: 1.4, size: boss ? 0.2 : 0.14, flash: 0.35 },
+        { t: 'ring', key: key + 'r', at, color: '#3a2a3e', radius: boss ? 2.6 : 1.4 },
+      ), impactDelay(sim.fx) + 80);
+    }
+    standing.current = now;
+  });
   const arrive = (c: Extract<Fx, { t: 'comet' }>) => (at: THREE.Vector3) => {
     drop(c.key);
     if (c.heal) addFx({ t: 'burst', key: 'ha' + c.key, at: at.clone().setY(0.2), color: c.color, n: 26, speed: 0.8, up: 3, size: 0.13, flash: 0.5 }, { t: 'ring', key: 'hra' + c.key, at, color: c.color, radius: 1.1 });
@@ -671,6 +687,25 @@ function CameraRig({ sim, current, proj, closeUp, focusId, intro, orbit }: { sim
   useEffect(() => {
     if (sim.shakeSeq !== prevShake.current) { shakeAt.current = clock.elapsedTime; prevShake.current = sim.shakeSeq; }
   }, [sim.shakeSeq, clock]);
+  // Crits jolt the camera when the blow lands.
+  const critFx = useRef(sim.fx.seq);
+  useEffect(() => {
+    const f = sim.fx;
+    if (f.seq !== critFx.current && f.crit && typeof f.actor === 'number') shakeAt.current = clock.elapsedTime + impactDelay(f) / 1000;
+    critFx.current = f.seq;
+  }, [sim.fx.seq, clock]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A foe falls: push in on it for a moment.
+  const alive = useRef(new Set<string>());
+  const kill = useRef<{ at: number; where: THREE.Vector3 } | null>(null);
+  useEffect(() => {
+    const now = new Set([...sim.enemies, ...sim.minions].filter((e) => e.alive).map((e) => 'e' + e.id));
+    if (!sim.enemies.length && sim.boss.hp > 0) now.add('boss');
+    for (const k of alive.current) if (!now.has(k)) {
+      const where = proj.world.get(k);
+      if (where) { kill.current = { at: clock.elapsedTime, where: where.clone() }; shakeAt.current = clock.elapsedTime + 0.1; }
+    }
+    alive.current = now;
+  });
   const want = useMemo(() => new THREE.Vector3(), []);
   const wantLook = useMemo(() => new THREE.Vector3(), []);
   const focus = useMemo(() => new THREE.Vector3(), []);
@@ -698,6 +733,12 @@ function CameraRig({ sim, current, proj, closeUp, focusId, intro, orbit }: { sim
     else if (enemyTurn && foe) { focus.copy(foe); dist = 0.94; pull = 0.2; }
     else if (current) { const c = proj.world.get('r' + current.id); if (c) focus.copy(c); else focus.copy(tilePos(current.row, current.col)); dist = 0.97; pull = 0.12; }
     else { focus.copy(CAMERA_LOOK); }
+    const kt = kill.current ? t - kill.current.at : 99;
+    if (kt < 1.1 && kill.current) {
+      // Ease in over 0.25 s, hold, and let go.
+      const w = Math.min(1, kt / 0.25) * Math.min(1, (1.1 - kt) / 0.4);
+      focus.lerp(kill.current.where, w * 0.8); dist *= 1 - 0.18 * w; pull = Math.max(pull, 0.5 * w);
+    }
     if (closeUp) {
       // Close-up: frame whoever is acting. On a hero's turn (after moving) take in their
       // target too, so it stays on screen to tap.

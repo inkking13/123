@@ -10,6 +10,7 @@ import { Icon } from '../components/Icon';
 import { ItemIcon } from '../components/ItemIcon';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
+import { sfx } from '../audio/audio';
 
 export function ResultsScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -18,6 +19,8 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
     entrance.setValue(0);
     Animated.timing(entrance, { toValue: 1, duration: 420, useNativeDriver: true }).start();
   }, [engine.result, entrance]);
+  // A lost fight tolls here (a win already cheered on the field).
+  useEffect(() => { if (engine.result && !engine.result.win) sfx('defeat', { spread: 0 }); }, [engine.result]);
   const insets = useSafeAreaInsets();
   const res = engine.result!;
   const s = engine.sim!;
@@ -149,7 +152,7 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
                       {alive.map((r) => (
                         <Pressable
                           key={r.id}
-                          onPress={() => engine.assignLoot(i, r.id)}
+                          onPress={() => { sfx('coin'); engine.assignLoot(i, r.id); }}
                           style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 7, paddingHorizontal: 10, paddingVertical: 8 }}
                         >
                           <Text style={{ fontSize: 12, color: colors.textMuted, fontFamily: font.regular }}>{r.name}</Text>

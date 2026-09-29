@@ -4,9 +4,37 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
 import { colors, font } from '../theme/theme';
 import { GhostLink, PrimaryButton } from '../components/Buttons';
-import { Icon } from '../components/Icon';
+import { Icon, IconName } from '../components/Icon';
 import { useEngineVersion } from '../engine/useEngine';
 import { Quality, QUALITY_HINT, QUALITY_LABEL } from '../battle3d/quality';
+
+function Toggle({ icon, on, onPress, title, text }: { icon: IconName; on: boolean; onPress: () => void; title: string; text: string }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: 12,
+        borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 14, marginBottom: 10,
+        backgroundColor: colors.surface,
+      }}
+    >
+      <View style={{
+        width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: on ? colors.accentWash : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.borderStrong,
+      }}
+      >
+        <Icon name={icon} size={16} color={on ? colors.accentSoft : colors.textFaint} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 14, fontFamily: font.medium, color: colors.text }}>{title}</Text>
+        <Text style={{ fontSize: 12, color: colors.textDim, marginTop: 2, fontFamily: font.regular }}>{text}</Text>
+      </View>
+      <View style={{ width: 44, height: 26, borderRadius: 13, padding: 2, justifyContent: 'center', backgroundColor: on ? colors.accent : colors.border }}>
+        <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.text, alignSelf: on ? 'flex-end' : 'flex-start' }} />
+      </View>
+    </Pressable>
+  );
+}
 
 export function SettingsScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -22,6 +50,8 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
         <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>
           Обратная связь
         </Text>
+        <Toggle icon="speaker-high" on={engine.settings.sound} onPress={() => engine.toggleSound()} title="Звуки" text="Удары, заклинания, лечение, победа и поражение." />
+        <Toggle icon="music-notes" on={engine.settings.music} onPress={() => engine.toggleMusic()} title="Музыка" text="Своя мелодия в лагере, в бою и на боссе." />
         <Pressable
           onPress={() => engine.toggleHaptics()}
           style={{
