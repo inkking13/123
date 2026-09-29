@@ -118,7 +118,7 @@ function Vignette() {
   );
 }
 
-export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine; height: number; onFail: (e: unknown) => void }) {
+export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine; height: number; onFail: (e: unknown) => void; full?: boolean; onToggleFull?: () => void; overlay?: React.ReactNode }) {
   const { engine, sim, height, onFail, isBoss, focusId, current, reachable } = props;
   const proj = useRef(new Projection()).current;
   const quality = engine.settings.quality;
@@ -172,6 +172,20 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
         <Icon name={closeUp ? 'path' : 'target'} size={13} color="#e8e4f2" />
         <Text style={{ fontSize: 11.5, color: '#e8e4f2', fontFamily: font.medium }}>{closeUp ? 'Обзор' : 'Крупно'}</Text>
       </Pressable>
+      {props.onToggleFull ? (
+        <Pressable
+          testID="fullscreen-toggle"
+          onPress={props.onToggleFull}
+          hitSlop={8}
+          style={{
+            position: 'absolute', right: 8, top: 42, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+            backgroundColor: 'rgba(12,12,20,0.62)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+          }}
+        >
+          <Icon name={props.full ? 'arrows-in' : 'arrows-out'} size={14} color="#e8e4f2" />
+        </Pressable>
+      ) : null}
+      {props.overlay}
     </View>
   );
 }
