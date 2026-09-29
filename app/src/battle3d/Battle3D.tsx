@@ -6,6 +6,7 @@ import { qualityProfile } from './quality';
 import { Arena3D, ArenaProps, Orbit } from './Arena3D';
 import { Projection } from './projection';
 import { CAMERA_HOME } from './world';
+import { use3dProbe } from './probe3d';
 import { GameEngine } from '../engine/GameEngine';
 import { GRID_COLS, GRID_ROWS, Raider, Sim } from '../combat/types';
 import { Floaters, impactDelay, useHpFloaters } from '../components/CombatFx';
@@ -161,6 +162,7 @@ function Vignette() {
 export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine; height: number; onFail: (e: unknown) => void; full?: boolean; onToggleFull?: () => void; overlay?: React.ReactNode }) {
   const { engine, sim, height, onFail, isBoss, focusId, current, reachable } = props;
   const proj = useRef(new Projection()).current;
+  use3dProbe();
   const quality = engine.settings.quality;
   const q = useMemo(() => qualityProfile(quality), [quality]);
   // Close-up by default: on a phone the whole board makes the figures tiny.

@@ -219,6 +219,22 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
 
         {fresh ? <UnlockBanner engine={engine} f={fresh} /> : null}
 
+        {engine.safeMode3d ? (
+          <View style={{ borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 18, borderColor: colors.warn, backgroundColor: 'rgba(212,160,80,0.08)' }}>
+            <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.textMuted, fontFamily: font.regular, marginBottom: 10 }}>
+              В прошлый раз игра закрылась при показе 3D, поэтому сейчас она в облегчённом 2D-режиме. Можно включить 3D снова или поставить графику «Низкое» в настройках.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable onPress={() => engine.toggleView3d()} style={{ flex: 1, height: 34, borderRadius: 7, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 12.5, color: colors.accentSoft, fontFamily: font.medium }}>Включить 3D</Text>
+              </Pressable>
+              <Pressable onPress={() => engine.go('settings')} style={{ flex: 1, height: 34, borderRadius: 7, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 12.5, color: colors.textDim, fontFamily: font.medium }}>Настройки</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
         {engine.payrollNotice ? (
           <Pressable
             onPress={() => engine.dismissPayrollNotice()}

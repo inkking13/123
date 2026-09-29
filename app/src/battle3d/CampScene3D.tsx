@@ -9,6 +9,7 @@ import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
 import { SHEET_MODELS } from './heroFigures';
 import { Guard } from './Battle3D';
+import { use3dProbe } from './probe3d';
 import { Flame, GroundMist } from './Atmosphere';
 import { GearLook } from './gearLooks';
 
@@ -91,6 +92,7 @@ function Camp({ ids, gear }: { ids: number[]; gear: Record<number, GearLook | un
 export function CampScene3D({ ids, gear, height, quality = 'medium', onFail }: {
   ids: number[]; gear: Record<number, GearLook | undefined>; height: number; quality?: Quality; onFail: (e: unknown) => void;
 }) {
+  use3dProbe();
   const q = useMemo(() => qualityProfile(quality), [quality]);
   const camera = useMemo(() => ({ position: [0, 1.45, 4.1] as [number, number, number], fov: 38, near: 0.05, far: 40 }), []);
   return (

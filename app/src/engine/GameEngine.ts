@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { diedIn3dLastRun } from '../battle3d/probe3d';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { POOL, RECRUITS, ALL_CANDIDATES, XP_PER_LEVEL, MAX_LEVEL } from '../data/characters';
@@ -426,6 +427,8 @@ export class GameEngine {
 
   /** A boss fight opens on its title card; the first turn waits until it's done. */
   bossIntro: { name: string; place: string; line: string } | null = null;
+  /** 3D was switched off at launch because the app died inside it last time (see probe3d). */
+  safeMode3d = false;
   private introTimer: ReturnType<typeof setTimeout> | null = null;
 
   // gradual unlocks and first-fight tips
@@ -564,10 +567,11 @@ export class GameEngine {
       if (raw) this.applySave(JSON.parse(raw));
     } catch {
       // corrupt or unavailable storage — start fresh rather than crash
-    } finally {
-      this.loaded = true;
-      this.notify();
     }
+    // The phone killed the app inside a 3D view last time: start in 2D and say so.
+    if (await diedIn3dLastRun()) { this.settings.view3d = false; this.safeMode3d = true; }
+    this.loaded = true;
+    this.notify();
   }
   private scheduleSave() {
     if (!this.loaded) return;
@@ -637,6 +641,7 @@ export class GameEngine {
   }
   toggleView3d() {
     this.settings.view3d = !this.settings.view3d;
+    this.safeMode3d = false;
     this.notify();
   }
   toggleSound() {
