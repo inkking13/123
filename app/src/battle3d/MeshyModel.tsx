@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { useFrame, useLoader } from './r3f';
+import { ModelMaterial, modelMaterial } from './materials';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { GearLook, withGear } from './gearLooks';
 import { HERO_LOOKS, HeroLook } from './heroLooks';
@@ -157,6 +158,8 @@ const PROPS = {
   flask: prop(require('../../assets/models/weapon-flask.glb'), 0.6, 0, 0.02),
 };
 export type PropName = keyof typeof PROPS;
+/** Props of wood that shouldn't shine like steel. */
+const WOODEN = new Set<PropName>(['bow', 'staff', 'roundShield']);
 
 /** The Meshy model for a hero's weapon kind or off-hand, where there is one. */
 const WEAPON_PROP: Partial<Record<string, PropName>> = { sword: 'longsword', greatHammer: 'warhammer', greatAxe: 'greatAxe', dagger: 'dagger', staff: 'staff', bow: 'bow', mace: 'mace', axe: 'handAxe', orb: 'orb', flask: 'flask' };
@@ -213,7 +216,7 @@ function HeldProp({ name, hand, unit, size, fist, rest, pose, left, glow, steady
       const m = o as THREE.Mesh;
       if (m.isMesh) {
         const std = m.material as THREE.MeshStandardMaterial;
-        const lam = new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap });
+        const lam = modelMaterial(std, WOODEN.has(name) ? 'leather' : 'metal');
         if (P.shine !== undefined && glow) { lam.emissive.set(glow); lam.emissiveMap = std.map; lam.emissiveIntensity = 0.8; }
         m.material = lam;
       }
@@ -298,16 +301,14 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
   const look = useMemo(() => (HERO_LOOKS[id] ? withGear(HERO_LOOKS[id], gear) : null), [id, gear]);
   const rig = useMemo(() => {
     const scene = cloneSkinned(gltf.scene) as THREE.Group;
-    const materials: THREE.MeshLambertMaterial[] = [];
+    const materials: ModelMaterial[] = [];
     const meshes: { mesh: THREE.SkinnedMesh; rest: THREE.Matrix4 }[] = [];
     let hips: THREE.Bone | null = null; let spine: THREE.Bone | null = null; let handL: THREE.Bone | null = null; let handR: THREE.Bone | null = null;
     let headBone: THREE.Bone | null = null; let headTop: THREE.Bone | null = null;
     scene.traverse((o) => {
       const m = o as THREE.SkinnedMesh;
       if (m.isSkinnedMesh) {
-        // Lambert like the rest of the cast, so it sits in the same light.
-        const std = m.material as THREE.MeshStandardMaterial;
-        const lam = new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap });
+        const lam = modelMaterial(m.material as THREE.Material, 'skin');
         m.material = lam; materials.push(lam);
         m.frustumCulled = false;
         meshes.push({ mesh: m, rest: new THREE.Matrix4() });

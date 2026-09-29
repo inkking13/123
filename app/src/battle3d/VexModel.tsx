@@ -4,6 +4,7 @@ import { Asset } from 'expo-asset';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useFrame, useLoader } from './r3f';
+import { modelMaterial } from './materials';
 import { HeroAnim } from './HeroModel';
 import { GearLook } from './gearLooks';
 import { HeadFit, WornHelm } from './HelmModel';
@@ -36,9 +37,7 @@ function Rogue({ anim, gear }: { anim: React.MutableRefObject<HeroAnim>; gear?: 
     let src: THREE.Mesh | null = null;
     gltf.scene.traverse((o) => { if (!src && (o as THREE.Mesh).isMesh) src = o as THREE.Mesh; });
     const mesh0 = src as unknown as THREE.Mesh;
-    // Lambert like the rest of the cast, so it sits in the same light.
-    const std = mesh0.material as THREE.MeshStandardMaterial;
-    const material = new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap, side: THREE.DoubleSide });
+    const material = modelMaterial(mesh0.material as THREE.Material, 'leather', { side: THREE.DoubleSide });
     const s = makeSkeleton();
     const skinned = new THREE.SkinnedMesh(skinGeometry(mesh0.geometry), material);
     skinned.add(s.hips);

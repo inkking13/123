@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from './r3f';
 import { Quality, qualityProfile } from './quality';
 import { FrameCap } from './FrameCap';
+import { ModelEnvironment, setModelQuality } from './materials';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { HERO_LOOKS } from './heroLooks';
 import { MODEL_HEIGHT, SHEET_MODELS } from './heroFigures';
@@ -76,6 +77,7 @@ function Stage({ id, spin, gear }: { id: number; spin: React.MutableRefObject<Sp
 
 export function HeroPreview3D({ id, width, height, onFail, gear, quality = 'medium' }: { id: number; width: number; height: number; onFail: (e: unknown) => void; gear?: GearLook; quality?: Quality }) {
   const q = useMemo(() => qualityProfile(quality), [quality]);
+  setModelQuality(quality);
   const spin = useRef<Spin>({ yaw: 0.5, dragging: false, tap: false });
   const startYaw = useRef(0);
   const pan = useMemo(() => PanResponder.create({
@@ -96,6 +98,7 @@ export function HeroPreview3D({ id, width, height, onFail, gear, quality = 'medi
       <Guard onFail={onFail}>
         <Canvas key={quality} camera={camera} style={{ flex: 1 }} frameloop={q.fps ? 'demand' : 'always'} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
           <FrameCap fps={q.fps} />
+          <ModelEnvironment quality={quality} />
           <Stage id={id} spin={spin} gear={gear} />
         </Canvas>
       </Guard>

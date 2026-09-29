@@ -4,6 +4,7 @@ import { Asset } from 'expo-asset';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { Canvas, useFrame, useLoader } from './r3f';
+import { ModelEnvironment, modelMaterial, setModelQuality } from './materials';
 import { Quality, qualityProfile } from './quality';
 import { FrameCap } from './FrameCap';
 import { HeroAnim, HeroModel } from './HeroModel';
@@ -25,7 +26,7 @@ function Brazier() {
   const gltf = useLoader(GLTFLoader, BRAZIER as any) as unknown as { scene: THREE.Group };
   const scene = useMemo(() => {
     const s = gltf.scene.clone();
-    s.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { const std = m.material as THREE.MeshStandardMaterial; m.material = new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap }); } });
+    s.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { const std = m.material as THREE.MeshStandardMaterial; m.material = modelMaterial(std, 'metal'); } });
     return s;
   }, [gltf]);
   // The file is ~1.9 across with its floor at -0.81.
@@ -95,11 +96,13 @@ export function CampScene3D({ ids, gear, height, quality = 'medium', onFail }: {
 }) {
   use3dProbe();
   const q = useMemo(() => qualityProfile(quality), [quality]);
+  setModelQuality(quality);
   const camera = useMemo(() => ({ position: [0, 1.45, 4.1] as [number, number, number], fov: 38, near: 0.05, far: 40 }), []);
   return (
     <Guard onFail={onFail}>
       <Canvas key={quality} camera={camera} style={{ height }} frameloop={q.fps ? 'demand' : 'always'} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
         <FrameCap fps={q.fps} />
+          <ModelEnvironment quality={quality} />
         <Camp ids={ids} gear={gear} />
       </Canvas>
     </Guard>

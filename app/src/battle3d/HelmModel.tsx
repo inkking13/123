@@ -4,6 +4,7 @@ import { Asset } from 'expo-asset';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useLoader } from './r3f';
+import { modelMaterial } from './materials';
 
 // Meshy-made helmets worn over any hero's head. Each file is a static mesh
 // (simplified to ~17k triangles, 512 px textures), 1.9 units tall, facing +Z.
@@ -52,9 +53,7 @@ export function HelmOn({ name, head }: { name: HelmModelName; head: HeadFit }) {
     g.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) {
-        // Lambert like the rest of the cast, so it sits in the same light.
-        const std = m.material as THREE.MeshStandardMaterial;
-        m.material = new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap, side: THREE.DoubleSide });
+        m.material = modelMaterial(m.material as THREE.Material, 'metal', { side: THREE.DoubleSide });
       }
     });
     return g;
