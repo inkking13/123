@@ -86,11 +86,18 @@ export function Wardrobe({ body, pieces, bodyMeshes, materials }: {
     const bones = new Map<string, THREE.Bone>();
     for (const b of bodyMesh.skeleton.bones) bones.set(b.name, b);
     const added: THREE.SkinnedMesh[] = [];
+    // The back wall of an open hood (bind space), to trim the hair that pokes out behind it.
+    let hoodBack: number | null = null, hoodTop = Infinity;
     for (const p of pieces) {
       const g = gltfs[sets.indexOf(p.set)];
       let src: THREE.SkinnedMesh | undefined;
       g.scene.traverse((o) => { if (!src && (o as THREE.SkinnedMesh).isSkinnedMesh && (o.name === 'armour_' + p.piece || o.parent?.name === 'armour_' + p.piece)) src = o as THREE.SkinnedMesh; });
       if (!src) continue;
+      if (p.piece === 'hood' && !p.closedHelm) {
+        src.geometry.boundingBox ?? src.geometry.computeBoundingBox();
+        hoodBack = Math.max(hoodBack ?? -Infinity, src.geometry.boundingBox!.min.z);
+        hoodTop = Math.min(hoodTop, src.geometry.boundingBox!.max.y);
+      }
       const std = src.material as THREE.MeshStandardMaterial;
       // Lambert like the rest of the cast, so it sits in the same light.
       const mat = new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap });
@@ -105,20 +112,22 @@ export function Wardrobe({ body, pieces, bodyMeshes, materials }: {
     // Hide the body where the armour covers it (a closed helm takes the head too).
     const hidden = new Set<Part>(pieces.flatMap((p) => [...(COVERS[p.piece] ?? []), ...(p.piece === 'hood' && p.closedHelm ? ['head' as Part] : [])]));
     const restore: (() => void)[] = [];
-    if (hidden.size) for (const bm of bodyMeshes) {
+    if (hidden.size || hoodBack != null) for (const bm of bodyMeshes) {
       // Heroes share a body's geometry; give this one its own index to cut.
       if (!bm.userData.ownGeometry) { bm.geometry = bm.geometry.clone(); bm.userData.ownGeometry = true; }
       const geo = bm.geometry;
       const full = (geo.userData.fullIndex ??= geo.index!.array.slice()) as ArrayLike<number>;
-      const j = geo.attributes.skinIndex, w = geo.attributes.skinWeight;
-      const part: Part[] = [];
+      const j = geo.attributes.skinIndex, w = geo.attributes.skinWeight, pos = geo.attributes.position;
+      const cut: boolean[] = [];
       for (let i = 0; i < j.count; i++) {
         let best = 0; for (let k = 1; k < 4; k++) if (w.getComponent(i, k) > w.getComponent(i, best)) best = k;
-        part.push(partOf(bm.skeleton.bones[j.getComponent(i, best)]?.name ?? ''));
+        const part = partOf(bm.skeleton.bones[j.getComponent(i, best)]?.name ?? '');
+        // Under an open hood only the face shows: the back of the head and its hair go.
+        cut.push(hidden.has(part) || (part === 'head' && hoodBack != null && (pos.getZ(i) < hoodBack + 0.07 || pos.getY(i) > hoodTop - 0.08)));
       }
       const keep: number[] = [];
       for (let t = 0; t < full.length; t += 3) {
-        const n = +hidden.has(part[full[t]]) + +hidden.has(part[full[t + 1]]) + +hidden.has(part[full[t + 2]]);
+        const n = +cut[full[t]] + +cut[full[t + 1]] + +cut[full[t + 2]];
         if (n < 2) keep.push(full[t], full[t + 1], full[t + 2]);
       }
       geo.setIndex(keep);

@@ -24,7 +24,7 @@ export function TabBar({ engine }: { engine: GameEngine }) {
         position: 'absolute', left: 0, right: 0, bottom: 0,
         height: TAB_BAR_CONTENT_HEIGHT + insets.bottom,
         paddingBottom: Math.max(8, insets.bottom), paddingTop: 8, paddingHorizontal: 12,
-        flexDirection: 'row', backgroundColor: 'rgba(22,24,38,0.92)',
+        flexDirection: 'row', backgroundColor: 'rgba(22,24,38,0.98)',
         borderTopWidth: 1, borderTopColor: colors.border,
       }}
     >

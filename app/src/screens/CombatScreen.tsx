@@ -106,11 +106,15 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   // 2.5D battlefield geometry, derived from its measured width: the shared
   // grid is a floor seen from behind the party, enemies walk its far rows.
   const [fieldW, setFieldW] = useState(0);
+  /** The 3D field on the whole screen: the state panel shrinks to a strip over it. */
+  const [full, setFull] = useState(false);
   // The 3D field takes the height the panels leave free, within sensible proportions.
   const { height: winH } = useWindowDimensions();
   // What's left after the top panel and room for the action bar below it.
   const [hudH, setHudH] = useState(140);
-  const fieldH = Math.round(Math.min(fieldW * 1.5, Math.max(fieldW * 0.95, winH - insets.top - hudH - 12 - 10 - ACTION_BAR_H)));
+  const fieldH = full && use3d
+    ? Math.round(winH - insets.top - ACTION_BAR_H + 30)
+    : Math.round(Math.min(fieldW * 1.5, Math.max(fieldW * 0.95, winH - insets.top - hudH - 12 - 10 - ACTION_BAR_H)));
   const bossSize = fieldW * 0.42;
   const roomFoeSize = fieldW * 0.15;
   // Extra sky so the location's scenery shows above the enemies.
@@ -233,9 +237,9 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 14, paddingBottom: 16 }}>
+      <ScrollView scrollEnabled={!(full && use3d)} contentContainerStyle={{ paddingTop: full && use3d ? insets.top : insets.top + 12, paddingHorizontal: full && use3d ? 0 : 14, paddingBottom: full && use3d ? 0 : 16 }}>
         {/* One panel for the fight's state: the foe's health, the turn order, stagger, tilt and the enrage clock. */}
-        <View onLayout={(e) => setHudH(e.nativeEvent.layout.height)} style={{ borderWidth: 1, borderColor: GOLD_LINE, borderRadius: 12, backgroundColor: 'rgba(14,15,24,0.82)', padding: 10 }}>
+        {full && use3d ? null : (<View onLayout={(e) => setHudH(e.nativeEvent.layout.height)} style={{ borderWidth: 1, borderColor: GOLD_LINE, borderRadius: 12, backgroundColor: 'rgba(14,15,24,0.82)', padding: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             {isBossFight && bossArt ? (
               <Image source={bossArt} style={{ width: 40, height: 40, borderRadius: 8, borderWidth: 1.5, borderColor: colors.danger }} />
@@ -284,7 +288,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
             <Meter label={stunnedNow ? 'Оглушён' : 'Натиск'} labelColor={stunnedNow ? colors.warn : undefined} pct={stunnedNow ? 100 : s.stagger} color={stunnedNow ? colors.warn : colors.accent} />
             <Meter label="Тилт" pct={s.tilt} color={tiltColor} value={Math.round(s.tilt) + '%'} />
           </View>
-        </View>
+        </View>)}
 
         {/* Status banners */}
         {s.pendingCast ? (
@@ -324,7 +328,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
         ) : null}
 
         {/* Tactical grid */}
-        <View style={{ marginTop: 10, marginHorizontal: -8 }}>
+        <View style={{ marginTop: full && use3d ? 0 : 10, marginHorizontal: full && use3d ? 0 : -8 }}>
           <View onLayout={(e) => setFieldW(e.nativeEvent.layout.width)}>
           {use3d && fieldW ? (
             <Battle3D
@@ -334,6 +338,26 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               roomMonsters={roomArt ? { brute: MONSTER_LOOKS[roomArt.brute], archer: MONSTER_LOOKS[roomArt.archer], shaman: MONSTER_LOOKS[roomArt.shaman], ...ROOM_BODIES[dungeonForArt!.locationId] } : undefined}
               focusId={focusId} current={current} reachable={reachableCells} heroGear={heroGear} intro={!!engine.bossIntro}
               onFail={(e) => { console.warn('3D battlefield failed, falling back to 2.5D', e); setFailed3d(true); }}
+              full={full} onToggleFull={() => setFull((v) => !v)}
+              overlay={full ? (
+                // The foe's health and the turn order, in a strip over the field.
+                <View pointerEvents="none" style={{ position: 'absolute', left: 8, right: 44, top: 42, padding: 8, borderRadius: 10, backgroundColor: 'rgba(14,15,24,0.72)', borderWidth: 1, borderColor: GOLD_LINE }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, fontFamily: font.semibold, color: GOLD_TEXT }}>{bossLabel}</Text>
+                    <Text style={{ fontSize: 10.5, color: colors.textMuted, fontFamily: font.medium }}>{Math.round(bossPct)}% · раунд {s.round}</Text>
+                  </View>
+                  <ProgressBar pct={bossPct} color={colors.danger} height={6} />
+                  <View style={{ flexDirection: 'row', gap: 4, marginTop: 6 }}>
+                    {s.order.map((entry, i) => {
+                      const active = i === s.turnPos;
+                      const size = active ? 24 : 18;
+                      if (entry.kind === 'boss') return <View key="boss" style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: active ? colors.danger : colors.border }}><Icon name="skull" size={size * 0.55} color={active ? colors.danger : colors.textFaint} /></View>;
+                      const r = s.raiders.find((x) => x.id === entry.id);
+                      return r ? <Avatar key={'r' + r.id} id={r.candidateId} size={size} radius={size / 2} grayscale={!r.alive} style={{ borderWidth: active ? 2 : 1, borderColor: active ? roleColor[r.role] : colors.border, opacity: r.alive ? 1 : 0.4 }} /> : null;
+                    })}
+                  </View>
+                </View>
+              ) : null}
             />
           ) : (
           <View

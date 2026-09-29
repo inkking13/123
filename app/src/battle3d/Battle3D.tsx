@@ -1,9 +1,9 @@
 import React, { Component, Suspense, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, Pressable, Text, View } from 'react-native';
+import { Animated, PanResponder, Platform, Pressable, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Canvas } from './r3f';
 import { qualityProfile } from './quality';
-import { Arena3D, ArenaProps } from './Arena3D';
+import { Arena3D, ArenaProps, Orbit } from './Arena3D';
 import { Projection } from './projection';
 import { CAMERA_HOME } from './world';
 import { GameEngine } from '../engine/GameEngine';
@@ -118,20 +118,39 @@ function Vignette() {
   );
 }
 
-export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine; height: number; onFail: (e: unknown) => void }) {
+export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine; height: number; onFail: (e: unknown) => void; full?: boolean; onToggleFull?: () => void; overlay?: React.ReactNode }) {
   const { engine, sim, height, onFail, isBoss, focusId, current, reachable } = props;
   const proj = useRef(new Projection()).current;
   const quality = engine.settings.quality;
   const q = useMemo(() => qualityProfile(quality), [quality]);
   // Close-up by default: on a phone the whole board makes the figures tiny.
   const [closeUp, setCloseUp] = useState(true);
+  // Drag sideways anywhere on the field to walk the camera round the board (taps still reach tiles and foes).
+  const orbit = useRef<Orbit>({ yaw: 0 });
+  const [turned, setTurned] = useState(false);
+  const startYaw = useRef(0);
+  // A drag ends in a click on whatever is under the finger (on the web): swallow that one.
+  const dragged = useRef(0);
+  const tap = (fn: () => void) => () => { if (Date.now() - dragged.current > 250) fn(); };
+  const pan = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.2,
+    onPanResponderGrant: () => { startYaw.current = orbit.current.yaw; dragged.current = Date.now(); },
+    onPanResponderMove: (_, g) => { orbit.current.yaw = startYaw.current - g.dx * 0.012; dragged.current = Date.now(); },
+    onPanResponderRelease: () => {
+      // Keep it within one turn either way.
+      const y = orbit.current.yaw; orbit.current.yaw = Math.atan2(Math.sin(y), Math.cos(y));
+      setTurned(Math.abs(orbit.current.yaw) > 0.05);
+      dragged.current = Date.now();
+    },
+    onPanResponderTerminationRequest: () => false,
+  }), []);
   const camera = useMemo(() => ({ position: CAMERA_HOME.toArray() as [number, number, number], fov: 50, near: 0.1, far: 200 }), []);
   return (
-    <View style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: props.theme.sky[2] }}>
+    <View {...pan.panHandlers} style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: props.theme.sky[2] }}>
       <Guard onFail={onFail}>
         <Canvas key={quality} camera={camera} style={{ flex: 1 }} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
           <Suspense fallback={null}>
-            <Arena3D {...props} proj={proj} closeUp={closeUp} weather={q.weather} />
+            <Arena3D {...props} proj={proj} closeUp={closeUp} weather={q.weather} orbit={orbit} />
           </Suspense>
         </Canvas>
       </Guard>
@@ -144,17 +163,17 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
             <TileTarget
               key={row + '-' + col} proj={proj} row={row} col={col}
               enabled={reach || (sim.movePhase && isSelf)}
-              onPress={() => (isSelf ? engine.skipMove() : engine.moveRaider(row, col))}
+              onPress={tap(() => (isSelf ? engine.skipMove() : engine.moveRaider(row, col)))}
             />
           );
         }))}
         {isBoss ? (
-          <FoeOverlay proj={proj} keyName="boss" hp={sim.boss.hp} maxHp={sim.boss.maxHp} alive={sim.boss.hp > 0} isBoss sim={sim} focused={false} onPress={sim.minions.length ? () => engine.setFocus(-1) : undefined} />
+          <FoeOverlay proj={proj} keyName="boss" hp={sim.boss.hp} maxHp={sim.boss.maxHp} alive={sim.boss.hp > 0} isBoss sim={sim} focused={false} onPress={sim.minions.length ? tap(() => engine.setFocus(-1)) : undefined} />
         ) : null}
         {(isBoss ? sim.minions : sim.enemies).map((e) => (
           <FoeOverlay
             key={e.id} proj={proj} keyName={'e' + e.id} testID={'enemy-' + e.id} name={e.name} hp={e.hp} maxHp={e.maxHp} alive={e.alive}
-            isBoss={false} sim={sim} focused={e.alive && e.id === focusId} onPress={() => engine.setFocus(e.id)}
+            isBoss={false} sim={sim} focused={e.alive && e.id === focusId} onPress={tap(() => engine.setFocus(e.id))}
           />
         ))}
         {sim.raiders.map((r) => <RaiderTag key={r.id} r={r} sim={sim} proj={proj} />)}
@@ -172,6 +191,34 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
         <Icon name={closeUp ? 'path' : 'target'} size={13} color="#e8e4f2" />
         <Text style={{ fontSize: 11.5, color: '#e8e4f2', fontFamily: font.medium }}>{closeUp ? 'Обзор' : 'Крупно'}</Text>
       </Pressable>
+      {props.onToggleFull ? (
+        <Pressable
+          testID="fullscreen-toggle"
+          onPress={props.onToggleFull}
+          hitSlop={8}
+          style={{
+            position: 'absolute', right: 8, top: 42, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+            backgroundColor: 'rgba(12,12,20,0.62)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+          }}
+        >
+          <Icon name={props.full ? 'arrows-in' : 'arrows-out'} size={14} color="#e8e4f2" />
+        </Pressable>
+      ) : null}
+      {turned ? (
+        <Pressable
+          testID="camera-reset"
+          onPress={() => { orbit.current.yaw = 0; setTurned(false); }}
+          hitSlop={8}
+          style={{
+            position: 'absolute', right: 8, bottom: props.full ? 42 : 10, height: 28, paddingHorizontal: 10, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 5,
+            backgroundColor: 'rgba(12,12,20,0.62)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+          }}
+        >
+          <Icon name="arrow-left" size={12} color="#e8e4f2" />
+          <Text style={{ fontSize: 11.5, color: '#e8e4f2', fontFamily: font.medium }}>Прямо</Text>
+        </Pressable>
+      ) : null}
+      {props.overlay}
     </View>
   );
 }
