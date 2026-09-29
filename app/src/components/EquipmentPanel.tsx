@@ -17,10 +17,11 @@ const GOLD_DIM = '#4a3f2c';
 const PANEL_BG = '#12100d';
 const CELL_BG = '#1a1712';
 
-// Diablo IV layout: worn pieces down the left, jewellery and boots on the
-// right, the weapon under the portrait.
-const LEFT: GearSlotKey[] = ['helm', 'armor', 'gloves'];
-const RIGHT: GearSlotKey[] = ['trinket', 'ring', 'boots'];
+// Diablo IV layout: worn pieces head to toe down the left, the cloak, gloves and
+// jewellery on the right, both hands and the accessories under the portrait.
+const LEFT: GearSlotKey[] = ['helm', 'shoulders', 'chest', 'belt', 'pants', 'boots'];
+const RIGHT: GearSlotKey[] = ['necklace', 'cloak', 'gloves', 'ring1', 'ring2'];
+const CELL = 48;
 
 // Small rotated square used as the frame's corner rivet / title flourish.
 function Rivet({ style }: { style: object }) {
@@ -166,7 +167,7 @@ export function EquipmentPanel({ engine, c }: { engine: GameEngine; c: Candidate
   const wornKey = JSON.stringify(c.equipment);
   const gear = useMemo(() => gearLookOf(c.equipment), [wornKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const pickSlot = (k: GearSlotKey) => { setSlotKey(k); setItemId(null); };
-  const cell = (k: GearSlotKey, w = 62, h = 62) => (
+  const cell = (k: GearSlotKey, w = CELL, h = CELL) => (
     <View key={k} style={{ alignItems: 'center', gap: 2 }}>
       <SlotCell slot={k} item={by(k).equipped} w={w} h={h} active={slotKey === k} onPress={() => pickSlot(k)} />
       <Text style={{ fontSize: 9.5, color: '#a8966c', fontFamily: font.regular }}>{by(k).label}</Text>
@@ -205,7 +206,14 @@ export function EquipmentPanel({ engine, c }: { engine: GameEngine; c: Candidate
               <Text style={{ fontSize: 10, color: roleColor[c.role], fontFamily: font.regular }}>Ур. {c.level}</Text>
             </View>
           </View>
-          {cell('weapon', 132, 58)}
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {cell('weapon', 63, 52)}
+            {cell('offhand', 63, 52)}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {cell('acc1', 63, CELL)}
+            {cell('acc2', 63, CELL)}
+          </View>
         </View>
 
         <View style={{ gap: 6 }}>

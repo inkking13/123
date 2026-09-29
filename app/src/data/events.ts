@@ -1,5 +1,5 @@
 import type { GameEngine } from '../engine/GameEngine';
-import { GEAR, SLOT_ORDER } from './gear';
+import { GEAR, SLOT_ORDER, GEAR_KINDS, slotsForKind } from './gear';
 import { GearSlotKey } from './types';
 
 export interface EventOption {
@@ -28,12 +28,13 @@ function pick<T>(arr: T[]): T {
 
 function freeGearEntries(e: GameEngine) {
   const rows: { slot: GearSlotKey; id: string; name: string; free: number }[] = [];
-  for (const slot of SLOT_ORDER) {
-    for (const o of GEAR[slot]) {
+  for (const kind of GEAR_KINDS) {
+    const slot = slotsForKind(kind)[0];
+    for (const o of GEAR[kind]) {
       if (o.id === 'none') continue;
       const owned = e.itemOwned(o.id);
       if (owned <= 0) continue;
-      const wornBy = e.pool.filter((c) => c.equipment[slot] === o.id).length;
+      const wornBy = e.wornCount(o.id);
       const free = owned - wornBy;
       if (free > 0) rows.push({ slot, id: o.id, name: o.name, free });
     }

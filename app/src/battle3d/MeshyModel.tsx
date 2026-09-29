@@ -8,6 +8,7 @@ import { useFrame, useLoader } from './r3f';
 import { HeroAnim, HeroModel } from './HeroModel';
 import { GearLook, withGear } from './gearLooks';
 import { HERO_LOOKS, HeroLook } from './heroLooks';
+import { Wardrobe, WardrobeBody } from './Wardrobe';
 import { HeadFit, WornHelm, tuckHair } from './HelmModel';
 
 // Race base bodies from Meshy: rigged bipeds with their own animation clips.
@@ -50,6 +51,8 @@ interface Body {
   hit?: string;
   /** What a body with no hero look holds. */
   hold?: { right?: PropName; left?: PropName };
+  /** Which fitted armour-set pieces this body can wear (see Wardrobe). */
+  wardrobe?: WardrobeBody;
 }
 
 /** Meshy's combat set runs 2–4 s a clip; sped up so the blow lands inside a turn. */
@@ -58,7 +61,7 @@ const COMBAT_SPEED = { Attack: 2, Double_Combo_Attack: 2.1, Triple_Combo_Attack:
 export const BODIES = {
   // Female elf: idle, walk, run, five spell casts, dance, and the combat set.
   elf: {
-    url: url(require('../../assets/models/elf.glb')), height: 1.2, fist: 0.08,
+    url: url(require('../../assets/models/elf.glb')), height: 1.2, wardrobe: 'elf', fist: 0.08,
     idle: 'Idle', walk: 'walk', run: 'run', act: { default: 'cast' }, flourish: 'dance',
     speed: { ...COMBAT_SPEED, cast1: 1.8, cast2: 1.6, cast4: 1.3, cast6: 1.3 },
     guard: 'Block1', death: 'Dead', hit: 'Hit_Reaction',
@@ -66,14 +69,7 @@ export const BODIES = {
   // Male elf (Meshy rig, mesh cut to ~14k triangles): breathing idle, walk, run, a proud strut and eight spell casts.
   // Fingers curled into a fist in the file; block, flinch and fall taken from the female elf.
   elfMale: {
-    url: url(require('../../assets/models/elf-male.glb')), height: 1.2, fist: 0.08,
-    idle: 'Long_Breathe_and_Look_Around', walk: 'Walking', run: 'Running', act: { default: 'mage_soell_cast' }, flourish: 'Proud_Strut',
-    speed: { ...COMBAT_SPEED, mage_soell_cast: 1.4, mage_soell_cast_1: 1.8, mage_soell_cast_2: 1.6, mage_soell_cast_3: 1.6, mage_soell_cast_4: 1.3, mage_soell_cast_6: 1.3, mage_soell_cast_7: 1.4, Proud_Strut: 1.2 },
-    guard: 'Block1', death: 'Dead', hit: 'Hit_Reaction',
-  },
-  // The male elf in the owner's arcane robe (hood, robe, cloak, gloves, trousers, boots), skinned like the leather set.
-  elfMaleArcane: {
-    url: url(require('../../assets/models/faelar-arcane.glb')), height: 1.2, fist: 0.08,
+    url: url(require('../../assets/models/elf-male.glb')), height: 1.2, wardrobe: 'elf-male', fist: 0.08,
     idle: 'Long_Breathe_and_Look_Around', walk: 'Walking', run: 'Running', act: { default: 'mage_soell_cast' }, flourish: 'Proud_Strut',
     speed: { ...COMBAT_SPEED, mage_soell_cast: 1.4, mage_soell_cast_1: 1.8, mage_soell_cast_2: 1.6, mage_soell_cast_3: 1.6, mage_soell_cast_4: 1.3, mage_soell_cast_6: 1.3, mage_soell_cast_7: 1.4, Proud_Strut: 1.2 },
     guard: 'Block1', death: 'Dead', hit: 'Hit_Reaction',
@@ -86,32 +82,7 @@ export const BODIES = {
   },
   // Human male: relaxed idle, combat stance, sword attack, blade spins, eight spell casts, and the combat set.
   human: {
-    url: url(require('../../assets/models/human.glb')), height: 1.12, fist: 0.11,
-    idle: 'Idle', walk: 'walk', run: 'run',
-    act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
-    speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
-    guard: 'Block1', flourish: 'spinjump', death: 'Dead', hit: 'Hit_Reaction',
-  },
-  // The human body dressed in the leather set (hood, jerkin, cloak, gloves, trousers, boots), each piece
-  // skinned to the same skeleton from the nearest body vertex; only the head is left of the body itself.
-  humanLeather: {
-    url: url(require('../../assets/models/vex-leather.glb')), height: 1.12, fist: 0.11,
-    idle: 'Idle', walk: 'walk', run: 'run',
-    act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
-    speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
-    guard: 'Block1', flourish: 'spinjump', death: 'Dead', hit: 'Hit_Reaction',
-  },
-  // The human body in the owner's knight armour, closed helm and all (nothing of the body shows).
-  humanKnight: {
-    url: url(require('../../assets/models/roderick-knight.glb')), height: 1.12, fist: 0.11,
-    idle: 'Idle', walk: 'walk', run: 'run',
-    act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
-    speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
-    guard: 'Block1', flourish: 'spinjump', death: 'Dead', hit: 'Hit_Reaction',
-  },
-  // The human body in the owner's templar armour: closed helm, white tabard with the red cross, red cloak.
-  humanTemplar: {
-    url: url(require('../../assets/models/kaelen-templar.glb')), height: 1.12, fist: 0.11,
+    url: url(require('../../assets/models/human.glb')), height: 1.12, wardrobe: 'human', fist: 0.11,
     idle: 'Idle', walk: 'walk', run: 'run',
     act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
     speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
@@ -389,6 +360,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     const unit = handR ? 1 / new THREE.Vector3().setFromMatrixScale((handR as THREE.Bone).matrixWorld).x : 1;
     return { scene, unit, restR, restL, poseR, poseL, steady: [] as Steady[], materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
+  const bodyMeshes = useMemo(() => rig.meshes.map((m) => m.mesh), [rig]);
 
   // Meshy-made things in hand: the hero's own pick, else the model for their weapon and off-hand.
   const main = opts.weapon ?? (look ? WEAPON_PROP[look.weapon] : B.hold?.right);
@@ -508,6 +480,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       {main && mainHand ? <React.Suspense fallback={null}><HeldProp name={main} hand={mainHand} unit={rig.unit} size={B.propScale ?? 1} fist={B.fist} steady={rig.steady} rest={bow ? rig.restL : rig.restR} pose={bow ? rig.poseL : rig.poseR} left={bow} glow={glow} /></React.Suspense> : null}
       {off && rig.handL ? <React.Suspense fallback={null}><HeldProp name={off} hand={rig.handL} unit={rig.unit} size={B.propScale ?? 1} fist={B.fist} steady={rig.steady} rest={rig.restL} pose={rig.poseL} left glow={glow} /></React.Suspense> : null}
       <WornHelm name={gear?.helm?.model} head={rig.head} />
+      {B.wardrobe && gear?.pieces?.length ? <React.Suspense fallback={null}><Wardrobe body={B.wardrobe} pieces={gear.pieces} bodyMeshes={bodyMeshes} materials={rig.materials} /></React.Suspense> : null}
     </group>
   );
 }
