@@ -115,3 +115,19 @@ for (const set of ARMOUR_SETS) for (const item of ARMOUR_ITEMS) {
   });
 }
 export const ARMOUR_IDS: string[] = ARMOUR_SETS.flatMap((s) => ARMOUR_ITEMS.map((i) => armourId(s.id, i)));
+
+/** The set each of the starting five wears from the first screen (by candidate id). */
+export const STARTING_OUTFITS: Record<number, ArmourSetId> = {
+  0: 'knight', // Каелен, the tank: plate
+  2: 'arcane', // Фаэлар, the healer
+  4: 'leather', // Векс, the assassin
+  5: 'templar', // Громмаш
+  6: 'leather', // Сильвана, the archer
+};
+
+/** Put a hero's starting set on them: every armour slot that is still empty. */
+export function dressInStartingSet(id: number, equipment: Record<string, string>): void {
+  const set = STARTING_OUTFITS[id];
+  if (!set) return;
+  for (const item of ARMOUR_ITEMS) { const slot = ITEM_KIND[item]; if (!equipment[slot] || equipment[slot] === 'none') equipment[slot] = armourId(set, item); }
+}

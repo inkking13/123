@@ -22,7 +22,10 @@ import { CURIOS } from '../data/curios';
 import { EventOption, OFFICE_EVENTS, STAFF_EVENTS } from '../data/events';
 import { BARKS, barkMoment } from '../data/barks';
 import { GearIconId as ItemIconId } from '../data/armourSets';
-import { ARMOUR_IDS, RETIRED_ARMOUR_IDS } from '../data/armourSets';
+import { ARMOUR_IDS, RETIRED_ARMOUR_IDS, STARTING_OUTFITS, dressInStartingSet } from '../data/armourSets';
+
+/** A starting hero's slots: empty but for their armour set. */
+function startingEquipment(id: number) { const e = emptyEquipment(); dressInStartingSet(id, e); return e; }
 import { FEATURES, FEATURE_ORDER, Feature, Tip } from '../data/features';
 import { IconName } from '../components/Icon';
 import type { Quality } from '../battle3d/quality';
@@ -130,6 +133,8 @@ interface SaveData {
   pool: { id: number; level: number; xp: number; equipment: Record<GearSlotKey, string>; talents: (string | null)[]; classId: string | null; professionId: string | null; professionLevel: number; professionXp: number; morale: number }[];
   selected: number[];
   inventoryCounts: Record<string, number>;
+  /** Set once the starting five have been put in their armour sets. */
+  outfitted?: boolean;
   reagentCounts: Record<string, number>;
   gold: number;
   dungeonId: string;
@@ -440,7 +445,7 @@ export class GameEngine {
   private loaded = false;
 
   constructor() {
-    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: emptyEquipment(), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
+    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: startingEquipment(c.id), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
     this.selected = new Set([0, 2, 4, 5, 6]);
     this.inventoryCounts = { ...STARTING_INVENTORY };
   }
@@ -481,6 +486,7 @@ export class GameEngine {
       raises: this.raises,
       feud: this.feud,
       strikeTrips: this.strikeTrips,
+      outfitted: true,
     };
   }
   private applySave(data: SaveData) {
@@ -508,6 +514,19 @@ export class GameEngine {
     for (const id of ARMOUR_IDS) if (this.inventoryCounts[id] === undefined) this.inventoryCounts[id] = 1;
     // Shoulders, cloaks, belts and boots of the sets are now part of the torso and legs items.
     for (const id of RETIRED_ARMOUR_IDS) delete this.inventoryCounts[id];
+    // Saves from before the starting outfits: dress the starting five in any empty armour slot,
+    // adding the pieces to the stash where the guild has none spare.
+    if (!data.outfitted) for (const c of this.pool) {
+      if (!(c.id in STARTING_OUTFITS)) continue;
+      const before = { ...c.equipment };
+      dressInStartingSet(c.id, c.equipment);
+      for (const slot of Object.keys(c.equipment) as GearSlotKey[]) {
+        const id = c.equipment[slot];
+        if (id === before[slot]) continue;
+        const worn = this.pool.filter((o) => Object.values(o.equipment).includes(id)).length;
+        if ((this.inventoryCounts[id] ?? 0) < worn) this.inventoryCounts[id] = worn;
+      }
+    }
     if (data.reagentCounts) this.reagentCounts = data.reagentCounts;
     if (typeof data.gold === 'number') this.gold = data.gold;
     if (data.dungeonId) this.dungeonId = data.dungeonId;
@@ -559,7 +578,7 @@ export class GameEngine {
   }
   async resetProgress() {
     if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
-    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: emptyEquipment(), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
+    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: startingEquipment(c.id), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
     this.selected = new Set([0, 2, 4, 5, 6]);
     this.inventoryCounts = { ...STARTING_INVENTORY };
     this.reagentCounts = {};

@@ -1,5 +1,5 @@
 import { GearKind, GearOption, GearSlotKey } from './types';
-import { ARMOUR_GEAR, ARMOUR_IDS, RETIRED_ARMOUR_IDS } from './armourSets';
+import { ARMOUR_GEAR, ARMOUR_IDS, RETIRED_ARMOUR_IDS, STARTING_OUTFITS, armourId, ARMOUR_ITEMS } from './armourSets';
 
 export interface LootDrop {
   /** The kind of item (not the slot it goes in). */
@@ -219,8 +219,9 @@ export const UNIQUE_BOSS_LOOT_EXTRA: Record<string, LootDrop> = {
 
 // Starting stash — the guild owns exactly one of each, so the very first
 // gearing decision (who gets it) already matters.
-// Plus one of every piece of the four armour sets.
-export const STARTING_INVENTORY: Record<string, number> = { w1: 1, a1: 1, t1: 1, ...Object.fromEntries(ARMOUR_IDS.map((id) => [id, 1])) };
+// Plus every armour set, as many of each as the starting five wear (and at least one).
+const outfitCount = (id: string) => Math.max(1, Object.values(STARTING_OUTFITS).filter((s) => ARMOUR_ITEMS.some((i) => armourId(s, i) === id)).length);
+export const STARTING_INVENTORY: Record<string, number> = { w1: 1, a1: 1, t1: 1, ...Object.fromEntries(ARMOUR_IDS.map((id) => [id, outfitCount(id)])) };
 
 // Boss kills drop from the rarer tiers — a real, ownable item added to the
 // guild's shared inventory, not an infinite catalog entry.
