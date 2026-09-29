@@ -131,6 +131,8 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
             <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>Дележ добычи</Text>
             {res.loot.map((item, i) => {
               const assignedRaider = item.assigned !== null ? s.raiders.find((r) => r.id === item.assigned) : null;
+              // A worn armour-set piece isn't swapped out: then the item waits in the stash.
+              const worn = assignedRaider ? Object.values(engine.pool.find((c) => c.id === assignedRaider.candidateId)?.equipment ?? {}).includes(item.gearId) : false;
               return (
                 <View key={i} style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 8 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -141,7 +143,7 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
                     </View>
                   </View>
                   {item.assigned !== null ? (
-                    <Text style={{ fontSize: 12.5, color: colors.textDim, fontFamily: font.regular }}>Экипировано: {assignedRaider?.name}</Text>
+                    <Text style={{ fontSize: 12.5, color: colors.textDim, fontFamily: font.regular }}>{worn ? 'Экипировано: ' + assignedRaider?.name : 'Досталось: ' + assignedRaider?.name + ' · лежит на складе, сет не снят'}</Text>
                   ) : (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                       {alive.map((r) => (

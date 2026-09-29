@@ -22,7 +22,7 @@ import { CURIOS } from '../data/curios';
 import { EventOption, OFFICE_EVENTS, STAFF_EVENTS } from '../data/events';
 import { BARKS, barkMoment } from '../data/barks';
 import { GearIconId as ItemIconId } from '../data/armourSets';
-import { ARMOUR_IDS, RETIRED_ARMOUR_IDS, STARTING_OUTFITS, dressInStartingSet } from '../data/armourSets';
+import { ARMOUR_IDS, RETIRED_ARMOUR_IDS, STARTING_OUTFITS, armourOf, dressInStartingSet } from '../data/armourSets';
 
 /** A starting hero's slots: empty but for their armour set. */
 function startingEquipment(id: number) { const e = emptyEquipment(); dressInStartingSet(id, e); return e; }
@@ -3081,7 +3081,8 @@ export class GameEngine {
     this.everAssignedLoot = true;
     this.inventoryCounts[item.gearId] = (this.inventoryCounts[item.gearId] || 0) + 1;
     const candidate = this.pool.find((c) => c.id === raider.candidateId);
-    if (candidate) { const slots = slotsForKind(item.slot); const s2 = slots.find((x) => candidate.equipment[x] === 'none') ?? slots[0]; candidate.equipment[s2] = item.gearId; }
+    // Into a free slot, or over an ordinary item; a worn armour-set piece stays on (the loot waits in the stash).
+    if (candidate) { const slots = slotsForKind(item.slot); const s2 = slots.find((x) => candidate.equipment[x] === 'none') ?? slots.find((x) => !armourOf(candidate.equipment[x])); if (s2) candidate.equipment[s2] = item.gearId; }
     this.adjustMorale(raider.candidateId, raider.trait === 'legend' ? 20 : 15);
     for (const o of this.sim!.raiders) {
       if (o.id === raider.id) continue;
