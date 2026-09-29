@@ -1,4 +1,5 @@
 import { GearKind, GearOption, GearSlotKey } from './types';
+import { ARMOUR_GEAR, ARMOUR_IDS } from './armourSets';
 
 export interface LootDrop {
   /** The kind of item (not the slot it goes in). */
@@ -120,6 +121,9 @@ export const GEAR: Record<GearKind, GearOption[]> = {
   ],
 };
 
+// The armour-set pieces join their slot kinds' catalogues.
+for (const [kind, list] of Object.entries(ARMOUR_GEAR) as [GearKind, GearOption[]][]) GEAR[kind].push(...list);
+
 // Guaranteed unique drop on a dungeon's FIRST boss kill — one weapon, one
 // armor and one trinket per location, cycling through that location's three
 // dungeons so every single boss (not just the anchor ones) is worth farming.
@@ -215,7 +219,8 @@ export const UNIQUE_BOSS_LOOT_EXTRA: Record<string, LootDrop> = {
 
 // Starting stash — the guild owns exactly one of each, so the very first
 // gearing decision (who gets it) already matters.
-export const STARTING_INVENTORY: Record<string, number> = { w1: 1, a1: 1, t1: 1 };
+// Plus one of every piece of the four armour sets.
+export const STARTING_INVENTORY: Record<string, number> = { w1: 1, a1: 1, t1: 1, ...Object.fromEntries(ARMOUR_IDS.map((id) => [id, 1])) };
 
 // Boss kills drop from the rarer tiers — a real, ownable item added to the
 // guild's shared inventory, not an infinite catalog entry.

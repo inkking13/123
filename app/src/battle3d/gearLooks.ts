@@ -1,8 +1,11 @@
 import { GearSlotKey } from '../data/types';
-import { SLOT_KIND, slotGear } from '../data/gear';
+import { SLOT_KIND, SLOT_ORDER, slotGear } from '../data/gear';
 import { RARITY_COLOR, rarityOf } from '../data/gearInfo';
 import { HeroLook, Weapon } from './heroLooks';
 import type { HelmModelName } from './HelmModel';
+import type { WornPiece } from './Wardrobe';
+import { armourOf } from '../data/armourSets';
+
 
 // What worn gear looks like on a low-poly hero: each item maps to a piece
 // kind (a horned helm, a chain shirt, clawed gloves…) and carries its
@@ -26,6 +29,8 @@ export interface GearLook {
   ring?: string;
   /** Colour of the rarest piece worn (the pedestal glows with it). */
   best?: string;
+  /** Armour-set pieces worn, drawn on Meshy bodies that can wear them. */
+  pieces?: WornPiece[];
 }
 
 const WEAPON: Record<string, Weapon> = {
@@ -78,6 +83,9 @@ export function gearLookOf(equipment: Partial<Record<GearSlotKey, string>> | und
     const i = RANK.indexOf(rarityOf(o));
     if (i > best) { best = i; g.best = RARITY_COLOR[rarityOf(o)]; }
   }
+  const pieces: WornPiece[] = [];
+  for (const slot of SLOT_ORDER) { const a = armourOf(equipment[slot]); if (a) pieces.push({ set: a.set.id, piece: a.piece, closedHelm: a.set.closedHelm }); }
+  if (pieces.length) g.pieces = pieces;
   return g;
 }
 

@@ -48,7 +48,7 @@ export interface GearOption {
   wardMult?: number;
   cdMult?: number;
   desc: string;
-  icon?: import('./itemIcons').ItemIconId;
+  icon?: import('./armourSets').GearIconId;
   /** Gold price at the camp trader. Absent (or 'none') means not sold. */
   price?: number;
 }
