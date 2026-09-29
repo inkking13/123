@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Animated, Easing, Image, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine, TurnActionKey } from '../engine/GameEngine';
 import { colors, font, roleColor } from '../theme/theme';
@@ -52,6 +52,25 @@ function Banner({ tone, title, text }: { tone: 'danger' | 'warn' | 'accent'; tit
   );
 }
 
+/** The gold trim the gear screen uses, for the fight's panels. */
+const GOLD_LINE = 'rgba(201,163,107,0.45)';
+const GOLD_TEXT = '#e6cf9c';
+/** Height kept free under the field for the action bar (a coaching tip may cover a little more). */
+const ACTION_BAR_H = 190;
+
+/** A labelled slim bar for the fight panel. */
+function Meter({ label, labelColor, pct, color, value }: { label: string; labelColor?: string; pct: number; color: string; value?: string }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+        <Text style={{ fontSize: 10, letterSpacing: 0.6, textTransform: 'uppercase', color: labelColor ?? colors.textFaint, fontFamily: font.medium }}>{label}</Text>
+        {value ? <Text style={{ fontSize: 10, color: colors.textDim, fontVariant: ['tabular-nums'], fontFamily: font.regular }}>{value}</Text> : null}
+      </View>
+      <ProgressBar pct={pct} color={color} height={5} />
+    </View>
+  );
+}
+
 const ENEMY_ICON: Record<EnemyRole, IconName> = { brute: 'shield', archer: 'target', shaman: 'flask' };
 
 export function CombatScreen({ engine }: { engine: GameEngine }) {
@@ -87,6 +106,11 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   // 2.5D battlefield geometry, derived from its measured width: the shared
   // grid is a floor seen from behind the party, enemies walk its far rows.
   const [fieldW, setFieldW] = useState(0);
+  // The 3D field takes the height the panels leave free, within sensible proportions.
+  const { height: winH } = useWindowDimensions();
+  // What's left after the top panel and room for the action bar below it.
+  const [hudH, setHudH] = useState(140);
+  const fieldH = Math.round(Math.min(fieldW * 1.5, Math.max(fieldW * 0.95, winH - insets.top - hudH - 12 - 10 - ACTION_BAR_H)));
   const bossSize = fieldW * 0.42;
   const roomFoeSize = fieldW * 0.15;
   // Extra sky so the location's scenery shows above the enemies.
@@ -210,55 +234,56 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 14, paddingBottom: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {isBossFight && bossArt ? (
-            <Image source={bossArt} style={{ width: 46, height: 46, borderRadius: 8, borderWidth: 1.5, borderColor: colors.danger }} />
-          ) : null}
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-              <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, fontFamily: font.medium, color: colors.text }}>{bossLabel}</Text>
-              <Text style={{ fontSize: 11, color: colors.textDim, fontVariant: ['tabular-nums'], fontFamily: font.regular }}>{Math.round(bossPct)}%</Text>
+        {/* One panel for the fight's state: the foe's health, the turn order, stagger, tilt and the enrage clock. */}
+        <View onLayout={(e) => setHudH(e.nativeEvent.layout.height)} style={{ borderWidth: 1, borderColor: GOLD_LINE, borderRadius: 12, backgroundColor: 'rgba(14,15,24,0.82)', padding: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {isBossFight && bossArt ? (
+              <Image source={bossArt} style={{ width: 40, height: 40, borderRadius: 8, borderWidth: 1.5, borderColor: colors.danger }} />
+            ) : null}
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
+                <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, fontFamily: font.semibold, color: GOLD_TEXT }}>{bossLabel}</Text>
+                <Text style={{ fontSize: 11, color: colors.textMuted, fontVariant: ['tabular-nums'], fontFamily: font.medium }}>{Math.round(bossPct)}%</Text>
+              </View>
+              <ProgressBar pct={bossPct} color={colors.danger} height={9} />
             </View>
-            <ProgressBar pct={bossPct} color={colors.danger} height={8} />
           </View>
-        </View>
 
-        {/* Stagger meter + enrage clock */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 7 }}>
-          <Text style={{ fontSize: 10, letterSpacing: 0.6, textTransform: 'uppercase', color: stunnedNow ? colors.warn : colors.textFaint, width: 58, fontFamily: font.regular }}>
-            {stunnedNow ? 'Оглушён' : 'Натиск'}
-          </Text>
-          <View style={{ flex: 1 }}>
-            <ProgressBar pct={stunnedNow ? 100 : s.stagger} color={stunnedNow ? colors.warn : colors.accent} height={4} />
-          </View>
-          <Text style={{ fontSize: 10.5, color: enraged ? colors.danger : colors.textFaint, fontFamily: enraged ? font.medium : font.regular, fontVariant: ['tabular-nums'] }}>
-            {enraged ? 'Ярость · урон ×' + engine.enrageMult().toFixed(2) : 'Раунд ' + s.round + ' · ярость через ' + (s.enrageAt - s.round)}
-          </Text>
-        </View>
-
-        {/* Turn queue */}
-        <View style={{ flexDirection: 'row', gap: 5, marginTop: 12, marginBottom: 4 }}>
-          {s.order.map((entry, i) => {
-            const active = i === s.turnPos;
-            if (entry.kind === 'boss') {
+          {/* Turn queue: whoever acts now is bigger and ringed in their colour. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}>
+            {s.order.map((entry, i) => {
+              const active = i === s.turnPos;
+              const size = active ? 40 : 32;
+              if (entry.kind === 'boss') {
+                return (
+                  <View key="boss" style={{
+                    width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center',
+                    borderWidth: active ? 2 : 1, borderColor: active ? colors.danger : colors.borderStrong,
+                    backgroundColor: active ? 'rgba(209,104,92,0.22)' : 'rgba(255,255,255,0.03)',
+                  }}>
+                    <Icon name="skull" size={active ? 18 : 14} color={active ? colors.danger : colors.textFaint} />
+                  </View>
+                );
+              }
+              const r = s.raiders.find((x) => x.id === entry.id);
+              if (!r) return null;
               return (
-                <View key="boss" style={{
-                  width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
-                  borderWidth: active ? 2 : 1, borderColor: active ? colors.danger : colors.borderStrong,
-                  backgroundColor: active ? 'rgba(209,104,92,0.18)' : 'transparent',
-                }}>
-                  <Icon name="skull" size={14} color={active ? colors.danger : colors.textFaint} />
+                <View key={'r' + r.id} style={{ opacity: r.alive ? (active || i > s.turnPos ? 1 : 0.55) : 0.3 }}>
+                  <Avatar id={r.candidateId} size={size} radius={size / 2} grayscale={!r.alive} style={{ borderWidth: active ? 2 : 1, borderColor: active ? roleColor[r.role] : colors.border }} />
                 </View>
               );
-            }
-            const r = s.raiders.find((x) => x.id === entry.id);
-            if (!r) return null;
-            return (
-              <View key={'r' + r.id} style={{ opacity: r.alive ? 1 : 0.3 }}>
-                <Avatar id={r.candidateId} size={30} radius={15} grayscale={!r.alive} style={active ? { borderWidth: 2, borderColor: roleColor[r.role] } : undefined} />
-              </View>
-            );
-          })}
+            })}
+            <View style={{ flex: 1 }} />
+            <Text style={{ fontSize: 10.5, textAlign: 'right', color: enraged ? colors.danger : colors.textFaint, fontFamily: enraged ? font.semibold : font.regular, fontVariant: ['tabular-nums'] }}>
+              {enraged ? 'Ярость\n×' + engine.enrageMult().toFixed(2) : 'Раунд ' + s.round + '\nярость через ' + (s.enrageAt - s.round)}
+            </Text>
+          </View>
+
+          {/* Stagger and tilt side by side. */}
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
+            <Meter label={stunnedNow ? 'Оглушён' : 'Натиск'} labelColor={stunnedNow ? colors.warn : undefined} pct={stunnedNow ? 100 : s.stagger} color={stunnedNow ? colors.warn : colors.accent} />
+            <Meter label="Тилт" pct={s.tilt} color={tiltColor} value={Math.round(s.tilt) + '%'} />
+          </View>
         </View>
 
         {/* Status banners */}
@@ -298,38 +323,12 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
           </View>
         ) : null}
 
-        {/* Tilt */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
-          <Text style={{ fontSize: 10.5, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Тилт</Text>
-          <View style={{ flex: 1 }}>
-            <ProgressBar pct={s.tilt} color={tiltColor} height={5} />
-          </View>
-          <Text style={{ fontSize: 11, color: colors.textDim, width: 30, textAlign: 'right', fontVariant: ['tabular-nums'], fontFamily: font.regular }}>{Math.round(s.tilt)}%</Text>
-        </View>
-
         {/* Tactical grid */}
-        <View style={{ marginTop: 14 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ fontSize: 10.5, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textFaint, fontFamily: font.regular }}>Поле боя</Text>
-              {webgl && !failed3d ? (
-                <Pressable
-                  testID="toggle-3d"
-                  onPress={() => engine.toggleView3d()}
-                  style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, borderWidth: 1, borderColor: use3d ? colors.accent : colors.borderStrong, backgroundColor: use3d ? colors.accentWash : 'transparent' }}
-                >
-                  <Text style={{ fontSize: 10, color: use3d ? colors.accentSoft : colors.textDim, fontFamily: font.medium }}>{use3d ? '3D' : '2.5D'}</Text>
-                </Pressable>
-              ) : null}
-            </View>
-            <Text style={{ fontSize: 10.5, color: colors.textFaint, fontFamily: font.regular }}>
-              {isBossFight ? (s.minions.some((m) => m.alive) ? 'Нажмите на скелета или босса, чтобы выбрать цель' : 'Ближний бой — вплотную к врагу') : 'Нажмите на врага, чтобы выбрать цель'}
-            </Text>
-          </View>
+        <View style={{ marginTop: 10, marginHorizontal: -8 }}>
           <View onLayout={(e) => setFieldW(e.nativeEvent.layout.width)}>
           {use3d && fieldW ? (
             <Battle3D
-              engine={engine} sim={s} theme={theme} height={Math.round(fieldW * 1.12)} isBoss={isBossFight}
+              engine={engine} sim={s} theme={theme} height={fieldH} isBoss={isBossFight}
               bossArt={bossArt} roomArt={roomArt ? { brute: MONSTER_ART[roomArt.brute], archer: MONSTER_ART[roomArt.archer], shaman: MONSTER_ART[roomArt.shaman] } : undefined}
               bossMonster={engine.inArena ? ARENA_CHAMPION : dungeonForArt && BOSS_ART[dungeonForArt.id] ? MONSTER_LOOKS[BOSS_ART[dungeonForArt.id]] : undefined}
               roomMonsters={roomArt ? { brute: MONSTER_LOOKS[roomArt.brute], archer: MONSTER_LOOKS[roomArt.archer], shaman: MONSTER_LOOKS[roomArt.shaman], ...ROOM_BODIES[dungeonForArt!.locationId] } : undefined}
@@ -487,6 +486,16 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
             ) : null}
           </View>
           )}
+          {webgl && !failed3d ? (
+            <Pressable
+              testID="toggle-3d"
+              onPress={() => engine.toggleView3d()}
+              hitSlop={8}
+              style={{ position: 'absolute', left: 10, top: 10, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: GOLD_LINE, backgroundColor: 'rgba(14,15,24,0.7)' }}
+            >
+              <Text style={{ fontSize: 11, color: GOLD_TEXT, fontFamily: font.semibold }}>{use3d ? '3D' : '2.5D'}</Text>
+            </Pressable>
+          ) : null}
           </View>
         </View>
 
@@ -502,7 +511,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
         })()}
 
         {/* Combat log */}
-        <View style={{ marginTop: 14, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, minHeight: 90 }}>
+        <View style={{ marginTop: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, backgroundColor: 'rgba(14,15,24,0.6)' }}>
           {s.log.length === 0 ? (
             <Text style={{ fontSize: 12, color: colors.textFaint, fontFamily: font.regular }}>Бой начинается…</Text>
           ) : (
@@ -524,7 +533,18 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
       {/* Action panel */}
       <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: 'rgba(14,15,24,0.9)', paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(14, insets.bottom + 10) }}>
         {!s.over ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Text numberOfLines={2} style={{ flex: 1, fontSize: 11.5, lineHeight: 15, color: colors.textDim, fontFamily: font.regular }}>
+              {!current || engine.settings.auto ? '' : (
+                <>
+                  <Text style={{ color: GOLD_TEXT, fontFamily: font.semibold }}>{current.name}</Text>
+                  {s.movePhase ? (reachableCells.length ? ' · выберите клетку или пропустите' : ' · нет свободных клеток рядом')
+                    : pickingTarget ? ' · выберите цель'
+                    : isBossFight ? (s.minions.some((m) => m.alive) ? ' · цель: скелет или босс' : ' · ближний бой вплотную к врагу')
+                    : ' · нажмите на врага, чтобы выбрать цель'}
+                </>
+              )}
+            </Text>
             <Chip testID="speed-toggle" label={engine.settings.speed >= 2 ? '×2' : '×1'} icon="fast-forward" on={engine.settings.speed >= 2} onPress={() => engine.toggleSpeed()} />
             <Chip testID="auto-toggle" label="Авто" icon="robot" on={engine.settings.auto} onPress={() => { setPickingTarget(null); engine.toggleAuto(); }} />
           </View>
@@ -569,15 +589,9 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
             <SecondaryButton label="Взять управление" height={40} onPress={() => engine.toggleAuto()} />
           </View>
         ) : s.movePhase ? (
-          <>
-            <Text style={{ fontSize: 11, color: colors.textDim, marginBottom: 8, fontFamily: font.regular }}>
-              Ход: {current.name} · {reachableCells.length ? 'выберите клетку на поле или пропустите' : 'нет свободных клеток рядом'}
-            </Text>
-            <SecondaryButton label="Пропустить перемещение" onPress={() => engine.skipMove()} />
-          </>
+          <SecondaryButton label="Пропустить перемещение" onPress={() => engine.skipMove()} />
         ) : pickingTarget ? (
           <>
-            <Text style={{ fontSize: 11, color: colors.textDim, marginBottom: 8, fontFamily: font.regular }}>Выберите цель</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {healTargets.map((t) => (
@@ -597,32 +611,31 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
             </Pressable>
           </>
         ) : (
-          <>
-            <Text style={{ fontSize: 11, color: colors.textDim, marginBottom: 8, fontFamily: font.regular }}>Ход: {current.name}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {actions.map((a) => (
-                <Pressable
-                  key={a.key}
-                  onPress={() => (a.disabled ? undefined : onPickAction(a.key, a.needsTarget))}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: 6,
-                    borderWidth: 1, borderColor: a.disabled ? colors.border : colors.borderStrong, borderRadius: 8,
-                    paddingHorizontal: 12, paddingVertical: 10, opacity: a.disabled ? 0.4 : 1,
-                  }}
-                >
-                  {a.abilityArt ? (
-                    <SkillIcon id={a.abilityArt} size={26} radius={6} dim={a.disabled} style={{ marginVertical: -4 }} />
-                  ) : (
-                    <Icon name={a.key === 'ability' ? (a.abilityIcon as IconName) : ACTION_ICON[a.key]} size={15} color={a.disabled ? colors.textFaint : colors.text} />
-                  )}
-                  <View>
-                    <Text style={{ fontSize: 12.5, color: a.disabled ? colors.textFaint : colors.text, fontFamily: font.medium }}>{a.label}</Text>
-                    {a.sub ? <Text style={{ fontSize: 10, color: colors.textFaint, fontFamily: font.regular }}>{a.sub}</Text> : null}
+          // A skill bar: one tile per action, icon over its name.
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {actions.map((a) => (
+              <Pressable
+                key={a.key}
+                onPress={() => (a.disabled ? undefined : onPickAction(a.key, a.needsTarget))}
+                style={({ pressed }) => ({
+                  flexGrow: 1, flexBasis: 70, alignItems: 'center', gap: 4,
+                  borderWidth: 1, borderColor: a.disabled ? colors.border : GOLD_LINE, borderRadius: 10,
+                  paddingHorizontal: 6, paddingVertical: 8, opacity: a.disabled ? 0.4 : 1,
+                  backgroundColor: pressed ? 'rgba(201,163,107,0.16)' : 'rgba(201,163,107,0.06)',
+                })}
+              >
+                {a.abilityArt ? (
+                  <SkillIcon id={a.abilityArt} size={30} radius={7} dim={a.disabled} />
+                ) : (
+                  <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                    <Icon name={a.key === 'ability' ? (a.abilityIcon as IconName) : ACTION_ICON[a.key]} size={17} color={a.disabled ? colors.textFaint : GOLD_TEXT} />
                   </View>
-                </Pressable>
-              ))}
-            </View>
-          </>
+                )}
+                <Text numberOfLines={2} style={{ fontSize: 11.5, lineHeight: 14, textAlign: 'center', color: a.disabled ? colors.textFaint : colors.text, fontFamily: font.medium }}>{a.label}</Text>
+                {a.sub ? <Text numberOfLines={1} style={{ fontSize: 10, color: colors.textFaint, fontFamily: font.regular }}>{a.sub}</Text> : null}
+              </Pressable>
+            ))}
+          </View>
         )}
       </View>
       {engine.bossIntro ? (
