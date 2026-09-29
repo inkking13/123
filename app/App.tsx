@@ -8,6 +8,9 @@ import {
 import { GameEngine } from './src/engine/GameEngine';
 import { useEngineVersion } from './src/engine/useEngine';
 import { initAudio, music, setAudioEnabled } from './src/audio/audio';
+import { CrashGuard, installCrashHandler } from './src/components/CrashScreen';
+
+installCrashHandler();
 import { colors } from './src/theme/theme';
 import { TitleScreen } from './src/screens/TitleScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -91,7 +94,10 @@ export default function App() {
     <SafeAreaProvider>
       {/* A torch-lit dungeon wall behind every screen; the screens themselves are see-through. */}
       <ImageBackground source={require('./assets/ui/stone-bg.jpg')} resizeMode="cover" style={{ flex: 1, backgroundColor: colors.bg }}>
-        <Root engine={engine} />
+        {/* Back to camp on retry: the screen that broke may break again. */}
+        <CrashGuard onReset={() => engine.go('home')}>
+          <Root engine={engine} />
+        </CrashGuard>
         <StatusBar style="light" />
       </ImageBackground>
     </SafeAreaProvider>
