@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  ArrowRight, ArrowLeft, CaretRight, SkullIcon, LockSimple, Scroll, Check,
+  ArrowRight, ArrowLeft, CaretRight, SkullIcon, LockSimple, Scroll, Check, Plus,
   ShieldChevron, DoorOpen, CrownSimple, Sword, HandPalm, Megaphone,
   Pause, Play, Shield, FirstAidKit, Campfire, UsersThree, PathIcon, SnowflakeIcon,
   FlaskIcon, DropIcon, FlameIcon, TargetIcon, FireIcon,
@@ -10,7 +10,7 @@ import {
 } from 'phosphor-react-native';
 
 export type IconName =
-  | 'arrow-right' | 'arrow-left' | 'caret-right' | 'skull' | 'lock-simple' | 'scroll' | 'check'
+  | 'arrow-right' | 'arrow-left' | 'caret-right' | 'skull' | 'lock-simple' | 'scroll' | 'check' | 'plus'
   | 'shield-chevron' | 'door-open' | 'crown-simple' | 'sword' | 'hand-palm' | 'megaphone'
   | 'pause' | 'play' | 'shield' | 'first-aid-kit' | 'campfire' | 'users-three' | 'path' | 'snowflake'
   | 'flask' | 'drop' | 'flame' | 'target' | 'fire'
@@ -27,6 +27,7 @@ const MAP: Record<IconName, React.ComponentType<any>> = {
   'lock-simple': LockSimple,
   scroll: Scroll,
   check: Check,
+  plus: Plus,
   'shield-chevron': ShieldChevron,
   'door-open': DoorOpen,
   'crown-simple': CrownSimple,

@@ -25,7 +25,7 @@ export function TitleScreen({ engine }: { engine: GameEngine }) {
   const progress = engine.statsBossWins > 0
     ? `Боссов побеждено: ${engine.statsBossWins} · золото ${engine.gold}`
     : `Комнат пройдено: ${engine.statsRoomWins} · золото ${engine.gold}`;
-  const startNew = async () => { await engine.resetProgress(); engine.go('home'); };
+  const startNew = async () => { await engine.resetProgress(); engine.start(); };
   return (
     <View style={{ flex: 1 }} onTouchStart={askMotionPermission}>
       <TiltArt testID="title-art" source={ART} aspect={ART_ASPECT} focusX={FOCUS_X} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%' }} />
@@ -57,12 +57,12 @@ export function TitleScreen({ engine }: { engine: GameEngine }) {
         ) : (
           <View style={{ marginTop: 24, gap: 10 }}>
             <PrimaryButton
-              label={saved ? 'Продолжить' : 'Приступить к обязанностям'}
+              label={saved && !engine.needsDraft() ? 'Продолжить' : 'Приступить к обязанностям'}
               trailingIcon="arrow-right"
-              onPress={() => engine.go('home')}
+              onPress={() => engine.start()}
               height={54}
             />
-            {saved ? <Text style={{ fontSize: 11.5, color: colors.textDim, textAlign: 'center', fontFamily: font.regular }}>{progress}</Text> : null}
+            {saved && !engine.needsDraft() ? <Text style={{ fontSize: 11.5, color: colors.textDim, textAlign: 'center', fontFamily: font.regular }}>{progress}</Text> : null}
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
               {saved ? <SecondaryButton label="Новая игра" onPress={() => setConfirmNew(true)} style={{ flex: 1 }} /> : null}
               <SecondaryButton label="Настройки" onPress={() => engine.go('settings')} style={{ flex: 1 }} />

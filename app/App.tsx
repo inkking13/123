@@ -31,6 +31,7 @@ import { ArenaScreen } from './src/screens/ArenaScreen';
 import { ProfessionScreen } from './src/screens/ProfessionScreen';
 import { AchievementsScreen } from './src/screens/AchievementsScreen';
 import { WeeklyChallengeScreen } from './src/screens/WeeklyChallengeScreen';
+import { StartDraftScreen } from './src/screens/StartDraftScreen';
 
 /** The camp tune outside fights; the fight or boss theme from the dungeon until the results. */
 function useMusic(engine: GameEngine) {
@@ -45,6 +46,8 @@ function useMusic(engine: GameEngine) {
 function Root({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
   useMusic(engine);
+  // A new guild picks its first five before anything but the title and settings.
+  if (engine.needsDraft() && engine.screen !== 'title' && engine.screen !== 'settings') return <StartDraftScreen engine={engine} />;
   switch (engine.screen) {
     case 'title': return <TitleScreen engine={engine} />;
     case 'home': return <HomeScreen engine={engine} />;

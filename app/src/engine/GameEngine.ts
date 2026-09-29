@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { diedIn3dLastRun } from '../battle3d/probe3d';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
-import { POOL, RECRUITS, ALL_CANDIDATES, XP_PER_LEVEL, MAX_LEVEL } from '../data/characters';
+import { POOL, ALL_CANDIDATES, XP_PER_LEVEL, MAX_LEVEL, DRAFT_BUDGET, DRAFT_SIZE } from '../data/characters';
 import { GEAR, SLOT_LABEL, SLOT_ORDER, STARTING_INVENTORY, BOSS_LOOT_TABLE, TRASH_LOOT_TABLE, TRASH_LOOT_CHANCE, SELL_RATIO, UNIQUE_BOSS_LOOT, UNIQUE_BOSS_LOOT_EXTRA, emptyEquipment, SLOT_KIND, slotGear, slotsForKind, migrateEquipment, GEAR_KINDS } from '../data/gear';
 import { DUNGEONS, DungeonDef, LOCATIONS } from '../data/dungeons';
 import { ABILITY_BY_CANDIDATE } from '../data/abilities';
@@ -37,7 +37,7 @@ import {
   Ability, AbilityIcon, BossMoveTimers, Enemy, EnemyRole, Raider, SignatureKind, Sim, TurnEntry, LogKind,
 } from '../combat/types';
 
-export type Screen = 'title' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession' | 'achievements' | 'weekly';
+export type Screen = 'title' | 'draft' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession' | 'achievements' | 'weekly';
 
 const SAVE_KEY = 'raid-commander.save.v1';
 const STARTING_GOLD = 60;
@@ -451,8 +451,9 @@ export class GameEngine {
   private loaded = false;
 
   constructor() {
-    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: startingEquipment(c.id), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
-    this.selected = new Set([0, 2, 4, 5, 6]);
+    // A new guild has nobody yet: the player buys the first five (StartDraftScreen).
+    this.pool = [];
+    this.selected = new Set();
     this.inventoryCounts = { ...STARTING_INVENTORY };
   }
 
@@ -588,8 +589,9 @@ export class GameEngine {
   }
   async resetProgress() {
     if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
-    this.pool = POOL.map((c) => ({ ...c, level: 1, xp: 0, equipment: startingEquipment(c.id), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
-    this.selected = new Set([0, 2, 4, 5, 6]);
+    // A new guild has nobody yet: the player buys the first five (StartDraftScreen).
+    this.pool = [];
+    this.selected = new Set();
     this.inventoryCounts = { ...STARTING_INVENTORY };
     this.reagentCounts = {};
     this.gold = STARTING_GOLD;
@@ -1372,8 +1374,9 @@ export class GameEngine {
 
   // ── hiring ───────────────────────────────────────────────
   hireVM(): HireOptionVM[] {
+    // Everyone not on the payroll: the recruits, and whoever of the first nine wasn't picked at the start.
     const hiredIds = new Set(this.pool.map((c) => c.id));
-    return RECRUITS.filter((r) => !hiredIds.has(r.id)).map((r) => ({
+    return ALL_CANDIDATES.filter((r) => !hiredIds.has(r.id)).map((r) => ({
       id: r.id, name: r.name, epithet: r.epithet, role: r.role, attackRange: r.attackRange,
       bio: r.bio, story: r.story, hp: r.hp, dps: r.dps, healPower: r.healPower, gs: r.gs,
       cost: r.hireCost ?? 0,
@@ -1383,12 +1386,52 @@ export class GameEngine {
   }
   hireRecruit(id: number) {
     if (this.pool.some((c) => c.id === id)) return;
-    const def = RECRUITS.find((r) => r.id === id);
+    const def = ALL_CANDIDATES.find((r) => r.id === id);
     if (!def) return;
     const cost = def.hireCost ?? 0;
     if (this.gold < cost) return;
     this.gold -= cost;
     this.pool.push({ ...def, level: 1, xp: 0, equipment: emptyEquipment(), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 });
+    this.notify();
+  }
+
+  // ── the first five ───────────────────────────────────────
+  /** A new guild still has to pick its starting heroes. */
+  needsDraft(): boolean {
+    return this.pool.length === 0;
+  }
+  /** Leave the title: to the draft for a new guild, else to camp. */
+  start() {
+    this.go(this.needsDraft() ? 'draft' : 'home');
+  }
+  draftOptions() {
+    return POOL;
+  }
+  /** Why a pick of starting heroes can't be signed yet, or null if it can. */
+  draftProblem(ids: number[]): string | null {
+    const picks = ids.map((id) => POOL.find((c) => c.id === id)).filter((c): c is (typeof POOL)[number] => !!c);
+    const spent = picks.reduce((a, c) => a + (c.hireCost ?? 0), 0);
+    if (spent > DRAFT_BUDGET) return 'Не хватает бюджета';
+    if (picks.length < DRAFT_SIZE) return `Выберите ещё ${DRAFT_SIZE - picks.length}`;
+    if (picks.length > DRAFT_SIZE) return `Нужно ровно ${DRAFT_SIZE}`;
+    if (!picks.some((c) => c.role === 'tank')) return 'Нужен танк';
+    if (!picks.some((c) => c.role === 'heal')) return 'Нужен хилер';
+    return null;
+  }
+  /** Sign the starting five: they join in their armour sets, and the unspent budget goes to the treasury. */
+  finishDraft(ids: number[]) {
+    if (!this.needsDraft() || this.draftProblem(ids)) return;
+    const picks = POOL.filter((c) => ids.includes(c.id));
+    this.pool = picks.map((c) => ({ ...c, level: 1, xp: 0, equipment: startingEquipment(c.id), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
+    // Two heroes in one armour set need a piece each.
+    for (const c of this.pool) for (const id of Object.values(c.equipment)) {
+      if (id === 'none') continue;
+      const worn = this.pool.filter((o) => Object.values(o.equipment).includes(id)).length;
+      if ((this.inventoryCounts[id] ?? 0) < worn) this.inventoryCounts[id] = worn;
+    }
+    this.selected = new Set(picks.map((c) => c.id));
+    this.gold = STARTING_GOLD + DRAFT_BUDGET - picks.reduce((a, c) => a + (c.hireCost ?? 0), 0);
+    this.screen = 'home';
     this.notify();
   }
 
