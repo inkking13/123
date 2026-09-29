@@ -22,7 +22,7 @@ import { CURIOS } from '../data/curios';
 import { EventOption, OFFICE_EVENTS, STAFF_EVENTS } from '../data/events';
 import { BARKS, barkMoment } from '../data/barks';
 import { GearIconId as ItemIconId } from '../data/armourSets';
-import { ARMOUR_IDS } from '../data/armourSets';
+import { ARMOUR_IDS, RETIRED_ARMOUR_IDS } from '../data/armourSets';
 import { FEATURES, FEATURE_ORDER, Feature, Tip } from '../data/features';
 import { IconName } from '../components/Icon';
 import type { Quality } from '../battle3d/quality';
@@ -80,6 +80,8 @@ const ENEMY_HP_SHARE: Record<Exclude<EnemyRole, 'brute'>, number> = { archer: 0.
 const ENEMY_NAME: Record<EnemyRole, string> = { brute: 'Громила', archer: 'Стрелок', shaman: 'Шаман' };
 const ENEMY_NAME_ACC: Record<EnemyRole, string> = { brute: 'громилу', archer: 'стрелка', shaman: 'шамана' };
 const ARCHER_DMG = 8;
+/** How long the party cheers on the field after a win, ms. */
+const VICTORY_MS = 2200;
 
 // Location-final boss signatures: boss turns between casts (the first comes on the 2nd boss turn).
 const SIG_COOLDOWN: Record<SignatureKind, number> = { devour: 4, iceShell: 5, feast: 0, debt: 4, backstab: 3, execution: 5, lava: 4, quota: 5, raise: 3 };
@@ -504,6 +506,8 @@ export class GameEngine {
     if (data.inventoryCounts) this.inventoryCounts = data.inventoryCounts;
     // Saves from before the armour sets get one of each piece.
     for (const id of ARMOUR_IDS) if (this.inventoryCounts[id] === undefined) this.inventoryCounts[id] = 1;
+    // Shoulders, cloaks, belts and boots of the sets are now part of the torso and legs items.
+    for (const id of RETIRED_ARMOUR_IDS) delete this.inventoryCounts[id];
     if (data.reagentCounts) this.reagentCounts = data.reagentCounts;
     if (typeof data.gold === 'number') this.gold = data.gold;
     if (data.dungeonId) this.dungeonId = data.dungeonId;
@@ -740,7 +744,7 @@ export class GameEngine {
     return this.itemOwned(gearId) - this.itemInUseCount(slot, gearId, c.id, slot) > 0;
   }
   inventoryVM() {
-    const rows: { slot: GearSlotKey; slotLabel: string; name: string; desc: string; icon?: ItemIconId; owned: number; free: number; wornBy: string[] }[] = [];
+    const rows: { slot: GearSlotKey; slotLabel: string; name: string; desc: string; icon?: ItemIconId; owned: number; free: number; wornBy: string[]; rarity: ReturnType<typeof rarityOf> }[] = [];
     for (const kind of GEAR_KINDS) {
       const slot = slotsForKind(kind)[0];
       for (const o of GEAR[kind]) {
@@ -748,7 +752,7 @@ export class GameEngine {
         const owned = this.itemOwned(o.id);
         if (owned <= 0) continue;
         const wornBy = this.pool.filter((c) => SLOT_ORDER.some((s2) => c.equipment[s2] === o.id)).map((c) => c.name);
-        rows.push({ slot, slotLabel: SLOT_LABEL[slot], name: o.name, desc: o.desc, icon: o.icon, owned, free: owned - wornBy.length, wornBy });
+        rows.push({ slot, slotLabel: SLOT_LABEL[slot], name: o.name, desc: o.desc, icon: o.icon, owned, free: owned - wornBy.length, wornBy, rarity: rarityOf(o) });
       }
     }
     return rows;
@@ -837,9 +841,9 @@ export class GameEngine {
             id: o.id,
             name: o.name,
             icon: o.icon,
-            border: selected ? ACCENT : '#3f424d',
-            bg: selected ? 'rgba(145,132,217,0.14)' : 'transparent',
-            color: selected ? '#d2cefd' : available ? '#9397ab' : '#595d6c',
+            border: selected ? ACCENT : '#574a38',
+            bg: selected ? 'rgba(201,163,107,0.14)' : 'transparent',
+            color: selected ? '#ecd9b0' : available ? '#9397ab' : '#595d6c',
             disabled: !available,
             stockLabel: o.id === 'none' ? '' : `в наличии: ${Math.max(0, free)}`,
             onPick: () => {
@@ -1557,7 +1561,7 @@ export class GameEngine {
       bossPos: enemies.length ? null : { ...BOSS_START },
       enemies, minions: [], focusId: enemies.length ? enemies[0].id : null,
       fx: { seq: 0, actor: null, kind: null, crit: false, targetEnemy: null, targetRaider: null },
-      impact: { seq: 0, cells: [], kind: null }, shakeSeq: 0, windup: false, moveFx: null,
+      impact: { seq: 0, cells: [], kind: null }, shakeSeq: 0, dodge: { seq: 0, ids: [] }, victory: false, windup: false, moveFx: null,
       signature: enc.type === 'boss' && !this.inArena ? this.currentDungeon().signature ?? null : null,
       sigTimer: 2, iceShell: false, debt: null, execution: null, quota: null, lava: [],
       name: enc.name, raiders, encounterType: enc.type, dmgMult,
@@ -2031,7 +2035,14 @@ export class GameEngine {
     const dead = s.raiders.filter((r) => !r.alive).length;
     const tank = s.raiders.find((r) => r.role === 'tank' && r.alive);
     if (dead >= 3 || !tank) { this.endGame(false); return true; }
-    if (s.boss.hp <= 0) { this.endGame(true); return true; }
+    if (s.boss.hp <= 0) {
+      // A short cheer on the field before the results.
+      s.over = true; s.victory = true;
+      this.clearTurnTimer();
+      this.notify();
+      setTimeout(() => { if (this.sim === s) this.endGame(true); }, VICTORY_MS);
+      return true;
+    }
     return false;
   }
   private checkPhase() {
@@ -2657,6 +2668,9 @@ export class GameEngine {
       const hit = this.alive().filter((r) => zone.cells.includes(r.row + ',' + r.col));
       for (const r of hit) { this.hurt(r, dmg); this.addTilt(6); }
       s.impact = { seq: s.impact.seq + 1, cells: zone.cells, kind: zone.kind };
+      // Those standing right beside the blast leap aside.
+      const near = this.alive().filter((r) => !hit.includes(r) && zone.cells.some((c) => { const [zr, zc] = c.split(',').map(Number); return Math.max(Math.abs(zr - r.row), Math.abs(zc - r.col)) === 1; }));
+      if (near.length) s.dodge = { seq: s.dodge.seq + 1, ids: near.map((r) => r.id) };
       if (hit.length) s.shakeSeq++;
       const what = { meteor: 'Огненный дождь', cleave: 'Сокрушающий взмах', devour: 'Пасть', backstab: 'Удар в спину' }[zone.kind];
       if (hit.length) this.log(what + ' накрывает: ' + hit.map((r) => r.name).join(', ') + ' (-' + dmg + ').', 'warn');

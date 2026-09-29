@@ -38,7 +38,7 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.textFaint, marginTop: 16, fontFamily: font.regular }}>Прокачка профессии</Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8, marginBottom: 4 }}>
-          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(145,132,217,0.14)', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(201,163,107,0.14)', alignItems: 'center', justifyContent: 'center' }}>
             <Icon name={vm.icon} size={20} color={colors.accent} />
           </View>
           <Text style={{ fontSize: 28, fontFamily: font.medium, color: colors.text, letterSpacing: -0.5 }}>{vm.name}</Text>

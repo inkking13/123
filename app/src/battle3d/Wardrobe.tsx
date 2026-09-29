@@ -15,7 +15,7 @@ import { ArmourPiece, ArmourSetId } from '../data/armourSets';
 
 const url = (mod: number): string => (Platform.OS === 'web' ? Asset.fromModule(mod).uri : (mod as unknown as string));
 
-export type WardrobeBody = 'human' | 'elf-male' | 'elf';
+export type WardrobeBody = 'human' | 'elf-male' | 'elf' | 'dwarf' | 'orc';
 
 const FILES: Record<WardrobeBody, Record<ArmourSetId, number>> = {
   human: {
@@ -36,6 +36,19 @@ const FILES: Record<WardrobeBody, Record<ArmourSetId, number>> = {
     arcane: require('../../assets/models/wardrobe/arcane-elf.glb'),
     templar: require('../../assets/models/wardrobe/templar-elf.glb'),
   },
+  // Dwarves and the orc: the outfits widened to their build before fitting.
+  dwarf: {
+    leather: require('../../assets/models/wardrobe/leather-dwarf.glb'),
+    knight: require('../../assets/models/wardrobe/knight-dwarf.glb'),
+    arcane: require('../../assets/models/wardrobe/arcane-dwarf.glb'),
+    templar: require('../../assets/models/wardrobe/templar-dwarf.glb'),
+  },
+  orc: {
+    leather: require('../../assets/models/wardrobe/leather-orc.glb'),
+    knight: require('../../assets/models/wardrobe/knight-orc.glb'),
+    arcane: require('../../assets/models/wardrobe/arcane-orc.glb'),
+    templar: require('../../assets/models/wardrobe/templar-orc.glb'),
+  },
 };
 
 export interface WornPiece { set: ArmourSetId; piece: ArmourPiece; closedHelm: boolean }
@@ -43,7 +56,7 @@ export interface WornPiece { set: ArmourSetId; piece: ArmourPiece; closedHelm: b
 /** Body parts, from each vertex's strongest bone. */
 type Part = 'head' | 'torso' | 'pelvis' | 'upperArm' | 'forearm' | 'hand' | 'thigh' | 'shin' | 'foot' | 'other';
 const partOf = (bone: string): Part =>
-  /Head|Neck/.test(bone) ? 'head'
+  /Head|Neck|neck/.test(bone) ? 'head'
     : /Hand/.test(bone) ? 'hand'
       : /ForeArm/.test(bone) ? 'forearm'
         : /Arm$/.test(bone) ? 'upperArm'

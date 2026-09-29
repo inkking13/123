@@ -56,7 +56,9 @@ interface Body {
 }
 
 /** Meshy's combat set runs 2–4 s a clip; sped up so the blow lands inside a turn. */
-const COMBAT_SPEED = { Attack: 2, Double_Combo_Attack: 2.1, Triple_Combo_Attack: 3, Charged_Slash: 1.6, Charged_Spell_Cast: 1.8, Hit_Reaction: 1.4, Dead: 1.3 };
+const COMBAT_SPEED = { Attack: 2, Double_Combo_Attack: 2.1, Triple_Combo_Attack: 3, Charged_Slash: 1.6, Charged_Spell_Cast: 1.8, Hit_Reaction: 1.4, Dead: 1.3,
+  // Weapon moves from Meshy's library, retargeted onto the race bodies.
+  Thrust_Slash: 1.4, Sword_Slash: 1.2, Shield_Push: 1.3, Sword_Parry: 1.2, Hammer_Swing: 1.2, Ground_Slam: 1.4, Archery_Shot: 1.3 };
 
 export const BODIES = {
   // Female elf: idle, walk, run, five spell casts, dance, and the combat set.
@@ -76,7 +78,7 @@ export const BODIES = {
   },
   // Braided dwarf: breathing idle, shield bash, war cry, and the combat set.
   dwarf: {
-    url: url(require('../../assets/models/dwarf.glb')), height: 1.0, fist: 0.125,
+    url: url(require('../../assets/models/dwarf.glb')), height: 1.0, fist: 0.125, wardrobe: 'dwarf',
     idle: 'idle', walk: 'walk', run: 'run', act: { default: 'bash', rally: 'shout', ability: 'shout' },
     speed: { ...COMBAT_SPEED, bash: 1.5, shout: 2.2 }, guard: 'Block1', flourish: 'Victory_Cheer', death: 'Dead', hit: 'Hit_Reaction',
   },
@@ -91,27 +93,27 @@ export const BODIES = {
   // Skeleton warrior in a loincloth (1.62 tall in its file): idle, claw attack, spin attack, block, and the combat set.
   skeleton: {
     url: url(require('../../assets/models/skeleton.glb')), height: 1.2,
-    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'attack', ability: 'Double_Combo_Attack' },
-    speed: { ...COMBAT_SPEED, attack: 2 }, guard: 'block', flourish: 'spin', death: 'Dead', hit: 'Hit_Reaction',
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'attack', melee: 'Thrust_Slash', ability: 'Double_Combo_Attack' },
+    speed: { ...COMBAT_SPEED, attack: 2 }, guard: 'Sword_Parry', flourish: 'spin', death: 'Dead', hit: 'Hit_Reaction',
     hold: { right: 'boneSword', left: 'skullShield' },
   },
   // The same skeleton with a bow in the left hand, loosing with the spell-cast reach.
   skeletonArcher: {
     url: url(require('../../assets/models/skeleton.glb')), height: 1.2,
-    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'Charged_Spell_Cast' },
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'Archery_Shot' },
     speed: COMBAT_SPEED, guard: 'Block1', flourish: 'Victory_Cheer', death: 'Dead', hit: 'Hit_Reaction',
     hold: { right: 'bow' },
   },
   // And with a mage's staff, casting.
   skeletonMage: {
     url: url(require('../../assets/models/skeleton.glb')), height: 1.2,
-    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'Charged_Spell_Cast', ability: 'Charged_Slash' },
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'Charged_Spell_Cast', ability: 'Ground_Slam' },
     speed: COMBAT_SPEED, guard: 'Block1', flourish: 'Victory_Cheer', death: 'Dead', hit: 'Hit_Reaction',
     hold: { right: 'staff' },
   },
   // Громмаш, on Meshy's rig: relaxed idle, fighting stance, hammer swing, axe chop, chest-pound war cry, and the combat set.
   orc: {
-    url: url(require('../../assets/models/orc.glb')), height: 1.3, modelH: 2.0, propScale: 1.4,
+    url: url(require('../../assets/models/orc.glb')), height: 1.3, modelH: 2.0, propScale: 1.4, wardrobe: 'orc',
     idle: 'Idle', walk: 'Walk_Fight_Forward', run: 'RunFast',
     act: { default: 'Heavy_Hammer_Swing', ability: 'Triple_Combo_Attack', rally: 'Chest_Pound_Taunt', heal: 'Chest_Pound_Taunt' },
     speed: { ...COMBAT_SPEED, Heavy_Hammer_Swing: 1.4, Chest_Pound_Taunt: 1.6 },
@@ -122,7 +124,7 @@ export const BODIES = {
   necromancer: {
     url: url(require('../../assets/models/necromancer.glb')), height: 1.12,
     idle: 'Clip_B_3s', walk: 'Walking', run: 'Running',
-    act: { default: 'mage_soell_cast_2', ranged: 'mage_soell_cast_6', ability: 'mage_soell_cast_5', heal: 'mage_soell_cast_1', rally: 'Finger_Wag_No' },
+    act: { default: 'mage_soell_cast_2', ranged: 'mage_soell_cast_6', ability: 'mage_soell_cast_3', heal: 'mage_soell_cast_1', rally: 'Finger_Wag_No' },
     speed: { mage_soell_cast_1: 1.8, mage_soell_cast_2: 1.6, mage_soell_cast_5: 4, mage_soell_cast_6: 1.3, Finger_Wag_No: 2, Dead: 1.3 },
     flourish: 'Finger_Wag_No', death: 'Dead',
   },
@@ -187,12 +189,9 @@ function gripIn(rest: THREE.Quaternion, pose: THREE.Quaternion, left: boolean, h
       // A staff, bow, orb or flask stands straight up in idle.
       y = new THREE.Vector3(0.1 * out, 1, 0.1).normalize().applyQuaternion(toIdle.clone().invert());
     } else {
-      // A blade or head rises up, forward and a little out in idle, but not back along the forearm.
-      const want = new THREE.Vector3(0.3 * out, 1, 0.9).normalize();
-      const arm = F.clone().negate().applyQuaternion(toIdle);
-      const along = want.dot(arm);
-      if (along > 0.5) want.addScaledVector(arm, 0.5 - along).normalize();
-      y = want.applyQuaternion(toIdle.clone().invert());
+      // In idle a blade or head is carried up at the hero's side, leaning out and a little forward,
+      // so it clears the hip and thigh (more forward, it went through the leg).
+      y = new THREE.Vector3(0.6 * out, 1, 0.3).normalize().applyQuaternion(toIdle.clone().invert());
     }
     x = y.clone().cross(P);
     if (x.lengthSq() < 1e-4) x = y.clone().cross(F);
@@ -234,7 +233,7 @@ function HeldProp({ name, hand, unit, size, fist, rest, pose, left, glow, steady
     holder.add(prop);
     hand.add(holder);
     // Held things keep their idle stand while the hand sways in idle; see steadyProps.
-    const s: Steady = { holder, hand, grip: g.quaternion, idle: pose.clone().multiply(g.quaternion) };
+    const s: Steady = { holder, hand, grip: g.quaternion, idle: pose.clone().multiply(g.quaternion), upright: UPRIGHT.has(name) };
     steady.push(s);
     return () => { steady.splice(steady.indexOf(s) >>> 0, 1); holder.removeFromParent(); prop.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.Material).dispose(); }); };
   }, [gltf, hand, P, unit, size, fist, rest, pose, left, name, glow, steady]);
@@ -242,22 +241,30 @@ function HeldProp({ name, hand, unit, size, fist, rest, pose, left, glow, steady
 }
 
 /** A held prop's holder, its grip in the hand, and its turn in model space in idle. */
-interface Steady { holder: THREE.Object3D; hand: THREE.Bone; grip: THREE.Quaternion; idle: THREE.Quaternion }
+interface Steady { holder: THREE.Object3D; hand: THREE.Bone; grip: THREE.Quaternion; idle: THREE.Quaternion; upright: boolean }
 const _hq = new THREE.Quaternion(), _cq = new THREE.Quaternion();
-/** Holds props at their idle stand in proportion to how much idle is playing, so they follow the hand only in actions. */
+/**
+ * Holds props at their idle stand in proportion to how much idle is playing, so they follow the hand only in actions.
+ * A staff, bow, orb or flask always stays upright (it rides the hand's position, not its twist): the casts and
+ * attacks wring the wrist about and would swing a two-metre staff flat or upside down.
+ */
 function steadyProps(steady: Steady[], root: THREE.Object3D, idle: number) {
   for (const s of steady) {
     _hq.identity();
     for (let b: THREE.Object3D | null = s.hand; b && b !== root; b = b.parent) _hq.premultiply(b.quaternion);
-    _cq.copy(_hq).multiply(s.grip).slerp(s.idle, idle);
+    _cq.copy(_hq).multiply(s.grip).slerp(s.idle, s.upright ? 1 : idle);
     s.holder.quaternion.copy(_hq.invert()).multiply(_cq);
   }
 }
 export type BodyName = keyof typeof BODIES;
 
 const MODEL_H = 1.7;
-/** How long an action holds its clip before blending back, seconds. */
-const ACTION_S = 1.4;
+/** Actions play their whole clip, sped up only as far as it takes to fit this long, seconds. */
+const ACTION_S = 2.2;
+/** No clip is played faster than this: beyond it motion looks wound up. */
+const MAX_SPEED = 1.6;
+/** Played speed of a clip: its body's wish, capped at MAX_SPEED, but fast enough to end within ACTION_S. */
+const clipSpeed = (wish: number, dur: number) => Math.max(Math.min(wish, MAX_SPEED), dur / ACTION_S);
 
 /** A built stand-in for weapon kinds with no Meshy model. */
 function weaponMesh(kind: string | undefined, metal: string): THREE.Object3D | null {
@@ -338,7 +345,11 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       actions.idle.timeScale = 0;
       actions.idle.time = (B.idle as { frame: number }).frame;
     }
-    for (const [name, a] of Object.entries(actions)) { a.timeScale = name === 'idle' && typeof B.idle !== 'string' ? 0 : B.speed?.[name] ?? 1; a.play(); a.setEffectiveWeight(0); }
+    for (const [name, a] of Object.entries(actions)) {
+      const wish = B.speed?.[name] ?? 1;
+      a.timeScale = name === 'idle' && typeof B.idle !== 'string' ? 0 : wish > 1 ? clipSpeed(wish, a.getClip().duration) : wish;
+      a.play(); a.setEffectiveWeight(0);
+    }
     actions.idle.setEffectiveWeight(1);
     const h = hips as THREE.Bone | null;
     // The hands' turn at rest, from the skin's bind pose.
@@ -358,6 +369,8 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     const poseR = poseOf(handR as THREE.Bone | null), poseL = poseOf(handL as THREE.Bone | null);
     // Bone space per metre: 100 on a centimetre rig, so held things are scaled back.
     const unit = handR ? 1 / new THREE.Vector3().setFromMatrixScale((handR as THREE.Bone).matrixWorld).x : 1;
+    // Heroes breathe out of step with each other: each idle starts at its own point and runs a touch faster or slower.
+    if (typeof B.idle === 'string') { actions.idle.time = Math.random() * actions.idle.getClip().duration; actions.idle.timeScale *= 0.9 + Math.random() * 0.2; }
     return { scene, unit, restR, restL, poseR, poseL, steady: [] as Steady[], materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
   const bodyMeshes = useMemo(() => rig.meshes.map((m) => m.mesh), [rig]);
@@ -405,6 +418,8 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
   const playing = useRef('');
   const lastAt = useRef(-99);
   const lastHit = useRef(-99);
+  /** How long the action now playing lasts, seconds. */
+  const actLen = useRef(ACTION_S);
   const flashCol = useMemo(() => new THREE.Color('#ff4a3a'), []);
   const frozenCol = useMemo(() => new THREE.Color('#9fd6ff'), []);
 
@@ -414,15 +429,23 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     // A fresh action restarts its clip from the top.
     if (a.at !== lastAt.current && a.kind) {
       lastAt.current = a.at;
-      playing.current = a.kind === 'dance' ? B.flourish ?? B.act.default : opts.act?.[a.kind] ?? B.act[a.kind] ?? opts.act?.default ?? B.act.default;
-      A[playing.current]?.reset().play();
+      // A dodge and a victory cheer use the combat set's own clips where the body has them.
+      const own = a.kind === 'dodge' ? 'Stand_Dodge' : a.kind === 'victory' ? 'Victory_Cheer' : '';
+      playing.current = own && A[own] ? own
+        : a.kind === 'dance' || a.kind === 'victory' ? B.flourish ?? B.act.default
+          : a.kind === 'dodge' ? '' : opts.act?.[a.kind] ?? B.act[a.kind] ?? opts.act?.default ?? B.act.default;
+      const c = A[playing.current];
+      c?.reset().play();
+      actLen.current = c ? Math.min(ACTION_S, c.getClip().duration / Math.max(0.01, c.timeScale)) : ACTION_S;
     }
     const at = t - a.at;
     const cur = A[playing.current];
     let want = 'idle';
-    if (a.kind === 'dance' && cur && at < cur.getClip().duration / cur.timeScale) want = playing.current;
-    else if (a.kind && a.kind !== 'dance' && at < ACTION_S) want = playing.current;
-    else if (B.hit && A[B.hit] && a.hit >= 0 && at >= ACTION_S && t - a.hit < A[B.hit].getClip().duration / A[B.hit].timeScale) {
+    if ((a.kind === 'dance' || a.kind === 'victory') && cur && at >= 0 && at < cur.getClip().duration / cur.timeScale) want = playing.current;
+    else if (a.kind === 'victory' && at < 0) want = 'idle';
+    // The whole swing or cast, then a soft blend back as it ends.
+    else if (a.kind && a.kind !== 'dance' && a.kind !== 'victory' && cur && at < actLen.current - 0.2) want = playing.current;
+    else if (B.hit && A[B.hit] && a.hit >= 0 && at >= actLen.current - 0.2 && t - a.hit < A[B.hit].getClip().duration / A[B.hit].timeScale) {
       if (lastHit.current !== a.hit) { lastHit.current = a.hit; A[B.hit].reset().play(); }
       want = B.hit;
     } else if (a.defending && B.guard) want = B.guard;
@@ -440,7 +463,9 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       A[B.death].setLoop(THREE.LoopRepeat, Infinity); A[B.death].clampWhenFinished = false;
     }
     A[B.walk].timeScale = Math.max(0.6, Math.min(1.6, a.speed / 0.9));
-    const k = 1 - Math.exp(-dt * 10);
+    // Into an action or a flinch quickly; back to standing, walking or guarding gently.
+    const rate = want === playing.current || want === B.hit || want === B.death ? 12 : 5;
+    const k = 1 - Math.exp(-dt * rate);
     weights.current[want] ??= 0;
     for (const c of Object.keys(weights.current)) {
       weights.current[c] += ((c === want ? 1 : 0) - weights.current[c]) * k;

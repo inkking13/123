@@ -4,7 +4,7 @@ import { RARITY_COLOR, rarityOf } from '../data/gearInfo';
 import { HeroLook, Weapon } from './heroLooks';
 import type { HelmModelName } from './HelmModel';
 import type { WornPiece } from './Wardrobe';
-import { armourOf } from '../data/armourSets';
+import { ITEM_PIECES, armourOf } from '../data/armourSets';
 
 
 // What worn gear looks like on a low-poly hero: each item maps to a piece
@@ -84,7 +84,10 @@ export function gearLookOf(equipment: Partial<Record<GearSlotKey, string>> | und
     if (i > best) { best = i; g.best = RARITY_COLOR[rarityOf(o)]; }
   }
   const pieces: WornPiece[] = [];
-  for (const slot of SLOT_ORDER) { const a = armourOf(equipment[slot]); if (a) pieces.push({ set: a.set.id, piece: a.piece, closedHelm: a.set.closedHelm }); }
+  for (const slot of SLOT_ORDER) {
+    const a = armourOf(equipment[slot]);
+    if (a) for (const piece of ITEM_PIECES[a.item]) pieces.push({ set: a.set.id, piece, closedHelm: a.set.closedHelm });
+  }
   if (pieces.length) g.pieces = pieces;
   return g;
 }

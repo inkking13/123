@@ -8,7 +8,7 @@ import { ProgressBar } from './ProgressBar';
 interface FloaterItem { id: number; delta: number; big: boolean; delay: number }
 
 /** How long a hit should wait so it lands when the attack visually arrives (lunge peak / projectile impact). */
-export const PROJECTILE_MS = 190;
+export const PROJECTILE_MS = 280;
 export function impactDelay(fx: CombatFx): number {
   if (fx.kind === 'ranged' || fx.kind === 'ability' || fx.kind === 'heal') return PROJECTILE_MS;
   if (fx.kind === 'melee') return 90;

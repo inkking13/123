@@ -1,5 +1,5 @@
 import { GearKind, GearOption, GearSlotKey } from './types';
-import { ARMOUR_GEAR, ARMOUR_IDS } from './armourSets';
+import { ARMOUR_GEAR, ARMOUR_IDS, RETIRED_ARMOUR_IDS } from './armourSets';
 
 export interface LootDrop {
   /** The kind of item (not the slot it goes in). */
@@ -192,11 +192,11 @@ export const slotGear = (slot: GearSlotKey): GearOption[] => GEAR[SLOT_KIND[slot
 /** Slots an item of this kind can go in. */
 export const slotsForKind = (kind: GearKind): GearSlotKey[] => SLOT_ORDER.filter((s) => SLOT_KIND[s] === kind);
 
-/** Old saves had armor / trinket / ring slots. */
+/** Old saves had armor / trinket / ring slots, and armour-set pieces that are now part of a bigger item. */
 export function migrateEquipment(saved: Record<string, string> | undefined): Record<GearSlotKey, string> {
   const e = { ...emptyEquipment() } as Record<string, string>;
   const rename: Record<string, string> = { armor: 'chest', trinket: 'necklace', ring: 'ring1' };
-  for (const [k, v] of Object.entries(saved ?? {})) { const key = rename[k] ?? k; if (key in e) e[key] = v; }
+  for (const [k, v] of Object.entries(saved ?? {})) { const key = rename[k] ?? k; if (key in e && !RETIRED_ARMOUR_IDS.includes(v)) e[key] = v; }
   return e as Record<GearSlotKey, string>;
 }
 

@@ -10,7 +10,7 @@ export type TileState = 'plain' | 'reachable' | 'self' | 'danger' | 'lava' | 'fo
 
 const TILE_FILL: Record<TileState, string> = {
   plain: 'rgba(120,118,150,0.10)',
-  reachable: 'rgba(145,132,217,0.30)',
+  reachable: 'rgba(201,163,107,0.30)',
   self: 'rgba(210,206,253,0.22)',
   danger: 'rgba(209,104,92,0.34)',
   lava: 'rgba(217,128,63,0.38)',

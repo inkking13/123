@@ -13,6 +13,7 @@ import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
 import { Stage } from './Stage';
 import { Tile, TileState } from './BoardTiles';
+import { Burst, Comet, GroundRing, Slash } from './SpellFx';
 import {
   BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
 } from './world';
@@ -106,6 +107,38 @@ function PulseRing({ radius, color, speed = 3, y = 0.07 }: { radius: number; col
   );
 }
 
+/**
+ * Walks `pos` toward `to` like a person would: it speeds up, keeps a steady
+ * pace, and slows to a stop on the cell instead of the old exponential slide
+ * (fast start, long crawl). Returns the speed, smoothed, for the walk/run clips.
+ */
+interface Stride { vel: number; speed: number; dir: THREE.Vector3 }
+const newStride = (): Stride => ({ vel: 0, speed: 0, dir: new THREE.Vector3(0, 0, -1) });
+const _step = new THREE.Vector3();
+function stride(pos: THREE.Vector3, to: THREE.Vector3, s: Stride, dt: number, vmax: number, accel: number): number {
+  _step.subVectors(to, pos); _step.y = 0;
+  const dist = _step.length();
+  if (dist < 1e-3) { pos.x = to.x; pos.z = to.z; s.vel = 0; }
+  else {
+    // As fast as it may go, but never faster than it can still stop in the distance left.
+    const want = Math.min(vmax, Math.sqrt(2 * accel * dist));
+    s.vel = s.vel < want ? Math.min(want, s.vel + accel * dt) : want;
+    const d = Math.min(dist, s.vel * dt);
+    _step.multiplyScalar(1 / dist);
+    s.dir.copy(_step);
+    pos.addScaledVector(_step, d);
+  }
+  s.speed += (s.vel - s.speed) * (1 - Math.exp(-dt * 12));
+  return s.speed;
+}
+/** Turns `yaw` toward `want` at a steady rate, the short way round. */
+function turnTo(yaw: number, want: number, rate: number, dt: number): number {
+  let diff = want - yaw;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return yaw + diff * (1 - Math.exp(-dt * rate));
+}
+
 function faceCamera(obj: THREE.Object3D, from: THREE.Vector3, camera: THREE.Camera) {
   obj.rotation.y = Math.atan2(camera.position.x - from.x, camera.position.z - from.z);
 }
@@ -122,6 +155,7 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
   const anim = useRef<HeroAnim>({ kind: '', at: -99, hit: -99, deadAt: r.alive ? -1 : -99, alive: r.alive, defending: false, speed: 0, frozen: false });
   const yaw = useRef(Math.PI);
   const prevPos = useMemo(() => new THREE.Vector3(), []);
+  const walk = useRef(newStride());
   const sheet = SHEET_MODELS[r.candidateId];
   const figH = sheet ? sheet.height * FIGURE_SCALE : look ? MODEL_HEIGHT[look.build] * FIGURE_SCALE : 0.08 + RAIDER_CARD;
   const prevHp = useRef(r.hp);
@@ -145,16 +179,25 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
     prevHp.current = r.hp;
   }, [r.hp]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { ev.current.deadAt = r.alive ? -1 : clock.elapsedTime; }, [r.alive, clock]);
+  // A side-step when an area blow lands beside them, and a cheer when the fight is won.
+  useEffect(() => {
+    if (sim.dodge.seq && sim.dodge.ids.includes(r.id)) { ev.current.lunge = clock.elapsedTime; ev.current.kind = 'dodge'; }
+  }, [sim.dodge.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (sim.victory && r.alive) { ev.current.lunge = clock.elapsedTime + Math.random() * 0.3; ev.current.kind = 'victory'; }
+  }, [sim.victory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFrame((st, dt) => {
     const g = root.current; if (!g) return;
     const t = st.clock.elapsedTime;
     prevPos.copy(pos.current);
-    pos.current.lerp(tilePos(r.row, r.col), 1 - Math.exp(-dt * (look ? 6 : 9)));
+    const speed = stride(pos.current, tilePos(r.row, r.col), walk.current, dt, look ? 1.5 : 4, look ? 5 : 12);
+    const walking = speed > 0.15;
     // Models face the nearest enemy while acting (lunges go that way too); waiting
-    // for their turn they stand three-quarters on to the camera, so faces show.
+    // for their turn they stand three-quarters on to the camera, so faces show;
+    // walking, they look where they are going.
     let fx = 0, fz = -1;
-    const busy = active || t - ev.current.lunge < 1.1 || prevPos.distanceToSquared(tilePos(r.row, r.col)) > 0.01;
+    const busy = active || t - ev.current.lunge < 1.1 || walking;
     if (look && r.alive) {
       let best: THREE.Vector3 | null = null; let bd = Infinity;
       for (const [k, v] of proj.world) {
@@ -171,10 +214,8 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
           const score = (y: number) => Math.cos(y) + Math.sin(y) * inward * 0.3;
           want = score(a) >= score(b) ? a : b;
         }
-        let diff = want - yaw.current;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        yaw.current += diff * (1 - Math.exp(-dt * (busy ? 8 : 3)));
+        if (walking) want = Math.atan2(walk.current.dir.x, walk.current.dir.z);
+        yaw.current = turnTo(yaw.current, want, walking ? 10 : busy ? 8 : 3, dt);
       }
       const face = look && r.alive && busy ? yaw.current : NaN;
       fx = Number.isNaN(face) ? 0 : Math.sin(face); fz = Number.isNaN(face) ? -1 : Math.cos(face);
@@ -197,7 +238,7 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
       const a = anim.current;
       a.kind = e.kind; a.at = e.lunge; a.hit = e.hit; a.deadAt = e.deadAt; a.alive = r.alive;
       a.defending = r.defending; a.frozen = r.alive && sim.frozen?.targetId === r.id;
-      a.speed = prevPos.distanceTo(pos.current) / Math.max(dt, 1e-3);
+      a.speed = speed;
     }
     const c = card.current;
     if (c) {
@@ -270,6 +311,8 @@ function FoeFigure({
   const ring = useRef<THREE.Mesh>(null);
   const ev = useRef({ lunge: -99, hit: -99, deadAt: alive ? -1 : -99, windAt: -99, phaseAt: -99, rear: 0 });
   const at = useRef(new THREE.Vector3(x, 0, z));
+  const walk = useRef(newStride());
+  const target = useMemo(() => new THREE.Vector3(), []);
   const prevHp = useRef(hp);
   const prevPhase = useRef(phase);
   const box = useMemo(() => [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], []);
@@ -306,13 +349,10 @@ function FoeFigure({
         const d = (v.x - at.current.x) ** 2 + (v.z - at.current.z) ** 2;
         if (d < bd) { bd = d; best = v; }
       }
-      if (best) {
-        const want = Math.atan2(best.x - at.current.x, best.z - at.current.z);
-        let diff = want - yaw.current;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        yaw.current += diff * (1 - Math.exp(-dt * 6));
-      }
+      // Walking, it looks where it is going; standing, at the nearest raider.
+      const walking = walk.current.speed > 0.15;
+      if (walking) yaw.current = turnTo(yaw.current, Math.atan2(walk.current.dir.x, walk.current.dir.z), 10, dt);
+      else if (best) yaw.current = turnTo(yaw.current, Math.atan2(best.x - at.current.x, best.z - at.current.z), 6, dt);
       fx0 = Math.sin(yaw.current); fz0 = Math.cos(yaw.current);
     }
     let dz = 0, dx = 0, sx = 0;
@@ -322,9 +362,7 @@ function FoeFigure({
     if (ht >= 0 && ht < 0.3) sx = Math.sin(ht * 70) * 0.08 * (1 - ht / 0.3);
     sx += e.rear * Math.sin(t * 80) * 0.03;
     // Walks to its new cell; a small bob while moving sells the step.
-    const before = at.current.clone();
-    at.current.lerp(new THREE.Vector3(x, 0, z), 1 - Math.exp(-dt * (isBoss ? 3 : 5)));
-    const moving = before.distanceTo(at.current) / Math.max(dt, 1e-3);
+    const moving = stride(at.current, target.set(x, 0, z), walk.current, dt, isBoss ? 1.2 : 1.5, isBoss ? 4 : 5);
     const bob = Math.min(1, moving) * Math.abs(Math.sin(t * 12)) * (isBoss ? 0.12 : 0.08);
     g.position.set(at.current.x + sx + dx, (monster ? 0 : e.rear * (isBoss ? 0.3 : 0.15)) + (monster ? 0 : bob), at.current.z + dz);
     if (monster && model.current) {
@@ -460,26 +498,6 @@ function Board({ sim, theme, current, reachable, proj }: { sim: Sim; theme: Batt
 
 // ── transient effects ──────────────────────────────────────
 
-function Bolt({ from, to, color, arc, onDone }: { from: THREE.Vector3; to: THREE.Vector3; color: string; arc: number; onDone: () => void }) {
-  const ref = useRef<THREE.Group>(null);
-  const start = useRef<number | null>(null);
-  useFrame((st) => {
-    const g = ref.current; if (!g) return;
-    if (start.current === null) start.current = st.clock.elapsedTime;
-    const k = Math.min(1, (st.clock.elapsedTime - start.current) / (PROJECTILE_MS / 1000));
-    const e = k * k;
-    g.position.lerpVectors(from, to, e);
-    g.position.y += Math.sin(Math.PI * e) * arc;
-    if (k >= 1) onDone();
-  });
-  return (
-    <group ref={ref} position={from.toArray() as [number, number, number]}>
-      <mesh><sphereGeometry args={[0.08, 12, 8]} /><meshBasicMaterial color="#ffffff" toneMapped={false} /></mesh>
-      <mesh><sphereGeometry args={[0.2, 12, 8]} /><meshBasicMaterial color={color} transparent opacity={0.55} depthWrite={false} toneMapped={false} /></mesh>
-    </group>
-  );
-}
-
 function Pillar({ row, col, hot, onDone }: { row: number; col: number; hot: boolean; onDone: () => void }) {
   const ref = useRef<THREE.Mesh>(null);
   const flash = useRef<THREE.Mesh>(null);
@@ -554,38 +572,83 @@ function Beam({ proj, a, b, color, width }: { proj: Projection; a: string; b: st
   );
 }
 
+/** Spell colour of a raider: their look's glow, else by what they do. */
+function fxColor(sim: Sim, raiderId: number, kind: string | null): string {
+  const r = sim.raiders.find((x) => x.id === raiderId);
+  const glow = r ? HERO_LOOKS[r.candidateId]?.glow : undefined;
+  if (kind === 'heal') return '#7dffa8';
+  return glow ?? (kind === 'ability' ? colors.accent : '#ffb35c');
+}
+
+type Fx =
+  | { t: 'comet'; key: string; from: THREE.Vector3; to: THREE.Vector3; color: string; arc: number; arrow: boolean; big: boolean; heal: boolean }
+  | { t: 'burst'; key: string; at: THREE.Vector3; color: string; n: number; speed: number; up: number; size: number; flash: number }
+  | { t: 'ring'; key: string; at: THREE.Vector3; color: string; radius: number }
+  | { t: 'slash'; key: string; at: THREE.Vector3; flip: boolean }
+  | { t: 'pillar'; key: string; row: number; col: number; hot: boolean }
+  | { t: 'wave'; key: string; at: THREE.Vector3 };
+
 function Effects({ sim, proj, foeKeyFor }: { sim: Sim; proj: Projection; foeKeyFor: (enemyId: number) => string }) {
-  const [bolts, setBolts] = useState<{ key: number; from: THREE.Vector3; to: THREE.Vector3; color: string; arc: number }[]>([]);
-  const [pillars, setPillars] = useState<{ key: string; row: number; col: number; hot: boolean }[]>([]);
-  const [waves, setWaves] = useState<{ key: number; at: THREE.Vector3 }[]>([]);
+  const [fx, setFx] = useState<Fx[]>([]);
+  const addFx = (...xs: Fx[]) => setFx((cur) => [...cur, ...xs]);
+  const drop = (key: string) => setFx((cur) => cur.filter((x) => x.key !== key));
   useEffect(() => {
-    const fx = sim.fx;
-    if (!fx.seq || typeof fx.actor !== 'number') return;
-    const from = proj.world.get('r' + fx.actor)?.clone();
+    const f = sim.fx;
+    if (!f.seq || typeof f.actor !== 'number') return;
+    const from = proj.world.get('r' + f.actor)?.clone();
     if (!from) return;
-    if (fx.kind === 'rally') setWaves((w) => [...w, { key: fx.seq, at: from }]);
-    let to: THREE.Vector3 | undefined; let color = '#ffb35c'; let arc = 0.9;
-    if ((fx.kind === 'ranged' || fx.kind === 'ability') && fx.targetEnemy != null) {
-      to = proj.world.get(foeKeyFor(fx.targetEnemy))?.clone();
-      if (fx.kind === 'ability') color = colors.accent;
-    } else if (fx.targetRaider != null && fx.targetRaider !== fx.actor) {
-      to = proj.world.get('r' + fx.targetRaider)?.clone(); color = colors.good; arc = 0.6;
+    const color = fxColor(sim, f.actor, f.kind);
+    const raider = sim.raiders.find((x) => x.id === f.actor);
+    const archer = !!raider && HERO_LOOKS[raider.candidateId]?.weapon === 'bow';
+    const k = String(f.seq);
+    if (f.kind === 'rally') addFx({ t: 'wave', key: 'w' + k, at: from }, { t: 'burst', key: 'rb' + k, at: from.clone().setY(0.3), color: colors.warn, n: 30, speed: 1.2, up: 2, size: 0.12, flash: 0 });
+    if ((f.kind === 'ranged' || f.kind === 'ability') && f.targetEnemy != null) {
+      const to = proj.world.get(foeKeyFor(f.targetEnemy))?.clone();
+      if (to) addFx({ t: 'comet', key: 'c' + k, from: from.clone().setY(from.y + 0.2), to, color, arc: archer ? 0.35 : 0.9, arrow: archer && f.kind === 'ranged', big: f.kind === 'ability', heal: false });
+      if (f.kind === 'ability') addFx({ t: 'burst', key: 'cast' + k, at: from.clone().setY(from.y + 0.3), color, n: 14, speed: 1, up: 1.5, size: 0.12, flash: 0.6 });
+    } else if (f.kind === 'melee' && f.targetEnemy != null) {
+      const to = proj.world.get(foeKeyFor(f.targetEnemy))?.clone();
+      if (to) {
+        const at = to.clone().lerp(from, 0.25);
+        setTimeout(() => addFx({ t: 'slash', key: 's' + k, at, flip: Math.random() < 0.5 }, { t: 'burst', key: 'sb' + k, at, color: f.crit ? '#ffd24a' : '#ffe9c8', n: f.crit ? 30 : 16, speed: f.crit ? 4 : 2.6, up: 0.2, size: 0.1, flash: f.crit ? 0.8 : 0.4 }), impactDelay(f));
+      }
+    } else if (f.targetRaider != null) {
+      const to = proj.world.get('r' + f.targetRaider)?.clone();
+      if (to && f.targetRaider !== f.actor) addFx({ t: 'comet', key: 'c' + k, from, to, color, arc: 0.6, arrow: false, big: false, heal: f.kind === 'heal' });
+      else if (to) addFx({ t: 'burst', key: 'h' + k, at: to.clone().setY(0.2), color, n: 26, speed: 0.8, up: 3, size: 0.13, flash: 0.5 }, { t: 'ring', key: 'hr' + k, at: to, color, radius: 1.1 });
     }
-    if (to) setBolts((b) => [...b, { key: fx.seq, from, to: to!, color, arc }]);
   }, [sim.fx.seq]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!sim.impact.seq || !sim.impact.cells.length) return;
     const hot = sim.impact.kind === 'meteor' || sim.impact.kind === 'devour';
-    setPillars((p) => [...p, ...sim.impact.cells.map((k) => {
-      const [row, col] = k.split(',').map(Number);
-      return { key: sim.impact.seq + ':' + k, row, col, hot };
-    })]);
+    addFx(...sim.impact.cells.flatMap((c): Fx[] => {
+      const [row, col] = c.split(',').map(Number);
+      const key = sim.impact.seq + ':' + c;
+      const at = new THREE.Vector3(colX(col), 0.25, rowZ(row));
+      return [{ t: 'pillar', key: 'p' + key, row, col, hot }, { t: 'burst', key: 'pb' + key, at, color: hot ? '#ff7a2a' : '#dfe4ff', n: 14, speed: 3, up: 0.8, size: 0.14, flash: 0.7 }];
+    }));
   }, [sim.impact.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  const arrive = (c: Extract<Fx, { t: 'comet' }>) => (at: THREE.Vector3) => {
+    drop(c.key);
+    if (c.heal) addFx({ t: 'burst', key: 'ha' + c.key, at: at.clone().setY(0.2), color: c.color, n: 26, speed: 0.8, up: 3, size: 0.13, flash: 0.5 }, { t: 'ring', key: 'hra' + c.key, at, color: c.color, radius: 1.1 });
+    else if (c.arrow) addFx({ t: 'burst', key: 'a' + c.key, at, color: '#e8dcc8', n: 10, speed: 2, up: 0.3, size: 0.08, flash: 0.3 });
+    else addFx(
+      { t: 'burst', key: 'a' + c.key, at, color: c.color, n: c.big ? 40 : 24, speed: c.big ? 4.5 : 3, up: 0.3, size: c.big ? 0.2 : 0.15, flash: 1 },
+      ...(c.big ? [{ t: 'ring', key: 'ar' + c.key, at, color: c.color, radius: 2 } as Fx] : []),
+    );
+  };
   return (
     <>
-      {bolts.map((b) => <Bolt key={b.key} from={b.from} to={b.to} color={b.color} arc={b.arc} onDone={() => setBolts((xs) => xs.filter((x) => x.key !== b.key))} />)}
-      {pillars.map((p) => <Pillar key={p.key} row={p.row} col={p.col} hot={p.hot} onDone={() => setPillars((xs) => xs.filter((x) => x.key !== p.key))} />)}
-      {waves.map((w) => <Wave key={w.key} at={w.at} onDone={() => setWaves((xs) => xs.filter((x) => x.key !== w.key))} />)}
+      {fx.map((x) => {
+        switch (x.t) {
+          case 'comet': return <Comet key={x.key} from={x.from} to={x.to} color={x.color} arc={x.arc} ms={PROJECTILE_MS} arrow={x.arrow} onArrive={arrive(x)} />;
+          case 'burst': return <Burst key={x.key} at={x.at} color={x.color} n={x.n} speed={x.speed} up={x.up} size={x.size} flash={x.flash} onDone={() => drop(x.key)} />;
+          case 'ring': return <GroundRing key={x.key} at={x.at} color={x.color} radius={x.radius} onDone={() => drop(x.key)} />;
+          case 'slash': return <Slash key={x.key} at={x.at} flip={x.flip} onDone={() => drop(x.key)} />;
+          case 'pillar': return <Pillar key={x.key} row={x.row} col={x.col} hot={x.hot} onDone={() => drop(x.key)} />;
+          case 'wave': return <Wave key={x.key} at={x.at} onDone={() => drop(x.key)} />;
+        }
+      })}
       {sim.pendingCast ? <Beam proj={proj} a="boss" b={'r' + sim.pendingCast.targetId} color={colors.danger} width={0.035} /> : null}
       {sim.chain ? <Beam proj={proj} a={'r' + sim.chain.aId} b={'r' + sim.chain.bId} color={colors.accent} width={0.025} /> : null}
     </>
