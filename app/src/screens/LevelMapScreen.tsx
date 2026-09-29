@@ -144,7 +144,7 @@ export function LevelMapScreen({ engine }: { engine: GameEngine }) {
                       <View
                         style={{
                           width: NODE_R * 2, height: NODE_R * 2, borderRadius: NODE_R, alignItems: 'center', justifyContent: 'center',
-                          backgroundColor: n.unlocked ? 'rgba(24,21,17,0.95)' : 'rgba(15,17,25,0.9)',
+                          backgroundColor: n.unlocked ? '#181511' : '#0f1119',
                           borderWidth: 2, borderColor: ringColor, opacity: n.unlocked ? 1 : 0.7,
                         }}
                       >
@@ -155,12 +155,14 @@ export function LevelMapScreen({ engine }: { engine: GameEngine }) {
                         )}
                       </View>
                       {here ? <Text style={{ marginTop: 6, fontSize: 9.5, letterSpacing: 1.4, color: '#e2bf85', fontFamily: font.semibold }}>ВЫ ЗДЕСЬ</Text> : null}
-                      <Text numberOfLines={2} style={{ marginTop: here ? 2 : 8, fontSize: 11.5, textAlign: 'center', color: n.unlocked ? colors.text : colors.borderHover, fontFamily: font.medium, textShadowColor: '#000', textShadowRadius: 4 }}>
-                        {n.dungeon.name}
-                      </Text>
-                      <Text style={{ marginTop: 2, fontSize: 10, textAlign: 'center', color: colors.textFaint, fontFamily: font.regular }}>
-                        {n.unlocked ? `реком. ГС ${n.dungeon.recommendedGs}` : 'закрыто'}
-                      </Text>
+                      <View style={{ marginTop: here ? 2 : 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(15,17,25,0.72)' }}>
+                        <Text numberOfLines={2} style={{ fontSize: 11.5, textAlign: 'center', color: n.unlocked ? colors.text : colors.borderHover, fontFamily: font.medium, textShadowColor: '#000', textShadowRadius: 4 }}>
+                          {n.dungeon.name}
+                        </Text>
+                        <Text style={{ marginTop: 2, fontSize: 10, textAlign: 'center', color: colors.textFaint, fontFamily: font.regular }}>
+                          {n.unlocked ? `реком. ГС ${n.dungeon.recommendedGs}` : 'закрыто'}
+                        </Text>
+                      </View>
                     </Pressable>
                   );
                 })}

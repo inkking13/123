@@ -46,8 +46,8 @@ export function GearScreen({ engine }: { engine: GameEngine }) {
       </ScrollView>
 
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-        <LinearGradient colors={['rgba(14,15,24,0)', 'rgba(14,15,24,0.9)']} style={{ height: 30 }} />
-        <View style={{ backgroundColor: 'rgba(14,15,24,0.9)', paddingHorizontal: 16, paddingTop: 4, paddingBottom: Math.max(20, insets.bottom + 12) }}>
+        <LinearGradient colors={['rgba(14,15,24,0)', 'rgba(14,15,24,0.97)']} style={{ height: 30 }} />
+        <View style={{ backgroundColor: 'rgba(14,15,24,0.97)', paddingHorizontal: 16, paddingTop: 4, paddingBottom: Math.max(20, insets.bottom + 12) }}>
           <PrimaryButton label="В подземелье" icon="door-open" onPress={() => engine.goDungeon()} />
         </View>
       </View>
