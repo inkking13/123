@@ -22,7 +22,7 @@ import { CURIOS } from '../data/curios';
 import { EventOption, OFFICE_EVENTS, STAFF_EVENTS } from '../data/events';
 import { BARKS, barkMoment } from '../data/barks';
 import { GearIconId as ItemIconId } from '../data/armourSets';
-import { ARMOUR_IDS } from '../data/armourSets';
+import { ARMOUR_IDS, RETIRED_ARMOUR_IDS } from '../data/armourSets';
 import { FEATURES, FEATURE_ORDER, Feature, Tip } from '../data/features';
 import { IconName } from '../components/Icon';
 import type { Quality } from '../battle3d/quality';
@@ -504,6 +504,8 @@ export class GameEngine {
     if (data.inventoryCounts) this.inventoryCounts = data.inventoryCounts;
     // Saves from before the armour sets get one of each piece.
     for (const id of ARMOUR_IDS) if (this.inventoryCounts[id] === undefined) this.inventoryCounts[id] = 1;
+    // Shoulders, cloaks, belts and boots of the sets are now part of the torso and legs items.
+    for (const id of RETIRED_ARMOUR_IDS) delete this.inventoryCounts[id];
     if (data.reagentCounts) this.reagentCounts = data.reagentCounts;
     if (typeof data.gold === 'number') this.gold = data.gold;
     if (data.dungeonId) this.dungeonId = data.dungeonId;
