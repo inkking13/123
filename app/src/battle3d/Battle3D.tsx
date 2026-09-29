@@ -25,6 +25,15 @@ export function canRender3D(): boolean {
   }
 }
 
+/** How long the 3D field may take to load before the fight drops to 2.5D (weak phones can stall for good). */
+const LOAD_TIMEOUT_MS = 30000;
+
+/** Mounted once everything under the Suspense boundary has loaded. */
+function Loaded({ onLoad }: { onLoad: () => void }) {
+  useEffect(() => { onLoad(); }, []);
+  return null;
+}
+
 /** Any render error inside the 3D view drops the fight back to the 2.5D stage instead of crashing it. */
 export class Guard extends Component<{ onFail: (e: unknown) => void; children: React.ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -186,6 +195,13 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
     },
     onPanResponderTerminationRequest: () => false,
   }), []);
+  // Say it's loading instead of showing an empty field, and give up on 3D if it never arrives.
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    if (loaded) return;
+    const t = setTimeout(() => onFail(new Error('3D battlefield did not load in time')), LOAD_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [loaded]);
   const camera = useMemo(() => ({ position: CAMERA_HOME.toArray() as [number, number, number], fov: 50, near: 0.1, far: 200 }), []);
   return (
     <View {...pan.panHandlers} style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: props.theme.sky[2] }}>
@@ -193,9 +209,15 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
         <Canvas key={quality} camera={camera} style={{ flex: 1 }} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
           <Suspense fallback={null}>
             <Arena3D {...props} proj={proj} closeUp={closeUp} weather={q.weather} orbit={orbit} />
+            <Loaded onLoad={() => setLoaded(true)} />
           </Suspense>
         </Canvas>
       </Guard>
+      {!loaded ? (
+        <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 13, color: colors.textMuted, fontFamily: font.medium }}>Загружаю поле боя…</Text>
+        </View>
+      ) : null}
       <Vignette />
       <Flashes sim={sim} />
       <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}>
