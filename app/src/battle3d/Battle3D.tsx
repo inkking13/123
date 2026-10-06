@@ -6,7 +6,7 @@ import { qualityProfile } from './quality';
 import { FrameCap } from './FrameCap';
 import { ModelEnvironment, setModelQuality } from './materials';
 import { Arena3D, ArenaProps, Orbit } from './Arena3D';
-import { Projection } from './projection';
+import { Projection, useScreenBox } from './projection';
 import { CAMERA_HOME } from './world';
 import { use3dProbe } from './probe3d';
 import { GameEngine } from '../engine/GameEngine';
@@ -45,7 +45,7 @@ export class Guard extends Component<{ onFail: (e: unknown) => void; children: R
 }
 
 function RaiderTag({ r, sim, proj }: { r: Raider; sim: Sim; proj: Projection }) {
-  const box = proj.box('r' + r.id);
+  const box = useScreenBox(proj, 'r' + r.id);
   const fx = sim.fx;
   const floaters = useHpFloaters(r.hp, () => false, () => (fx.kind === 'heal' || fx.kind === 'ability') && fx.targetRaider === r.id ? impactDelay(fx) : 0);
   const hpPct = Math.max(0, (r.hp / r.maxHp) * 100);
@@ -80,7 +80,7 @@ function FoeOverlay({ proj, keyName, name, hp, maxHp, alive, isBoss, sim, focuse
   proj: Projection; keyName: string; name?: string; hp: number; maxHp: number; alive: boolean; isBoss: boolean;
   sim: Sim; focused: boolean; onPress?: () => void; testID?: string;
 }) {
-  const box = proj.box(keyName);
+  const box = useScreenBox(proj, keyName);
   const fx = sim.fx;
   const delay = () => (fx.actor !== 'enemy' ? impactDelay(fx) : 0);
   const floaters = useHpFloaters(hp, () => fx.crit && fx.actor !== 'enemy', delay);
@@ -108,11 +108,11 @@ function FoeOverlay({ proj, keyName, name, hp, maxHp, alive, isBoss, sim, focuse
   );
 }
 
-function TileTarget({ proj, row, col, enabled, onPress }: { proj: Projection; row: number; col: number; enabled: boolean; onPress: () => void }) {
-  const box = proj.box(`tile-${row}-${col}`);
+function TileTarget({ proj, row, col, onPress }: { proj: Projection; row: number; col: number; onPress: () => void }) {
+  const box = useScreenBox(proj, `tile-${row}-${col}`);
   return (
     <Animated.View style={{ position: 'absolute', left: box.left, top: box.top, width: box.width, height: box.height }}>
-      <Pressable testID={'cell-' + row + '-' + col} disabled={!enabled} onPress={onPress} style={{ flex: 1 }} />
+      <Pressable testID={'cell-' + row + '-' + col} onPress={onPress} style={{ flex: 1 }} />
     </Animated.View>
   );
 }
@@ -229,10 +229,11 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
         {Array.from({ length: GRID_ROWS }).flatMap((_, row) => Array.from({ length: GRID_COLS }).map((__, col) => {
           const isSelf = !!current && current.row === row && current.col === col;
           const reach = sim.movePhase && reachable.some((c) => c.row === row && c.col === col);
+          // Only cells you can tap get a target: each one is re-placed every frame.
+          if (!reach && !(sim.movePhase && isSelf)) return null;
           return (
             <TileTarget
               key={row + '-' + col} proj={proj} row={row} col={col}
-              enabled={reach || (sim.movePhase && isSelf)}
               onPress={tap(() => (isSelf ? engine.skipMove() : engine.moveRaider(row, col)))}
             />
           );

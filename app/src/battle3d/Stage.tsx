@@ -88,7 +88,7 @@ function PieceMesh({ piece: S }: { piece: Piece }) {
   return <primitive object={scene} scale={[k, k, k]} rotation={[0, S.turn ?? 0, 0]} position={[x * TILE, -S.floorY * k - (S.drop ?? 0), z * TILE]} />;
 }
 
-function Piece({ piece }: { piece: Piece }) {
+const Piece = React.memo(function Piece({ piece }: { piece: Piece }) {
   const [x, z] = piece.at ?? [0, 0];
   return (
     <>
@@ -100,7 +100,7 @@ function Piece({ piece }: { piece: Piece }) {
       {piece.flame != null ? <Flame at={[x * TILE, piece.flame, z * TILE]} size={0.45} light={!lowGraphics()} /> : null}
     </>
   );
-}
+});
 
 /** The board's own slab, drawn while the stage loads or if it can't. */
 function Slab({ theme }: { theme: BattleTheme }) {
@@ -120,7 +120,7 @@ class Fallback extends Component<{ fallback: React.ReactNode; children: React.Re
 }
 
 /** The ground under the board: the location's stage models, and the plain slab unless a stage has its own floor. */
-export function Stage({ theme }: { theme: BattleTheme }) {
+export const Stage = React.memo(function Stage({ theme }: { theme: BattleTheme }) {
   const slab = <Slab theme={theme} />;
   const S = theme.stage && STAGES[theme.stage];
   if (!S) return slab;
@@ -138,4 +138,4 @@ export function Stage({ theme }: { theme: BattleTheme }) {
       {S.pieces.filter((p) => p !== floor && !(LIGHT_STAGE && p.clutter)).map((p, i) => <Piece key={i} piece={p} />)}
     </>
   );
-}
+});

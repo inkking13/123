@@ -74,9 +74,9 @@ const MAP: Record<IconName, React.ComponentType<any>> = {
   'music-notes': MusicNotes,
 };
 
-export function Icon({
+export const Icon = React.memo(function Icon({
   name, size = 18, color = '#e9e9ed', weight = 'regular',
 }: { name: IconName; size?: number; color?: string; weight?: 'regular' | 'fill' }) {
   const C = MAP[name];
   return <C size={size} color={color} weight={weight} />;
-}
+});

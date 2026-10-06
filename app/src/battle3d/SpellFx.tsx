@@ -9,7 +9,37 @@ import { lowGraphics } from './materials';
 // a second, draws with additive blending (so it glows over the dark stage) and
 // calls onDone to be removed.
 
-const add = { transparent: true, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending } as const;
+// Effect materials are never disposed: disposing the last material of a kind
+// throws its compiled shader away, so the next spark or arrow had to compile it
+// again mid-fight, a stall of a frame or more on a weak phone.
+const keep = { dispose: null } as const;
+const add = { ...keep, transparent: true, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending } as const;
+
+const warmed = new WeakSet<THREE.WebGLRenderer>();
+/**
+ * Compiles every effect's shader up front, while the fight is loading, so the
+ * first arrow, spark or ring doesn't stall a frame. The warm-up materials are
+ * kept, which keeps their programs alive for the whole session.
+ */
+export function warmEffects(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
+  if (warmed.has(gl)) return;
+  warmed.add(gl);
+  const tex = softDotTexture();
+  const glow = { transparent: true, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending };
+  const fade = { transparent: true, depthWrite: false, toneMapped: false };
+  const dot = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
+  const flat = new THREE.PlaneGeometry(1, 1);
+  const tmp = new THREE.Scene();
+  tmp.add(
+    new THREE.Points(dot, new THREE.PointsMaterial({ map: tex, sizeAttenuation: true, ...glow })),
+    new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, ...glow })),
+    new THREE.Mesh(flat, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, ...glow })),
+    new THREE.Mesh(flat, new THREE.MeshBasicMaterial()),
+    new THREE.Mesh(flat, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, ...fade })),
+    new THREE.Mesh(flat, new THREE.MeshBasicMaterial(fade)),
+  );
+  gl.compile(tmp, camera, scene);
+}
 
 /** A glowing spell with a comet tail, or an arrow, flying from one point to another. */
 export function Comet({ from, to, color, arc, ms, arrow, onArrive }: {
@@ -56,8 +86,8 @@ export function Comet({ from, to, color, arc, ms, arrow, onArrive }: {
         {arrow ? (
           // Shaft along its flight (lookAt aims +Z), a pale fletching glow at the back.
           <>
-            <mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.012, 0.012, 0.6, 5]} /><meshBasicMaterial color="#d8c8a8" /></mesh>
-            <mesh position={[0, 0, 0.32]} rotation={[Math.PI / 2, 0, 0]}><coneGeometry args={[0.03, 0.08, 6]} /><meshBasicMaterial color="#c8ccd4" /></mesh>
+            <mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.012, 0.012, 0.6, 5]} /><meshBasicMaterial color="#d8c8a8" {...keep} /></mesh>
+            <mesh position={[0, 0, 0.32]} rotation={[Math.PI / 2, 0, 0]}><coneGeometry args={[0.03, 0.08, 6]} /><meshBasicMaterial color="#c8ccd4" {...keep} /></mesh>
             <sprite scale={[0.35, 0.35, 1]} position={[0, 0, -0.25]}><spriteMaterial map={tex} color={color} opacity={0.5} {...add} /></sprite>
           </>
         ) : (
