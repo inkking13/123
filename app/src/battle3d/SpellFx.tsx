@@ -2,6 +2,7 @@ import React, { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from './r3f';
 import { softDotTexture } from './Atmosphere';
+import { lowGraphics } from './materials';
 
 // Combat effects: spells and arrows in flight, bursts where they land, slashes
 // on melee hits, healing motes and ground rings. Each one lives for well under
@@ -63,7 +64,8 @@ export function Comet({ from, to, color, arc, ms, arrow, onArrive }: {
           <>
             <sprite scale={[0.3, 0.3, 1]}><spriteMaterial map={tex} color="#ffffff" {...add} /></sprite>
             <sprite scale={[0.85, 0.85, 1]}><spriteMaterial map={tex} color={color} opacity={0.9} {...add} /></sprite>
-            <pointLight color={color} intensity={4} distance={4} decay={1.5} />
+            {/* A light coming and going makes every lit material recompile its shader, a visible hitch on a weak phone. */}
+            {lowGraphics() ? null : <pointLight color={color} intensity={4} distance={4} decay={1.5} />}
           </>
         )}
       </group>

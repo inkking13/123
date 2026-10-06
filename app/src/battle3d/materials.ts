@@ -27,11 +27,18 @@ export function setModelQuality(q: Quality) {
   rich = q !== 'low';
 }
 
+/** True on low graphics: the scene drops what weak phones can't afford (extra lights, normal maps, separate armour meshes). */
+export function lowGraphics() {
+  return !rich;
+}
+
 /** The game's material for a mesh loaded from a file. */
 export function modelMaterial(src: THREE.Material, finish: Finish, extra: { side?: THREE.Side } = {}): ModelMaterial {
   const std = src as THREE.MeshStandardMaterial;
   // Stone (the keep, decor) stays Lambert: it has no shine to show, and it is most of the screen.
-  if (!rich || finish === 'stone') return new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap, ...extra });
+  // Low graphics skip the normal map too: per-pixel bump lighting over the whole screen is what weak GPUs choke on.
+  if (!rich) return new THREE.MeshLambertMaterial({ map: std.map, ...extra });
+  if (finish === 'stone') return new THREE.MeshLambertMaterial({ map: std.map, normalMap: std.normalMap, ...extra });
   return new THREE.MeshStandardMaterial({ map: std.map, normalMap: std.normalMap, ...FINISH[finish], ...extra });
 }
 

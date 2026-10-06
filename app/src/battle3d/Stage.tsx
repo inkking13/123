@@ -4,7 +4,7 @@ import { Asset } from 'expo-asset';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useLoader } from './r3f';
-import { modelMaterial } from './materials';
+import { lowGraphics, modelMaterial } from './materials';
 import { BattleTheme } from '../components/BattleBackdrop';
 import { GRID_COLS, GRID_ROWS } from '../combat/types';
 import { TILE } from './world';
@@ -97,7 +97,7 @@ function Piece({ piece }: { piece: Piece }) {
           <PieceMesh piece={piece} />
         </React.Suspense>
       </Fallback>
-      {piece.flame != null ? <Flame at={[x * TILE, piece.flame, z * TILE]} size={0.45} /> : null}
+      {piece.flame != null ? <Flame at={[x * TILE, piece.flame, z * TILE]} size={0.45} light={!lowGraphics()} /> : null}
     </>
   );
 }

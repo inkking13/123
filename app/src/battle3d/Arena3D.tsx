@@ -12,7 +12,7 @@ import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
 import { Stage } from './Stage';
-import { Tile, TileState } from './BoardTiles';
+import { TileGrid, TileState } from './BoardTiles';
 import { Burst, Comet, GroundRing, Slash } from './SpellFx';
 import {
   BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
@@ -486,12 +486,11 @@ function Board({ sim, theme, current, reachable, proj }: { sim: Sim; theme: Batt
   return (
     <>
       <Stage theme={theme} />
-      {Array.from({ length: GRID_ROWS }).flatMap((_, row) => Array.from({ length: GRID_COLS }).map((__, col) => (
-        <Tile
-          key={row + '-' + col} row={row} col={col} state={stateOf(row, col)} theme={theme}
-          activeColor={current && !sim.movePhase && current.row === row && current.col === col ? roleColor[current.role] : null}
-        />
-      )))}
+      <TileGrid
+        rows={GRID_ROWS} cols={GRID_COLS} theme={theme}
+        states={Array.from({ length: GRID_ROWS * GRID_COLS }, (_, i) => stateOf(Math.floor(i / GRID_COLS), i % GRID_COLS))}
+        active={current && !sim.movePhase ? { row: current.row, col: current.col, color: roleColor[current.role] } : null}
+      />
     </>
   );
 }
