@@ -177,6 +177,8 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
   const quality = engine.settings.quality;
   const q = useMemo(() => qualityProfile(quality), [quality]);
   setModelQuality(quality);
+  // The canvas may be drawn small and stretched: overlay boxes are scaled up to match.
+  proj.zoom = 1 / q.scale;
   // Close-up by default: on a phone the whole board makes the figures tiny.
   const [closeUp, setCloseUp] = useState(true);
   // Drag sideways anywhere on the field to walk the camera round the board (taps still reach tiles and foes).
@@ -209,14 +211,16 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
   return (
     <View {...pan.panHandlers} style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: props.theme.sky[2] }}>
       <Guard onFail={onFail}>
-        <Canvas key={quality} camera={camera} style={{ flex: 1 }} frameloop={q.fps ? 'demand' : 'always'} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
-          <FrameCap fps={q.fps} />
-          <ModelEnvironment quality={quality} />
-          <Suspense fallback={null}>
-            <Arena3D {...props} proj={proj} closeUp={closeUp} weather={q.weather} orbit={orbit} />
-            <Loaded onLoad={() => setLoaded(true)} />
-          </Suspense>
-        </Canvas>
+        <View style={q.scale < 1 ? { position: 'absolute', left: 0, top: 0, width: `${q.scale * 100}%`, height: `${q.scale * 100}%`, transformOrigin: 'left top', transform: [{ scale: 1 / q.scale }] } : { flex: 1 }}>
+          <Canvas key={quality} camera={camera} style={{ flex: 1 }} frameloop={q.fps ? 'demand' : 'always'} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
+            <FrameCap fps={q.fps} />
+            <ModelEnvironment quality={quality} />
+            <Suspense fallback={null}>
+              <Arena3D {...props} proj={proj} closeUp={closeUp} weather={q.weather} orbit={orbit} />
+              <Loaded onLoad={() => setLoaded(true)} />
+            </Suspense>
+          </Canvas>
+        </View>
       </Guard>
       {!loaded ? (
         <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>

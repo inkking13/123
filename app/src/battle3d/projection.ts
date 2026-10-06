@@ -15,6 +15,8 @@ export class Projection {
   /** Latest world positions of moving things (figure centres), for beams and projectiles. */
   readonly world = new Map<string, THREE.Vector3>();
   private tmp = new THREE.Vector3();
+  /** Screen points per canvas point, when the canvas is drawn smaller and stretched to fill the field. */
+  zoom = 1;
   private view: { camera: THREE.Camera; width: number; height: number } | null = null;
 
   box(key: string): ScreenBox {
@@ -59,8 +61,8 @@ export class Projection {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const p of e.pts) {
       this.tmp.copy(p).project(camera);
-      const sx = ((this.tmp.x + 1) / 2) * width;
-      const sy = ((1 - this.tmp.y) / 2) * height;
+      const sx = ((this.tmp.x + 1) / 2) * width * this.zoom;
+      const sy = ((1 - this.tmp.y) / 2) * height * this.zoom;
       if (sx < x0) x0 = sx; if (sx > x1) x1 = sx;
       if (sy < y0) y0 = sy; if (sy > y1) y1 = sy;
     }
