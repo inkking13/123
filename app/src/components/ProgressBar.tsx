@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, View } from 'react-native';
 import { colors } from '../theme/theme';
 
-export function ProgressBar({
+export const ProgressBar = React.memo(function ProgressBar({
   pct, color, height = 4, trackColor = colors.border, radius,
 }: { pct: number; color: string; height?: number; trackColor?: string; radius?: number }) {
   const r = radius ?? height / 2;
@@ -25,4 +25,4 @@ export function ProgressBar({
       />
     </View>
   );
-}
+});

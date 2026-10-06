@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, Pressable, Text, View } from 'react-native';
 import { CombatFx } from '../combat/types';
 import { colors, font } from '../theme/theme';
@@ -30,17 +30,17 @@ export function useHpFloaters(hp: number, isBig: () => boolean = () => false, ge
     // isBig reads the latest fx at the moment HP changes; it's intentionally not a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hp]);
-  const remove = (id: number) => setItems((xs) => xs.filter((x) => x.id !== id));
+  const remove = useCallback((id: number) => setItems((xs) => xs.filter((x) => x.id !== id)), []);
   return { items, remove };
 }
 
-export function Floaters({ items, remove }: { items: FloaterItem[]; remove: (id: number) => void }) {
+export const Floaters = React.memo(function Floaters({ items, remove }: { items: FloaterItem[]; remove: (id: number) => void }) {
   return (
     <>
       {items.map((it) => <Floater key={it.id} item={it} onDone={() => remove(it.id)} />)}
     </>
   );
-}
+});
 
 function Floater({ item, onDone }: { item: FloaterItem; onDone: () => void }) {
   const v = useRef(new Animated.Value(0)).current;

@@ -464,7 +464,7 @@ function Sprite({ look, anim }: { look: Extract<CreatureLook, { kind: 'sprite' }
   );
 }
 
-export function CreatureModel({ look, anim }: { look: CreatureLook; anim: React.MutableRefObject<CreatureAnim> }) {
+export const CreatureModel = React.memo(function CreatureModel({ look, anim }: { look: CreatureLook; anim: React.MutableRefObject<CreatureAnim> }) {
   switch (look.kind) {
     case 'beast': return <Beast look={look} anim={anim} />;
     case 'bird': return <Bird look={look} anim={anim} />;
@@ -474,4 +474,4 @@ export function CreatureModel({ look, anim }: { look: CreatureLook; anim: React.
     case 'blob': return <Blob look={look} anim={anim} />;
     case 'sprite': return <Sprite look={look} anim={anim} />;
   }
-}
+});

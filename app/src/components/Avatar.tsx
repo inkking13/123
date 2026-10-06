@@ -3,7 +3,7 @@ import { Image, View, StyleProp, ViewStyle } from 'react-native';
 import { portraitSource } from '../data/portraits';
 import { colors } from '../theme/theme';
 
-export function Avatar({
+export const Avatar = React.memo(function Avatar({
   id, size, radius = 8, opacity = 1, grayscale = false, style,
 }: {
   id: number;
@@ -24,4 +24,4 @@ export function Avatar({
       ) : null}
     </View>
   );
-}
+});

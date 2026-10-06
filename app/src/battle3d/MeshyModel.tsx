@@ -295,7 +295,7 @@ function shieldMesh(color: string, metal: string): THREE.Object3D {
   return g;
 }
 
-function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim: React.MutableRefObject<HeroAnim>; gear?: GearLook; opts: HeroOpts }) {
+const Meshy = React.memo(function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim: React.MutableRefObject<HeroAnim>; gear?: GearLook; opts: HeroOpts }) {
   const gltf = useLoader(GLTFLoader, B.url as any) as unknown as { scene: THREE.Group; animations: THREE.AnimationClip[] };
   const SCALE = B.height / (B.modelH ?? MODEL_H);
   const look = useMemo(() => (HERO_LOOKS[id] ? withGear(HERO_LOOKS[id], gear) : null), [id, gear]);
@@ -509,7 +509,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       {B.wardrobe && gear?.pieces?.length ? <React.Suspense fallback={null}><Wardrobe body={B.wardrobe} pieces={gear.pieces} bodyMeshes={bodyMeshes} materials={rig.materials} /></React.Suspense> : null}
     </group>
   );
-}
+});
 
 /** Falls back to the primitive-built hero if the model can't load or draw. */
 class Fallback extends Component<{ fallback: React.ReactNode; children: React.ReactNode }, { failed: boolean }> {
@@ -526,13 +526,15 @@ interface HeroOpts {
   act?: Partial<Record<string, string>>;
 }
 
+const NO_OPTS: HeroOpts = {};
+
 /** A monster on a Meshy body, falling back to its built look. */
 export function MeshyFoe({ body, look, anim }: { body: BodyName; look: HeroLook; anim: React.MutableRefObject<HeroAnim> }) {
   const fallback = <HeroModel look={look} anim={anim} />;
   return (
     <Fallback fallback={fallback}>
       <React.Suspense fallback={fallback}>
-        <Meshy id={-1} body={BODIES[body]} opts={{}} anim={anim} />
+        <Meshy id={-1} body={BODIES[body]} opts={NO_OPTS} anim={anim} />
       </React.Suspense>
     </Fallback>
   );

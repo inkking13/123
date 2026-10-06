@@ -361,7 +361,7 @@ const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 /** 0→1→0 bump over [0, dur], peaking at `peak`. */
 const bump = (t: number, dur: number, peak = 0.35) => (t < 0 || t > dur ? 0 : t < dur * peak ? t / (dur * peak) : 1 - (t - dur * peak) / (dur * (1 - peak)));
 
-export function HeroModel({ look: baseLook, anim, gear }: { look: HeroLook; anim: React.MutableRefObject<HeroAnim>; gear?: GearLook }) {
+export const HeroModel = React.memo(function HeroModel({ look: baseLook, anim, gear }: { look: HeroLook; anim: React.MutableRefObject<HeroAnim>; gear?: GearLook }) {
   const look = useMemo(() => withGear(baseLook, gear), [baseLook, gear]);
   const b = BUILD[look.build];
   const mats = useMemo(() => makeMats(look), [look]);
@@ -577,4 +577,4 @@ export function HeroModel({ look: baseLook, anim, gear }: { look: HeroLook; anim
       </group>
     </group>
   );
-}
+});

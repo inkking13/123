@@ -4,7 +4,8 @@ import { Asset } from 'expo-asset';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useLoader } from './r3f';
-import { Finish, modelMaterial } from './materials';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { Finish, lowGraphics, modelMaterial } from './materials';
 import { ArmourPiece, ArmourSetId } from '../data/armourSets';
 
 // Worn armour-set pieces on a Meshy hero. Each set was fitted offline to each
@@ -85,6 +86,18 @@ function pieceFinish(set: ArmourSetId, piece: ArmourPiece): Finish {
   return 'leather';
 }
 
+/** The given pieces of one set's file merged into one geometry, cached on the file so heroes share it. Null if they don't merge. */
+function mergedPieces(scene: THREE.Group, srcs: THREE.SkinnedMesh[]): THREE.BufferGeometry | null {
+  const cache = (scene.userData.merged ??= new Map<string, THREE.BufferGeometry | null>()) as Map<string, THREE.BufferGeometry | null>;
+  const key = srcs.map((m) => m.uuid).sort().join(',');
+  if (!cache.has(key)) {
+    let geo: THREE.BufferGeometry | null = null;
+    try { geo = mergeGeometries(srcs.map((m) => m.geometry)); } catch { geo = null; }
+    cache.set(key, geo);
+  }
+  return cache.get(key)!;
+}
+
 export function Wardrobe({ body, pieces, bodyMeshes, materials }: {
   body: WardrobeBody; pieces: WornPiece[]; bodyMeshes: THREE.SkinnedMesh[]; materials: THREE.Material[];
 }) {
@@ -99,6 +112,8 @@ export function Wardrobe({ body, pieces, bodyMeshes, materials }: {
     const added: THREE.SkinnedMesh[] = [];
     // The back wall of an open hood (bind space), to trim the hair that pokes out behind it.
     let hoodBack: number | null = null, hoodTop = Infinity;
+    // Find each worn piece's mesh in its set's file.
+    const found: { p: WornPiece; src: THREE.SkinnedMesh }[] = [];
     for (const p of pieces) {
       const g = gltfs[sets.indexOf(p.set)];
       let src: THREE.SkinnedMesh | undefined;
@@ -109,14 +124,27 @@ export function Wardrobe({ body, pieces, bodyMeshes, materials }: {
         hoodBack = Math.max(hoodBack ?? -Infinity, src.geometry.boundingBox!.min.z);
         hoodTop = Math.min(hoodTop, src.geometry.boundingBox!.max.y);
       }
-      const mat = modelMaterial(src.material as THREE.Material, pieceFinish(p.set, p.piece));
-      const m = new THREE.SkinnedMesh(src.geometry, mat);
+      found.push({ p, src });
+    }
+    const wear = (src: THREE.SkinnedMesh, geometry: THREE.BufferGeometry, finish: Finish) => {
+      const mat = modelMaterial(src.material as THREE.Material, finish);
+      const m = new THREE.SkinnedMesh(geometry, mat);
       m.frustumCulled = false;
       const skel = new THREE.Skeleton(src.skeleton.bones.map((b) => bones.get(b.name) ?? b), src.skeleton.boneInverses);
-      bodyMesh.parent.add(m);
+      bodyMesh.parent!.add(m);
       m.bind(skel, bodyMesh.bindMatrix);
       materials.push(mat);
       added.push(m);
+    };
+    // Low graphics draw every piece of a set as one mesh (one draw call instead of up to eight):
+    // a set's pieces share its texture and skeleton, and Lambert ignores their different finishes.
+    const low = lowGraphics();
+    for (const set of sets) {
+      const mine = found.filter((f) => f.p.set === set);
+      const merged = low && mine.length > 1 && mine.every((f) => f.src.skeleton.bones.every((b, i) => b.name === mine[0].src.skeleton.bones[i]?.name))
+        ? mergedPieces(gltfs[sets.indexOf(set)].scene, mine.map((f) => f.src)) : null;
+      if (merged) wear(mine[0].src, merged, 'cloth');
+      else for (const f of mine) wear(f.src, f.src.geometry, pieceFinish(f.p.set, f.p.piece));
     }
     // Hide the body where the armour covers it (a closed helm takes the head too).
     const hidden = new Set<Part>(pieces.flatMap((p) => [...(COVERS[p.piece] ?? []), ...(p.piece === 'hood' && p.closedHelm ? ['head' as Part] : [])]));

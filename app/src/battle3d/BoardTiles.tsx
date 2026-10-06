@@ -75,45 +75,104 @@ function strokeColor(theme: BattleTheme) {
   return new THREE.Color(r, g, b);
 }
 
-export function Tile({ row, col, state, activeColor, theme }: { row: number; col: number; state: TileState; activeColor: string | null; theme: BattleTheme }) {
+/** A basic material whose per-instance `instanceOpacity` scales its alpha, so one instanced draw can fade cells separately. */
+function instancedFadeMaterial(map: THREE.Texture) {
+  const m = new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, toneMapped: false });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('void main() {', 'attribute float instanceOpacity;\nvarying float vInstOpacity;\nvoid main() {\n\tvInstOpacity = instanceOpacity;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('void main() {', 'varying float vInstOpacity;\nvoid main() {')
+      .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * vInstOpacity );');
+  };
+  return m;
+}
+
+/**
+ * Every cell of the board in two draw calls (fills, then frames) instead of two
+ * meshes and a frame callback per cell: the cells' colours and strengths live in
+ * per-instance attributes that one callback eases towards each cell's state.
+ */
+export function TileGrid({ rows, cols, states, active, theme }: {
+  rows: number; cols: number;
+  /** Row-major state of every cell. */
+  states: TileState[];
+  /** The acting raider's cell, pulsing in their role colour (outside the move phase). */
+  active: { row: number; col: number; color: string } | null;
+  theme: BattleTheme;
+}) {
   const { frame, fill } = tileMaps();
-  const frameMat = useRef<THREE.MeshBasicMaterial>(null);
-  const fillMat = useRef<THREE.MeshBasicMaterial>(null);
+  const n = rows * cols;
+  const fillRef = useRef<THREE.InstancedMesh>(null);
+  const frameRef = useRef<THREE.InstancedMesh>(null);
+  const latest = useRef({ states, active });
+  latest.current = { states, active };
   const plain = useMemo(() => strokeColor(theme).lerp(new THREE.Color('#ffffff'), 0.25), [theme]);
+  const parts = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
+    const fillOp = new THREE.InstancedBufferAttribute(new Float32Array(n), 1);
+    const frameOp = new THREE.InstancedBufferAttribute(new Float32Array(n), 1);
+    const fillGeo = geo.clone(); fillGeo.setAttribute('instanceOpacity', fillOp);
+    const frameGeo = geo.clone(); frameGeo.setAttribute('instanceOpacity', frameOp);
+    geo.dispose();
+    // Each cell's current colour (shared by its fill and frame) and strengths, eased every frame.
+    const colors = Array.from({ length: n }, () => new THREE.Color());
+    const a = new Float32Array(n), b = new Float32Array(n);
+    return { fillGeo, frameGeo, fillOp, frameOp, fillMat: instancedFadeMaterial(fill), frameMat: instancedFadeMaterial(frame), colors, a, b };
+  }, [n, fill, frame]);
   const want = useMemo(() => new THREE.Color(), []);
-  // A faint checker so rows and columns read at a glance.
-  const plainFrame = (row + col) % 2 ? 0.3 : 0.38;
-  useFrame((st, dt) => {
-    const fm = frameMat.current, im = fillMat.current; if (!fm || !im) return;
-    const t = st.clock.elapsedTime;
-    let a: number, b: number;
-    if (state === 'plain' && activeColor) {
-      want.set(activeColor);
-      const p = 0.5 + 0.5 * Math.sin(t * 4);
-      a = 0.75 + 0.25 * p; b = 0.18 + 0.12 * p;
-    } else if (state === 'plain') {
-      want.copy(plain); a = plainFrame; b = 0;
-    } else {
-      const L = LOOK[state];
-      want.set(L.color);
-      const p = L.pulse ? 0.5 + 0.5 * Math.sin(t * L.pulse + (row + col) * 0.5) : 1;
-      a = L.frame * (0.75 + 0.25 * p); b = L.fill * (0.7 + 0.3 * p);
+
+  // Place the cells once (and start every cell at its plain look).
+  React.useLayoutEffect(() => {
+    const fm = fillRef.current, rm = frameRef.current; if (!fm || !rm) return;
+    const o = new THREE.Object3D();
+    for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
+      const i = row * cols + col;
+      o.rotation.set(-Math.PI / 2, 0, 0);
+      o.position.set(colX(col), 0.012, rowZ(row)); o.updateMatrix(); fm.setMatrixAt(i, o.matrix);
+      o.position.y = 0.014; o.updateMatrix(); rm.setMatrixAt(i, o.matrix);
+      parts.colors[i].copy(plain); parts.a[i] = (row + col) % 2 ? 0.3 : 0.38; parts.b[i] = 0;
+      fm.setColorAt(i, plain); rm.setColorAt(i, plain);
     }
-    // Ease between states so cells fade in and out rather than blink.
+    fm.instanceMatrix.needsUpdate = rm.instanceMatrix.needsUpdate = true;
+    fm.computeBoundingSphere(); rm.computeBoundingSphere();
+  }, [parts, rows, cols, plain]);
+
+  useFrame((st, dt) => {
+    const fm = fillRef.current, rm = frameRef.current; if (!fm || !rm || !fm.instanceColor || !rm.instanceColor) return;
+    const t = st.clock.elapsedTime;
     const k = 1 - Math.exp(-dt * 12);
-    fm.color.lerp(want, k); im.color.lerp(want, k);
-    fm.opacity += (a - fm.opacity) * k; im.opacity += (b - im.opacity) * k;
+    const { states: cur, active: act } = latest.current;
+    for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
+      const i = row * cols + col;
+      const state = cur[i] ?? 'plain';
+      let a: number, b: number;
+      if (state === 'plain' && act && act.row === row && act.col === col) {
+        want.set(act.color);
+        const p = 0.5 + 0.5 * Math.sin(t * 4);
+        a = 0.75 + 0.25 * p; b = 0.18 + 0.12 * p;
+      } else if (state === 'plain') {
+        want.copy(plain); a = (row + col) % 2 ? 0.3 : 0.38; b = 0;
+      } else {
+        const L = LOOK[state];
+        want.set(L.color);
+        const p = L.pulse ? 0.5 + 0.5 * Math.sin(t * L.pulse + (row + col) * 0.5) : 1;
+        a = L.frame * (0.75 + 0.25 * p); b = L.fill * (0.7 + 0.3 * p);
+      }
+      // Ease between states so cells fade in and out rather than blink.
+      const c = parts.colors[i].lerp(want, k);
+      parts.a[i] += (a - parts.a[i]) * k; parts.b[i] += (b - parts.b[i]) * k;
+      fm.setColorAt(i, c); rm.setColorAt(i, c);
+      parts.frameOp.setX(i, parts.a[i]); parts.fillOp.setX(i, parts.b[i]);
+    }
+    fm.instanceColor.needsUpdate = rm.instanceColor.needsUpdate = true;
+    parts.fillOp.needsUpdate = parts.frameOp.needsUpdate = true;
   });
+
   return (
-    <group position={[colX(col), 0.012, rowZ(row)]} rotation={[-Math.PI / 2, 0, 0]}>
-      <mesh renderOrder={1}>
-        <planeGeometry args={[TILE_SIZE, TILE_SIZE]} />
-        <meshBasicMaterial ref={fillMat} map={fill} transparent opacity={0} depthWrite={false} toneMapped={false} />
-      </mesh>
-      <mesh position={[0, 0, 0.002]} renderOrder={2}>
-        <planeGeometry args={[TILE_SIZE, TILE_SIZE]} />
-        <meshBasicMaterial ref={frameMat} map={frame} transparent opacity={plainFrame} color={plain} depthWrite={false} toneMapped={false} />
-      </mesh>
-    </group>
+    <>
+      <instancedMesh ref={fillRef} args={[parts.fillGeo, parts.fillMat, n]} renderOrder={1} frustumCulled={false} />
+      <instancedMesh ref={frameRef} args={[parts.frameGeo, parts.frameMat, n]} renderOrder={2} frustumCulled={false} />
+    </>
   );
 }

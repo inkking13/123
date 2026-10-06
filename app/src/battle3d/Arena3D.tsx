@@ -12,8 +12,8 @@ import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
 import { Stage } from './Stage';
-import { Tile, TileState } from './BoardTiles';
-import { Burst, Comet, GroundRing, Slash } from './SpellFx';
+import { TileGrid, TileState } from './BoardTiles';
+import { Burst, Comet, GroundRing, Slash, warmEffects } from './SpellFx';
 import {
   BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
 } from './world';
@@ -72,7 +72,7 @@ function Card({ art, size, frame, matRef, cardRef, children }: {
   );
 }
 
-function Base({ radius, color }: { radius: number; color: string }) {
+const Base = React.memo(function Base({ radius, color }: { radius: number; color: string }) {
   return (
     <>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]}>
@@ -89,9 +89,9 @@ function Base({ radius, color }: { radius: number; color: string }) {
       </mesh>
     </>
   );
-}
+});
 
-function PulseRing({ radius, color, speed = 3, y = 0.07 }: { radius: number; color: string; speed?: number; y?: number }) {
+const PulseRing = React.memo(function PulseRing({ radius, color, speed = 3, y = 0.07 }: { radius: number; color: string; speed?: number; y?: number }) {
   const ref = useRef<THREE.Mesh>(null);
   useFrame((st) => {
     if (!ref.current) return;
@@ -105,7 +105,7 @@ function PulseRing({ radius, color, speed = 3, y = 0.07 }: { radius: number; col
       <meshBasicMaterial color={color} transparent toneMapped={false} />
     </mesh>
   );
-}
+});
 
 /**
  * Walks `pos` toward `to` like a person would: it speeds up, keeps a steady
@@ -486,17 +486,17 @@ function Board({ sim, theme, current, reachable, proj }: { sim: Sim; theme: Batt
   return (
     <>
       <Stage theme={theme} />
-      {Array.from({ length: GRID_ROWS }).flatMap((_, row) => Array.from({ length: GRID_COLS }).map((__, col) => (
-        <Tile
-          key={row + '-' + col} row={row} col={col} state={stateOf(row, col)} theme={theme}
-          activeColor={current && !sim.movePhase && current.row === row && current.col === col ? roleColor[current.role] : null}
-        />
-      )))}
+      <TileGrid
+        rows={GRID_ROWS} cols={GRID_COLS} theme={theme}
+        states={Array.from({ length: GRID_ROWS * GRID_COLS }, (_, i) => stateOf(Math.floor(i / GRID_COLS), i % GRID_COLS))}
+        active={current && !sim.movePhase ? { row: current.row, col: current.col, color: roleColor[current.role] } : null}
+      />
     </>
   );
 }
 
 // ── transient effects ──────────────────────────────────────
+// Their materials keep dispose={null} so their shaders stay compiled (see SpellFx).
 
 function Pillar({ row, col, hot, onDone }: { row: number; col: number; hot: boolean; onDone: () => void }) {
   const ref = useRef<THREE.Mesh>(null);
@@ -518,11 +518,11 @@ function Pillar({ row, col, hot, onDone }: { row: number; col: number; hot: bool
     <group position={[colX(col), 0, rowZ(row)]}>
       <mesh ref={ref}>
         <cylinderGeometry args={[0.28, 0.4, 1, 16, 1, true]} />
-        <meshBasicMaterial color={color} transparent side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+        <meshBasicMaterial color={color} transparent side={THREE.DoubleSide} depthWrite={false} toneMapped={false} dispose={null} />
       </mesh>
       <mesh ref={flash} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
         <planeGeometry args={[TILE_SIZE, TILE_SIZE]} />
-        <meshBasicMaterial color={color} transparent depthWrite={false} toneMapped={false} />
+        <meshBasicMaterial color={color} transparent depthWrite={false} toneMapped={false} dispose={null} />
       </mesh>
     </group>
   );
@@ -543,7 +543,7 @@ function Wave({ at, onDone }: { at: THREE.Vector3; onDone: () => void }) {
   return (
     <mesh ref={ref} position={[at.x, 0.05, at.z]} rotation={[-Math.PI / 2, 0, 0]}>
       <ringGeometry args={[0.85, 1, 48]} />
-      <meshBasicMaterial color={colors.warn} transparent side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+      <meshBasicMaterial color={colors.warn} transparent side={THREE.DoubleSide} depthWrite={false} toneMapped={false} dispose={null} />
     </mesh>
   );
 }
@@ -567,7 +567,7 @@ function Beam({ proj, a, b, color, width }: { proj: Projection; a: string; b: st
   return (
     <mesh ref={ref}>
       <cylinderGeometry args={[width, width, 1, 8]} />
-      <meshBasicMaterial color={color} transparent depthWrite={false} toneMapped={false} />
+      <meshBasicMaterial color={color} transparent depthWrite={false} toneMapped={false} dispose={null} />
     </mesh>
   );
 }
@@ -592,6 +592,8 @@ function Effects({ sim, proj, foeKeyFor }: { sim: Sim; proj: Projection; foeKeyF
   const [fx, setFx] = useState<Fx[]>([]);
   const addFx = (...xs: Fx[]) => setFx((cur) => [...cur, ...xs]);
   const drop = (key: string) => setFx((cur) => cur.filter((x) => x.key !== key));
+  const { gl, scene, camera } = useThree();
+  useEffect(() => warmEffects(gl, scene, camera), [gl, scene, camera]);
   useEffect(() => {
     const f = sim.fx;
     if (!f.seq || typeof f.actor !== 'number') return;
