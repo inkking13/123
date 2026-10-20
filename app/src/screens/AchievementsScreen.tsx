@@ -1,10 +1,11 @@
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
 import { colors, font } from '../theme/theme';
 import { Icon } from '../components/Icon';
-import { GhostLink } from '../components/Buttons';
+import { BackLink } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
 import { Corners, ScreenTitle } from '../components/Frame';
 
@@ -16,8 +17,8 @@ export function AchievementsScreen({ engine }: { engine: GameEngine }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
-        <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 24 }}>
+        <BackLink engine={engine} />
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, marginTop: 16, fontFamily: font.medium }}>Отдел кадров</Text>
         <ScreenTitle style={{ marginTop: 4, marginBottom: 4 }}>Достижения</ScreenTitle>
         <Text style={{ fontSize: 13, color: colors.textDim, marginBottom: 22, fontFamily: font.regular }}>
@@ -62,6 +63,7 @@ export function AchievementsScreen({ engine }: { engine: GameEngine }) {
           </View>
         ))}
       </ScrollView>
+      <TabBar engine={engine} />
     </View>
   );
 }

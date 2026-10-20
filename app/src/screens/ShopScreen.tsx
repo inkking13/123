@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
 import { colors, font } from '../theme/theme';
 import { SLOT_LABEL } from '../data/gear';
-import { GhostLink } from '../components/Buttons';
+import { BackLink } from '../components/Buttons';
 import { ItemIcon } from '../components/ItemIcon';
 import { Icon } from '../components/Icon';
 import { useEngineVersion } from '../engine/useEngine';
@@ -21,9 +22,9 @@ export function ShopScreen({ engine }: { engine: GameEngine }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 24 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
+          <BackLink engine={engine} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="coins" size={16} color={colors.warn} />
             <Text style={{ fontSize: 15, fontFamily: font.medium, color: colors.warn }}>{engine.gold}</Text>
@@ -111,6 +112,7 @@ export function ShopScreen({ engine }: { engine: GameEngine }) {
           </>
         )}
       </ScrollView>
+      <TabBar engine={engine} />
     </View>
   );
 }

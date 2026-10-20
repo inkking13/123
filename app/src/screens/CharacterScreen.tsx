@@ -17,6 +17,8 @@ import { ProgressBar } from '../components/ProgressBar';
 import { useEngineVersion } from '../engine/useEngine';
 import { FEATURES, Feature, unlockHint } from '../data/features';
 import { Corners } from '../components/Frame';
+import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
+
 
 export function CharacterScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -55,7 +57,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
           {/* Carries the shade on over the stone wall, so the portrait has no hard bottom edge. */}
           <LinearGradient pointerEvents="none" colors={['rgba(14,15,24,0.92)', 'rgba(14,15,24,0)']} style={{ position: 'absolute', left: 0, right: 0, top: 300, height: 90 }} />
           <Pressable
-            onPress={() => engine.go('roster')}
+            onPress={() => engine.back()}
             style={{
               position: 'absolute', top: insets.top + 12, left: 16, width: 44, height: 44, borderRadius: 22,
               backgroundColor: 'rgba(22,24,38,0.6)', borderWidth: 1, borderColor: colors.borderStrong,
@@ -72,7 +74,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
           </View>
         </View>
 
-        <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 24 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <Text style={{ fontSize: 12, color: colors.textMuted, fontFamily: font.regular }}>
               Уровень {cc.level}{atMax ? ' (макс.)' : ''}
@@ -354,6 +356,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
           )}
         </View>
       </ScrollView>
+      <TabBar engine={engine} />
     </View>
   );
 }

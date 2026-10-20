@@ -1,9 +1,10 @@
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine, PersonnelRosterEntry, DepartedEntry } from '../engine/GameEngine';
 import { colors, font, roleColor, roleName } from '../theme/theme';
-import { GhostLink } from '../components/Buttons';
+import { BackLink } from '../components/Buttons';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { useEngineVersion } from '../engine/useEngine';
@@ -70,8 +71,8 @@ export function PersonnelScreen({ engine }: { engine: GameEngine }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
-        <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 24 }}>
+        <BackLink engine={engine} />
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, marginTop: 10, fontFamily: font.medium }}>Отдел кадров</Text>
         <ScreenTitle style={{ marginTop: 4, marginBottom: 18 }}>Личные дела</ScreenTitle>
 
@@ -115,6 +116,7 @@ export function PersonnelScreen({ engine }: { engine: GameEngine }) {
           vm.departed.map((d, i) => <DepartedRow key={i} d={d} />)
         )}
       </ScrollView>
+      <TabBar engine={engine} />
     </View>
   );
 }

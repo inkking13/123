@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
 import { colors, font } from '../theme/theme';
-import { GhostLink } from '../components/Buttons';
+import { BackLink } from '../components/Buttons';
 import { ItemIcon } from '../components/ItemIcon';
 import { useEngineVersion } from '../engine/useEngine';
 import { RARITY_COLOR } from '../data/gearInfo';
@@ -40,8 +41,8 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
-        <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 24 }}>
+        <BackLink engine={engine} />
         <ScreenTitle style={{ marginTop: 10, marginBottom: 14 }}>Инвентарь</ScreenTitle>
 
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
@@ -158,6 +159,7 @@ export function InventoryScreen({ engine }: { engine: GameEngine }) {
           </>
         )}
       </ScrollView>
+      <TabBar engine={engine} />
     </View>
   );
 }

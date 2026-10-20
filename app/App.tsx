@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ImageBackground, Platform, View } from 'react-native';
+import { BackHandler, ImageBackground, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -43,9 +43,18 @@ function useMusic(engine: GameEngine) {
   useEffect(() => { music(track); }, [track]);
 }
 
+/** The phone's back button walks back through the screens instead of closing the game. */
+function useBackButton(engine: GameEngine) {
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => engine.hardwareBack());
+    return () => sub.remove();
+  }, [engine]);
+}
+
 function Root({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
   useMusic(engine);
+  useBackButton(engine);
   // A new guild picks its first five before anything but the title and settings.
   if (engine.needsDraft() && engine.screen !== 'title' && engine.screen !== 'settings') return <StartDraftScreen engine={engine} />;
   switch (engine.screen) {

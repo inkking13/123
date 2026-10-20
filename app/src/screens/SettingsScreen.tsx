@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
 import { colors, font } from '../theme/theme';
-import { GhostLink, PrimaryButton } from '../components/Buttons';
+import { BackLink, PrimaryButton } from '../components/Buttons';
 import { Icon, IconName } from '../components/Icon';
 import { useEngineVersion } from '../engine/useEngine';
 import { Quality, QUALITY_HINT, QUALITY_LABEL } from '../battle3d/quality';
@@ -46,7 +46,7 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
-        <GhostLink label="Лагерь" icon="arrow-left" onPress={() => engine.go('home')} />
+        <BackLink engine={engine} />
         <ScreenTitle style={{ marginTop: 10, marginBottom: 22 }}>Настройки</ScreenTitle>
 
         <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
