@@ -1391,8 +1391,19 @@ export class GameEngine {
     const cost = def.hireCost ?? 0;
     if (this.gold < cost) return;
     this.gold -= cost;
-    this.pool.push({ ...def, level: 1, xp: 0, equipment: emptyEquipment(), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 });
+    // One of the nine the guild passed over at the start arrives in their armour set, like the ones it picked.
+    this.pool.push({ ...def, level: 1, xp: 0, equipment: startingEquipment(def.id), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 });
+    this.stockWornArmour();
     this.notify();
+  }
+
+  /** Two heroes in one armour set need a piece each: the stash holds at least as many as are worn. */
+  private stockWornArmour() {
+    for (const c of this.pool) for (const id of Object.values(c.equipment)) {
+      if (id === 'none') continue;
+      const worn = this.pool.filter((o) => Object.values(o.equipment).includes(id)).length;
+      if ((this.inventoryCounts[id] ?? 0) < worn) this.inventoryCounts[id] = worn;
+    }
   }
 
   // ── the first five ───────────────────────────────────────
@@ -1423,12 +1434,7 @@ export class GameEngine {
     if (!this.needsDraft() || this.draftProblem(ids)) return;
     const picks = POOL.filter((c) => ids.includes(c.id));
     this.pool = picks.map((c) => ({ ...c, level: 1, xp: 0, equipment: startingEquipment(c.id), talents: [null, null, null, null], classId: null, professionId: null, professionLevel: 1, professionXp: 0 }));
-    // Two heroes in one armour set need a piece each.
-    for (const c of this.pool) for (const id of Object.values(c.equipment)) {
-      if (id === 'none') continue;
-      const worn = this.pool.filter((o) => Object.values(o.equipment).includes(id)).length;
-      if ((this.inventoryCounts[id] ?? 0) < worn) this.inventoryCounts[id] = worn;
-    }
+    this.stockWornArmour();
     this.selected = new Set(picks.map((c) => c.id));
     this.gold = STARTING_GOLD + DRAFT_BUDGET - picks.reduce((a, c) => a + (c.hireCost ?? 0), 0);
     this.screen = 'home';
