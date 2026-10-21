@@ -1,0 +1,92 @@
+{
+ "SKILL_ART": {
+  "istochnik-sily": {
+   "asset": "skills/istochnik-sily.jpg"
+  },
+  "yarost-voina": {
+   "asset": "skills/yarost-voina.jpg"
+  },
+  "duh-predkov": {
+   "asset": "skills/duh-predkov.jpg"
+  },
+  "arkannye-svyazi": {
+   "asset": "skills/arkannye-svyazi.jpg"
+  },
+  "zaklinatel": {
+   "asset": "skills/zaklinatel.jpg"
+  },
+  "razrushitel": {
+   "asset": "skills/razrushitel.jpg"
+  },
+  "posledniy-rubezh": {
+   "asset": "skills/posledniy-rubezh.jpg"
+  },
+  "kostyanoe-kopye": {
+   "asset": "skills/kostyanoe-kopye.jpg"
+  },
+  "krovavaya-loza": {
+   "asset": "skills/krovavaya-loza.jpg"
+  },
+  "ledyanoy-vzryv": {
+   "asset": "skills/ledyanoy-vzryv.jpg"
+  },
+  "toksichnyy-splesk": {
+   "asset": "skills/toksichnyy-splesk.jpg"
+  },
+  "krovavyy-ritual": {
+   "asset": "skills/krovavyy-ritual.jpg"
+  },
+  "adskiy-razrez": {
+   "asset": "skills/adskiy-razrez.jpg"
+  },
+  "ledyanoy-plen": {
+   "asset": "skills/ledyanoy-plen.jpg"
+  },
+  "prizyv-upyrya": {
+   "asset": "skills/prizyv-upyrya.jpg"
+  },
+  "infernalnyy-prizyv": {
+   "asset": "skills/infernalnyy-prizyv.jpg"
+  },
+  "voy-pustoty": {
+   "asset": "skills/voy-pustoty.jpg"
+  },
+  "zolotoy-prigovor": {
+   "asset": "skills/zolotoy-prigovor.jpg"
+  },
+  "proklyatie-sveta": {
+   "asset": "skills/proklyatie-sveta.jpg"
+  },
+  "adskiy-shtorm": {
+   "asset": "skills/adskiy-shtorm.jpg"
+  },
+  "yadovityy-ukus": {
+   "asset": "skills/yadovityy-ukus.jpg"
+  }
+ },
+ "ABILITY_ART": {
+  "0": "zaklinatel",
+  "1": "posledniy-rubezh",
+  "2": "krovavaya-loza",
+  "3": "toksichnyy-splesk",
+  "4": "yadovityy-ukus",
+  "5": "yarost-voina",
+  "6": "kostyanoe-kopye",
+  "7": "infernalnyy-prizyv",
+  "8": "zolotoy-prigovor",
+  "9": "istochnik-sily",
+  "10": "krovavyy-ritual",
+  "11": "voy-pustoty",
+  "12": "razrushitel",
+  "13": "prizyv-upyrya"
+ },
+ "TALENT_ART": {
+  "sword": "adskiy-razrez",
+  "first-aid-kit": "proklyatie-sveta",
+  "shield-chevron": "duh-predkov",
+  "shield": "ledyanoy-plen",
+  "target": "arkannye-svyazi",
+  "fire": "adskiy-shtorm",
+  "snowflake": "ledyanoy-vzryv"
+ }
+}

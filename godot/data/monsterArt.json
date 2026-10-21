@@ -1,0 +1,204 @@
+{
+ "MONSTER_ART": {
+  "blood-feathered-raptor": {
+   "asset": "monsters/blood-feathered-raptor.jpg"
+  },
+  "blood-soaked-warden": {
+   "asset": "monsters/blood-soaked-warden.jpg"
+  },
+  "bone-shard-golem": {
+   "asset": "monsters/bone-shard-golem.jpg"
+  },
+  "bone-weaver": {
+   "asset": "monsters/bone-weaver.jpg"
+  },
+  "carrion-rat-king": {
+   "asset": "monsters/carrion-rat-king.jpg"
+  },
+  "chimera-corruptor": {
+   "asset": "monsters/chimera-corruptor.jpg"
+  },
+  "chitinous-scorpiid": {
+   "asset": "monsters/chitinous-scorpiid.jpg"
+  },
+  "cinder-kin-fiend": {
+   "asset": "monsters/cinder-kin-fiend.jpg"
+  },
+  "corrupted-ooze": {
+   "asset": "monsters/corrupted-ooze.jpg"
+  },
+  "crypt-lord": {
+   "asset": "monsters/crypt-lord.jpg"
+  },
+  "crystal-spiderling": {
+   "asset": "monsters/crystal-spiderling.jpg"
+  },
+  "darkwood-treant": {
+   "asset": "monsters/darkwood-treant.jpg"
+  },
+  "earth-breaker": {
+   "asset": "monsters/earth-breaker.jpg"
+  },
+  "feral-werewolf": {
+   "asset": "monsters/feral-werewolf.jpg"
+  },
+  "fetid-swamp-thing": {
+   "asset": "monsters/fetid-swamp-thing.jpg"
+  },
+  "fungal-hive-mind": {
+   "asset": "monsters/fungal-hive-mind.jpg"
+  },
+  "gloom-caster-specter": {
+   "asset": "monsters/gloom-caster-specter.jpg"
+  },
+  "gloom-stalker-wraith": {
+   "asset": "monsters/gloom-stalker-wraith.jpg"
+  },
+  "grave-dust-ghoul": {
+   "asset": "monsters/grave-dust-ghoul.jpg"
+  },
+  "hive-mother": {
+   "asset": "monsters/hive-mother.jpg"
+  },
+  "hollow-armor": {
+   "asset": "monsters/hollow-armor.jpg"
+  },
+  "hooded-cultist": {
+   "asset": "monsters/hooded-cultist.jpg"
+  },
+  "iron-bound-colossus": {
+   "asset": "monsters/iron-bound-colossus.jpg"
+  },
+  "lich-librarian": {
+   "asset": "monsters/lich-librarian.jpg"
+  },
+  "lord-of-flies": {
+   "asset": "monsters/lord-of-flies.jpg"
+  },
+  "plague-bringer": {
+   "asset": "monsters/plague-bringer.jpg"
+  },
+  "rot-carcass-scavenger": {
+   "asset": "monsters/rot-carcass-scavenger.jpg"
+  },
+  "shadow-silk-weaver": {
+   "asset": "monsters/shadow-silk-weaver.jpg"
+  },
+  "shadow-weaver-sprite": {
+   "asset": "monsters/shadow-weaver-sprite.jpg"
+  },
+  "shadow-wolf": {
+   "asset": "monsters/shadow-wolf.jpg"
+  },
+  "star-gazer-dragon": {
+   "asset": "monsters/star-gazer-dragon.jpg"
+  },
+  "storm-crow": {
+   "asset": "monsters/storm-crow.jpg"
+  },
+  "storm-wrought-golem": {
+   "asset": "monsters/storm-wrought-golem.jpg"
+  },
+  "sunken-tyrant": {
+   "asset": "monsters/sunken-tyrant.jpg"
+  },
+  "void-serpent": {
+   "asset": "monsters/void-serpent.jpg"
+  },
+  "void-spawn-parasite": {
+   "asset": "monsters/void-spawn-parasite.jpg"
+  },
+  "weaver-of-dreams": {
+   "asset": "monsters/weaver-of-dreams.jpg"
+  },
+  "wyrm-of-the-wasteland": {
+   "asset": "monsters/wyrm-of-the-wasteland.jpg"
+  },
+  "necromancer": {
+   "asset": "monsters/necromancer.jpg"
+  },
+  "skeleton-warrior": {
+   "asset": "monsters/skeleton-warrior.jpg"
+  },
+  "skeleton-archer": {
+   "asset": "monsters/skeleton-archer.jpg"
+  },
+  "skeleton-mage": {
+   "asset": "monsters/skeleton-mage.jpg"
+  }
+ },
+ "BOSS_ART": {
+  "wastes": "necromancer",
+  "road": "chimera-corruptor",
+  "groblot": "plague-bringer",
+  "frostpass": "storm-wrought-golem",
+  "wolfrifts": "feral-werewolf",
+  "icepeaks": "crypt-lord",
+  "charfields": "bone-weaver",
+  "parishruins": "lich-librarian",
+  "ashen": "earth-breaker",
+  "mortgagedfarms": "fungal-hive-mind",
+  "debtorsjail": "iron-bound-colossus",
+  "mines": "lord-of-flies",
+  "blackmarket": "hive-mother",
+  "smugglercatacombs": "weaver-of-dreams",
+  "nightsyndicate": "void-serpent",
+  "unmarkedgraves": "storm-crow",
+  "desertersfort": "bone-shard-golem",
+  "deadlegion": "hollow-armor",
+  "burntcliffs": "wyrm-of-the-wasteland",
+  "wyvernlair": "blood-feathered-raptor",
+  "ancientpeak": "star-gazer-dragon",
+  "shareholderfloor": "gloom-caster-specter",
+  "councilantechamber": "sunken-tyrant",
+  "boardroom": "blood-soaked-warden"
+ },
+ "ROOM_ART": {
+  "outskirts": {
+   "brute": "rot-carcass-scavenger",
+   "archer": "shadow-wolf",
+   "shaman": "hooded-cultist"
+  },
+  "wastes": {
+   "brute": "skeleton-warrior",
+   "archer": "skeleton-archer",
+   "shaman": "skeleton-mage"
+  },
+  "icefrontier": {
+   "brute": "darkwood-treant",
+   "archer": "crystal-spiderling",
+   "shaman": "gloom-stalker-wraith"
+  },
+  "ashlands": {
+   "brute": "cinder-kin-fiend",
+   "archer": "grave-dust-ghoul",
+   "shaman": "hooded-cultist"
+  },
+  "debtprovince": {
+   "brute": "chitinous-scorpiid",
+   "archer": "shadow-silk-weaver",
+   "shaman": "corrupted-ooze"
+  },
+  "shadowguild": {
+   "brute": "void-spawn-parasite",
+   "archer": "shadow-weaver-sprite",
+   "shaman": "gloom-caster-specter"
+  },
+  "forgottenlegion": {
+   "brute": "grave-dust-ghoul",
+   "archer": "gloom-stalker-wraith",
+   "shaman": "gloom-caster-specter"
+  },
+  "dragonwastes": {
+   "brute": "cinder-kin-fiend",
+   "archer": "blood-feathered-raptor",
+   "shaman": "fetid-swamp-thing"
+  },
+  "hierarchy": {
+   "brute": "void-spawn-parasite",
+   "archer": "shadow-weaver-sprite",
+   "shaman": "hooded-cultist"
+  }
+ },
+ "roomArtFor": null
+}

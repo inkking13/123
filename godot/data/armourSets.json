@@ -1,0 +1,374 @@
+{
+ "ARMOUR_ITEMS": [
+  "hood",
+  "jacket",
+  "gloves",
+  "pants"
+ ],
+ "ITEM_PIECES": {
+  "hood": [
+   "hood"
+  ],
+  "jacket": [
+   "jacket",
+   "shoulders",
+   "cloak",
+   "belt"
+  ],
+  "gloves": [
+   "gloves"
+  ],
+  "pants": [
+   "pants",
+   "boots"
+  ]
+ },
+ "ITEM_KIND": {
+  "hood": "helm",
+  "jacket": "chest",
+  "gloves": "gloves",
+  "pants": "pants"
+ },
+ "ARMOUR_SETS": [
+  {
+   "id": "leather",
+   "closedHelm": false,
+   "names": {
+    "hood": "Кожаный капюшон",
+    "jacket": "Кожаная куртка с плащом",
+    "gloves": "Кожаные перчатки",
+    "pants": "Кожаные штаны и сапоги"
+   },
+   "stats": {
+    "hood": {
+     "mult": 1.03
+    },
+    "jacket": {
+     "mult": 1.08,
+     "hpMult": 1.03,
+     "cdMult": 0.96
+    },
+    "gloves": {
+     "mult": 1.04
+    },
+    "pants": {
+     "mult": 1.02,
+     "cdMult": 0.97
+    }
+   }
+  },
+  {
+   "id": "knight",
+   "closedHelm": true,
+   "names": {
+    "hood": "Рыцарский шлем",
+    "jacket": "Рыцарские латы",
+    "gloves": "Рыцарские латные перчатки",
+    "pants": "Рыцарские поножи и сабатоны"
+   },
+   "stats": {
+    "hood": {
+     "hpMult": 1.05
+    },
+    "jacket": {
+     "hpMult": 1.15,
+     "wardMult": 0.95
+    },
+    "gloves": {
+     "hpMult": 1.03
+    },
+    "pants": {
+     "hpMult": 1.08,
+     "wardMult": 0.99
+    }
+   }
+  },
+  {
+   "id": "arcane",
+   "closedHelm": false,
+   "names": {
+    "hood": "Капюшон чародея",
+    "jacket": "Одеяние чародея",
+    "gloves": "Перчатки чародея",
+    "pants": "Штаны и сапоги чародея"
+   },
+   "stats": {
+    "hood": {
+     "mult": 1.03,
+     "cdMult": 0.98
+    },
+    "jacket": {
+     "mult": 1.07,
+     "cdMult": 0.93
+    },
+    "gloves": {
+     "mult": 1.03
+    },
+    "pants": {
+     "hpMult": 1.03,
+     "cdMult": 0.98
+    }
+   }
+  },
+  {
+   "id": "templar",
+   "closedHelm": true,
+   "names": {
+    "hood": "Шлем тамплиера",
+    "jacket": "Доспех тамплиера",
+    "gloves": "Латные перчатки тамплиера",
+    "pants": "Поножи и сабатоны тамплиера"
+   },
+   "stats": {
+    "hood": {
+     "hpMult": 1.04,
+     "mult": 1.01
+    },
+    "jacket": {
+     "hpMult": 1.11,
+     "mult": 1.04,
+     "wardMult": 0.98
+    },
+    "gloves": {
+     "mult": 1.03
+    },
+    "pants": {
+     "hpMult": 1.07
+    }
+   }
+  }
+ ],
+ "armourId": null,
+ "RETIRED_ARMOUR_IDS": [
+  "set-leather-shoulders",
+  "set-leather-cloak",
+  "set-leather-belt",
+  "set-leather-boots",
+  "set-knight-shoulders",
+  "set-knight-cloak",
+  "set-knight-belt",
+  "set-knight-boots",
+  "set-arcane-shoulders",
+  "set-arcane-cloak",
+  "set-arcane-belt",
+  "set-arcane-boots",
+  "set-templar-shoulders",
+  "set-templar-cloak",
+  "set-templar-belt",
+  "set-templar-boots"
+ ],
+ "ARMOUR_ICONS": {
+  "a-leather-hood": {
+   "asset": "items/armour/a-leather-hood.jpg"
+  },
+  "a-leather-jacket": {
+   "asset": "items/armour/a-leather-jacket.jpg"
+  },
+  "a-leather-gloves": {
+   "asset": "items/armour/a-leather-gloves.jpg"
+  },
+  "a-leather-pants": {
+   "asset": "items/armour/a-leather-pants.jpg"
+  },
+  "a-knight-hood": {
+   "asset": "items/armour/a-knight-hood.jpg"
+  },
+  "a-knight-jacket": {
+   "asset": "items/armour/a-knight-jacket.jpg"
+  },
+  "a-knight-gloves": {
+   "asset": "items/armour/a-knight-gloves.jpg"
+  },
+  "a-knight-pants": {
+   "asset": "items/armour/a-knight-pants.jpg"
+  },
+  "a-arcane-hood": {
+   "asset": "items/armour/a-arcane-hood.jpg"
+  },
+  "a-arcane-jacket": {
+   "asset": "items/armour/a-arcane-jacket.jpg"
+  },
+  "a-arcane-gloves": {
+   "asset": "items/armour/a-arcane-gloves.jpg"
+  },
+  "a-arcane-pants": {
+   "asset": "items/armour/a-arcane-pants.jpg"
+  },
+  "a-templar-hood": {
+   "asset": "items/armour/a-templar-hood.jpg"
+  },
+  "a-templar-jacket": {
+   "asset": "items/armour/a-templar-jacket.jpg"
+  },
+  "a-templar-gloves": {
+   "asset": "items/armour/a-templar-gloves.jpg"
+  },
+  "a-templar-pants": {
+   "asset": "items/armour/a-templar-pants.jpg"
+  }
+ },
+ "ARMOUR_GEAR": {
+  "helm": [
+   {
+    "id": "set-leather-hood",
+    "name": "Кожаный капюшон",
+    "mult": 1.03,
+    "desc": "+3% к урону/лечению.",
+    "icon": "a-leather-hood"
+   },
+   {
+    "id": "set-knight-hood",
+    "name": "Рыцарский шлем",
+    "hpMult": 1.05,
+    "desc": "+5% к HP.",
+    "icon": "a-knight-hood"
+   },
+   {
+    "id": "set-arcane-hood",
+    "name": "Капюшон чародея",
+    "mult": 1.03,
+    "cdMult": 0.98,
+    "desc": "+3% к урону/лечению, −2% к перезарядке способности.",
+    "icon": "a-arcane-hood"
+   },
+   {
+    "id": "set-templar-hood",
+    "name": "Шлем тамплиера",
+    "hpMult": 1.04,
+    "mult": 1.01,
+    "desc": "+1% к урону/лечению, +4% к HP.",
+    "icon": "a-templar-hood"
+   }
+  ],
+  "chest": [
+   {
+    "id": "set-leather-jacket",
+    "name": "Кожаная куртка с плащом",
+    "mult": 1.08,
+    "hpMult": 1.03,
+    "cdMult": 0.96,
+    "desc": "+8% к урону/лечению, +3% к HP, −4% к перезарядке способности.",
+    "icon": "a-leather-jacket"
+   },
+   {
+    "id": "set-knight-jacket",
+    "name": "Рыцарские латы",
+    "hpMult": 1.15,
+    "wardMult": 0.95,
+    "desc": "+15% к HP, −5% к получаемому урону.",
+    "icon": "a-knight-jacket"
+   },
+   {
+    "id": "set-arcane-jacket",
+    "name": "Одеяние чародея",
+    "mult": 1.07,
+    "cdMult": 0.93,
+    "desc": "+7% к урону/лечению, −7% к перезарядке способности.",
+    "icon": "a-arcane-jacket"
+   },
+   {
+    "id": "set-templar-jacket",
+    "name": "Доспех тамплиера",
+    "hpMult": 1.11,
+    "mult": 1.04,
+    "wardMult": 0.98,
+    "desc": "+4% к урону/лечению, +11% к HP, −2% к получаемому урону.",
+    "icon": "a-templar-jacket"
+   }
+  ],
+  "gloves": [
+   {
+    "id": "set-leather-gloves",
+    "name": "Кожаные перчатки",
+    "mult": 1.04,
+    "desc": "+4% к урону/лечению.",
+    "icon": "a-leather-gloves"
+   },
+   {
+    "id": "set-knight-gloves",
+    "name": "Рыцарские латные перчатки",
+    "hpMult": 1.03,
+    "desc": "+3% к HP.",
+    "icon": "a-knight-gloves"
+   },
+   {
+    "id": "set-arcane-gloves",
+    "name": "Перчатки чародея",
+    "mult": 1.03,
+    "desc": "+3% к урону/лечению.",
+    "icon": "a-arcane-gloves"
+   },
+   {
+    "id": "set-templar-gloves",
+    "name": "Латные перчатки тамплиера",
+    "mult": 1.03,
+    "desc": "+3% к урону/лечению.",
+    "icon": "a-templar-gloves"
+   }
+  ],
+  "pants": [
+   {
+    "id": "set-leather-pants",
+    "name": "Кожаные штаны и сапоги",
+    "mult": 1.02,
+    "cdMult": 0.97,
+    "desc": "+2% к урону/лечению, −3% к перезарядке способности.",
+    "icon": "a-leather-pants"
+   },
+   {
+    "id": "set-knight-pants",
+    "name": "Рыцарские поножи и сабатоны",
+    "hpMult": 1.08,
+    "wardMult": 0.99,
+    "desc": "+8% к HP, −1% к получаемому урону.",
+    "icon": "a-knight-pants"
+   },
+   {
+    "id": "set-arcane-pants",
+    "name": "Штаны и сапоги чародея",
+    "hpMult": 1.03,
+    "cdMult": 0.98,
+    "desc": "+3% к HP, −2% к перезарядке способности.",
+    "icon": "a-arcane-pants"
+   },
+   {
+    "id": "set-templar-pants",
+    "name": "Поножи и сабатоны тамплиера",
+    "hpMult": 1.07,
+    "desc": "+7% к HP.",
+    "icon": "a-templar-pants"
+   }
+  ]
+ },
+ "ARMOUR_IDS": [
+  "set-leather-hood",
+  "set-leather-jacket",
+  "set-leather-gloves",
+  "set-leather-pants",
+  "set-knight-hood",
+  "set-knight-jacket",
+  "set-knight-gloves",
+  "set-knight-pants",
+  "set-arcane-hood",
+  "set-arcane-jacket",
+  "set-arcane-gloves",
+  "set-arcane-pants",
+  "set-templar-hood",
+  "set-templar-jacket",
+  "set-templar-gloves",
+  "set-templar-pants"
+ ],
+ "STARTING_OUTFITS": {
+  "0": "knight",
+  "1": "templar",
+  "2": "arcane",
+  "3": "arcane",
+  "4": "leather",
+  "5": "templar",
+  "6": "leather",
+  "7": "arcane",
+  "8": "knight"
+ },
+ "armourOf": null,
+ "dressInStartingSet": null
+}

@@ -1,0 +1,58 @@
+{
+ "OFFICE_EVENTS": [
+  {
+   "id": "loot-conflict",
+   "build": null
+  },
+  {
+   "id": "budget-hole",
+   "build": null
+  },
+  {
+   "id": "anonymous-complaint",
+   "build": null
+  },
+  {
+   "id": "team-building",
+   "build": null
+  },
+  {
+   "id": "day-off",
+   "build": null
+  },
+  {
+   "id": "mentorship",
+   "build": null
+  },
+  {
+   "id": "equipment-contract",
+   "build": null
+  },
+  {
+   "id": "quarterly-bonus",
+   "build": null
+  }
+ ],
+ "STAFF_EVENTS": [
+  {
+   "id": "strike",
+   "urgent": true,
+   "build": null
+  },
+  {
+   "id": "raise",
+   "urgent": true,
+   "build": null
+  },
+  {
+   "id": "quarrel",
+   "urgent": true,
+   "build": null
+  },
+  {
+   "id": "poaching",
+   "urgent": true,
+   "build": null
+  }
+ ]
+}

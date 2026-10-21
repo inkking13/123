@@ -1,0 +1,102 @@
+{
+ "ACHIEVEMENTS": [
+  {
+   "id": "ach-outskirts",
+   "name": "Покоритель Окраин",
+   "rewardGold": 40,
+   "desc": "Зачистите все три подземелья Окраин Гильдии.",
+   "check": null
+  },
+  {
+   "id": "ach-icefrontier",
+   "name": "Хозяин Ледяного Края",
+   "rewardGold": 55,
+   "desc": "Зачистите все три подземелья Ледяного Края.",
+   "check": null
+  },
+  {
+   "id": "ach-ashlands",
+   "name": "Пепел Земель Пепла",
+   "rewardGold": 70,
+   "desc": "Зачистите все три подземелья Земель Пепла.",
+   "check": null
+  },
+  {
+   "id": "ach-debtprovince",
+   "name": "Кредитор Кредиторов",
+   "rewardGold": 85,
+   "desc": "Зачистите все три подземелья Долговой Провинции.",
+   "check": null
+  },
+  {
+   "id": "ach-shadowguild",
+   "name": "Гроза Гильдии Теней",
+   "rewardGold": 100,
+   "desc": "Зачистите все три подземелья Гильдии Теней.",
+   "check": null
+  },
+  {
+   "id": "ach-forgottenlegion",
+   "name": "Победитель Забытого Легиона",
+   "rewardGold": 115,
+   "desc": "Зачистите все три подземелья Забытого Легиона.",
+   "check": null
+  },
+  {
+   "id": "ach-dragonwastes",
+   "name": "Укротитель Драконьих Пустошей",
+   "rewardGold": 130,
+   "desc": "Зачистите все три подземелья Драконьих Пустошей.",
+   "check": null
+  },
+  {
+   "id": "ach-hierarchy",
+   "name": "Хозяин Гильдии",
+   "rewardGold": 200,
+   "desc": "Зачистите все три подземелья Вершины Иерархии и узнайте всю правду.",
+   "check": null
+  },
+  {
+   "id": "ach-craftsman",
+   "name": "Первый Заказ",
+   "rewardGold": 25,
+   "desc": "Скрафтите любой предмет по рецепту профессии.",
+   "check": null
+  },
+  {
+   "id": "ach-master-profession",
+   "name": "Мастер на Все Руки",
+   "rewardGold": 60,
+   "desc": "Прокачайте любую профессию до максимального уровня мастерства.",
+   "check": null
+  },
+  {
+   "id": "ach-curios",
+   "name": "Коллекционер Диковин",
+   "rewardGold": 90,
+   "desc": "Соберите все 75 реликвий.",
+   "check": null
+  },
+  {
+   "id": "ach-arena-legend",
+   "name": "Легенда Арены",
+   "rewardGold": 100,
+   "desc": "Достигните ранга «Легенда Арены» (1500 рейтинга).",
+   "check": null
+  },
+  {
+   "id": "ach-full-set",
+   "name": "Полный Комплект",
+   "rewardGold": 45,
+   "desc": "Наденьте на одного бойца все три предмета одного комплекта.",
+   "check": null
+  },
+  {
+   "id": "ach-five-max-level",
+   "name": "Пятеро Лучших",
+   "rewardGold": 150,
+   "desc": "Доведите пятерых бойцов до максимального, 30 уровня.",
+   "check": null
+  }
+ ]
+}

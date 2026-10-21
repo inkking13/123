@@ -11,6 +11,11 @@ config/features=PackedStringArray("4.5", "Mobile")
 boot_splash/bg_color=Color(0.055, 0.047, 0.063, 1)
 boot_splash/show_image=false
 
+[autoload]
+
+DB="*res://scripts/core/db.gd"
+Game="*res://scripts/core/game.gd"
+
 [display]
 
 window/size/viewport_width=720
