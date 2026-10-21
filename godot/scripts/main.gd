@@ -176,7 +176,8 @@ func _place(file: String, scale: float, floor_y: float, at: Vector2, turn: float
 
 
 func _build_arena() -> void:
-	var keep := _place("battlefield", 7.0, -0.39, Vector2.ZERO, 0.0)
+	# The phones' copy of the keep (2048px textures): the full one needs more video memory than a budget phone has.
+	var keep := _place("battlefield-mobile", 7.0, -0.39, Vector2.ZERO, 0.0)
 	keep.position.y -= 0.04
 	for b in [[Vector2(-4.3, 2.6), 0.0], [Vector2(4.3, 2.6), 1.0], [Vector2(-4.3, -2.3), 2.0], [Vector2(4.3, -2.3), 3.0]]:
 		var br := _place("decor-brazier", 0.54, -0.81, b[0], b[1])
@@ -648,12 +649,12 @@ func _show_order() -> void:
 
 
 ## High: sun shadows, bloom, 2× MSAA, full resolution, ground clutter and dust.
-## Low: none of those and 70% resolution — for a budget phone.
+## Low: none of those and 80% resolution — for a budget phone.
 func _apply_quality() -> void:
 	quality_btn.text = "Графика: " + ("высокая" if high else "низкая")
 	sun.shadow_enabled = high
 	env.glow_enabled = high
 	var vp := get_viewport()
 	vp.msaa_3d = Viewport.MSAA_2X if high else Viewport.MSAA_DISABLED
-	vp.scaling_3d_scale = 1.0 if high else 0.7
+	vp.scaling_3d_scale = 1.0 if high else 0.8
 	for c in clutter: c.visible = high

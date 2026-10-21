@@ -7,7 +7,7 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 src="$here/../app/assets/models"
 dst="$here/assets/models"
 mkdir -p "$dst/wardrobe"
-for f in human dwarf elf skeleton battlefield \
+for f in human dwarf elf skeleton battlefield-mobile \
   decor-brazier decor-pillar decor-banner decor-bones decor-grave decor-weapons \
   weapon-mace weapon-hand-axe weapon-flask weapon-bow weapon-longsword weapon-bone-sword weapon-staff \
   shield-round shield-skull; do
