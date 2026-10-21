@@ -20,12 +20,19 @@ export const RAIDER_CARD = 0.66;
 export const ROOM_CARD = 0.9;
 export const BOSS_CARD = 2.3;
 
-/** Default camera: behind and above the party, looking out over the field. */
-// Pulled back with the tile, and a little more, so all seven columns fit a phone's width.
-const CAMERA_PULL = TILE * 1.12;
-export const CAMERA_HOME = new THREE.Vector3(0, 5.1, 6.5).multiplyScalar(CAMERA_PULL);
-// Aimed a little past the middle of the board, so it sits low in the frame with the ruins above it.
-export const CAMERA_LOOK = new THREE.Vector3(0, 0.2, -1.4).multiplyScalar(TILE);
+// Aimed a little past the middle of the board, so it sits low in the frame with the ruins above it,
+// and a little to the left, so the near-left corner (the party's flank), which the corner-on
+// view pushes furthest out, stays on screen.
+export const CAMERA_LOOK = new THREE.Vector3(-1.7, 0.2, -1.0).multiplyScalar(TILE);
+/** Default camera: high behind the party, looking down on the field at about 52°, the way
+ *  Wartales frames a fight (before the turn by CAMERA_YAW). Far enough back that the board,
+ *  seen corner-on, still fits a phone's width. */
+export const CAMERA_HOME = CAMERA_LOOK.clone().add(new THREE.Vector3(0, 10.4, 8.1).multiplyScalar(TILE * 0.92));
+/** The camera stands off to one side of the party by default, so the board is seen corner-on. */
+export const CAMERA_YAW = 0.5;
+/** How far a pinch can bring the camera in or send it back, as a share of its distance. */
+export const ZOOM_MIN = 0.55;
+export const ZOOM_MAX = 1.4;
 
 /** Heroes and room monsters are drawn this much larger than their build size, to read on a phone. */
 export const FIGURE_SCALE = 1.3;

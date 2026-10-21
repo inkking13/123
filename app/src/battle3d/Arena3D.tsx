@@ -16,7 +16,7 @@ import { Stage } from './Stage';
 import { Tile, TileState } from './BoardTiles';
 import { Burst, Comet, GroundRing, Slash } from './SpellFx';
 import {
-  BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
+  BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, CAMERA_YAW, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
 } from './world';
 import { BattleTheme } from '../components/BattleBackdrop';
 import { BOSS_H, BOSS_W, CombatFx, EnemyRole, GRID_COLS, GRID_ROWS, Raider, Sim } from '../combat/types';
@@ -730,8 +730,9 @@ function Effects({ sim, proj, foeKeyFor }: { sim: Sim; proj: Projection; foeKeyF
 
 // ── camera ─────────────────────────────────────────────────
 
-/** The player's turn of the camera round the board, radians (a full circle either way); set by dragging the field. */
-export interface Orbit { yaw: number }
+/** The player's hold on the camera: a turn round the board in radians (a full circle either way),
+ *  set by dragging the field, and a zoom (1 = default distance), set by pinching it. */
+export interface Orbit { yaw: number; zoom: number }
 
 function CameraRig({ sim, current, proj, closeUp, focusId, intro, orbit }: { sim: Sim; current: Raider | null; proj: Projection; closeUp: boolean; focusId?: number; intro: boolean; orbit?: React.MutableRefObject<Orbit> }) {
   const yaw = useRef(0);
@@ -766,6 +767,9 @@ function CameraRig({ sim, current, proj, closeUp, focusId, intro, orbit }: { sim
   const want = useMemo(() => new THREE.Vector3(), []);
   const wantLook = useMemo(() => new THREE.Vector3(), []);
   const focus = useMemo(() => new THREE.Vector3(), []);
+  const offset = useMemo(() => new THREE.Vector3(), []);
+  const ahead = useMemo(() => new THREE.Vector3(), []);
+  const zoom = useRef(1);
   useFrame((st, dt) => {
     const t = st.clock.elapsedTime;
     const bossAt = proj.world.get('boss');
@@ -783,6 +787,11 @@ function CameraRig({ sim, current, proj, closeUp, focusId, intro, orbit }: { sim
       return;
     }
     introAt.current = -1;
+    // The camera's heading: the default corner-on stand plus the player's own turn (smoothed, so it arcs rather than cuts).
+    yaw.current += ((orbit?.current.yaw ?? 0) - yaw.current) * (1 - Math.exp(-dt * 8));
+    zoom.current += ((orbit?.current.zoom ?? 1) - zoom.current) * (1 - Math.exp(-dt * 10));
+    const heading = CAMERA_YAW + yaw.current;
+    ahead.set(0, 0, -1).applyAxisAngle(UP, heading);
     const enemyTurn = sim.order[sim.turnPos]?.kind === 'boss';
     let dist = 1; let pull = 0;
     const foe = proj.world.get('boss') ?? [...proj.world.entries()].find(([k]) => k.startsWith('e'))?.[1];
@@ -805,26 +814,24 @@ function CameraRig({ sim, current, proj, closeUp, focusId, intro, orbit }: { sim
         focus.copy(hero);
         if (!sim.movePhase && target) focus.lerp(target, 0.4);
         // Look a little past the hero, so they stand in the lower part of the frame.
-        focus.z -= 1.7;
+        focus.addScaledVector(ahead, 1.2);
       }
-      dist = sim.movePhase ? 0.84 : 0.72;
-      pull = 0.9;
+      dist = sim.movePhase ? 0.66 : 0.56;
+      pull = 0.75;
     }
-    wantLook.copy(CAMERA_LOOK).lerp(focus, pull);
-    want.copy(CAMERA_HOME).sub(CAMERA_LOOK).multiplyScalar(dist).add(wantLook);
-    want.x += Math.sin(t * 0.35) * 0.12 + focus.x * pull * (closeUp ? 0.2 : 0.5);
-    want.y += Math.sin(t * 0.5) * 0.05;
-    // Swing round the look point by the player's orbit (smoothed, so the camera arcs rather than cuts through).
-    const target = orbit?.current.yaw ?? 0;
-    yaw.current += (target - yaw.current) * (1 - Math.exp(-dt * 8));
-    if (Math.abs(yaw.current) > 1e-4) {
-      // Turn both the camera and its aim round the board's centre. The stage's ruins stand close
-      // behind the enemy rows, so the further round we go the more the camera draws in and rises.
-      const away = Math.abs(Math.sin(yaw.current / 2));
-      want.applyAxisAngle(UP, yaw.current);
-      wantLook.applyAxisAngle(UP, yaw.current);
-      want.x *= 1 - 0.4 * away; want.z *= 1 - 0.4 * away; want.y += 1.2 * away;
-    }
+    // Aim at the board's middle (turned with the camera) drawn towards the focus.
+    wantLook.copy(CAMERA_LOOK).applyAxisAngle(UP, yaw.current).lerp(focus, pull);
+    // Stand back from the aim along the camera's heading; drift a little towards the focus's side.
+    offset.copy(CAMERA_HOME).sub(CAMERA_LOOK).multiplyScalar(dist * zoom.current);
+    const side = focus.x * Math.cos(heading) - focus.z * Math.sin(heading);
+    offset.x += Math.sin(t * 0.35) * 0.12 + side * pull * (closeUp ? 0.2 : 0.5);
+    offset.y += Math.sin(t * 0.5) * 0.05;
+    offset.applyAxisAngle(UP, heading);
+    // The stage's ruins stand close behind the enemy rows, so the further the player turns
+    // round, the more the camera draws in and rises.
+    const away = Math.abs(Math.sin(yaw.current / 2));
+    offset.x *= 1 - 0.4 * away; offset.z *= 1 - 0.4 * away; offset.y += 1.2 * away;
+    want.copy(wantLook).add(offset);
     const k = 1 - Math.exp(-dt * (sim.windup ? 3 : 2.4));
     camera.position.lerp(want, k);
     look.current.lerp(wantLook, k);

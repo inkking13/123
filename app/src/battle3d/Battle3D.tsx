@@ -1,5 +1,5 @@
 import React, { Component, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, PanResponder, Platform, Pressable, Text, View } from 'react-native';
+import { Animated, GestureResponderEvent, PanResponder, Platform, Pressable, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Canvas } from './r3f';
 import { qualityProfile } from './quality';
@@ -7,7 +7,7 @@ import { FrameCap } from './FrameCap';
 import { ModelEnvironment, setModelQuality } from './materials';
 import { Arena3D, ArenaProps, Orbit } from './Arena3D';
 import { Projection } from './projection';
-import { CAMERA_HOME } from './world';
+import { CAMERA_HOME, ZOOM_MAX, ZOOM_MIN } from './world';
 import { use3dProbe } from './probe3d';
 import { GameEngine } from '../engine/GameEngine';
 import { GRID_COLS, GRID_ROWS, Raider, Sim } from '../combat/types';
@@ -179,25 +179,60 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
   setModelQuality(quality);
   // Close-up by default: on a phone the whole board makes the figures tiny.
   const [closeUp, setCloseUp] = useState(true);
-  // Drag sideways anywhere on the field to walk the camera round the board (taps still reach tiles and foes).
-  const orbit = useRef<Orbit>({ yaw: 0 });
+  // Drag sideways anywhere on the field to walk the camera round the board, pinch to bring it in
+  // or send it back (taps still reach tiles and foes).
+  const orbit = useRef<Orbit>({ yaw: 0, zoom: 1 });
   const [turned, setTurned] = useState(false);
   const startYaw = useRef(0);
+  const pinch = useRef<{ dist: number; zoom: number } | null>(null);
   // A drag ends in a click on whatever is under the finger (on the web): swallow that one.
   const dragged = useRef(0);
   const tap = (fn: () => void) => () => { if (Date.now() - dragged.current > 250) fn(); };
-  const pan = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.2,
-    onPanResponderGrant: () => { startYaw.current = orbit.current.yaw; dragged.current = Date.now(); },
-    onPanResponderMove: (_, g) => { orbit.current.yaw = startYaw.current - g.dx * 0.012; dragged.current = Date.now(); },
-    onPanResponderRelease: () => {
+  const pan = useMemo(() => {
+    const spread = (e: GestureResponderEvent) => {
+      const [a, b] = e.nativeEvent.touches;
+      return Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
+    };
+    const settle = () => {
       // Keep it within one turn either way.
       const y = orbit.current.yaw; orbit.current.yaw = Math.atan2(Math.sin(y), Math.cos(y));
-      setTurned(Math.abs(orbit.current.yaw) > 0.05);
+      setTurned(Math.abs(orbit.current.yaw) > 0.05 || Math.abs(orbit.current.zoom - 1) > 0.03);
       dragged.current = Date.now();
-    },
-    onPanResponderTerminationRequest: () => false,
-  }), []);
+    };
+    return PanResponder.create({
+      onStartShouldSetPanResponderCapture: (e) => e.nativeEvent.touches.length === 2,
+      onMoveShouldSetPanResponderCapture: (e, g) => e.nativeEvent.touches.length === 2 || (Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.2),
+      onPanResponderGrant: () => { startYaw.current = orbit.current.yaw; pinch.current = null; dragged.current = Date.now(); },
+      onPanResponderMove: (e, g) => {
+        dragged.current = Date.now();
+        if (e.nativeEvent.touches.length === 2) {
+          // Spread the fingers to come in, pinch them to pull back.
+          const d = spread(e);
+          if (!pinch.current) pinch.current = { dist: d, zoom: orbit.current.zoom };
+          else if (d > 0) orbit.current.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, pinch.current.zoom * pinch.current.dist / d));
+          return;
+        }
+        if (pinch.current) return; // one finger lifted off a pinch: don't spin
+        orbit.current.yaw = startYaw.current - g.dx * 0.012;
+      },
+      onPanResponderRelease: settle,
+      onPanResponderTerminate: settle,
+      onPanResponderTerminationRequest: () => false,
+    });
+  }, []);
+  // On the web, the mouse wheel zooms like a pinch.
+  const field = useRef<View>(null);
+  useEffect(() => {
+    const el = field.current as unknown as HTMLElement | null;
+    if (Platform.OS !== 'web' || !el?.addEventListener) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      orbit.current.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, orbit.current.zoom * Math.exp(e.deltaY * 0.001)));
+      setTurned(Math.abs(orbit.current.yaw) > 0.05 || Math.abs(orbit.current.zoom - 1) > 0.03);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
   // Say it's loading instead of showing an empty field, and give up on 3D if it never arrives.
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
@@ -207,7 +242,7 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
   }, [loaded]);
   const camera = useMemo(() => ({ position: CAMERA_HOME.toArray() as [number, number, number], fov: 50, near: 0.1, far: 200 }), []);
   return (
-    <View {...pan.panHandlers} style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: props.theme.sky[2] }}>
+    <View ref={field} {...pan.panHandlers} style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: props.theme.sky[2] }}>
       <Guard onFail={onFail}>
         <Canvas key={quality} camera={camera} style={{ flex: 1 }} frameloop={q.fps ? 'demand' : 'always'} shadows={q.shadows > 0} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
           <FrameCap fps={q.fps} />
@@ -277,7 +312,7 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
       {turned ? (
         <Pressable
           testID="camera-reset"
-          onPress={() => { orbit.current.yaw = 0; setTurned(false); }}
+          onPress={() => { orbit.current.yaw = 0; orbit.current.zoom = 1; setTurned(false); }}
           hitSlop={8}
           style={{
             position: 'absolute', right: 8, bottom: props.full ? 42 : 10, height: 28, paddingHorizontal: 10, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -285,7 +320,7 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
           }}
         >
           <Icon name="arrow-left" size={12} color="#e8e4f2" />
-          <Text style={{ fontSize: 11.5, color: '#e8e4f2', fontFamily: font.medium }}>Прямо</Text>
+          <Text style={{ fontSize: 11.5, color: '#e8e4f2', fontFamily: font.medium }}>Вернуть</Text>
         </Pressable>
       ) : null}
       {props.overlay}
