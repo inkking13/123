@@ -11,6 +11,7 @@ import { Corners, Frame, ScreenTitle } from '../components/Frame';
 import { TRAITS } from '../data/traits';
 import { DRAFT_BUDGET, DRAFT_SIZE } from '../data/characters';
 import { Role } from '../data/types';
+import { HERO_CLASSES } from '../data/heroClasses';
 
 // A new guild's first day: the budget buys five of the nine heroes on offer.
 // Everyone can't be had — the strong ones cost more — and a party needs a
@@ -64,7 +65,7 @@ export function StartDraftScreen({ engine }: { engine: GameEngine }) {
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontSize: 16, fontFamily: font.semibold, color: '#f4e9cf' }}>{h.name}</Text>
-                          <Text style={{ fontSize: 11.5, color: colors.textFaint, fontFamily: font.regular }}>{h.epithet} · {roleName[h.role]} · {h.attackRange === 'melee' ? 'ближний бой' : 'дальний бой'}</Text>
+                          <Text style={{ fontSize: 12.5, color: colors.textFaint, fontFamily: font.regular }}><Text style={{ color: HERO_CLASSES[h.heroClass].color, fontFamily: font.semibold }}>{HERO_CLASSES[h.heroClass].name}</Text> · {roleName[h.role]} · {h.attackRange === 'melee' ? 'ближний бой' : 'дальний бой'}</Text>
                         </View>
                         <View style={{
                           flexDirection: 'row', alignItems: 'center', gap: 4, height: 26, paddingHorizontal: 9, borderRadius: 13, borderWidth: 1,

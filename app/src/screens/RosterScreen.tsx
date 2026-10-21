@@ -11,6 +11,7 @@ import { Icon } from '../components/Icon';
 import { PrimaryButton } from '../components/Buttons';
 import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
 import { useEngineVersion } from '../engine/useEngine';
+import { ClassBadge } from '../components/ClassBadge';
 import { Corners, ScreenTitle } from '../components/Frame';
 
 export function RosterScreen({ engine }: { engine: GameEngine }) {
@@ -94,7 +95,7 @@ export function RosterScreen({ engine }: { engine: GameEngine }) {
               <Pressable onPress={() => engine.toggleSelect(c.id)} style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
                   <Text style={{ fontSize: 15, fontFamily: font.medium, color: colors.text }}>{c.name}</Text>
-                  <Text numberOfLines={1} style={{ fontSize: 11, color: colors.textFaint, fontFamily: font.regular, flexShrink: 1 }}>· {c.epithet}</Text>
+                  <ClassBadge id={c.heroClass} />
                 </View>
                 <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 5, flexWrap: 'wrap' }}>
                   <Text style={{

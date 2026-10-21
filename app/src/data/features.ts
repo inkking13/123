@@ -6,7 +6,7 @@ import { IconName } from '../components/Icon';
 // and distinct dungeon bosses beaten.
 
 export type Feature =
-  | 'gear' | 'quests' | 'shop' | 'talents' | 'weekly' | 'achievements'
+  | 'gear' | 'quests' | 'contracts' | 'shop' | 'talents' | 'weekly' | 'achievements'
   | 'hire' | 'classes' | 'personnel' | 'professions' | 'arena' | 'analytics';
 
 export interface FeatureDef {
@@ -29,6 +29,10 @@ export const FEATURES: Record<Feature, FeatureDef> = {
     rooms: 2, icon: 'scroll', title: 'KPI',
     intro: 'Задания от руководства: выполняйте их в походах и забирайте награды на вкладке KPI внизу экрана.',
   },
+  contracts: {
+    rooms: 3, icon: 'scroll', title: 'Контракты',
+    intro: 'Заказчики платят за работу в подземельях — но на своих условиях: без потерь, быстро или во славу. Возьмите контракт на доске в лагере, выполните условие в походе и получите плату сверх добычи.',
+  },
   shop: {
     bosses: 1, icon: 'storefront', title: 'Отдел закупок',
     intro: 'Покупайте снаряжение за бюджет гильдии и продавайте лишнее со склада.',
@@ -50,8 +54,8 @@ export const FEATURES: Record<Feature, FeatureDef> = {
     intro: 'На рынке труда появились соискатели: нанимайте новых героев за золото и собирайте отряд под подземелье.',
   },
   classes: {
-    bosses: 2, icon: 'hand-fist', title: 'Классы',
-    intro: 'Каждому герою можно один раз выбрать класс — он задаёт базовый стиль боя. Выбор — в карточке героя.',
+    bosses: 2, icon: 'hand-fist', title: 'Специализации',
+    intro: 'Каждому герою можно один раз выбрать специализацию внутри его роли — упор на урон, здоровье или защиту. Выбор — в карточке героя.',
   },
   personnel: {
     bosses: 2, icon: 'identification-card', title: 'Личные дела',
@@ -82,11 +86,12 @@ export function unlockHint(f: Feature): string {
 }
 
 /** Combat tips shown once each in the first fights. */
-export type Tip = 'move' | 'act' | 'focus' | 'danger' | 'windup';
+export type Tip = 'move' | 'act' | 'focus' | 'danger' | 'windup' | 'valor';
 export const TIPS: Record<Tip, string> = {
   move: 'Ход героя. Подсвеченные клетки — куда он может пойти. Нажмите клетку на поле или «Пропустить перемещение».',
   focus: 'Нажмите на врага на поле — весь отряд будет бить его. Ближний бой — только вплотную к врагу.',
   act: '«Атаковать» — обычный удар. Кнопка с картинкой — особая способность героя, после неё нужно несколько ходов перезарядки.',
   danger: 'Красные клетки — сюда враг ударит на следующем ходу. Уведите героев с них.',
   windup: 'Враг замахивается для мощного удара. «Оборона» снижает урон по герою до его следующего хода.',
+  valor: 'Золотые ромбы — доблесть, общая на весь отряд. Она копится каждый раунд, за убийства, криты и сорванные касты. Тратьте её на золотой приём — у каждого класса он свой.',
 };

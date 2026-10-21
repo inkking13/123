@@ -127,6 +127,14 @@ export const QUESTS: QuestDef[] = [
     check: (e) => e.everUsedAbility,
   },
   {
+    id: 'valor-user',
+    name: 'Доблесть',
+    desc: 'Потратьте очки доблести на приём в бою.',
+    rewardDesc: '+6 морали всей гильдии',
+    rewardMorale: 6,
+    check: (e) => e.everUsedValor,
+  },
+  {
     id: 'loot-split',
     name: 'Дележ по-честному',
     desc: 'Распределите добычу после победы над боссом.',

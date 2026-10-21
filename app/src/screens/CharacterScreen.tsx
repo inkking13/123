@@ -15,6 +15,8 @@ import { Icon } from '../components/Icon';
 import { EquipmentPanel } from '../components/EquipmentPanel';
 import { ProgressBar } from '../components/ProgressBar';
 import { useEngineVersion } from '../engine/useEngine';
+import { HERO_CLASSES } from '../data/heroClasses';
+import { ClassCard } from '../components/ClassBadge';
 import { FEATURES, Feature, unlockHint } from '../data/features';
 import { Corners } from '../components/Frame';
 import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
@@ -67,10 +69,10 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
             <Icon name="arrow-left" size={18} color={colors.text} />
           </Pressable>
           <View style={{ position: 'absolute', left: 20, right: 20, bottom: 12 }}>
-            <Text style={{ fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', color: roleColor[cc.role], fontFamily: font.regular }}>
-              {roleName[cc.role]} · {cc.epithet}
+            <Text style={{ fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: HERO_CLASSES[cc.heroClass].color, fontFamily: font.medium }}>
+              {HERO_CLASSES[cc.heroClass].name} · {roleName[cc.role]} · {cc.epithet}
             </Text>
-            <Text style={{ fontSize: 32, fontFamily: font.medium, color: colors.text, marginTop: 2, letterSpacing: -0.6 }}>{cc.name}</Text>
+            <Text style={{ fontSize: 34, fontFamily: font.title, color: colors.text, marginTop: 2, letterSpacing: 0.3 }}>{cc.name}</Text>
           </View>
         </View>
 
@@ -136,6 +138,8 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
             </>
           ) : null}
 
+          <ClassCard id={cc.heroClass} />
+
           <View style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 10, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
             <SkillIcon id={ABILITY_ART[cc.id]} size={44} radius={8} style={{ borderWidth: 1, borderColor: roleColor[cc.role] + '88' }} />
             <View style={{ flex: 1 }}>
@@ -154,9 +158,9 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
           <Text style={{ fontSize: 13.5, lineHeight: 22, color: colors.textMuted, marginBottom: 22, fontFamily: font.regular }}>{cc.story}</Text>
 
           {engine.isUnlocked('classes') ? (<>
-          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 6, fontFamily: font.medium }}>Класс</Text>
+          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 6, fontFamily: font.medium }}>Специализация</Text>
           <Text style={{ fontSize: 11.5, color: colors.textFaint, marginBottom: 10, lineHeight: 16, fontFamily: font.regular }}>
-            {cc.classId ? 'Выбор сделан навсегда — определяет базовый стиль боя.' : 'Выберите один раз, навсегда — определит базовый стиль боя.'}
+            {cc.classId ? 'Выбор сделан навсегда.' : 'Выберите один раз, навсегда: упор на урон, здоровье или защиту.'}
           </Text>
           <View style={{ gap: 6, marginBottom: 18 }}>
             {engine.classOptionsVM(cc).map((o) => (
