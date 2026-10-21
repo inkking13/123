@@ -8,7 +8,7 @@ import { useTilt } from './useTilt';
  * picture). Tilting the phone pans across it — like looking through a
  * window — with a little vertical drift; the bottom fades into the page.
  */
-const SHADE = 'rgba(14,15,24,0.92)';
+const SHADE = 'rgba(16,12,9,0.92)';
 
 export function TiltArt({ source, aspect, focusX, style, fadeFrom = 0.55, testID }: {
   source: ImageSourcePropType; aspect: number; focusX: number; style: ViewStyle; fadeFrom?: number; testID?: string;
@@ -39,7 +39,7 @@ export function TiltArt({ source, aspect, focusX, style, fadeFrom = 0.55, testID
       ) : null}
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(14,15,24,0)', 'rgba(14,15,24,0)', SHADE]}
+        colors={['rgba(16,12,9,0)', 'rgba(16,12,9,0)', SHADE]}
         locations={[0, fadeFrom, 1]}
         style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
       />
@@ -47,7 +47,7 @@ export function TiltArt({ source, aspect, focusX, style, fadeFrom = 0.55, testID
       {/* The shade runs on past the art and thins out over the stone wall behind the page. */}
       <LinearGradient
         pointerEvents="none"
-        colors={[SHADE, 'rgba(14,15,24,0)']}
+        colors={[SHADE, 'rgba(16,12,9,0)']}
         style={{ position: 'absolute', left: 0, right: 0, top: '100%', height: 110 }}
       />
     </View>

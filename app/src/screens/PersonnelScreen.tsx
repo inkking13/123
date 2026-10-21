@@ -85,7 +85,7 @@ export function PersonnelScreen({ engine }: { engine: GameEngine }) {
           if (!issues.length) return null;
           return (
             <View testID="hr-issues" style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 18, gap: 8, backgroundColor: colors.surface }}>
-              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', fontFamily: font.medium }}>Открытые вопросы</Text>
+              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', fontFamily: font.medium }}>Открытые вопросы</Text>
               {issues.map((i) => (
                 <View key={i.key} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
                   <Icon name={i.icon} size={14} color={i.icon === 'warning' ? colors.warn : colors.accentSoft} />
@@ -96,7 +96,7 @@ export function PersonnelScreen({ engine }: { engine: GameEngine }) {
             </View>
           );
         })()}
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 10, fontFamily: font.medium }}>
           Действующий состав ({vm.roster.length})
         </Text>
         {vm.roster.map((c) => <RosterCard key={c.id} c={c} />)}
@@ -104,7 +104,7 @@ export function PersonnelScreen({ engine }: { engine: GameEngine }) {
         <View style={{ height: 12 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <Icon name="scroll" size={13} color={colors.textDim} />
-          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', fontFamily: font.medium }}>
+          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', fontFamily: font.medium }}>
             Архив ({vm.departed.length})
           </Text>
         </View>

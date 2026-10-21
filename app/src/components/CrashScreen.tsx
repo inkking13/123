@@ -35,7 +35,7 @@ export class CrashGuard extends Component<{ children: React.ReactNode; onReset?:
     const f = this.state.fatal;
     if (!f) return this.props.children;
     return (
-      <View style={{ flex: 1, backgroundColor: '#161826', paddingTop: 48, paddingHorizontal: 18 }}>
+      <View style={{ flex: 1, backgroundColor: '#120e0b', paddingTop: 48, paddingHorizontal: 18 }}>
         <Text style={{ color: '#e2bf85', fontSize: 20, fontWeight: '700', marginBottom: 8 }}>Игра споткнулась</Text>
         <Text style={{ color: '#c9c6d4', fontSize: 13, marginBottom: 12 }}>Сделайте скриншот этого экрана и отправьте разработчику.</Text>
         <ScrollView style={{ flex: 1, borderWidth: 1, borderColor: '#3a3550', borderRadius: 8, padding: 10, marginBottom: 12 }}>

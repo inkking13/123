@@ -1,18 +1,19 @@
 import React from 'react';
-import { StyleProp, Text, View, ViewStyle } from 'react-native';
+import { ImageBackground, StyleProp, Text, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { font } from '../theme/theme';
+import { font, ink } from '../theme/theme';
 
-// The game's panel: a dark gradient plate in a thin bronze rim with brighter
-// gold corners, like the trim on the equipment screen. Every camp card,
-// tile and button sits in one so the menus read as one set.
+// The game's panel: a dark leather plate in a thin tooled rim, with a cream
+// hairline set inside it and small ochre corners, like a ledger's binding.
+// Every camp card, tile and button sits in one so the menus read as one set.
+// Documents (contracts, letters, notices) go on a Parchment sheet instead.
 
 export type FrameTone = 'plain' | 'gold' | 'muted';
 
 const TONES: Record<FrameTone, { rim: string; corner: string; fill: [string, string] }> = {
-  plain: { rim: '#4a4032', corner: '#b39462', fill: ['rgba(34,30,26,0.94)', 'rgba(18,16,20,0.94)'] },
-  gold: { rim: '#8a7650', corner: '#e9c97f', fill: ['#3d2c1a', '#1c150f'] },
-  muted: { rim: '#2e2923', corner: '#5a4d3a', fill: ['rgba(22,20,20,0.7)', 'rgba(14,13,16,0.7)'] },
+  plain: { rim: '#4d3b29', corner: '#b8935c', fill: ['rgba(40,30,21,0.95)', 'rgba(19,14,10,0.95)'] },
+  gold: { rim: '#8f6f45', corner: '#e6c27f', fill: ['#432d17', '#1d140b'] },
+  muted: { rim: '#2f251b', corner: '#5c4a35', fill: ['rgba(26,20,15,0.72)', 'rgba(14,11,8,0.72)'] },
 };
 
 /** Four small L-shaped gold corners over a frame's rim. */
@@ -36,8 +37,8 @@ export function Frame({ children, tone = 'plain', pressed, style, contentStyle }
   return (
     <View style={[{ borderWidth: 1, borderColor: pressed ? t.corner : t.rim, borderRadius: 6 }, style]}>
       <LinearGradient colors={t.fill} start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }} style={[{ borderRadius: 5, overflow: 'hidden' }, contentStyle]}>
-        {/* A faint top highlight, as if the plate catches the fire. */}
-        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 12, right: 12, height: 1, backgroundColor: 'rgba(255,225,170,0.10)' }} />
+        {/* The tooled line pressed in just inside the rim. */}
+        <View pointerEvents="none" style={{ position: 'absolute', top: 3, left: 3, right: 3, bottom: 3, borderRadius: 3, borderWidth: 1, borderColor: tone === 'muted' ? 'rgba(236,217,176,0.06)' : 'rgba(236,217,176,0.13)' }} />
         {children}
       </LinearGradient>
       <Corners color={t.corner} />
@@ -46,7 +47,7 @@ export function Frame({ children, tone = 'plain', pressed, style, contentStyle }
 }
 
 /** A thin gold rule with a diamond in the middle, to set off a heading. */
-export function Ornament({ width = 120, color = '#8a7650' }: { width?: number; color?: string }) {
+export function Ornament({ width = 120, color = '#8f6f45' }: { width?: number; color?: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', width }}>
       <LinearGradient colors={['rgba(138,118,80,0)', color]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1, height: 1 }} />
@@ -56,12 +57,48 @@ export function Ornament({ width = 120, color = '#8a7650' }: { width?: number; c
   );
 }
 
-/** A screen's big heading, lit like the camp's, with the ornament rule under it. */
+/** A screen's big heading in inked small capitals, with the ornament rule under it. */
 export function ScreenTitle({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={style}>
-      <Text style={{ fontSize: 28, fontFamily: font.semibold, color: '#f4e9cf', letterSpacing: -0.5, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 8 }}>{children}</Text>
-      <Ornament width={110} />
+      <Text style={{ fontSize: 30, fontFamily: font.title, color: '#f1e4c6', letterSpacing: 0.4, textShadowColor: 'rgba(0,0,0,0.75)', textShadowRadius: 8 }}>{children}</Text>
+      <Ornament width={120} />
+    </View>
+  );
+}
+
+export const PAPER = require('../../assets/ui/parchment.jpg');
+
+/** A sheet of parchment with browned edges: write on it with the `ink` colours. */
+export function Parchment({ children, style, contentStyle, pressed }: {
+  children?: React.ReactNode; style?: StyleProp<ViewStyle>; contentStyle?: StyleProp<ViewStyle>; pressed?: boolean;
+}) {
+  return (
+    <View style={[{ borderRadius: 3, shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 5 }, style]}>
+      <ImageBackground source={PAPER} resizeMode="stretch" imageStyle={{ borderRadius: 3, opacity: pressed ? 0.85 : 1 }} style={[{ borderRadius: 3, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 14 }, contentStyle]}>
+        {children}
+      </ImageBackground>
+    </View>
+  );
+}
+
+/** A red wax seal, for a sheet's mark or a call to action pressed onto paper. */
+export function WaxSeal({ size = 34, children }: { size?: number; children?: React.ReactNode }) {
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, padding: 2, backgroundColor: ink.waxDark, transform: [{ rotate: '-8deg' }] }}>
+      <LinearGradient colors={['#b8402f', ink.wax, ink.waxDark]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={{ flex: 1, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,190,160,0.25)' }}>
+        {children}
+      </LinearGradient>
+    </View>
+  );
+}
+
+/** A heading set in ink on parchment, with a hand-drawn rule under it. */
+export function InkHeading({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={[{ marginBottom: 8 }, style]}>
+      <Text style={{ fontFamily: font.title, fontSize: 19, color: ink.text, letterSpacing: 0.3 }}>{children}</Text>
+      <View style={{ height: 1, marginTop: 3, backgroundColor: ink.rule, width: '70%' }} />
     </View>
   );
 }

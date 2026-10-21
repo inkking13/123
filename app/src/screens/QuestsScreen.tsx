@@ -2,11 +2,11 @@ import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
-import { colors, font } from '../theme/theme';
-import { Icon } from '../components/Icon';
+import { colors, font, ink } from '../theme/theme';
+import { Icon, IconName } from '../components/Icon';
 import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
 import { useEngineVersion } from '../engine/useEngine';
-import { Corners, ScreenTitle } from '../components/Frame';
+import { Parchment, ScreenTitle, WaxSeal } from '../components/Frame';
 
 export function QuestsScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -25,90 +25,48 @@ export function QuestsScreen({ engine }: { engine: GameEngine }) {
           Выполнено {doneCount}/{quests.length} · каждый закрытый показатель поднимает мораль всей гильдии.
         </Text>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.accent, marginBottom: 10, fontFamily: font.medium }}>
           Ежедневные задачи · {dailyDoneCount}/{dailies.length}
         </Text>
         {dailies.map((q) => (
-          <View
-            key={q.id}
-            style={{
-              borderWidth: 1, borderRadius: 8, padding: 14, marginBottom: 10,
-              borderColor: q.claimed ? colors.border : q.achieved ? colors.warn : colors.borderStrong,
-              backgroundColor: q.claimed ? 'transparent' : q.achieved ? 'rgba(201,176,109,0.12)' : colors.surface,
-              opacity: q.claimed ? 0.55 : 1,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-              <View style={{
-                width: 26, height: 26, borderRadius: 13, marginTop: 1, alignItems: 'center', justifyContent: 'center',
-                backgroundColor: q.claimed ? 'transparent' : 'rgba(201,176,109,0.14)',
-                borderWidth: q.claimed ? 1 : 0, borderColor: colors.borderStrong,
-              }}>
-                <Icon name={q.claimed ? 'check' : 'coins'} size={13} color={q.claimed ? colors.textFaint : colors.warn} weight={q.claimed ? 'fill' : 'regular'} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontFamily: font.medium, color: q.claimed ? colors.textFaint : colors.text }}>{q.name}</Text>
-                <Text style={{ fontSize: 12.5, color: colors.textDim, marginTop: 3, lineHeight: 18, fontFamily: font.regular }}>{q.desc}</Text>
-                <Text style={{ fontSize: 11.5, color: q.claimed ? colors.textFaint : colors.warn, marginTop: 6, fontFamily: font.regular }}>
-                  {q.claimed ? 'Награда получена' : `${q.progress}/${q.target} · ${q.rewardDesc}`}
-                </Text>
-              </View>
-            </View>
-            {q.achieved && !q.claimed ? (
-              <Pressable
-                onPress={q.onClaim}
-                style={{ marginTop: 12, height: 40, borderRadius: 8, borderWidth: 1, borderColor: colors.warn, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Text style={{ fontSize: 13, fontFamily: font.medium, color: colors.warn }}>Забрать награду</Text>
-              </Pressable>
-            ) : null}
-            <Corners color="#8a7650" />
-          </View>
+          <Contract key={q.id} name={q.name} desc={q.desc} claimed={q.claimed} achieved={q.achieved} onClaim={q.onClaim} icon="coins"
+            reward={q.claimed ? 'Награда получена' : `${q.progress}/${q.target} · ${q.rewardDesc}`} />
         ))}
 
         <View style={{ height: 10 }} />
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.accent, marginBottom: 10, fontFamily: font.medium }}>
           Постоянные KPI
         </Text>
         {quests.map((q) => (
-          <View
-            key={q.id}
-            style={{
-              borderWidth: 1, borderRadius: 8, padding: 14, marginBottom: 10,
-              borderColor: q.claimed ? colors.border : q.achieved ? colors.accent : colors.borderStrong,
-              backgroundColor: q.claimed ? 'transparent' : q.achieved ? colors.accentWash : colors.surface,
-              opacity: q.claimed ? 0.55 : 1,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-              <View style={{
-                width: 26, height: 26, borderRadius: 13, marginTop: 1, alignItems: 'center', justifyContent: 'center',
-                backgroundColor: q.claimed ? 'transparent' : 'rgba(201,163,107,0.14)',
-                borderWidth: q.claimed ? 1 : 0, borderColor: colors.borderStrong,
-              }}>
-                <Icon name={q.claimed ? 'check' : 'scroll'} size={13} color={q.claimed ? colors.textFaint : colors.accent} weight={q.claimed ? 'fill' : 'regular'} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontFamily: font.medium, color: q.claimed ? colors.textFaint : colors.text }}>{q.name}</Text>
-                <Text style={{ fontSize: 12.5, color: colors.textDim, marginTop: 3, lineHeight: 18, fontFamily: font.regular }}>{q.desc}</Text>
-                <Text style={{ fontSize: 11.5, color: q.claimed ? colors.textFaint : colors.accentSoft, marginTop: 6, fontFamily: font.regular }}>
-                  {q.claimed ? 'Награда получена' : q.rewardDesc}
-                </Text>
-              </View>
-            </View>
-            {q.achieved && !q.claimed ? (
-              <Pressable
-                onPress={q.onClaim}
-                style={{ marginTop: 12, height: 40, borderRadius: 8, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Text style={{ fontSize: 13, fontFamily: font.medium, color: colors.accentSoft }}>Забрать награду</Text>
-              </Pressable>
-            ) : null}
-            <Corners color="#8a7650" />
-          </View>
+          <Contract key={q.id} name={q.name} desc={q.desc} claimed={q.claimed} achieved={q.achieved} onClaim={q.onClaim} icon="scroll"
+            reward={q.claimed ? 'Награда получена' : q.rewardDesc} />
         ))}
       </ScrollView>
       <TabBar engine={engine} />
     </View>
+  );
+}
+
+/** One task as a contract pinned to the board: a parchment note in ink, sealed in wax once it's met. */
+function Contract({ name, desc, reward, icon, claimed, achieved, onClaim }: {
+  name: string; desc: string; reward: string; icon: IconName; claimed: boolean; achieved: boolean; onClaim: () => void;
+}) {
+  return (
+    <Parchment style={{ marginBottom: 12, opacity: claimed ? 0.5 : 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+        <View style={{ marginTop: 3 }}><Icon name={claimed ? 'check' : icon} size={16} color={claimed ? ink.faint : ink.muted} weight={claimed ? 'fill' : 'regular'} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 17, fontFamily: font.title, color: ink.text, letterSpacing: 0.2 }}>{name}</Text>
+          <Text style={{ fontSize: 14, color: ink.muted, marginTop: 2, lineHeight: 19, fontFamily: font.regular }}>{desc}</Text>
+          <Text style={{ fontSize: 13, color: claimed ? ink.faint : ink.red, marginTop: 6, fontFamily: font.italic }}>{reward}</Text>
+        </View>
+      </View>
+      {achieved && !claimed ? (
+        <Pressable onPress={onClaim} style={({ pressed }) => ({ marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, opacity: pressed ? 0.7 : 1 })}>
+          <Text style={{ fontSize: 15, fontFamily: font.title, color: ink.red }}>Забрать награду</Text>
+          <WaxSeal size={36}><Icon name="coins" size={15} color="#f3dcc0" weight="fill" /></WaxSeal>
+        </Pressable>
+      ) : null}
+    </Parchment>
   );
 }

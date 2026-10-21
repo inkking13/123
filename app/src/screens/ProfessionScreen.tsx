@@ -62,7 +62,7 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
         </View>
 
         <View style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 14, marginTop: 16, marginBottom: 14, backgroundColor: colors.surface }}>
-          <Text style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 8, fontFamily: font.medium }}>Текущий бонус</Text>
+          <Text style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 8, fontFamily: font.medium }}>Текущий бонус</Text>
           {vm.currentBonusLines.map((line, i) => (
             <Text key={i} style={{ fontSize: 13, color: colors.accentSoft, fontFamily: font.medium, marginBottom: 3 }}>{line}</Text>
           ))}
@@ -71,7 +71,7 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
 
         {vm.nextBonusLines ? (
           <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 14, marginBottom: 22 }}>
-            <Text style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 8, fontFamily: font.medium }}>На следующем уровне</Text>
+            <Text style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 8, fontFamily: font.medium }}>На следующем уровне</Text>
             {vm.nextBonusLines.map((line, i) => (
               <Text key={i} style={{ fontSize: 13, color: colors.textMuted, fontFamily: font.regular, marginBottom: 3 }}>{line}</Text>
             ))}
@@ -108,7 +108,7 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
           </>
         ) : null}
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginTop: 28, marginBottom: 10, fontFamily: font.medium }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginTop: 28, marginBottom: 10, fontFamily: font.medium }}>
           Рецепты крафта
         </Text>
         {recipes.map((r) => (

@@ -3,8 +3,9 @@ import { BackHandler, ImageBackground, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
-  useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
-} from '@expo-google-fonts/inter';
+  useFonts, Alegreya_400Regular, Alegreya_400Regular_Italic, Alegreya_500Medium, Alegreya_700Bold, Alegreya_800ExtraBold,
+} from '@expo-google-fonts/alegreya';
+import { AlegreyaSC_500Medium, AlegreyaSC_700Bold } from '@expo-google-fonts/alegreya-sc';
 import { GameEngine } from './src/engine/GameEngine';
 import { useEngineVersion } from './src/engine/useEngine';
 import { initAudio, music, setAudioEnabled } from './src/audio/audio';
@@ -85,7 +86,8 @@ function Root({ engine }: { engine: GameEngine }) {
 
 export default function App() {
   const [fontsLoaded] = useFonts({
-    Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
+    Alegreya_400Regular, Alegreya_400Regular_Italic, Alegreya_500Medium, Alegreya_700Bold, Alegreya_800ExtraBold,
+    AlegreyaSC_500Medium, AlegreyaSC_700Bold,
   });
   const engine = useMemo(() => new GameEngine(), []);
   // Dev-only handle for browser automation (playtest bots, video capture); stripped from release bundles.
@@ -102,8 +104,8 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      {/* A torch-lit dungeon wall behind every screen; the screens themselves are see-through. */}
-      <ImageBackground source={require('./assets/ui/stone-bg.jpg')} resizeMode="cover" style={{ flex: 1, backgroundColor: colors.bg }}>
+      {/* Worn dark leather behind every screen; the screens themselves are see-through. */}
+      <ImageBackground source={require('./assets/ui/leather-bg.jpg')} resizeMode="cover" style={{ flex: 1, backgroundColor: colors.bg }}>
         {/* Back to camp on retry: the screen that broke may break again. */}
         <CrashGuard onReset={() => engine.go('home')}>
           <Root engine={engine} />

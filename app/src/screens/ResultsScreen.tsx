@@ -133,7 +133,7 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
 
         {res.loot.length > 0 ? (
           <View style={{ marginTop: 22 }}>
-            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>Дележ добычи</Text>
+            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 10, fontFamily: font.medium }}>Дележ добычи</Text>
             {res.loot.map((item, i) => {
               const assignedRaider = item.assigned !== null ? s.raiders.find((r) => r.id === item.assigned) : null;
               // A worn armour-set piece isn't swapped out: then the item waits in the stash.

@@ -89,21 +89,21 @@ export function AnalyticsScreen({ engine }: { engine: GameEngine }) {
           <StatTile label="Ср. мораль" value={`${a.avgMorale}%`} />
         </View>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 4, fontFamily: font.medium }}>Бюджет гильдии</Text>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 4, fontFamily: font.medium }}>Бюджет гильдии</Text>
         <Text style={{ fontSize: 20, fontFamily: font.medium, color: colors.warn, marginBottom: 8 }}>{a.gold} золота</Text>
         <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, marginBottom: 22 }}>
           <Sparkline data={goldSeries} color={colors.warn} />
           <Corners color="#8a7650" />
         </View>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 4, fontFamily: font.medium }}>Средняя мораль</Text>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 4, fontFamily: font.medium }}>Средняя мораль</Text>
         <Text style={{ fontSize: 20, fontFamily: font.medium, color: colors.good, marginBottom: 8 }}>{a.avgMorale}%</Text>
         <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, marginBottom: 22 }}>
           <Sparkline data={moraleSeries} color={colors.good} />
           <Corners color="#8a7650" />
         </View>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 12, fontFamily: font.medium }}>Исход операций</Text>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 12, fontFamily: font.medium }}>Исход операций</Text>
         <BreakdownRow label="Комнаты зачищены" count={a.roomWins} max={maxOutcome} color={colors.good} />
         <BreakdownRow label="Боссы повержены" count={a.bossWins} max={maxOutcome} color={colors.accent} />
         <BreakdownRow label="Вайпы" count={a.wipes} max={maxOutcome} color={colors.danger} />

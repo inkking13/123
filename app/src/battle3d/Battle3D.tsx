@@ -254,7 +254,7 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
         hitSlop={8}
         style={{
           position: 'absolute', right: 8, top: 8, flexDirection: 'row', alignItems: 'center', gap: 5,
-          paddingHorizontal: 10, height: 28, borderRadius: 14, backgroundColor: 'rgba(12,12,20,0.62)',
+          paddingHorizontal: 10, height: 28, borderRadius: 14, backgroundColor: 'rgba(16,12,9,0.62)',
           borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
         }}
       >
@@ -268,7 +268,7 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
           hitSlop={8}
           style={{
             position: 'absolute', right: 8, top: 42, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
-            backgroundColor: 'rgba(12,12,20,0.62)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+            backgroundColor: 'rgba(16,12,9,0.62)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
           }}
         >
           <Icon name={props.full ? 'arrows-in' : 'arrows-out'} size={14} color="#e8e4f2" />
@@ -281,7 +281,7 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
           hitSlop={8}
           style={{
             position: 'absolute', right: 8, bottom: props.full ? 42 : 10, height: 28, paddingHorizontal: 10, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 5,
-            backgroundColor: 'rgba(12,12,20,0.62)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+            backgroundColor: 'rgba(16,12,9,0.62)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
           }}
         >
           <Icon name="arrow-left" size={12} color="#e8e4f2" />

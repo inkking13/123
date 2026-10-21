@@ -50,17 +50,17 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
         <View style={{ height: 300 }}>
           <Avatar id={cc.id} size={402} radius={0} style={{ width: '100%', height: 300 }} />
           <LinearGradient
-            colors={['rgba(14,15,24,0.55)', 'rgba(14,15,24,0.1)', 'rgba(14,15,24,0.92)']}
+            colors={['rgba(16,12,9,0.55)', 'rgba(16,12,9,0.1)', 'rgba(16,12,9,0.92)']}
             locations={[0, 0.45, 1]}
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           />
           {/* Carries the shade on over the stone wall, so the portrait has no hard bottom edge. */}
-          <LinearGradient pointerEvents="none" colors={['rgba(14,15,24,0.92)', 'rgba(14,15,24,0)']} style={{ position: 'absolute', left: 0, right: 0, top: 300, height: 90 }} />
+          <LinearGradient pointerEvents="none" colors={['rgba(16,12,9,0.92)', 'rgba(16,12,9,0)']} style={{ position: 'absolute', left: 0, right: 0, top: 300, height: 90 }} />
           <Pressable
             onPress={() => engine.back()}
             style={{
               position: 'absolute', top: insets.top + 12, left: 16, width: 44, height: 44, borderRadius: 22,
-              backgroundColor: 'rgba(22,24,38,0.6)', borderWidth: 1, borderColor: colors.borderStrong,
+              backgroundColor: 'rgba(20,15,10,0.6)', borderWidth: 1, borderColor: colors.borderStrong,
               alignItems: 'center', justifyContent: 'center',
             }}
           >
@@ -94,7 +94,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
             ))}
           </View>
 
-          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 8, fontFamily: font.medium }}>Характеристики</Text>
+          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 8, fontFamily: font.medium }}>Характеристики</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
             {attrRows.map((a) => (
               <View key={a.label} style={{ width: '31.3%', borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -111,7 +111,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
 
           {engine.isUnlocked('gear') && setProgress.length > 0 ? (
             <>
-              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>Комплект</Text>
+              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 10, fontFamily: font.medium }}>Комплект</Text>
               {setProgress.map((s) => (
                 <View
                   key={s.name}
@@ -154,7 +154,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
           <Text style={{ fontSize: 13.5, lineHeight: 22, color: colors.textMuted, marginBottom: 22, fontFamily: font.regular }}>{cc.story}</Text>
 
           {engine.isUnlocked('classes') ? (<>
-          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 6, fontFamily: font.medium }}>Класс</Text>
+          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 6, fontFamily: font.medium }}>Класс</Text>
           <Text style={{ fontSize: 11.5, color: colors.textFaint, marginBottom: 10, lineHeight: 16, fontFamily: font.regular }}>
             {cc.classId ? 'Выбор сделан навсегда — определяет базовый стиль боя.' : 'Выберите один раз, навсегда — определит базовый стиль боя.'}
           </Text>
@@ -180,7 +180,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
           </>) : null}
 
           {engine.isUnlocked('professions') ? (<>
-          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 6, fontFamily: font.medium }}>Профессия</Text>
+          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 6, fontFamily: font.medium }}>Профессия</Text>
           <Text style={{ fontSize: 11.5, color: colors.textFaint, marginBottom: 10, lineHeight: 16, fontFamily: font.regular }}>
             {cc.professionId ? 'Выбор сделан навсегда — прокачивайте мастерство на отдельном экране.' : 'Выберите ремесло один раз, навсегда — его можно будет прокачивать за золото.'}
           </Text>
@@ -235,7 +235,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
             const soon = (['gear', 'talents', 'classes', 'professions'] as Feature[]).filter((f) => !engine.isUnlocked(f));
             return soon.length ? (
               <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 18, gap: 8 }}>
-                <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', fontFamily: font.medium }}>Скоро</Text>
+                <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', fontFamily: font.medium }}>Скоро</Text>
                 {soon.map((f) => (
                   <View key={f} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Icon name="lock-simple" size={13} color={colors.borderHover} />
@@ -254,7 +254,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
             return (
               <>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
-                  <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', fontFamily: font.medium }}>Дерево талантов</Text>
+                  <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', fontFamily: font.medium }}>Дерево талантов</Text>
                   <Text style={{ fontSize: 11.5, color: colors.warn, fontFamily: font.medium }}>Изучено: {learned}/{tiers.length}</Text>
                 </View>
                 {tiers.map((tier, i) => {
@@ -314,7 +314,7 @@ export function CharacterScreen({ engine }: { engine: GameEngine }) {
             );
           })() : null}
 
-          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, marginTop: 8, fontFamily: font.medium }}>Кадровые решения</Text>
+          <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 10, marginTop: 8, fontFamily: font.medium }}>Кадровые решения</Text>
           {!engine.canFire() ? (
             <Text style={{ fontSize: 11.5, color: colors.textFaint, lineHeight: 16, fontFamily: font.regular }}>
               В штате минимум допустимых сотрудников — увольнять больше некого.
