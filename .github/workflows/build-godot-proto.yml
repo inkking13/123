@@ -1,0 +1,91 @@
+name: Build Godot prototype APK
+
+# The Godot 4 rebuild of the battle (godot/), to compare its look and speed
+# with the Expo game on a real phone. Runs on any branch that touches it, and
+# publishes a pre-release so it never becomes the game's "latest" APK.
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - 'godot/**'
+      - '.github/workflows/build-godot-proto.yml'
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: '4.5'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Godot and its Android template
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-android
+
+      - name: Download Godot and the Android export template
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot/templates
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          curl -sSL -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d ~/godot
+          curl -sSL -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -j /tmp/templates.tpz templates/android_release.apk templates/android_debug.apk templates/version.txt -d ~/godot/templates
+
+      - name: Install Godot
+        run: |
+          sudo ln -sf ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 /usr/local/bin/godot
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$dest" && cp ~/godot/templates/* "$dest/"
+          # Where the exporter finds the Android SDK (preinstalled on the runner) and the JDK.
+          mkdir -p ~/.config/godot
+          for f in editor_settings-4.tres editor_settings-${GODOT_VERSION}.tres; do
+            printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' \
+              "$ANDROID_SDK_ROOT" "$JAVA_HOME" > ~/.config/godot/$f
+          done
+          godot --version
+
+      - name: Copy the game's models in
+        run: godot/tools/sync_assets.sh
+
+      - name: Import assets
+        run: godot --headless --path godot --import || true
+
+      - name: Export APK
+        env:
+          # A throwaway key for sideloading the prototype (password in the clear on purpose).
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ github.workspace }}/godot/android/proto.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: proto
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: raidproto
+        run: |
+          mkdir -p godot/build
+          godot --headless --path godot --export-release "Android" build/raid-commander-godot.apk
+          ls -la godot/build
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: raid-commander-godot-apk
+          path: godot/build/raid-commander-godot.apk
+
+      - name: Publish as a pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: godot-proto-${{ github.run_number }}
+          name: Godot prototype ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          make_latest: false
+          files: godot/build/raid-commander-godot.apk
