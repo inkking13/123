@@ -1,0 +1,47 @@
+name: Set up Godot
+description: Installs Godot and its export templates, then imports the project.
+inputs:
+  android:
+    description: Point the editor at the runner's Android SDK and JDK.
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Cache Godot and its export templates
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/godot
+        key: godot-4.5-android-web
+
+    - name: Download Godot and the export templates
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        mkdir -p ~/godot/templates
+        base=https://github.com/godotengine/godot/releases/download/4.5-stable
+        curl -sSL -o /tmp/godot.zip "$base/Godot_v4.5-stable_linux.x86_64.zip"
+        unzip -q /tmp/godot.zip -d ~/godot
+        curl -sSL -o /tmp/templates.tpz "$base/Godot_v4.5-stable_export_templates.tpz"
+        unzip -j /tmp/templates.tpz templates/android_release.apk templates/android_debug.apk \
+          templates/web_nothreads_release.zip templates/web_nothreads_debug.zip templates/version.txt -d ~/godot/templates
+
+    - name: Install Godot
+      shell: bash
+      run: |
+        sudo ln -sf ~/godot/Godot_v4.5-stable_linux.x86_64 /usr/local/bin/godot
+        dest=~/.local/share/godot/export_templates/4.5.stable
+        mkdir -p "$dest" && cp ~/godot/templates/* "$dest/"
+        if [ "${{ inputs.android }}" = "true" ]; then
+          # Where the exporter finds the Android SDK (preinstalled on the runner) and the JDK.
+          mkdir -p ~/.config/godot
+          for f in editor_settings-4.tres editor_settings-4.5.tres; do
+            printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' \
+              "$ANDROID_SDK_ROOT" "$JAVA_HOME" > ~/.config/godot/$f
+          done
+        fi
+        godot --version
+
+    - name: Import assets
+      shell: bash
+      run: godot --headless --path godot --import || true

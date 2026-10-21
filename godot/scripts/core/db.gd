@@ -1,7 +1,6 @@
 extends Node
-## The game's static data, read once from data/*.json (exported from the Expo
-## game by tools/export_data.sh), plus the small helpers that sat next to it
-## there: item lookups, rarity, set pieces, seeded weekly and daily picks.
+## The game's static data, read once from data/*.json, plus the small helpers
+## that go with it: item lookups, rarity, set pieces, seeded weekly and daily picks.
 
 var characters: Dictionary
 var gear: Dictionary
