@@ -39,7 +39,9 @@ interface Body {
   walk: string;
   run: string;
   /** Per action kind (melee, ranged, ability, heal, rally), falling back to `default`. */
-  act: Partial<Record<string, string>> & { default: string };
+  act: Partial<Record<string, string | string[]>> & { default: string };
+  /** The swing for a critical blow, where the body has a heavy one. */
+  crit?: string;
   /** Clip speed-up per clip, so long Meshy clips fit a turn. */
   speed?: Record<string, number>;
   /** Looped while defending. */
@@ -57,7 +59,7 @@ interface Body {
 }
 
 /** Meshy's combat set runs 2–4 s a clip; sped up so the blow lands inside a turn. */
-const COMBAT_SPEED = { Attack: 2, Double_Combo_Attack: 2.1, Triple_Combo_Attack: 3, Charged_Slash: 1.6, Charged_Spell_Cast: 1.8, Hit_Reaction: 1.4, Dead: 1.3,
+const COMBAT_SPEED = { Attack: 2, Double_Combo_Attack: 2.1, Triple_Combo_Attack: 3, Charged_Slash: 1.6, Charged_Spell_Cast: 1.8, Hit_Reaction: 1.4, Dead: 1.3, Charged_Axe_Chop: 1.4,
   // Weapon moves from Meshy's library, retargeted onto the race bodies.
   Thrust_Slash: 1.4, Sword_Slash: 1.2, Shield_Push: 1.3, Sword_Parry: 1.2, Hammer_Swing: 1.2, Ground_Slam: 1.4, Archery_Shot: 1.3 };
 
@@ -80,21 +82,21 @@ export const BODIES = {
   // Braided dwarf: breathing idle, shield bash, war cry, and the combat set.
   dwarf: {
     url: url(require('../../assets/models/dwarf.glb')), height: 1.0, fist: 0.125, wardrobe: 'dwarf',
-    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'bash', rally: 'shout', ability: 'shout' },
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'bash', melee: ['bash', 'Hammer_Swing', 'Attack'], rally: 'shout', ability: 'shout' }, crit: 'Charged_Slash',
     speed: { ...COMBAT_SPEED, bash: 1.5, shout: 2.2 }, guard: 'Block1', flourish: 'Victory_Cheer', death: 'Dead', hit: 'Hit_Reaction',
   },
   // Human male: relaxed idle, combat stance, sword attack, blade spins, eight spell casts, and the combat set.
   human: {
     url: url(require('../../assets/models/human.glb')), height: 1.12, wardrobe: 'human', fist: 0.11,
     idle: 'Idle', walk: 'walk', run: 'run',
-    act: { default: 'attack', ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' },
+    act: { default: 'attack', melee: ['attack', 'Sword_Slash', 'Thrust_Slash', 'Double_Combo_Attack'], ability: 'spin', heal: 'cast1', ranged: 'cast6', rally: 'cast4' }, crit: 'Charged_Slash',
     speed: { ...COMBAT_SPEED, attack: 1.6, spin: 2.6, cast1: 1.8, cast2: 1.6, cast3: 1.6, cast4: 1.3, cast6: 1.3, spinjump: 1.2 },
     guard: 'Block1', flourish: 'spinjump', death: 'Dead', hit: 'Hit_Reaction',
   },
   // Skeleton warrior in a loincloth (1.62 tall in its file): idle, claw attack, spin attack, block, and the combat set.
   skeleton: {
     url: url(require('../../assets/models/skeleton.glb')), height: 1.2,
-    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'attack', melee: 'Thrust_Slash', ability: 'Double_Combo_Attack' },
+    idle: 'idle', walk: 'walk', run: 'run', act: { default: 'attack', melee: ['Thrust_Slash', 'attack', 'Double_Combo_Attack'], ability: 'Double_Combo_Attack' }, crit: 'Charged_Slash',
     speed: { ...COMBAT_SPEED, attack: 2 }, guard: 'Sword_Parry', flourish: 'spin', death: 'Dead', hit: 'Hit_Reaction',
     hold: { right: 'boneSword', left: 'skullShield' },
   },
@@ -116,7 +118,7 @@ export const BODIES = {
   orc: {
     url: url(require('../../assets/models/orc.glb')), height: 1.3, modelH: 2.0, propScale: 1.4, wardrobe: 'orc',
     idle: 'Idle', walk: 'Walk_Fight_Forward', run: 'RunFast',
-    act: { default: 'Heavy_Hammer_Swing', ability: 'Triple_Combo_Attack', rally: 'Chest_Pound_Taunt', heal: 'Chest_Pound_Taunt' },
+    act: { default: 'Heavy_Hammer_Swing', melee: ['Heavy_Hammer_Swing', 'Charged_Axe_Chop', 'Double_Combo_Attack'], ability: 'Triple_Combo_Attack', rally: 'Chest_Pound_Taunt', heal: 'Chest_Pound_Taunt' }, crit: 'Charged_Slash',
     speed: { ...COMBAT_SPEED, Heavy_Hammer_Swing: 1.4, Chest_Pound_Taunt: 1.6 },
     guard: 'Block1', flourish: 'Chest_Pound_Taunt', death: 'Dead', hit: 'Hit_Reaction',
   },
@@ -271,6 +273,14 @@ const MAX_SPEED = 1.6;
 /** Played speed of a clip: its body's wish, capped at MAX_SPEED, but fast enough to end within ACTION_S. */
 const clipSpeed = (wish: number, dur: number) => Math.max(Math.min(wish, MAX_SPEED), dur / ACTION_S);
 
+/** One clip of a choice the body has, not the one just played if there is another. */
+function pickClip(choice: string | string[], have: Record<string, THREE.AnimationAction>, last: string): string {
+  if (!Array.isArray(choice)) return choice;
+  const ok = choice.filter((c) => have[c]);
+  const fresh = ok.length > 1 ? ok.filter((c) => c !== last) : ok;
+  return fresh.length ? fresh[Math.floor(Math.random() * fresh.length)] : choice[0];
+}
+
 /** A built stand-in for weapon kinds with no Meshy model. */
 function weaponMesh(kind: string | undefined, metal: string): THREE.Object3D | null {
   const g = new THREE.Group();
@@ -374,6 +384,7 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     const unit = handR ? 1 / new THREE.Vector3().setFromMatrixScale((handR as THREE.Bone).matrixWorld).x : 1;
     // Heroes breathe out of step with each other: each idle starts at its own point and runs a touch faster or slower.
     if (typeof B.idle === 'string') { actions.idle.time = Math.random() * actions.idle.getClip().duration; actions.idle.timeScale *= 0.9 + Math.random() * 0.2; }
+    if (actions.Combat_Stance) { actions.Combat_Stance.time = Math.random() * actions.Combat_Stance.getClip().duration; actions.Combat_Stance.timeScale *= 0.9 + Math.random() * 0.2; }
     return { scene, unit, restR, restL, poseR, poseL, steady: [] as Steady[], materials, mixer, actions, head, meshes, hips: h, hipsXZ: h ? [h.position.x, h.position.z] : [0, 0], spine: spine as THREE.Bone | null, handL: handL as THREE.Bone | null, handR: handR as THREE.Bone | null };
   }, [gltf]);
   const bodyMeshes = useMemo(() => rig.meshes.map((m) => m.mesh), [rig]);
@@ -421,6 +432,11 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
   const playing = useRef('');
   const lastAt = useRef(-99);
   const lastHit = useRef(-99);
+  /** The clip answering the last hit: a flinch, or a parry or block when guarding. */
+  const react = useRef(B.hit ?? '');
+  // Guarding, a blow is parried or caught on the shield instead of taken.
+  const answer = (a: HeroAnim) => lastHit.current === a.hit ? react.current
+    : a.defending ? (rig.actions.Sword_Parry ? 'Sword_Parry' : rig.actions.Block1 ? 'Block1' : B.hit!) : B.hit!;
   /** How long the action now playing lasts, seconds. */
   const actLen = useRef(ACTION_S);
   const flashCol = useMemo(() => new THREE.Color('#ff4a3a'), []);
@@ -434,27 +450,32 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
       lastAt.current = a.at;
       // A dodge and a victory cheer use the combat set's own clips where the body has them.
       const own = a.kind === 'dodge' ? 'Stand_Dodge' : a.kind === 'victory' ? 'Victory_Cheer' : '';
+      // A critical blow gets the heavy swing; other swings vary, never the same twice running.
+      const heavy = a.crit && a.kind === 'melee' ? opts.crit ?? B.crit : undefined;
       playing.current = own && A[own] ? own
         : a.kind === 'dance' || a.kind === 'victory' ? B.flourish ?? B.act.default
-          : a.kind === 'dodge' ? '' : opts.act?.[a.kind] ?? B.act[a.kind] ?? opts.act?.default ?? B.act.default;
+          : a.kind === 'dodge' ? '' : heavy && A[heavy] ? heavy
+            : pickClip(opts.act?.[a.kind] ?? B.act[a.kind] ?? opts.act?.default ?? B.act.default, A, playing.current);
       const c = A[playing.current];
       c?.reset().play();
       actLen.current = c ? Math.min(ACTION_S, c.getClip().duration / Math.max(0.01, c.timeScale)) : ACTION_S;
     }
     const at = t - a.at;
     const cur = A[playing.current];
-    let want = 'idle';
+    // In a fight the body waits in its fighting stance, where it has one.
+    const rest = a.stance && A.Combat_Stance ? 'Combat_Stance' : 'idle';
+    let want = rest;
     if ((a.kind === 'dance' || a.kind === 'victory') && cur && at >= 0 && at < cur.getClip().duration / cur.timeScale) want = playing.current;
-    else if (a.kind === 'victory' && at < 0) want = 'idle';
+    else if (a.kind === 'victory' && at < 0) want = rest;
     // The whole swing or cast, then a soft blend back as it ends.
     else if (a.kind && a.kind !== 'dance' && a.kind !== 'victory' && cur && at < actLen.current - 0.2) want = playing.current;
-    else if (B.hit && A[B.hit] && a.hit >= 0 && at >= actLen.current - 0.2 && t - a.hit < A[B.hit].getClip().duration / A[B.hit].timeScale) {
-      if (lastHit.current !== a.hit) { lastHit.current = a.hit; A[B.hit].reset().play(); }
-      want = B.hit;
+    else if (B.hit && A[B.hit] && a.hit >= 0 && at >= actLen.current - 0.2 && t - a.hit < A[answer(a)].getClip().duration / A[answer(a)].timeScale) {
+      if (lastHit.current !== a.hit) { lastHit.current = a.hit; react.current = answer(a); A[react.current].reset().play(); }
+      want = react.current;
     } else if (a.defending && B.guard) want = B.guard;
     else if (a.speed > 1.6) want = B.run;
     else if (a.speed > 0.05) want = B.walk;
-    if (a.frozen) want = 'idle';
+    if (a.frozen) want = rest;
     if (!a.alive) {
       if (B.death && A[B.death]) {
         // Once, held on its last frame.
@@ -467,23 +488,29 @@ function Meshy({ id, body: B, anim, gear, opts }: { id: number; body: Body; anim
     }
     A[B.walk].timeScale = Math.max(0.6, Math.min(1.6, a.speed / 0.9));
     // Into an action or a flinch quickly; back to standing, walking or guarding gently.
-    const rate = want === playing.current || want === B.hit || want === B.death ? 12 : 5;
+    const rate = want === playing.current || want === react.current || want === B.death ? 12 : 5;
     const k = 1 - Math.exp(-dt * rate);
     weights.current[want] ??= 0;
     for (const c of Object.keys(weights.current)) {
       weights.current[c] += ((c === want ? 1 : 0) - weights.current[c]) * k;
       A[c]?.setEffectiveWeight(weights.current[c]);
     }
-    rig.mixer.update(a.frozen ? 0 : dt);
+    // Hit-stop: the body locks for a beat as a blow lands, longer for a hard one.
+    const stop = a.hit >= 0 && t - a.hit >= 0 && t - a.hit < (a.heavy ? 0.11 : 0.06);
+    rig.mixer.update(a.frozen || stop ? 0 : dt);
     // Clips play in place: lunges and knock-backs would carry the body off its tile.
     if (rig.hips) { rig.hips.position.x = rig.hipsXZ[0]; rig.hips.position.z = rig.hipsXZ[1]; }
 
     // Breathing, a guard hunch and a flinch on top of the clips.
     if (rig.spine) {
       const ht = t - a.hit;
-      let x = weights.current.idle * 0.02 * Math.sin(t * 2.2);
+      const still = (weights.current.idle ?? 0) + (weights.current.Combat_Stance ?? 0);
+      let x = still * 0.02 * Math.sin(t * 2.2);
       if (a.defending && !B.guard) x += 0.25;
-      if (ht >= 0 && ht < 0.35) x -= 0.35 * (1 - ht / 0.35);
+      // The flinch: further and longer from a hard hit, barely any behind a guard.
+      const fl = a.heavy ? 0.5 : 0.35;
+      const amp = a.defending ? 0.12 : a.heavy ? 0.6 : 0.35;
+      if (ht >= 0 && ht < fl) x -= amp * (1 - ht / fl);
       rig.spine.rotation.x += x;
     }
     steadyProps(rig.steady, rig.scene, weights.current.idle ?? 0);
@@ -524,8 +551,10 @@ class Fallback extends Component<{ fallback: React.ReactNode; children: React.Re
 interface HeroOpts {
   /** A Meshy-made weapon in the right hand instead of the built one. */
   weapon?: PropName;
-  /** Per-hero choice of clip for an action kind. */
-  act?: Partial<Record<string, string>>;
+  /** Per-hero choice of clip for an action kind; a list is taken in turns at random, never the same twice running. */
+  act?: Partial<Record<string, string | string[]>>;
+  /** Per-hero swing for a critical blow. */
+  crit?: string;
 }
 
 /** A monster on a Meshy body, falling back to its built look. */

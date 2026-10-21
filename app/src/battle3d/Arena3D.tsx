@@ -131,6 +131,17 @@ function stride(pos: THREE.Vector3, to: THREE.Vector3, s: Stride, dt: number, vm
   s.speed += (s.vel - s.speed) * (1 - Math.exp(-dt * 12));
   return s.speed;
 }
+/**
+ * How far a struck figure is pushed back, `ht` seconds after the hit: out fast
+ * (after the hit-stop), held a moment, then eased back onto its tile.
+ */
+function knockback(ht: number, dist: number): number {
+  if (ht < 0.05 || ht > 0.55) return 0;
+  const u = ht - 0.05;
+  if (u < 0.08) return dist * (1 - (1 - u / 0.08) ** 2);
+  return dist * (1 - Math.min(1, (u - 0.08) / 0.42) ** 2);
+}
+
 /** Turns `yaw` toward `want` at a steady rate, the short way round. */
 function turnTo(yaw: number, want: number, rate: number, dt: number): number {
   let diff = want - yaw;
@@ -149,7 +160,7 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
   const card = useRef<THREE.Group | null>(null);
   const mat = useRef<THREE.MeshBasicMaterial | null>(null);
   const pos = useRef(tilePos(r.row, r.col));
-  const ev = useRef({ lunge: -99, kind: '' as string, hit: -99, deadAt: r.alive ? -1 : -99 });
+  const ev = useRef({ lunge: -99, kind: '' as string, hit: -99, deadAt: r.alive ? -1 : -99, crit: false, heavy: false });
   const look = HERO_LOOKS[r.candidateId];
   const model = useRef<THREE.Group>(null);
   const anim = useRef<HeroAnim>({ kind: '', at: -99, hit: -99, deadAt: r.alive ? -1 : -99, alive: r.alive, defending: false, speed: 0, frozen: false });
@@ -168,13 +179,15 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
     return () => { proj.world.delete(key); };
   }, [proj, key, head, center]);
   useEffect(() => {
-    if (sim.fx.seq && sim.fx.actor === r.id) { ev.current.lunge = clock.elapsedTime; ev.current.kind = sim.fx.kind ?? ''; }
+    if (sim.fx.seq && sim.fx.actor === r.id) { ev.current.lunge = clock.elapsedTime; ev.current.kind = sim.fx.kind ?? ''; ev.current.crit = !!sim.fx.crit; }
   }, [sim.fx.seq]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (r.hp < prevHp.current) {
       const fx = sim.fx;
       const delay = (fx.kind === 'heal' || fx.kind === 'ability') && fx.targetRaider === r.id ? impactDelay(fx) : 0;
       ev.current.hit = clock.elapsedTime + delay / 1000;
+      // A hard hit: a fifth of their health or more at once.
+      ev.current.heavy = prevHp.current - r.hp >= r.maxHp * 0.2;
     }
     prevHp.current = r.hp;
   }, [r.hp]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -232,13 +245,18 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
     }
     const ht = t - e.hit;
     if (ht >= 0 && ht < 0.3) sx = Math.sin(ht * 70) * 0.07 * (1 - ht / 0.3);
+    // Knocked back a step from the blow (less behind a guard), then back onto the tile.
+    if (look && r.alive) {
+      const kb = knockback(ht, e.heavy ? 0.3 : r.defending ? 0.06 : 0.14);
+      dx -= Math.sin(yaw.current) * kb; dz -= Math.cos(yaw.current) * kb;
+    }
     g.position.set(pos.current.x + sx + dx, dy, pos.current.z + dz);
     if (look && model.current) {
       model.current.rotation.y = yaw.current;
       const a = anim.current;
       a.kind = e.kind; a.at = e.lunge; a.hit = e.hit; a.deadAt = e.deadAt; a.alive = r.alive;
       a.defending = r.defending; a.frozen = r.alive && sim.frozen?.targetId === r.id;
-      a.speed = speed;
+      a.speed = speed; a.crit = e.crit; a.heavy = e.heavy; a.stance = !sim.victory;
     }
     const c = card.current;
     if (c) {
@@ -309,7 +327,7 @@ function FoeFigure({
   const mat = useRef<THREE.MeshBasicMaterial | null>(null);
   const glow = useRef<THREE.Mesh>(null);
   const ring = useRef<THREE.Mesh>(null);
-  const ev = useRef({ lunge: -99, hit: -99, deadAt: alive ? -1 : -99, windAt: -99, phaseAt: -99, rear: 0 });
+  const ev = useRef({ lunge: -99, hit: -99, deadAt: alive ? -1 : -99, windAt: -99, phaseAt: -99, rear: 0, heavy: false });
   const at = useRef(new THREE.Vector3(x, 0, z));
   const walk = useRef(newStride());
   const target = useMemo(() => new THREE.Vector3(), []);
@@ -326,7 +344,10 @@ function FoeFigure({
     if (fx.seq && fx.actor === 'enemy' && fx.kind === 'enemy' && alive) ev.current.lunge = clock.elapsedTime;
   }, [fx.seq]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (hp < prevHp.current) ev.current.hit = clock.elapsedTime + (fx.actor !== 'enemy' ? impactDelay(fx) : 0) / 1000;
+    if (hp < prevHp.current) {
+      ev.current.hit = clock.elapsedTime + (fx.actor !== 'enemy' ? impactDelay(fx) : 0) / 1000;
+      ev.current.heavy = typeof fx.actor === 'number' && fx.crit;
+    }
     prevHp.current = hp;
   }, [hp]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { ev.current.deadAt = alive ? -1 : clock.elapsedTime + 0.12; }, [alive, clock]);
@@ -361,6 +382,11 @@ function FoeFigure({
     const ht = t - e.hit;
     if (ht >= 0 && ht < 0.3) sx = Math.sin(ht * 70) * 0.08 * (1 - ht / 0.3);
     sx += e.rear * Math.sin(t * 80) * 0.03;
+    // Rocked back by the blow; a boss barely gives ground.
+    if (monster && alive) {
+      const kb = knockback(ht, (e.heavy ? 0.34 : 0.16) * (isBoss ? 0.35 : 1));
+      dx -= fx0 * kb; dz -= fz0 * kb;
+    }
     // Walks to its new cell; a small bob while moving sells the step.
     const moving = stride(at.current, target.set(x, 0, z), walk.current, dt, isBoss ? 1.2 : 1.5, isBoss ? 4 : 5);
     const bob = Math.min(1, moving) * Math.abs(Math.sin(t * 12)) * (isBoss ? 0.12 : 0.08);
@@ -371,6 +397,7 @@ function FoeFigure({
       model.current.scale.setScalar(mscale * (1 + e.rear * 0.14));
       const h = heroAnim.current;
       h.kind = lt < 0.6 ? 'melee' : ''; h.at = e.lunge; h.hit = e.hit; h.deadAt = e.deadAt; h.alive = alive; h.speed = moving / mscale;
+      h.heavy = e.heavy; h.stance = true;
       const c = creAnim.current;
       c.at = e.lunge; c.hit = e.hit; c.deadAt = e.deadAt; c.alive = alive; c.speed = moving / mscale; c.rear = e.rear; c.stunned = stunned;
     }
