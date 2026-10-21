@@ -1,8 +1,8 @@
-name: Build Godot prototype APK
+name: Build Godot APK
 
-# The Godot 4 rebuild of the battle (godot/), to compare its look and speed
-# with the Expo game on a real phone. Runs on any branch that touches it, and
-# publishes a pre-release so it never becomes the game's "latest" APK.
+# The Godot 4 port of the whole game (godot/). Runs on any branch that touches
+# it, and publishes a pre-release so it never becomes the game's "latest" APK
+# while the Expo build is still the main one.
 on:
   workflow_dispatch: {}
   push:
@@ -57,15 +57,20 @@ jobs:
           done
           godot --version
 
-      - name: Copy the game's models in
+      - name: Copy the game's models and pictures in
         run: godot/tools/sync_assets.sh
 
       - name: Import assets
         run: godot --headless --path godot --import || true
 
+      - name: Check scripts and play a raid headless
+        run: |
+          godot --headless --path godot -s res://tests/loadall.gd
+          timeout 600 godot --headless --path godot -s res://tests/smoke.gd
+
       - name: Export APK
         env:
-          # A throwaway key for sideloading the prototype (password in the clear on purpose).
+          # A throwaway key for sideloading (password in the clear on purpose).
           GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ github.workspace }}/godot/android/proto.keystore
           GODOT_ANDROID_KEYSTORE_RELEASE_USER: proto
           GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: raidproto
@@ -84,7 +89,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: godot-proto-${{ github.run_number }}
-          name: Godot prototype ${{ github.run_number }}
+          name: Godot build ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           prerelease: true
           make_latest: false

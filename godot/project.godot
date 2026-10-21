@@ -6,7 +6,7 @@ config_version=5
 [application]
 
 config/name="Raid Commander — Godot"
-run/main_scene="res://main.tscn"
+run/main_scene="res://app.tscn"
 config/features=PackedStringArray("4.5", "Mobile")
 boot_splash/bg_color=Color(0.055, 0.047, 0.063, 1)
 boot_splash/show_image=false

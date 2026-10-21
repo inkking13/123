@@ -1,0 +1,41 @@
+class_name ClassCard
+## What a hero's class does in a fight: its always-on trait and its valor move.
+
+
+static func make(class_id: String) -> Control:
+	var c = DB.hero_class(class_id)
+	var col = Color(c.color)
+	var fr = PanelContainer.new()
+	var sb = UI.frame_style("plain", Vector4(12, 12, 12, 12), 8)
+	sb.border_color = Color(col, 0.55)
+	fr.add_theme_stylebox_override("panel", sb)
+	fr.draw.connect(func(): UI._corners(fr, Rect2(Vector2.ZERO, fr.size), col))
+	var v = UI.vbox(10)
+	fr.add_child(v)
+	var head = UI.hbox(10)
+	var disc = Control.new()
+	disc.custom_minimum_size = Vector2(UI.px(44), UI.px(44))
+	disc.draw.connect(func():
+		disc.draw_circle(disc.size * 0.5, disc.size.x * 0.5, Color(0, 0, 0, 0.3))
+		disc.draw_arc(disc.size * 0.5, disc.size.x * 0.5 - 1, 0, TAU, 40, col, 2))
+	var ic = UI.icon(c.icon, 22, col, "fill")
+	disc.add_child(ic)
+	ic.position = Vector2(UI.px(11), UI.px(11))
+	head.add_child(disc)
+	var names = UI.vbox(0)
+	names.add_child(UI.kicker("Класс", UI.TEXT_FAINT, 11))
+	names.add_child(UI.label(c.name, 20, col, "title"))
+	head.add_child(names)
+	v.add_child(head)
+	var pv = UI.vbox(1)
+	pv.add_child(UI.label(c.passiveName, 14, UI.ACCENT_SOFT, "semibold"))
+	pv.add_child(UI.label(c.passive, 13.5, UI.TEXT_DIM, "regular", true))
+	v.add_child(pv)
+	var vv = UI.vbox(1)
+	var vh = UI.hbox(6)
+	vh.add_child(UI.label(c.valorName, 14, UI.VALOR, "semibold"))
+	for i in c.valorCost: vh.add_child(UI.center(UI.valor_pip(true, 7)))
+	vv.add_child(vh)
+	vv.add_child(UI.label("Приём доблести: " + c.valorDesc, 13.5, UI.TEXT_DIM, "regular", true))
+	v.add_child(vv)
+	return fr

@@ -1,0 +1,36 @@
+class_name Demo
+## A ready-made guild for screenshots and testing: five heroes, some wins, a
+## few systems open, an event and a contract on hand.
+
+
+static func setup() -> void:
+	var g = Game
+	g.reset_progress()
+	g.finish_draft([0, 3, 8, 1, 6])
+	g.stats_room_wins = 40
+	for d in ["wastes", "road", "groblot", "frostpass"]: g.defeated[d] = true
+	for f in DB.features.FEATURE_ORDER: g.seen_unlocks[f] = true
+	g.seen_unlocks.erase("contracts")
+	g.payroll_notice = {"paid": 120, "shortfall": false}
+	g.gold = 420
+	g.settings.quality = "medium"
+	for t in ["move", "act", "focus"]: g.seen_tips[t] = true
+	g.notify()
+
+
+static func open(what: String) -> void:
+	var g = Game
+	match what:
+		"char": g.open_char(g.squad()[0].id)
+		"dungeon": g.quick_raid()
+		"combat":
+			g.quick_raid()
+			g.b.start_encounter()
+		"event":
+			g.maybe_trigger_event("home", true)
+			g.go("event")
+		"contracts":
+			g.go("contracts")
+			var offers: Array = g.contract_board()
+			if not offers.is_empty(): g.accept_contract(offers[0].id)
+		_: g.go(what)
