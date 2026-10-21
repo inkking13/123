@@ -30,9 +30,7 @@ const ACTION_ICON: Record<TurnActionKey, IconName> = {
   rally: 'megaphone',
   defend: 'shield',
   breakShell: 'snowflake',
-  valorStrike: 'hand-fist',
-  valorGuard: 'shield-chevron',
-  valorMend: 'first-aid-kit',
+  valor: 'crown-simple',
 };
 
 const VALOR_LIT = '#f0c46a';
@@ -436,7 +434,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                   <SkillIcon id={a.abilityArt} size={30} radius={7} dim={a.disabled} />
                 ) : (
                   <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)' }}>
-                    <Icon name={a.key === 'ability' ? (a.abilityIcon as IconName) : ACTION_ICON[a.key]} size={17} color={a.disabled ? colors.textFaint : GOLD_TEXT} />
+                    <Icon name={a.classIcon ?? (a.key === 'ability' ? (a.abilityIcon as IconName) : ACTION_ICON[a.key])} size={17} color={a.disabled ? colors.textFaint : a.valorCost ? VALOR_LIT : GOLD_TEXT} />
                   </View>
                 )}
                 <Text numberOfLines={2} style={{ fontSize: 11.5, lineHeight: 14, textAlign: 'center', color: a.disabled ? colors.textFaint : colors.text, fontFamily: font.medium }}>{a.label}</Text>

@@ -11,6 +11,8 @@ export interface CandidateDef {
   id: number;
   name: string;
   epithet: string;
+  /** The hero's class (data/heroClasses), fixed by who they are. */
+  heroClass: import('./heroClasses').HeroClassId;
   role: Role;
   attackRange: AttackRange;
   hp: number;
@@ -31,7 +33,7 @@ export interface Candidate extends CandidateDef {
   equipment: Record<GearSlotKey, string>;
   /** One picked option id ('a' | 'b') per talent tier, or null while unpicked. */
   talents: (string | null)[];
-  /** Chosen subclass id within the character's fixed role, or null while unpicked. */
+  /** Chosen specialization id within the character's fixed role, or null while unpicked. */
   classId: string | null;
   /** Chosen profession id (independent of role/class), or null while unpicked. */
   professionId: string | null;

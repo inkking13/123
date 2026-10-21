@@ -8,6 +8,7 @@ import { BackLink } from '../components/Buttons';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { useEngineVersion } from '../engine/useEngine';
+import { ClassBadge } from '../components/ClassBadge';
 import { Corners, ScreenTitle } from '../components/Frame';
 
 export function HireScreen({ engine }: { engine: GameEngine }) {
@@ -46,7 +47,7 @@ export function HireScreen({ engine }: { engine: GameEngine }) {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 16, fontFamily: font.medium, color: colors.text }}>{c.name}</Text>
-                      <Text style={{ fontSize: 11.5, color: colors.textFaint, marginTop: 1, fontFamily: font.regular }}>{c.epithet}</Text>
+                      <View style={{ marginTop: 2 }}><ClassBadge id={c.heroClass} /></View>
                     </View>
                     <Text style={{ fontSize: 11, color: colors.textDim, fontFamily: font.regular }}>ГС {c.gs}</Text>
                   </View>

@@ -28,12 +28,13 @@ import { ARMOUR_IDS, RETIRED_ARMOUR_IDS, STARTING_OUTFITS, armourOf, dressInStar
 /** A starting hero's slots: empty but for their armour set. */
 function startingEquipment(id: number) { const e = emptyEquipment(); dressInStartingSet(id, e); return e; }
 import { FEATURES, FEATURE_ORDER, Feature, Tip } from '../data/features';
+import { HERO_CLASSES, HeroClassId } from '../data/heroClasses';
 import { CLIENTS, CONTRACT_TERMS, Contract, ContractTerm, SWIFT_ROUNDS, VALOR_NEEDED } from '../data/contracts';
 import { IconName } from '../components/Icon';
 import type { Quality } from '../battle3d/quality';
 import { AttackRange, Candidate, EncounterDef, GearKind, GearOption, GearSlotKey, Role } from '../data/types';
 import {
-  ACCENT, ATTACK_TURN_SCALE, HEAL_TURN_SCALE, VALOR_COST, VALOR_MAX, VALOR_START,
+  ACCENT, ATTACK_TURN_SCALE, HEAL_TURN_SCALE, VALOR_MAX, VALOR_START,
   GRID_ROWS, GRID_COLS, BACK_ROW, MOVE_RANGE, BOSS_W, BOSS_H, FOE_SPEED,
   Ability, AbilityIcon, BossMoveTimers, Enemy, EnemyRole, Raider, SignatureKind, Sim, TurnEntry, LogKind,
 } from '../combat/types';
@@ -69,6 +70,17 @@ const STAGGER_DECAY = 5;
 const VALOR_STRIKE_MULT = 2.2;
 const VALOR_GUARD_MULT = 0.6;
 const VALOR_MEND_MULT = 0.55;
+/** Class passives (data/heroClasses). */
+const PALADIN_AURA_MULT = 0.85;
+const PRIEST_HEAL_MULT = 1.15;
+const MAGE_SPLASH = 0.35;
+const NECRO_DRAIN = 0.3;
+const ROGUE_FLANK_MULT = 1.4;
+const HUNTER_RANGE_MULT = 1.25;
+/** How each class's valor move plays on the field. */
+const VALOR_FX: Record<HeroClassId, 'strike' | 'spell' | 'heal' | 'shout'> = {
+  warrior: 'strike', rogue: 'strike', hunter: 'strike', necromancer: 'strike', mage: 'spell', paladin: 'shout', priest: 'heal', druid: 'heal',
+};
 const VULNERABLE_ROUNDS = 2;
 const VULNERABLE_MULT = 1.5;
 const ENRAGE_ROUND_BOSS = 14;
@@ -285,16 +297,17 @@ export interface TalentTierVM {
   options: TalentOptionVM[];
 }
 
-export type TurnActionKey = 'attack' | 'heal' | 'ability' | 'interrupt' | 'breakChain' | 'brace' | 'rally' | 'breakIce' | 'defend' | 'breakShell'
-  | 'valorStrike' | 'valorGuard' | 'valorMend';
+export type TurnActionKey = 'attack' | 'heal' | 'ability' | 'interrupt' | 'breakChain' | 'brace' | 'rally' | 'breakIce' | 'defend' | 'breakShell' | 'valor';
 export interface TurnActionVM {
   key: TurnActionKey;
   label: string;
   sub?: string;
   abilityIcon?: AbilityIcon;
   abilityArt?: SkillArtId;
-  /** Valor points the move costs, for valor moves. */
+  /** Valor points the move costs, for the valor move. */
   valorCost?: number;
+  /** Icon of the hero's class, for the valor move. */
+  classIcon?: IconName;
   needsTarget: boolean;
   disabled: boolean;
 }
@@ -308,6 +321,7 @@ export interface HireOptionVM {
   id: number;
   name: string;
   epithet: string;
+  heroClass: HeroClassId;
   role: Role;
   attackRange: AttackRange;
   bio: string;
@@ -1576,7 +1590,7 @@ export class GameEngine {
     // Everyone not on the payroll: the recruits, and whoever of the first nine wasn't picked at the start.
     const hiredIds = new Set(this.pool.map((c) => c.id));
     return ALL_CANDIDATES.filter((r) => !hiredIds.has(r.id)).map((r) => ({
-      id: r.id, name: r.name, epithet: r.epithet, role: r.role, attackRange: r.attackRange,
+      id: r.id, name: r.name, epithet: r.epithet, heroClass: r.heroClass, role: r.role, attackRange: r.attackRange,
       bio: r.bio, story: r.story, hp: r.hp, dps: r.dps, healPower: r.healPower, gs: r.gs,
       cost: r.hireCost ?? 0,
       affordable: this.gold >= (r.hireCost ?? 0),
@@ -1804,7 +1818,7 @@ export class GameEngine {
       const lvl = 1 + (d.level - 1) * 0.02;
       const maxHp = Math.round(d.hp * gm.hpMult * tm.hpMult * cm.hpMult * pm.hpMult * sm.hpMult * lvl);
       return {
-        id: i, name: d.name, role: d.role, attackRange: d.attackRange, candidateId: d.id, trait: d.trait, level: d.level,
+        id: i, name: d.name, role: d.role, heroClass: d.heroClass, rageRound: 0, regen: null, attackRange: d.attackRange, candidateId: d.id, trait: d.trait, level: d.level,
         maxHp, hp: maxHp, alive: true, dps: d.dps, healPower: d.healPower || 9,
         outputMult: gm.outputMult * tm.outputMult * cm.outputMult * pm.outputMult * sm.outputMult * moraleMult * (this.inArena ? 1 : this.hrMult(d.id, squadIds)),
         wardMult: gm.wardMult * tm.wardMult * cm.wardMult * pm.wardMult * sm.wardMult, levelMult: lvl,
@@ -1840,6 +1854,7 @@ export class GameEngine {
     raiders.forEach((r, i) => {
       r.chainPartner = null;
       r.defending = false;
+      r.regen = null;
       r.row = BACK_ROW; r.col = i + 1;
       if (r.ability) { r.ability.active = false; r.ability.activeRounds = 0; r.ability.cd = 0; }
     });
@@ -2152,10 +2167,15 @@ export class GameEngine {
     if (has('breakIce') && r.role !== 'heal') return ['breakIce'];
     if (has('brace') && s.braceCall && s.braceCall.braced.size < 3) return ['brace'];
     if (has('rally') && (s.tilt >= 40 || (s.ashCurse && s.ashCurse.stacks >= 2))) return ['rally'];
-    if (has('valorGuard') && (s.windup || s.danger || lowest.hp / lowest.maxHp < 0.5)) return ['valorGuard'];
-    if (has('valorMend') && alive.filter((x) => x.hp / x.maxHp < 0.7).length >= 2) return ['valorMend'];
+    if (has('valor')) {
+      const hurtCount = alive.filter((x) => x.hp / x.maxHp < 0.7).length;
+      const want = r.heroClass === 'paladin' ? (s.windup || !!s.danger || lowest.hp / lowest.maxHp < 0.5)
+        : r.heroClass === 'priest' || r.heroClass === 'druid' ? hurtCount >= 2
+        : r.heroClass === 'mage' ? s.enemies.filter((e) => e.alive).length >= 2 || s.valor >= 4
+        : s.valor >= 4 || s.vulnerableRounds > 0;
+      if (want) return ['valor'];
+    }
     if (r.role === 'heal' && has('heal') && lowest.hp / lowest.maxHp < 0.65) { const t = weakest(); if (t) return ['heal', t.id]; }
-    if (has('valorStrike') && (s.valor >= 4 || s.vulnerableRounds > 0)) return ['valorStrike'];
     if (has('ability')) {
       const k = r.ability.kind;
       if (!['drainHeal', 'volatileHeal'].includes(k) || lowest.hp / lowest.maxHp < 0.8) return ['ability'];
@@ -2181,6 +2201,12 @@ export class GameEngine {
     s.order = this.buildOrder();
     s.turnPos = -1;
     if (s.round > 1) this.gainValor(1);
+    // Друид's growth: health back at the start of each round.
+    const grown = this.alive().filter((r) => r.regen);
+    for (const r of grown) {
+      r.hp = Math.min(r.maxHp, r.hp + r.regen!.amt);
+      if (--r.regen!.rounds <= 0) r.regen = null;
+    }
     s.rallyCd = Math.max(0, s.rallyCd - 1);
     if (s.partyWard && --s.partyWard.roundsLeft <= 0) s.partyWard = null;
     if (s.inspiredRounds > 0) s.inspiredRounds--;
@@ -2371,6 +2397,11 @@ export class GameEngine {
   }
   hurt(r: Raider, amount: number) {
     let d = amount;
+    const s = this.sim;
+    // Паладин: allies next to one take less.
+    if (s && s.raiders.some((p) => p.alive && p.id !== r.id && p.heroClass === 'paladin' && Math.max(Math.abs(p.row - r.row), Math.abs(p.col - r.col)) <= 1)) d *= PALADIN_AURA_MULT;
+    // Воин: the first blow taken each round stokes the party's valor.
+    if (s && r.heroClass === 'warrior' && r.rageRound !== s.round && amount > 0) { r.rageRound = s.round; this.gainValor(1); }
     if (r.ability && r.ability.kind === 'selfShield' && r.ability.active) d *= 0.5;
     const pw = this.sim?.partyWard;
     if (pw) d *= pw.mult;
@@ -2508,8 +2539,20 @@ export class GameEngine {
     if (s.bossPoison && (s.bossPoison.enemyId == null || s.bossPoison.enemyId === target?.id)) { m *= POISONED_BOSS_MULT; tags.push('яд'); }
     if (s.vulnerableRounds > 0) { m *= VULNERABLE_MULT; tags.push('оглушён'); }
     if (s.iceShell) { m *= ICE_SHELL_MULT; tags.push('панцирь'); }
+    const targetId = target ? target.id : -1;
+    if (r.heroClass === 'rogue' && this.alive().some((x) => x.id !== r.id && this.adjacentFoes(x).some((f) => f.id === targetId))) { m *= ROGUE_FLANK_MULT; tags.push('фланг'); }
+    if (r.heroClass === 'hunter' && !this.engaged(r)) { m *= HUNTER_RANGE_MULT; tags.push('дистанция'); }
     const dmg = Math.max(1, Math.round(raw * m));
+    const splashAt = r.heroClass === 'mage' && target && s.enemies.length ? { row: target.row, col: target.col } : null;
     this.damageFoe(dmg, target ? target.id : null);
+    // Маг: the blast catches whoever stands next to the target.
+    if (splashAt) {
+      const near = s.enemies.filter((e) => e.alive && e.id !== targetId && Math.max(Math.abs(e.row - splashAt.row), Math.abs(e.col - splashAt.col)) <= 1);
+      for (const e of near) this.damageFoe(Math.max(1, Math.round(dmg * MAGE_SPLASH)), e.id);
+      if (near.length) tags.push('взрыв');
+    }
+    // Некромант: the blow drinks some of what it takes.
+    if (r.heroClass === 'necromancer' && r.alive) { r.hp = Math.min(r.maxHp, r.hp + Math.round(dmg * NECRO_DRAIN)); tags.push('похищение'); }
     if (s.debt && s.debt.targetId === r.id) s.debt.paid = true;
     if (s.quota) s.quota.dealt += dmg;
     if (target) tags.unshift('→ ' + target.name);
@@ -2681,14 +2724,13 @@ export class GameEngine {
       key: 'ability', label: def.name, abilityIcon: def.icon, abilityArt: ABILITY_ART[r.candidateId], needsTarget: false,
       disabled: r.ability.cd > 0, sub: r.ability.cd > 0 ? `КД: ${r.ability.cd}` : undefined,
     });
-    // Each role's valor move, paid from the party's shared pool.
-    const valor = (key: 'valorStrike' | 'valorGuard' | 'valorMend', label: string, sub: string, usable = true) => {
-      const cost = VALOR_COST[key];
-      actions.push({ key, label, valorCost: cost, needsTarget: false, disabled: !usable || s.valor < cost, sub: s.valor < cost ? `нужно ${cost} доблести` : sub });
-    };
-    if (r.role === 'dps') valor('valorStrike', 'Удар доблести', 'верный крит ×2.2', inMeleeRange);
-    else if (r.role === 'tank') valor('valorGuard', 'Сомкнуть щиты', 'отряду −40% урона');
-    else valor('valorMend', 'Перевязать всех', 'лечит весь отряд');
+    // The class's valor move, paid from the party's shared pool. Blows need a foe in reach.
+    const hc = HERO_CLASSES[r.heroClass];
+    const blow = ['warrior', 'rogue', 'necromancer'].includes(r.heroClass);
+    actions.push({
+      key: 'valor', label: hc.valorName, valorCost: hc.valorCost, classIcon: hc.icon, needsTarget: false,
+      disabled: s.valor < hc.valorCost || (blow && !inMeleeRange), sub: hc.valorDesc,
+    });
     if (s.iceShell) actions.push({ key: 'breakShell', label: 'Расколоть панцирь', needsTarget: false, disabled: false });
     if (s.rallyCd <= 0) actions.push({ key: 'rally', label: 'Сплотить отряд', needsTarget: false, disabled: false });
     actions.push({ key: 'defend', label: 'Оборона', sub: '−40% урона до след. хода', needsTarget: false, disabled: false });
@@ -2704,9 +2746,10 @@ export class GameEngine {
     const s = this.sim; const r = this.currentRaider();
     if (!s || !r || s.over) return;
     s.awaitingPlayer = false;
-    if (key in VALOR_COST && s.valor < VALOR_COST[key as keyof typeof VALOR_COST]) { s.awaitingPlayer = true; return; }
-    const strike = key === 'attack' || key === 'valorStrike';
-    const fxKind = strike ? (r.attackRange === 'melee' ? 'melee' : 'ranged') : key === 'heal' || key === 'valorMend' ? 'heal' : key === 'ability' ? 'ability' : key === 'rally' || key === 'valorGuard' ? 'rally' : null;
+    if (key === 'valor' && s.valor < HERO_CLASSES[r.heroClass].valorCost) { s.awaitingPlayer = true; return; }
+    const valorKind = key === 'valor' ? VALOR_FX[r.heroClass] : null;
+    const strike = key === 'attack' || valorKind === 'strike';
+    const fxKind = strike ? (r.attackRange === 'melee' ? 'melee' : 'ranged') : key === 'heal' || valorKind === 'heal' ? 'heal' : key === 'ability' || valorKind === 'spell' ? 'ability' : key === 'rally' || valorKind === 'shout' ? 'rally' : null;
     const aimsAtEnemy = strike || key === 'ability';
     if (strike && r.attackRange === 'melee') {
       const t = this.attackTarget(r);
@@ -2731,9 +2774,7 @@ export class GameEngine {
         r.defending = true;
         this.log(r.name + ' уходит в оборону.');
         break;
-      case 'valorStrike': this.doValorStrike(r); break;
-      case 'valorGuard': this.doValorGuard(r); break;
-      case 'valorMend': this.doValorMend(r); break;
+      case 'valor': this.doValor(r); break;
     }
     this.checkDeaths();
     this.notify();
@@ -2757,49 +2798,100 @@ export class GameEngine {
     const next = Math.min(VALOR_MAX, s.valor + n);
     if (next > s.valor) { s.valor = next; s.valorSeq++; }
   }
-  private spendValor(key: keyof typeof VALOR_COST) {
+  /** Each class's valor move. */
+  private doValor(r: Raider) {
     const s = this.sim!;
-    s.valor -= VALOR_COST[key];
-    this.trip.valorSpent += VALOR_COST[key];
+    const hc = HERO_CLASSES[r.heroClass];
+    s.valor -= hc.valorCost;
+    this.trip.valorSpent += hc.valorCost;
     this.everUsedValor = true;
-  }
-  /** A sure critical blow, harder than a lucky one. */
-  private doValorStrike(r: Raider) {
-    this.spendValor('valorStrike');
-    const raw = r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE * VALOR_STRIKE_MULT;
-    const frontMelee = r.attackRange === 'melee' && this.engaged(r);
-    this.sim!.fx.crit = true;
-    const { dmg, note } = this.hitBoss(r, raw, STAGGER_ATTACK + STAGGER_CRIT + (frontMelee ? STAGGER_FRONT_MELEE : 0));
-    this.log(r.name + ' вкладывает всю доблесть в удар: -' + dmg + note, 'ok');
+    const blow = (mult: number, crit: boolean) => {
+      const raw = r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE * mult;
+      const frontMelee = r.attackRange === 'melee' && this.engaged(r);
+      s.fx.crit = crit;
+      return this.hitBoss(r, raw, STAGGER_ATTACK + (crit ? STAGGER_CRIT : 0) + (frontMelee ? STAGGER_FRONT_MELEE : 0));
+    };
+    const healAll = (amt: number) => { for (const x of this.alive()) x.hp = Math.min(x.maxHp, x.hp + amt); };
+    const healPower = () => r.healPower * this.outMult(r) * this.healMult() * HEAL_TURN_SCALE;
+    switch (r.heroClass) {
+      case 'warrior': {
+        const { dmg, note } = blow(VALOR_STRIKE_MULT, true);
+        if (s.vulnerableRounds === 0 && !s.stunned) s.stagger = Math.min(STAGGER_MAX - 1, s.stagger + 15);
+        this.log(r.name + ' обрушивает сокрушительный удар: -' + dmg + note, 'ok');
+        break;
+      }
+      case 'hunter': {
+        const { dmg, note } = blow(VALOR_STRIKE_MULT, true);
+        this.log(r.name + ' выцеливает и бьёт наверняка: -' + dmg + note, 'ok');
+        break;
+      }
+      case 'rogue': {
+        const t = this.attackTarget(r);
+        const hpPct = t ? t.hp / t.maxHp : s.boss.hp / s.boss.maxHp;
+        const finisher = hpPct < 0.3;
+        const { dmg, note } = blow(finisher ? 3.5 : 2.4, finisher);
+        this.log(r.name + (finisher ? ' добивает смертельным ударом: -' : ' наносит смертельный удар: -') + dmg + note, 'ok');
+        break;
+      }
+      case 'necromancer': {
+        const { dmg, note } = blow(2, false);
+        const t = this.alive().reduce((a, b) => (b.hp / b.maxHp < a.hp / a.maxHp ? b : a));
+        t.hp = Math.min(t.maxHp, t.hp + Math.round(dmg / 2));
+        s.fx.targetRaider = t.id;
+        this.log(r.name + ' собирает жатву душ: -' + dmg + note + ', ' + t.name + ' +' + Math.round(dmg / 2), 'ok');
+        break;
+      }
+      case 'mage': {
+        const raw = r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE * 1.3;
+        const foes = s.enemies.length ? s.enemies.filter((e) => e.alive) : [];
+        if (foes.length) {
+          for (const e of foes) this.damageFoe(Math.round(raw), e.id);
+          this.log(r.name + ' призывает огненный шторм: по ' + Math.round(raw) + ' каждому врагу.', 'ok');
+        } else {
+          for (const m of s.minions.filter((x) => x.alive)) this.damageFoe(Math.round(raw * 0.6), m.id);
+          const { dmg, note } = this.hitBoss(r, raw * 1.4, STAGGER_NUKE);
+          this.log(r.name + ' обрушивает огненный шторм: -' + dmg + note, 'ok');
+        }
+        break;
+      }
+      case 'paladin':
+        s.partyWard = { roundsLeft: 2, mult: Math.min(s.partyWard?.mult ?? 1, VALOR_GUARD_MULT) };
+        r.defending = true;
+        this.log(r.name + ' поднимает божественный щит над отрядом — урон по всем снижен.', 'ok');
+        break;
+      case 'priest': {
+        const amt = Math.max(1, Math.round(healPower() * VALOR_MEND_MULT * PRIEST_HEAL_MULT));
+        healAll(amt);
+        if (s.poison) s.poison = null;
+        s.fx.targetRaider = r.id;
+        this.log(r.name + ' читает молитву исцеления: +' + amt + ' каждому.', 'ok');
+        break;
+      }
+      case 'druid': {
+        const amt = Math.max(1, Math.round(healPower() * 0.3));
+        for (const x of this.alive()) x.regen = { amt, rounds: 3 };
+        s.fx.targetRaider = r.id;
+        this.log(r.name + ': отряд прорастает живой силой — +' + amt + ' каждому в начале трёх раундов.', 'ok');
+        break;
+      }
+    }
     this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
-  }
-  /** The tank calls the line together: the whole party takes less until the next round is out. */
-  private doValorGuard(r: Raider) {
-    const s = this.sim!;
-    this.spendValor('valorGuard');
-    s.partyWard = { roundsLeft: 2, mult: Math.min(s.partyWard?.mult ?? 1, VALOR_GUARD_MULT) };
-    r.defending = true;
-    this.log(r.name + ': «Сомкнуть щиты!» Отряд держит строй — урон по всем снижен.', 'ok');
-  }
-  /** The healer goes down the line and patches everyone up. */
-  private doValorMend(r: Raider) {
-    const s = this.sim!;
-    this.spendValor('valorMend');
-    const amt = Math.max(1, Math.round(r.healPower * this.outMult(r) * this.healMult() * HEAL_TURN_SCALE * VALOR_MEND_MULT));
-    const hurt = this.alive().filter((x) => x.hp < x.maxHp);
-    for (const x of this.alive()) x.hp = Math.min(x.maxHp, x.hp + amt);
-    const worst = hurt.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
-    s.fx.targetRaider = (worst ?? r).id;
-    this.log(r.name + ' перевязывает весь отряд: +' + amt + ' каждому.', 'ok');
+    this.checkPhase();
   }
   private doHeal(r: Raider, targetId?: number) {
     let t = targetId != null ? this.sim!.raiders.find((x) => x.id === targetId && x.alive) || null : null;
     if (!t) t = this.healTarget(r) || r;
     const inspired = this.sim!.inspiredRounds > 0;
-    const amt = Math.max(1, Math.round(r.healPower * this.outMult(r) * this.healMult() * HEAL_TURN_SCALE * (inspired ? INSPIRED_HEAL_MULT : 1)));
+    const priest = r.heroClass === 'priest';
+    const amt = Math.max(1, Math.round(r.healPower * this.outMult(r) * this.healMult() * HEAL_TURN_SCALE * (inspired ? INSPIRED_HEAL_MULT : 1) * (priest ? PRIEST_HEAL_MULT : 1)));
     t.hp = Math.min(t.maxHp, t.hp + amt);
     this.sim!.fx.targetRaider = t.id;
-    this.log(r.name + ' лечит ' + t.name + ': +' + amt + (inspired ? ' (воодушевление)' : ''), 'ok');
+    const notes: string[] = [];
+    if (inspired) notes.push('воодушевление');
+    // Жрец: the blessing burns the poison out. Друид: the wound keeps knitting after.
+    if (priest && this.sim!.poison?.targetId === t.id) { this.sim!.poison = null; notes.push('яд снят'); }
+    if (r.heroClass === 'druid') { t.regen = { amt: Math.max(1, Math.round(amt * 0.25)), rounds: 2 }; notes.push('побеги'); }
+    this.log(r.name + ' лечит ' + t.name + ': +' + amt + (notes.length ? ' (' + notes.join(', ') + ')' : ''), 'ok');
   }
   private doInterrupt(r: Raider) {
     const s = this.sim!;

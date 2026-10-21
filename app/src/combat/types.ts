@@ -1,4 +1,5 @@
 import { AttackRange, Role, TraitId } from '../data/types';
+import type { HeroClassId } from '../data/heroClasses';
 
 export const DANGER = '#d1685c';
 export const ACCENT = '#c9a36b';
@@ -24,10 +25,9 @@ export const ATTACK_TURN_SCALE = 6;
 
 // Valor: one pool the whole party shares in a fight, as in Wartales. It fills
 // a point each round and faster on kills, crits and interrupts, and pays for
-// each role's valor move. It starts low and resets every fight.
+// each class's valor move (data/heroClasses). It starts low and resets every fight.
 export const VALOR_MAX = 5;
 export const VALOR_START = 1;
-export const VALOR_COST = { valorStrike: 2, valorGuard: 3, valorMend: 2 } as const;
 export const HEAL_TURN_SCALE = 6;
 
 export type AbilityKind =
@@ -50,6 +50,11 @@ export interface Raider {
   id: number;
   name: string;
   role: Role;
+  heroClass: HeroClassId;
+  /** Warrior: the round their "Боевой задор" last paid out. */
+  rageRound: number;
+  /** Druid's growth: health back at the start of each round while it lasts. */
+  regen: { amt: number; rounds: number } | null;
   attackRange: AttackRange;
   candidateId: number;
   trait: TraitId;
