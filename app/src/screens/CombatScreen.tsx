@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Image, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine, TurnActionKey } from '../engine/GameEngine';
 import { colors, font, roleColor } from '../theme/theme';
-import { EnemyRole } from '../combat/types';
+import { EnemyRole, VALOR_MAX } from '../combat/types';
 import { Avatar } from '../components/Avatar';
 import { Icon, IconName } from '../components/Icon';
 import { SkillIcon } from '../components/SkillIcon';
@@ -30,7 +30,40 @@ const ACTION_ICON: Record<TurnActionKey, IconName> = {
   rally: 'megaphone',
   defend: 'shield',
   breakShell: 'snowflake',
+  valorStrike: 'hand-fist',
+  valorGuard: 'shield-chevron',
+  valorMend: 'first-aid-kit',
 };
+
+const VALOR_LIT = '#f0c46a';
+
+/** One valor point: a small gold diamond, hollow when spent. */
+function ValorPip({ lit, size = 9 }: { lit: boolean; size?: number }) {
+  return (
+    <View style={{
+      width: size, height: size, transform: [{ rotate: '45deg' }], borderWidth: 1, borderColor: lit ? VALOR_LIT : 'rgba(240,196,106,0.35)',
+      backgroundColor: lit ? VALOR_LIT : 'transparent', shadowColor: VALOR_LIT, shadowOpacity: lit ? 0.8 : 0, shadowRadius: 4,
+    }} />
+  );
+}
+
+/** The party's shared valor, as a row of diamonds that swells when a point comes in. */
+function ValorPips({ valor, seq }: { valor: number; seq: number }) {
+  const pop = useRef(new Animated.Value(1)).current;
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    pop.setValue(1.5);
+    Animated.spring(pop, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 10 }).start();
+  }, [seq, pop]);
+  return (
+    <View testID="valor" style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 9, height: 28, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(240,196,106,0.4)', backgroundColor: 'rgba(240,196,106,0.07)' }}>
+      <Animated.View style={{ flexDirection: 'row', gap: 6, transform: [{ scale: pop }] }}>
+        {Array.from({ length: VALOR_MAX }).map((_, i) => <ValorPip key={i} lit={i < valor} />)}
+      </Animated.View>
+    </View>
+  );
+}
 
 const DANGER_TITLE = {
   meteor: (cols: number[]) => 'Огненный дождь по колоннам ' + cols.map((c) => c + 1).join(' и '),
@@ -318,6 +351,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                 </>
               )}
             </Text>
+            <ValorPips valor={s.valor} seq={s.valorSeq} />
             <Chip testID="speed-toggle" label={engine.settings.speed >= 2 ? '×2' : '×1'} icon="fast-forward" on={engine.settings.speed >= 2} onPress={() => engine.toggleSpeed()} />
             <Chip testID="auto-toggle" label="Авто" icon="robot" on={engine.settings.auto} onPress={() => { setPickingTarget(null); engine.toggleAuto(); }} />
           </View>
@@ -331,6 +365,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
             : current && s.movePhase && engine.tipPending('move') ? 'move'
             : current && !s.movePhase && !isBossFight && engine.tipPending('focus') ? 'focus'
             : current && !s.movePhase && !pickingTarget && engine.tipPending('act') ? 'act'
+            : current && !s.movePhase && !pickingTarget && s.valor >= 2 && engine.tipPending('valor') ? 'valor'
             : null;
           if (!tip) return null;
           const warn = tip === 'danger' || tip === 'windup';
@@ -392,9 +427,9 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                 onPress={() => (a.disabled ? undefined : onPickAction(a.key, a.needsTarget))}
                 style={({ pressed }) => ({
                   flexGrow: 1, flexBasis: 70, alignItems: 'center', gap: 4,
-                  borderWidth: 1, borderColor: a.disabled ? colors.border : GOLD_LINE, borderRadius: 10,
+                  borderWidth: 1, borderColor: a.disabled ? colors.border : a.valorCost ? VALOR_LIT : GOLD_LINE, borderRadius: 10,
                   paddingHorizontal: 6, paddingVertical: 8, opacity: a.disabled ? 0.4 : 1,
-                  backgroundColor: pressed ? 'rgba(201,163,107,0.16)' : 'rgba(201,163,107,0.06)',
+                  backgroundColor: pressed ? 'rgba(201,163,107,0.16)' : a.valorCost ? 'rgba(240,196,106,0.1)' : 'rgba(201,163,107,0.06)',
                 })}
               >
                 {a.abilityArt ? (
@@ -405,7 +440,11 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
                   </View>
                 )}
                 <Text numberOfLines={2} style={{ fontSize: 11.5, lineHeight: 14, textAlign: 'center', color: a.disabled ? colors.textFaint : colors.text, fontFamily: font.medium }}>{a.label}</Text>
-                {a.sub ? <Text numberOfLines={1} style={{ fontSize: 10, color: colors.textFaint, fontFamily: font.regular }}>{a.sub}</Text> : null}
+                {a.valorCost ? (
+                  <View style={{ flexDirection: 'row', gap: 5, paddingVertical: 2 }}>
+                    {Array.from({ length: a.valorCost }).map((_, i) => <ValorPip key={i} lit size={7} />)}
+                  </View>
+                ) : a.sub ? <Text numberOfLines={1} style={{ fontSize: 10, color: colors.textFaint, fontFamily: font.regular }}>{a.sub}</Text> : null}
               </Pressable>
             ))}
           </View>

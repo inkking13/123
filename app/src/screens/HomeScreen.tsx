@@ -72,6 +72,7 @@ function openFeature(engine: GameEngine, f: Feature) {
   switch (f) {
     case 'gear': engine.go('gear'); break;
     case 'quests': engine.go('quests'); break;
+    case 'contracts': engine.go('contracts'); break;
     case 'shop': engine.go('shop'); break;
     case 'weekly': engine.go('weekly'); break;
     case 'achievements': engine.go('achievements'); break;
@@ -149,6 +150,10 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
     tiles.push({ title: 'Снаряжение', icon: 'shield', onPress: () => engine.go('gear'), sub: 'Одеть отряд' });
     tiles.push({ title: 'Инвентарь', icon: 'scroll', onPress: () => engine.go('inventory'), sub: inventory.length === 0 ? 'Склад пуст' : freeItems + ' свободно' });
   }
+  if (engine.isUnlocked('contracts')) {
+    const ac = engine.activeContract;
+    tiles.push({ title: 'Контракты', icon: 'scroll', onPress: () => engine.go('contracts'), badge: ac ? 0 : 1, sub: ac ? 'Взят: ' + (DUNGEONS.find((d) => d.id === ac.dungeonId)?.name ?? '') : 'Доска заказов' });
+  }
   if (engine.isUnlocked('shop')) tiles.push({ title: 'Закупки', icon: 'storefront', onPress: () => engine.go('shop'), sub: 'Купить и продать' });
   if (engine.isUnlocked('hire')) tiles.push({ title: 'Найм', icon: 'door-open', onPress: () => engine.go('hire'), sub: hireCount === 0 ? 'Все наняты' : hireCount + ' на рынке' });
   if (engine.isUnlocked('analytics')) tiles.push({ title: 'Аналитика', icon: 'chart-line-up', onPress: () => engine.go('analytics'), sub: 'Win-rate, бюджет' });
@@ -178,6 +183,7 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
   }));
 
   // The furthest open dungeon: where the next push goes.
+  const contract = engine.activeContractVM();
   const nextDungeon = [...locationGroups.flatMap((g) => g.dungeons)].reverse().find((d) => !d.locked);
 
   return (
@@ -283,16 +289,16 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
           <Corners color="#b39462" />
         </Pressable>
 
-        {/* The next dungeon, one tap away: the contract on top of the pile, sealed and ready. */}
+        {/* The next dungeon, one tap away: the contract on the books if there is one, else the frontier. */}
         {nextDungeon ? (
-          <Pressable onPress={nextDungeon.onTap} style={{ marginBottom: 8 }}>
+          <Pressable onPress={contract ? () => engine.goContract() : nextDungeon.onTap} style={{ marginBottom: 8 }}>
             {({ pressed }) => (
               <Parchment pressed={pressed} contentStyle={{ paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                <WaxSeal size={48}><Icon name="sword" size={22} color="#f3dcc0" weight="fill" /></WaxSeal>
+                <WaxSeal size={48}><Icon name={contract ? contract.icon : 'sword'} size={22} color="#f3dcc0" weight="fill" /></WaxSeal>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12.5, letterSpacing: 1, color: ink.red, fontFamily: font.caps }}>{ready ? 'Контракт · в поход' : 'Собрать отряд и в поход'}</Text>
-                  <Text style={{ fontSize: 21, fontFamily: font.title, color: ink.text, marginTop: 1 }}>{nextDungeon.name}</Text>
-                  <Text style={{ fontSize: 13, color: ink.muted, marginTop: 1, fontFamily: font.italic }}>{nextDungeon.meta}</Text>
+                  <Text style={{ fontSize: 12.5, letterSpacing: 1, color: ink.red, fontFamily: font.caps }}>{contract ? 'Контракт · ' + contract.termTitle : ready ? 'В поход' : 'Собрать отряд и в поход'}</Text>
+                  <Text style={{ fontSize: 21, fontFamily: font.title, color: ink.text, marginTop: 1 }}>{contract ? contract.dungeonName : nextDungeon.name}</Text>
+                  <Text style={{ fontSize: 13, color: ink.muted, marginTop: 1, fontFamily: font.italic }}>{contract ? `${contract.pay} золота · ${contract.clientName}` : nextDungeon.meta}</Text>
                 </View>
                 <Icon name="arrow-right" size={22} color={ink.text} />
               </Parchment>

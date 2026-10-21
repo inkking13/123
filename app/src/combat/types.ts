@@ -21,6 +21,13 @@ export const FOE_SPEED = { boss: 1, brute: 2, archer: 1, shaman: 1 } as const;
 // are scaled up by these factors to land on comparable total damage/healing
 // over a fight of similar length (now measured in rounds, not seconds).
 export const ATTACK_TURN_SCALE = 6;
+
+// Valor: one pool the whole party shares in a fight, as in Wartales. It fills
+// a point each round and faster on kills, crits and interrupts, and pays for
+// each role's valor move. It starts low and resets every fight.
+export const VALOR_MAX = 5;
+export const VALOR_START = 1;
+export const VALOR_COST = { valorStrike: 2, valorGuard: 3, valorMend: 2 } as const;
 export const HEAL_TURN_SCALE = 6;
 
 export type AbilityKind =
@@ -240,6 +247,10 @@ export interface Sim {
   lava: string[];
 
   rallyCd: number;
+  /** The party's shared valor points, 0 … VALOR_MAX. */
+  valor: number;
+  /** Bumped when valor is gained, so the HUD can flash the new pips. */
+  valorSeq: number;
   tilt: number;
   phase: number;
   log: LogEntry[];

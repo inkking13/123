@@ -10,6 +10,7 @@ import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
 import { SIGNATURE_INFO } from '../data/dungeons';
 import { Corners, ScreenTitle } from '../components/Frame';
+import { ContractNote } from '../components/ContractNote';
 
 export function DungeonScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -65,8 +66,14 @@ export function DungeonScreen({ engine }: { engine: GameEngine }) {
               <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.textMuted, marginTop: 4, fontFamily: font.regular }}>{SIGNATURE_INFO[dungeon.signature].desc}</Text>
             </View>
           ) : null}
-          <Corners color="#8a7650" />
+          <Corners color="#8f6f45" />
         </View>
+
+        {(() => {
+          // The terms of the contract on the books, kept in view all the way down.
+          const c = engine.contractHere();
+          return c ? <ContractNote c={c} sealed compact /> : null;
+        })()}
 
         <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 10, fontFamily: font.medium }}>Состояние отряда</Text>
         {chosen.map((c) => {

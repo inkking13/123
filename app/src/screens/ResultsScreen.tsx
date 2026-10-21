@@ -12,6 +12,8 @@ import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { useEngineVersion } from '../engine/useEngine';
 import { sfx } from '../audio/audio';
 import { Corners } from '../components/Frame';
+import { ContractNote } from '../components/ContractNote';
+import { ink } from '../theme/theme';
 
 export function ResultsScreen({ engine }: { engine: GameEngine }) {
   useEngineVersion(engine);
@@ -55,8 +57,13 @@ export function ResultsScreen({ engine }: { engine: GameEngine }) {
         >
           <View style={{ width: 34, height: 3, backgroundColor: accent, marginBottom: 16 }} />
           <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>{kicker}</Text>
-          <Text style={{ fontSize: 34, fontFamily: font.medium, color: accent, marginTop: 6, marginBottom: 10, letterSpacing: -0.5 }}>{title}</Text>
+          <Text style={{ fontSize: 36, fontFamily: font.title, color: accent, marginTop: 6, marginBottom: 10, letterSpacing: 0.3 }}>{title}</Text>
           <Text style={{ fontSize: 13.5, lineHeight: 20, color: colors.textMuted, marginBottom: 22, fontFamily: font.regular }}>{text}</Text>
+          {engine.contractOutcome ? (
+            <ContractNote c={engine.contractOutcome.contract} compact stamp={engine.contractOutcome.success ? { text: 'Исполнено', ok: true } : { text: 'Сорван', ok: false }}>
+              <Text style={{ marginTop: 10, fontSize: 14.5, lineHeight: 20, color: engine.contractOutcome.success ? ink.green : ink.red, fontFamily: font.italic }}>{engine.contractOutcome.note}</Text>
+            </ContractNote>
+          ) : null}
         </Animated.View>
 
         {s.raiders.map((r) => (

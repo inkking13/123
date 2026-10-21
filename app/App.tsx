@@ -32,6 +32,7 @@ import { ArenaScreen } from './src/screens/ArenaScreen';
 import { ProfessionScreen } from './src/screens/ProfessionScreen';
 import { AchievementsScreen } from './src/screens/AchievementsScreen';
 import { WeeklyChallengeScreen } from './src/screens/WeeklyChallengeScreen';
+import { ContractsScreen } from './src/screens/ContractsScreen';
 import { StartDraftScreen } from './src/screens/StartDraftScreen';
 
 /** The camp tune outside fights; the fight or boss theme from the dungeon until the results. */
@@ -80,6 +81,7 @@ function Root({ engine }: { engine: GameEngine }) {
     case 'profession': return <ProfessionScreen engine={engine} />;
     case 'achievements': return <AchievementsScreen engine={engine} />;
     case 'weekly': return <WeeklyChallengeScreen engine={engine} />;
+    case 'contracts': return <ContractsScreen engine={engine} />;
     default: return null;
   }
 }

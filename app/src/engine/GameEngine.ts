@@ -28,21 +28,23 @@ import { ARMOUR_IDS, RETIRED_ARMOUR_IDS, STARTING_OUTFITS, armourOf, dressInStar
 /** A starting hero's slots: empty but for their armour set. */
 function startingEquipment(id: number) { const e = emptyEquipment(); dressInStartingSet(id, e); return e; }
 import { FEATURES, FEATURE_ORDER, Feature, Tip } from '../data/features';
+import { CLIENTS, CONTRACT_TERMS, Contract, ContractTerm, SWIFT_ROUNDS, VALOR_NEEDED } from '../data/contracts';
 import { IconName } from '../components/Icon';
 import type { Quality } from '../battle3d/quality';
 import { AttackRange, Candidate, EncounterDef, GearKind, GearOption, GearSlotKey, Role } from '../data/types';
 import {
-  ACCENT, ATTACK_TURN_SCALE, HEAL_TURN_SCALE,
+  ACCENT, ATTACK_TURN_SCALE, HEAL_TURN_SCALE, VALOR_COST, VALOR_MAX, VALOR_START,
   GRID_ROWS, GRID_COLS, BACK_ROW, MOVE_RANGE, BOSS_W, BOSS_H, FOE_SPEED,
   Ability, AbilityIcon, BossMoveTimers, Enemy, EnemyRole, Raider, SignatureKind, Sim, TurnEntry, LogKind,
 } from '../combat/types';
 
-export type Screen = 'title' | 'draft' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession' | 'achievements' | 'weekly';
+export type Screen = 'title' | 'draft' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession' | 'achievements' | 'weekly' | 'contracts';
 const TRANSIENT_SCREENS = new Set<Screen>(['draft', 'dungeon', 'combat', 'results', 'event']);
 const SCREEN_TITLE: Partial<Record<Screen, string>> = {
   title: 'Меню', home: 'Лагерь', roster: 'Отряд', gear: 'Снаряжение', inventory: 'Инвентарь', shop: 'Закупки',
   analytics: 'Аналитика', personnel: 'Личные дела', levelmap: 'Карта', hire: 'Найм', arena: 'Арена',
   profession: 'Профессия', achievements: 'Достижения', weekly: 'Испытание', quests: 'KPI', settings: 'Настройки',
+  contracts: 'Контракты',
 };
 
 const SAVE_KEY = 'raid-commander.save.v1';
@@ -63,6 +65,10 @@ const STAGGER_FRONT_MELEE = 3;
 const STAGGER_CRIT = 5;
 const STAGGER_NUKE = 10;
 const STAGGER_DECAY = 5;
+/** Valor moves: the strike's hit (a normal crit is ×1.8), the guard's damage taken, the mend's share of a heal. */
+const VALOR_STRIKE_MULT = 2.2;
+const VALOR_GUARD_MULT = 0.6;
+const VALOR_MEND_MULT = 0.55;
 const VULNERABLE_ROUNDS = 2;
 const VULNERABLE_MULT = 1.5;
 const ENRAGE_ROUND_BOSS = 14;
@@ -142,6 +148,9 @@ interface SaveData {
   inventoryCounts: Record<string, number>;
   /** Set once the starting five have been put in their armour sets. */
   outfitted?: boolean;
+  contractOffers?: Contract[];
+  activeContract?: Contract | null;
+  contractsDone?: number;
   reagentCounts: Record<string, number>;
   gold: number;
   dungeonId: string;
@@ -243,6 +252,23 @@ export interface CombatResult {
 
 export interface BanterLine { id: number; name: string; text: string }
 
+export interface ContractVM {
+  id: string;
+  dungeonId: string;
+  dungeonName: string;
+  locationName: string;
+  term: ContractTerm;
+  termTitle: string;
+  termDesc: string;
+  icon: IconName;
+  pay: number;
+  clientName: string;
+  clientLine: string;
+  /** The terms against the trip in progress, when in that dungeon. */
+  progress: string | null;
+}
+export interface ContractOutcomeVM { contract: ContractVM; success: boolean; note: string }
+
 export interface TalentOptionVM {
   id: string;
   name: string;
@@ -259,13 +285,16 @@ export interface TalentTierVM {
   options: TalentOptionVM[];
 }
 
-export type TurnActionKey = 'attack' | 'heal' | 'ability' | 'interrupt' | 'breakChain' | 'brace' | 'rally' | 'breakIce' | 'defend' | 'breakShell';
+export type TurnActionKey = 'attack' | 'heal' | 'ability' | 'interrupt' | 'breakChain' | 'brace' | 'rally' | 'breakIce' | 'defend' | 'breakShell'
+  | 'valorStrike' | 'valorGuard' | 'valorMend';
 export interface TurnActionVM {
   key: TurnActionKey;
   label: string;
   sub?: string;
   abilityIcon?: AbilityIcon;
   abilityArt?: SkillArtId;
+  /** Valor points the move costs, for valor moves. */
+  valorCost?: number;
   needsTarget: boolean;
   disabled: boolean;
 }
@@ -409,6 +438,16 @@ export class GameEngine {
   everClearedRoom = false;
   everInterrupted = false;
   everUsedAbility = false;
+  everUsedValor = false;
+
+  // contracts
+  contractOffers: Contract[] = [];
+  activeContract: Contract | null = null;
+  contractsDone = 0;
+  /** How the contract on the books went, for the results screen; cleared on the way back to camp. */
+  contractOutcome: ContractOutcomeVM | null = null;
+  /** The current trip into a dungeon, for the contract's terms. */
+  private trip = { maxRound: 0, lost: false, valorSpent: 0 };
   everAssignedLoot = false;
   everCrafted = false;
   claimedQuestIds = new Set<string>();
@@ -499,6 +538,9 @@ export class GameEngine {
       raises: this.raises,
       feud: this.feud,
       strikeTrips: this.strikeTrips,
+      contractOffers: this.contractOffers,
+      activeContract: this.activeContract,
+      contractsDone: this.contractsDone,
       outfitted: true,
     };
   }
@@ -573,6 +615,10 @@ export class GameEngine {
     if (data.raises) this.raises = data.raises;
     if (data.feud) this.feud = data.feud;
     if (typeof data.strikeTrips === 'number') this.strikeTrips = data.strikeTrips;
+    const known = (c: Contract | null | undefined) => !!c && DUNGEONS.some((d) => d.id === c.dungeonId) && c.term in CONTRACT_TERMS;
+    if (Array.isArray(data.contractOffers)) this.contractOffers = data.contractOffers.filter(known);
+    if (data.activeContract && known(data.activeContract)) this.activeContract = data.activeContract;
+    if (typeof data.contractsDone === 'number') this.contractsDone = data.contractsDone;
   }
   async load() {
     try {
@@ -609,6 +655,7 @@ export class GameEngine {
     this.everClearedRoom = false;
     this.everInterrupted = false;
     this.everUsedAbility = false;
+    this.everUsedValor = false;
     this.everAssignedLoot = false;
     this.everCrafted = false;
     this.claimedQuestIds = new Set();
@@ -623,6 +670,7 @@ export class GameEngine {
     this.weeklyChallengeWeek = ''; this.weeklyClaimed = false; this.inWeeklyChallenge = false; this.weeklyModifierDmgMult = 1;
     this.seenUnlocks = new Set(); this.seenTips = new Set();
     this.raises = {}; this.feud = null; this.strikeTrips = 0;
+    this.contractOffers = []; this.activeContract = null; this.contractsDone = 0; this.contractOutcome = null;
     this.payrollNotice = null; this.resignationNotice = null; this.activeEvent = null; this.employeeOfMonthNotice = null;
     try { await AsyncStorage.removeItem(SAVE_KEY); } catch {}
     this.hasSave = false;
@@ -746,7 +794,9 @@ export class GameEngine {
   /** One tap to the furthest open dungeon, or to the squad if it isn't ready. */
   quickRaid() {
     const open = LOCATIONS.flatMap((l) => DUNGEONS.filter((d) => d.locationId === l.id)).filter((d) => this.isDungeonUnlocked(d.id));
-    const last = open[open.length - 1];
+    // The contract on the books comes first; otherwise the furthest dungeon open.
+    const c = this.activeContract;
+    const last = (c && open.find((d) => d.id === c.dungeonId)) || open[open.length - 1];
     if (!last) { this.goTab('levelmap'); return; }
     this.selectDungeon(last.id);
     if (this.squadReady()) { this.trail = ['home']; this.goDungeon(); } else this.goTab('roster');
@@ -1370,6 +1420,103 @@ export class GameEngine {
     if (c) c.morale = Math.max(0, Math.min(100, c.morale + d));
   }
 
+  // ── contracts ────────────────────────────────────────────
+  /** The board: up to three offers on dungeons the guild can reach, topped up whenever one is taken or closes. */
+  contractBoardVM(): ContractVM[] {
+    this.fillContractBoard();
+    return this.contractOffers.map((c) => this.contractVM(c));
+  }
+  activeContractVM(): ContractVM | null {
+    return this.activeContract ? this.contractVM(this.activeContract) : null;
+  }
+  /** The contract on the books, if it's for this dungeon. */
+  contractHere(): ContractVM | null {
+    return this.activeContract && this.activeContract.dungeonId === this.dungeonId ? this.contractVM(this.activeContract) : null;
+  }
+  acceptContract(id: string) {
+    if (this.activeContract) return;
+    const c = this.contractOffers.find((x) => x.id === id);
+    if (!c) return;
+    this.activeContract = c;
+    this.contractOffers = this.contractOffers.filter((x) => x.id !== id);
+    this.fillContractBoard();
+    this.notify();
+  }
+  abandonContract() {
+    if (!this.activeContract) return;
+    this.activeContract = null;
+    this.fillContractBoard();
+    this.notify();
+  }
+  /** Head off to the contract's dungeon. */
+  goContract() {
+    const c = this.activeContract;
+    if (!c || !this.isDungeonUnlocked(c.dungeonId)) return;
+    this.selectDungeon(c.dungeonId);
+    if (this.squadReady()) this.goDungeon(); else this.go('roster');
+  }
+  private contractVM(c: Contract): ContractVM {
+    const d = DUNGEONS.find((x) => x.id === c.dungeonId)!;
+    const term = CONTRACT_TERMS[c.term];
+    const client = CLIENTS[c.client % CLIENTS.length];
+    return {
+      id: c.id, dungeonId: c.dungeonId, dungeonName: d.name, locationName: LOCATIONS.find((l) => l.id === d.locationId)?.name ?? '',
+      term: c.term, termTitle: term.title, termDesc: term.desc, icon: term.icon, pay: c.pay,
+      clientName: client.name, clientLine: client.line, progress: this.contractProgress(c),
+    };
+  }
+  /** How the trip in progress stands against the terms, while in that dungeon. */
+  private contractProgress(c: Contract): string | null {
+    if (c.dungeonId !== this.dungeonId || this.encIdx === 0 && !this.sim) return null;
+    switch (c.term) {
+      case 'noLoss': return this.trip.lost || this.sim?.raiders.some((r) => !r.alive) ? 'Условие нарушено: есть павшие' : 'Пока без потерь';
+      case 'swift': return `Самый долгий бой: ${Math.max(this.trip.maxRound, this.sim?.round ?? 0)} из ${SWIFT_ROUNDS} раундов`;
+      case 'valor': return `Доблести потрачено: ${this.trip.valorSpent} из ${VALOR_NEEDED}`;
+      default: return null;
+    }
+  }
+  private fillContractBoard() {
+    const open = DUNGEONS.filter((d) => this.isDungeonUnlocked(d.id));
+    if (!open.length) return;
+    // Recent ground pays and gets posted most: the furthest four dungeons the guild can reach.
+    const near = open.slice(-4);
+    let guard = 0;
+    while (this.contractOffers.length < 3 && guard++ < 30) {
+      const d = near[Math.floor(Math.random() * near.length)];
+      const terms = Object.keys(CONTRACT_TERMS) as ContractTerm[];
+      const term = terms[Math.floor(Math.random() * terms.length)];
+      const taken = [...this.contractOffers, ...(this.activeContract ? [this.activeContract] : [])];
+      if (taken.some((x) => x.dungeonId === d.id && x.term === term)) continue;
+      const idx = DUNGEONS.indexOf(d);
+      const pay = Math.round((55 + idx * 14) * CONTRACT_TERMS[term].payMult / 5) * 5;
+      this.contractOffers.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), dungeonId: d.id, term, client: Math.floor(Math.random() * CLIENTS.length), pay });
+    }
+  }
+  /** At the end of a fight in the contract's dungeon: a wipe breaks it, the boss's fall settles it. */
+  private settleContract(win: boolean, isBoss: boolean) {
+    this.contractOutcome = null;
+    const c = this.activeContract;
+    if (!c || c.dungeonId !== this.dungeonId || (win && !isBoss)) return;
+    const t = this.trip;
+    const broken = !win ? 'Отряд не дошёл до конца похода.'
+      : c.term === 'noLoss' && t.lost ? 'В походе погибли бойцы.'
+      : c.term === 'swift' && t.maxRound > SWIFT_ROUNDS ? `Один из боёв затянулся до ${t.maxRound} раундов.`
+      : c.term === 'valor' && t.valorSpent < VALOR_NEEDED ? `Доблести потрачено ${t.valorSpent} из ${VALOR_NEEDED}.`
+      : null;
+    const vm = this.contractVM(c);
+    this.activeContract = null;
+    if (broken) {
+      this.contractOutcome = { contract: vm, success: false, note: broken };
+    } else {
+      this.gold += c.pay;
+      this.bumpDaily('goldEarned', c.pay);
+      this.contractsDone++;
+      for (const m of this.squad()) this.adjustMorale(m.id, 5);
+      this.contractOutcome = { contract: vm, success: true, note: `${vm.clientName} платит ${c.pay} золота. Мораль отряда +5.` };
+    }
+    this.fillContractBoard();
+  }
+
   // ── HR: payroll & headcount ────────────────────────────────
   // Charged whenever the squad returns from the field — win or wipe, the
   // guild's active roster still drew a wage. Only the 5 fielded members
@@ -1588,6 +1735,7 @@ export class GameEngine {
     this.go(this.postEventScreen);
   }
   private returnToCamp(target: Screen) {
+    this.contractOutcome = null;
     this.runPayroll();
     this.checkResignations();
     this.checkEmployeeOfMonth();
@@ -1711,7 +1859,7 @@ export class GameEngine {
       frozen: null, ashCurse: null, danger: null,
       stagger: 0, stunned: false, vulnerableRounds: 0, inspiredRounds: 0,
       enrageAt: enc.type === 'boss' ? ENRAGE_ROUND_BOSS : ENRAGE_ROUND_ROOM,
-      rallyCd: 0, tilt: 0, phase: 1, log: [], over: false, selected: null,
+      rallyCd: 0, valor: VALOR_START, valorSeq: 0, tilt: 0, phase: 1, log: [], over: false, selected: null,
     };
   }
 
@@ -1719,6 +1867,7 @@ export class GameEngine {
     const enc = this.currentDungeon().encounters[this.encIdx];
     const keep = this.sim && this.sim.raiders.some((r) => r.alive) ? this.sim.raiders : null;
     this.sim = this.freshSim(enc, keep, this.encIdx);
+    if (this.encIdx === 0) this.trip = { maxRound: 0, lost: false, valorSpent: 0 };
     this.log(enc.type === 'boss' ? 'Пул начался. Рейд-лидер, командуй!' : 'Отряд входит в бой: ' + enc.name + ' — ' + enc.enemyName.toLowerCase() + '. Выберите цель, нажав на врага.');
     const hr = keep ? null : this.hrNote();
     if (hr) this.log(hr, 'warn');
@@ -2003,7 +2152,10 @@ export class GameEngine {
     if (has('breakIce') && r.role !== 'heal') return ['breakIce'];
     if (has('brace') && s.braceCall && s.braceCall.braced.size < 3) return ['brace'];
     if (has('rally') && (s.tilt >= 40 || (s.ashCurse && s.ashCurse.stacks >= 2))) return ['rally'];
+    if (has('valorGuard') && (s.windup || s.danger || lowest.hp / lowest.maxHp < 0.5)) return ['valorGuard'];
+    if (has('valorMend') && alive.filter((x) => x.hp / x.maxHp < 0.7).length >= 2) return ['valorMend'];
     if (r.role === 'heal' && has('heal') && lowest.hp / lowest.maxHp < 0.65) { const t = weakest(); if (t) return ['heal', t.id]; }
+    if (has('valorStrike') && (s.valor >= 4 || s.vulnerableRounds > 0)) return ['valorStrike'];
     if (has('ability')) {
       const k = r.ability.kind;
       if (!['drainHeal', 'volatileHeal'].includes(k) || lowest.hp / lowest.maxHp < 0.8) return ['ability'];
@@ -2028,6 +2180,7 @@ export class GameEngine {
     const s = this.sim!;
     s.order = this.buildOrder();
     s.turnPos = -1;
+    if (s.round > 1) this.gainValor(1);
     s.rallyCd = Math.max(0, s.rallyCd - 1);
     if (s.partyWard && --s.partyWard.roundsLeft <= 0) s.partyWard = null;
     if (s.inspiredRounds > 0) s.inspiredRounds--;
@@ -2366,6 +2519,7 @@ export class GameEngine {
         s.stagger = 0;
         s.stunned = true;
         s.vulnerableRounds = VULNERABLE_ROUNDS + 1;
+        this.gainValor(1);
         this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
         this.log(s.enemies.length ? 'Натиск смял строй врагов — они оглушены! Бейте, пока открыты.' : 'Натиск сломил защиту — ' + s.boss.name + ' оглушён! Бейте, пока открыт.', 'ok');
       }
@@ -2415,6 +2569,7 @@ export class GameEngine {
         if (m.hp === 0) {
           m.alive = false;
           this.log(m.name + ' рассыпается грудой костей.', 'ok');
+          this.gainValor(1);
           if (s.focusId === m.id) s.focusId = null;
         }
         return;
@@ -2432,6 +2587,7 @@ export class GameEngine {
     if (e.hp === 0) {
       e.alive = false;
       this.log(e.name + ' повержен.', 'ok');
+      this.gainValor(2);
       if (e.role === 'brute' && (s.danger || s.pendingCast || s.braceCall)) {
         s.danger = null; s.pendingCast = null; s.braceCall = null;
         this.log('Заготовленный удар громилы так и не состоялся.', 'ok');
@@ -2525,6 +2681,14 @@ export class GameEngine {
       key: 'ability', label: def.name, abilityIcon: def.icon, abilityArt: ABILITY_ART[r.candidateId], needsTarget: false,
       disabled: r.ability.cd > 0, sub: r.ability.cd > 0 ? `КД: ${r.ability.cd}` : undefined,
     });
+    // Each role's valor move, paid from the party's shared pool.
+    const valor = (key: 'valorStrike' | 'valorGuard' | 'valorMend', label: string, sub: string, usable = true) => {
+      const cost = VALOR_COST[key];
+      actions.push({ key, label, valorCost: cost, needsTarget: false, disabled: !usable || s.valor < cost, sub: s.valor < cost ? `нужно ${cost} доблести` : sub });
+    };
+    if (r.role === 'dps') valor('valorStrike', 'Удар доблести', 'верный крит ×2.2', inMeleeRange);
+    else if (r.role === 'tank') valor('valorGuard', 'Сомкнуть щиты', 'отряду −40% урона');
+    else valor('valorMend', 'Перевязать всех', 'лечит весь отряд');
     if (s.iceShell) actions.push({ key: 'breakShell', label: 'Расколоть панцирь', needsTarget: false, disabled: false });
     if (s.rallyCd <= 0) actions.push({ key: 'rally', label: 'Сплотить отряд', needsTarget: false, disabled: false });
     actions.push({ key: 'defend', label: 'Оборона', sub: '−40% урона до след. хода', needsTarget: false, disabled: false });
@@ -2540,9 +2704,11 @@ export class GameEngine {
     const s = this.sim; const r = this.currentRaider();
     if (!s || !r || s.over) return;
     s.awaitingPlayer = false;
-    const fxKind = key === 'attack' ? (r.attackRange === 'melee' ? 'melee' : 'ranged') : key === 'heal' ? 'heal' : key === 'ability' ? 'ability' : key === 'rally' ? 'rally' : null;
-    const aimsAtEnemy = key === 'attack' || key === 'ability';
-    if (key === 'attack' && r.attackRange === 'melee') {
+    if (key in VALOR_COST && s.valor < VALOR_COST[key as keyof typeof VALOR_COST]) { s.awaitingPlayer = true; return; }
+    const strike = key === 'attack' || key === 'valorStrike';
+    const fxKind = strike ? (r.attackRange === 'melee' ? 'melee' : 'ranged') : key === 'heal' || key === 'valorMend' ? 'heal' : key === 'ability' ? 'ability' : key === 'rally' || key === 'valorGuard' ? 'rally' : null;
+    const aimsAtEnemy = strike || key === 'ability';
+    if (strike && r.attackRange === 'melee') {
       const t = this.attackTarget(r);
       if (t && t.id !== s.focusId) s.focusId = t.id;
       else if (!t && !s.enemies.length) s.focusId = null; // swinging at the boss, not a skeleton out of reach
@@ -2565,6 +2731,9 @@ export class GameEngine {
         r.defending = true;
         this.log(r.name + ' уходит в оборону.');
         break;
+      case 'valorStrike': this.doValorStrike(r); break;
+      case 'valorGuard': this.doValorGuard(r); break;
+      case 'valorMend': this.doValorMend(r); break;
     }
     this.checkDeaths();
     this.notify();
@@ -2580,7 +2749,48 @@ export class GameEngine {
     this.sim!.fx.crit = crit;
     const { dmg, note } = this.hitBoss(r, raw, stagger);
     this.log(r.name + (crit ? ' наносит критический удар: -' : ' атакует: -') + dmg + note, crit ? 'ok' : undefined);
+    if (crit) this.gainValor(1);
     if (crit) this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
+  }
+  private gainValor(n: number) {
+    const s = this.sim!;
+    const next = Math.min(VALOR_MAX, s.valor + n);
+    if (next > s.valor) { s.valor = next; s.valorSeq++; }
+  }
+  private spendValor(key: keyof typeof VALOR_COST) {
+    const s = this.sim!;
+    s.valor -= VALOR_COST[key];
+    this.trip.valorSpent += VALOR_COST[key];
+    this.everUsedValor = true;
+  }
+  /** A sure critical blow, harder than a lucky one. */
+  private doValorStrike(r: Raider) {
+    this.spendValor('valorStrike');
+    const raw = r.dps * this.outMult(r) * this.dpsMult() * ATTACK_TURN_SCALE * VALOR_STRIKE_MULT;
+    const frontMelee = r.attackRange === 'melee' && this.engaged(r);
+    this.sim!.fx.crit = true;
+    const { dmg, note } = this.hitBoss(r, raw, STAGGER_ATTACK + STAGGER_CRIT + (frontMelee ? STAGGER_FRONT_MELEE : 0));
+    this.log(r.name + ' вкладывает всю доблесть в удар: -' + dmg + note, 'ok');
+    this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
+  }
+  /** The tank calls the line together: the whole party takes less until the next round is out. */
+  private doValorGuard(r: Raider) {
+    const s = this.sim!;
+    this.spendValor('valorGuard');
+    s.partyWard = { roundsLeft: 2, mult: Math.min(s.partyWard?.mult ?? 1, VALOR_GUARD_MULT) };
+    r.defending = true;
+    this.log(r.name + ': «Сомкнуть щиты!» Отряд держит строй — урон по всем снижен.', 'ok');
+  }
+  /** The healer goes down the line and patches everyone up. */
+  private doValorMend(r: Raider) {
+    const s = this.sim!;
+    this.spendValor('valorMend');
+    const amt = Math.max(1, Math.round(r.healPower * this.outMult(r) * this.healMult() * HEAL_TURN_SCALE * VALOR_MEND_MULT));
+    const hurt = this.alive().filter((x) => x.hp < x.maxHp);
+    for (const x of this.alive()) x.hp = Math.min(x.maxHp, x.hp + amt);
+    const worst = hurt.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+    s.fx.targetRaider = (worst ?? r).id;
+    this.log(r.name + ' перевязывает весь отряд: +' + amt + ' каждому.', 'ok');
   }
   private doHeal(r: Raider, targetId?: number) {
     let t = targetId != null ? this.sim!.raiders.find((x) => x.id === targetId && x.alive) || null : null;
@@ -2597,6 +2807,7 @@ export class GameEngine {
     this.log(r.name + ' срывает каст — чисто сработано!', 'ok');
     s.pendingCast = null;
     this.addTilt(-5);
+    this.gainValor(1);
     this.everInterrupted = true;
     this.haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
   }
@@ -3166,6 +3377,9 @@ export class GameEngine {
     }
     this.gold += goldFound;
     if (goldFound > 0) this.bumpDaily('goldEarned', goldFound);
+    this.trip.maxRound = Math.max(this.trip.maxRound, s.round);
+    if (s.raiders.some((r) => !r.alive)) this.trip.lost = true;
+    this.settleContract(win, isBoss);
     this.result = { win, isBoss, loot, curioFound, goldFound, reagentFound };
     this.screen = 'results';
     this.notify();
