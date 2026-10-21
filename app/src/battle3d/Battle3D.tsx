@@ -209,11 +209,11 @@ export function Battle3D(props: Omit<ArenaProps, 'proj'> & { engine: GameEngine;
   return (
     <View {...pan.panHandlers} style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: props.theme.sky[2] }}>
       <Guard onFail={onFail}>
-        <Canvas key={quality} camera={camera} style={{ flex: 1 }} frameloop={q.fps ? 'demand' : 'always'} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
+        <Canvas key={quality} camera={camera} style={{ flex: 1 }} frameloop={q.fps ? 'demand' : 'always'} shadows={q.shadows > 0} gl={{ antialias: q.antialias }} onCreated={(st) => st.setDpr(q.dpr)}>
           <FrameCap fps={q.fps} />
           <ModelEnvironment quality={quality} />
           <Suspense fallback={null}>
-            <Arena3D {...props} proj={proj} closeUp={closeUp} weather={q.weather} orbit={orbit} />
+            <Arena3D {...props} proj={proj} closeUp={closeUp} weather={q.weather} shadows={q.shadows} orbit={orbit} />
             <Loaded onLoad={() => setLoaded(true)} />
           </Suspense>
         </Canvas>

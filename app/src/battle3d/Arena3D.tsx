@@ -11,6 +11,7 @@ import { CreatureAnim, CreatureModel } from './CreatureModel';
 import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
+import { softDotTexture } from './Atmosphere';
 import { Stage } from './Stage';
 import { Tile, TileState } from './BoardTiles';
 import { Burst, Comet, GroundRing, Slash } from './SpellFx';
@@ -72,23 +73,52 @@ function Card({ art, size, frame, matRef, cardRef, children }: {
   );
 }
 
+/**
+ * What a figure stands on: no pedestal, just a soft shadow pooled under the feet
+ * (contact shade the sun's shadow map is too coarse for) and a thin ring on the
+ * ground in the figure's colour.
+ */
 function Base({ radius, color }: { radius: number; color: string }) {
+  const blob = softDotTexture();
   return (
     <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]}>
-        <circleGeometry args={[radius * 1.35, 24]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.45} depthWrite={false} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]} renderOrder={3}>
+        <planeGeometry args={[radius * 3.2, radius * 3.2]} />
+        <meshBasicMaterial map={blob} color="#000000" transparent opacity={0.7} depthWrite={false} />
       </mesh>
-      <mesh position={[0, 0.03, 0]}>
-        <cylinderGeometry args={[radius, radius * 1.08, 0.06, 24]} />
-        <meshLambertMaterial color="#5a5a6a" />
-      </mesh>
-      <mesh position={[0, 0.062, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[radius * 0.98, radius * 0.07, 6, 28]} />
-        <meshBasicMaterial color={color} toneMapped={false} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.016, 0]} renderOrder={4}>
+        <ringGeometry args={[radius * 1.02, radius * 1.12, 40]} />
+        <meshBasicMaterial color={color} transparent opacity={0.85} depthWrite={false} toneMapped={false} />
       </mesh>
     </>
   );
+}
+
+/**
+ * Figures cast the sun's shadow and the ground takes it. Models load whenever
+ * they're ready, so this looks again every half second: anything under a group
+ * marked `caster` casts (bar glows, rings and other see-through bits), anything
+ * under one marked `ground` receives.
+ */
+function ShadowCasters() {
+  const scene = useThree((s) => s.scene);
+  const next = useRef(0);
+  useFrame((st) => {
+    if (st.clock.elapsedTime < next.current) return;
+    next.current = st.clock.elapsedTime + 0.5;
+    const mark = (root: THREE.Object3D, cast: boolean) => root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      if (!cast) { m.receiveShadow = true; return; }
+      const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.Material & { isMeshBasicMaterial?: boolean };
+      m.castShadow = !mat.transparent && !mat.isMeshBasicMaterial;
+    });
+    scene.traverse((o) => {
+      if (o.userData.caster) mark(o, true);
+      else if (o.userData.ground) mark(o, false);
+    });
+  });
+  return null;
 }
 
 function PulseRing({ radius, color, speed = 3, y = 0.07 }: { radius: number; color: string; speed?: number; y?: number }) {
@@ -289,7 +319,7 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
       {berserk ? <PulseRing radius={0.5} color={colors.danger} speed={8} y={0.2} /> : null}
       {poisoned && alive ? <PulseRing radius={0.36} color="#7ac874" speed={4} y={0.12} /> : null}
       {look ? (
-        <group ref={model} position={[0, 0.06, 0]} scale={[FIGURE_SCALE, FIGURE_SCALE, FIGURE_SCALE]}>
+        <group ref={model} position={[0, 0.06, 0]} scale={[FIGURE_SCALE, FIGURE_SCALE, FIGURE_SCALE]} userData={{ caster: true }}>
           {sheet ? <sheet.Model anim={anim} gear={gear} /> : <HeroModel look={look} anim={anim} gear={gear} />}
         </group>
       ) : (
@@ -448,7 +478,7 @@ function FoeFigure({
         <meshBasicMaterial color={colors.danger} transparent toneMapped={false} />
       </mesh>
       {monster ? (<>
-        <group ref={model}>
+        <group ref={model} userData={{ caster: true }}>
           {'humanoid' in monster
             ? monster.meshy ? <MeshyFoe body={monster.meshy} look={monster.humanoid} anim={heroAnim} /> : <HeroModel look={monster.humanoid} anim={heroAnim} />
             : <CreatureModel look={monster.creature} anim={creAnim} />}
@@ -512,7 +542,7 @@ function Board({ sim, theme, current, reachable, proj }: { sim: Sim; theme: Batt
   };
   return (
     <>
-      <Stage theme={theme} />
+      <group userData={{ ground: true }}><Stage theme={theme} /></group>
       {Array.from({ length: GRID_ROWS }).flatMap((_, row) => Array.from({ length: GRID_COLS }).map((__, col) => (
         <Tile
           key={row + '-' + col} row={row} col={col} state={stateOf(row, col)} theme={theme}
@@ -825,10 +855,12 @@ export interface ArenaProps {
   intro?: boolean;
   /** Share of weather particles to draw, 0 … 1 (graphics quality). */
   weather?: number;
+  /** The sun's shadow map size; 0 for none (graphics quality). */
+  shadows?: number;
   bossMonster?: MonsterLook; roomMonsters?: Record<EnemyRole, MonsterLook>;
 }
 
-export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear, closeUp = false, intro = false, weather = 1, orbit }: ArenaProps) {
+export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear, closeUp = false, intro = false, weather = 1, shadows = 0, orbit }: ArenaProps) {
   const bp = sim.bossPos ? bossPos(sim.bossPos.row, sim.bossPos.col) : bossPos(0, Math.floor((GRID_COLS - BOSS_W) / 2));
   const sun = useMemo(() => sunDirection(theme).multiplyScalar(20), [theme]);
   const stunned = sim.stunned || sim.vulnerableRounds > 0;
@@ -836,12 +868,20 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
   const foeKeyFor = (enemyId: number) => (enemyId < 0 || (isBoss && !sim.minions.some((m) => m.id === enemyId)) ? 'boss' : 'e' + enemyId);
   return (
     <>
-      <fog attach="fog" args={[theme.sky[2], 12, 55]} />
+      {/* Haze swallows the distance, so the board stands out against its skyline. */}
+      <fog attach="fog" args={[theme.sky[2], 10, 46]} />
       <color attach="background" args={[theme.sky[1]]} />
-      <hemisphereLight args={[theme.sky[2], theme.ground[0], 1.6]} />
-      <ambientLight intensity={1.1} />
-      <directionalLight position={sun.toArray() as [number, number, number]} intensity={2.4} color={theme.glow.color} />
-      <directionalLight position={[0, 6, 8]} intensity={1.2} color="#ffffff" />
+      {/* Low, warm sun from the theme's glow and a cool fill from the camera side: light and shade
+          instead of the flat all-round wash, so figures read as solid. */}
+      <hemisphereLight args={[theme.sky[2], theme.ground[0], 1.35]} />
+      <ambientLight intensity={0.7} />
+      <directionalLight
+        position={sun.toArray() as [number, number, number]} intensity={3.1} color={theme.glow.color}
+        castShadow={shadows > 0} shadow-mapSize={[shadows || 512, shadows || 512]} shadow-bias={-0.0004} shadow-normalBias={0.03}
+        shadow-camera-left={-9} shadow-camera-right={9} shadow-camera-top={9} shadow-camera-bottom={-9} shadow-camera-near={2} shadow-camera-far={45}
+      />
+      <directionalLight position={[-3, 6, 10]} intensity={1.15} color="#d8dceb" />
+      {shadows > 0 ? <ShadowCasters /> : null}
       <Scenery theme={theme} weather={weather} />
       <Board sim={sim} theme={theme} current={current} reachable={reachable} proj={proj} />
       {isBoss ? (
