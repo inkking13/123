@@ -128,7 +128,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
     <View style={{ flex: 1 }}>
       <ScrollView scrollEnabled={!(full && use3d)} contentContainerStyle={{ paddingTop: full && use3d ? insets.top : insets.top + 12, paddingHorizontal: full && use3d ? 0 : 14, paddingBottom: full && use3d ? 0 : 16 }}>
         {/* One panel for the fight's state: the foe's health, the turn order, stagger, tilt and the enrage clock. */}
-        {full && use3d ? null : (<View onLayout={(e) => setHudH(e.nativeEvent.layout.height)} style={{ borderWidth: 1, borderColor: GOLD_LINE, borderRadius: 12, backgroundColor: 'rgba(14,15,24,0.82)', padding: 10 }}>
+        {full && use3d ? null : (<View onLayout={(e) => setHudH(e.nativeEvent.layout.height)} style={{ borderWidth: 1, borderColor: GOLD_LINE, borderRadius: 12, backgroundColor: 'rgba(16,12,9,0.82)', padding: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             {isBossFight && bossArt ? (
               <Image source={bossArt} style={{ width: 40, height: 40, borderRadius: 8, borderWidth: 1.5, borderColor: colors.danger }} />
@@ -231,7 +231,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               full={full} onToggleFull={() => setFull((v) => !v)}
               overlay={full ? (
                 // The foe's health and the turn order, in a strip over the field.
-                <View pointerEvents="none" style={{ position: 'absolute', left: 8, right: 44, top: 42, padding: 8, borderRadius: 10, backgroundColor: 'rgba(14,15,24,0.72)', borderWidth: 1, borderColor: GOLD_LINE }}>
+                <View pointerEvents="none" style={{ position: 'absolute', left: 8, right: 44, top: 42, padding: 8, borderRadius: 10, backgroundColor: 'rgba(16,12,9,0.72)', borderWidth: 1, borderColor: GOLD_LINE }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                     <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, fontFamily: font.semibold, color: GOLD_TEXT }}>{bossLabel}</Text>
                     <Text style={{ fontSize: 10.5, color: colors.textMuted, fontFamily: font.medium }}>{Math.round(bossPct)}% · раунд {s.round}</Text>
@@ -250,7 +250,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
               ) : null}
             />
           ) : fieldW ? (
-            <View style={{ height: fieldH, borderRadius: 10, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12, backgroundColor: 'rgba(14,15,24,0.85)', borderWidth: 1, borderColor: GOLD_LINE }}>
+            <View style={{ height: fieldH, borderRadius: 10, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12, backgroundColor: 'rgba(16,12,9,0.85)', borderWidth: 1, borderColor: GOLD_LINE }}>
               <Icon name="warning" size={26} color={colors.warn} />
               <Text style={{ fontSize: 15, color: colors.text, fontFamily: font.semibold, textAlign: 'center' }}>
                 {webgl ? 'Поле боя не загрузилось' : 'Браузер не поддерживает 3D (WebGL)'}
@@ -284,7 +284,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
         })()}
 
         {/* Combat log */}
-        <View style={{ marginTop: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, backgroundColor: 'rgba(14,15,24,0.6)' }}>
+        <View style={{ marginTop: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, backgroundColor: 'rgba(16,12,9,0.6)' }}>
           {s.log.length === 0 ? (
             <Text style={{ fontSize: 12, color: colors.textFaint, fontFamily: font.regular }}>Бой начинается…</Text>
           ) : (
@@ -304,7 +304,7 @@ export function CombatScreen({ engine }: { engine: GameEngine }) {
       </ScrollView>
 
       {/* Action panel */}
-      <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: 'rgba(14,15,24,0.9)', paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(14, insets.bottom + 10) }}>
+      <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: 'rgba(16,12,9,0.9)', paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(14, insets.bottom + 10) }}>
         {!s.over ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <Text numberOfLines={2} style={{ flex: 1, fontSize: 11.5, lineHeight: 15, color: colors.textDim, fontFamily: font.regular }}>

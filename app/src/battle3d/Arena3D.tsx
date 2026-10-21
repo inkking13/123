@@ -11,11 +11,12 @@ import { CreatureAnim, CreatureModel } from './CreatureModel';
 import { MonsterLook } from './monsterLooks';
 import { Projection } from './projection';
 import { Scenery, sunDirection } from './Scenery';
+import { softDotTexture } from './Atmosphere';
 import { Stage } from './Stage';
 import { Tile, TileState } from './BoardTiles';
 import { Burst, Comet, GroundRing, Slash } from './SpellFx';
 import {
-  BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
+  BOSS_CARD, CAMERA_HOME, CAMERA_LOOK, CAMERA_YAW, FIGURE_SCALE, RAIDER_CARD, ROOM_CARD, TILE_SIZE, bossPos, colX, rowZ, tilePos,
 } from './world';
 import { BattleTheme } from '../components/BattleBackdrop';
 import { BOSS_H, BOSS_W, CombatFx, EnemyRole, GRID_COLS, GRID_ROWS, Raider, Sim } from '../combat/types';
@@ -72,23 +73,52 @@ function Card({ art, size, frame, matRef, cardRef, children }: {
   );
 }
 
+/**
+ * What a figure stands on: no pedestal, just a soft shadow pooled under the feet
+ * (contact shade the sun's shadow map is too coarse for) and a thin ring on the
+ * ground in the figure's colour.
+ */
 function Base({ radius, color }: { radius: number; color: string }) {
+  const blob = softDotTexture();
   return (
     <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]}>
-        <circleGeometry args={[radius * 1.35, 24]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.45} depthWrite={false} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]} renderOrder={3}>
+        <planeGeometry args={[radius * 3.2, radius * 3.2]} />
+        <meshBasicMaterial map={blob} color="#000000" transparent opacity={0.7} depthWrite={false} />
       </mesh>
-      <mesh position={[0, 0.03, 0]}>
-        <cylinderGeometry args={[radius, radius * 1.08, 0.06, 24]} />
-        <meshLambertMaterial color="#5a5a6a" />
-      </mesh>
-      <mesh position={[0, 0.062, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[radius * 0.98, radius * 0.07, 6, 28]} />
-        <meshBasicMaterial color={color} toneMapped={false} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.016, 0]} renderOrder={4}>
+        <ringGeometry args={[radius * 1.02, radius * 1.12, 40]} />
+        <meshBasicMaterial color={color} transparent opacity={0.85} depthWrite={false} toneMapped={false} />
       </mesh>
     </>
   );
+}
+
+/**
+ * Figures cast the sun's shadow and the ground takes it. Models load whenever
+ * they're ready, so this looks again every half second: anything under a group
+ * marked `caster` casts (bar glows, rings and other see-through bits), anything
+ * under one marked `ground` receives.
+ */
+function ShadowCasters() {
+  const scene = useThree((s) => s.scene);
+  const next = useRef(0);
+  useFrame((st) => {
+    if (st.clock.elapsedTime < next.current) return;
+    next.current = st.clock.elapsedTime + 0.5;
+    const mark = (root: THREE.Object3D, cast: boolean) => root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      if (!cast) { m.receiveShadow = true; return; }
+      const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.Material & { isMeshBasicMaterial?: boolean };
+      m.castShadow = !mat.transparent && !mat.isMeshBasicMaterial;
+    });
+    scene.traverse((o) => {
+      if (o.userData.caster) mark(o, true);
+      else if (o.userData.ground) mark(o, false);
+    });
+  });
+  return null;
 }
 
 function PulseRing({ radius, color, speed = 3, y = 0.07 }: { radius: number; color: string; speed?: number; y?: number }) {
@@ -289,7 +319,7 @@ function RaiderFigure({ r, sim, proj, active, poisoned, gear }: { r: Raider; sim
       {berserk ? <PulseRing radius={0.5} color={colors.danger} speed={8} y={0.2} /> : null}
       {poisoned && alive ? <PulseRing radius={0.36} color="#7ac874" speed={4} y={0.12} /> : null}
       {look ? (
-        <group ref={model} position={[0, 0.06, 0]} scale={[FIGURE_SCALE, FIGURE_SCALE, FIGURE_SCALE]}>
+        <group ref={model} position={[0, 0.06, 0]} scale={[FIGURE_SCALE, FIGURE_SCALE, FIGURE_SCALE]} userData={{ caster: true }}>
           {sheet ? <sheet.Model anim={anim} gear={gear} /> : <HeroModel look={look} anim={anim} gear={gear} />}
         </group>
       ) : (
@@ -448,7 +478,7 @@ function FoeFigure({
         <meshBasicMaterial color={colors.danger} transparent toneMapped={false} />
       </mesh>
       {monster ? (<>
-        <group ref={model}>
+        <group ref={model} userData={{ caster: true }}>
           {'humanoid' in monster
             ? monster.meshy ? <MeshyFoe body={monster.meshy} look={monster.humanoid} anim={heroAnim} /> : <HeroModel look={monster.humanoid} anim={heroAnim} />
             : <CreatureModel look={monster.creature} anim={creAnim} />}
@@ -512,7 +542,7 @@ function Board({ sim, theme, current, reachable, proj }: { sim: Sim; theme: Batt
   };
   return (
     <>
-      <Stage theme={theme} />
+      <group userData={{ ground: true }}><Stage theme={theme} /></group>
       {Array.from({ length: GRID_ROWS }).flatMap((_, row) => Array.from({ length: GRID_COLS }).map((__, col) => (
         <Tile
           key={row + '-' + col} row={row} col={col} state={stateOf(row, col)} theme={theme}
@@ -700,8 +730,9 @@ function Effects({ sim, proj, foeKeyFor }: { sim: Sim; proj: Projection; foeKeyF
 
 // ── camera ─────────────────────────────────────────────────
 
-/** The player's turn of the camera round the board, radians (a full circle either way); set by dragging the field. */
-export interface Orbit { yaw: number }
+/** The player's hold on the camera: a turn round the board in radians (a full circle either way),
+ *  set by dragging the field, and a zoom (1 = default distance), set by pinching it. */
+export interface Orbit { yaw: number; zoom: number }
 
 function CameraRig({ sim, current, proj, closeUp, focusId, intro, orbit }: { sim: Sim; current: Raider | null; proj: Projection; closeUp: boolean; focusId?: number; intro: boolean; orbit?: React.MutableRefObject<Orbit> }) {
   const yaw = useRef(0);
@@ -736,6 +767,9 @@ function CameraRig({ sim, current, proj, closeUp, focusId, intro, orbit }: { sim
   const want = useMemo(() => new THREE.Vector3(), []);
   const wantLook = useMemo(() => new THREE.Vector3(), []);
   const focus = useMemo(() => new THREE.Vector3(), []);
+  const offset = useMemo(() => new THREE.Vector3(), []);
+  const ahead = useMemo(() => new THREE.Vector3(), []);
+  const zoom = useRef(1);
   useFrame((st, dt) => {
     const t = st.clock.elapsedTime;
     const bossAt = proj.world.get('boss');
@@ -753,6 +787,11 @@ function CameraRig({ sim, current, proj, closeUp, focusId, intro, orbit }: { sim
       return;
     }
     introAt.current = -1;
+    // The camera's heading: the default corner-on stand plus the player's own turn (smoothed, so it arcs rather than cuts).
+    yaw.current += ((orbit?.current.yaw ?? 0) - yaw.current) * (1 - Math.exp(-dt * 8));
+    zoom.current += ((orbit?.current.zoom ?? 1) - zoom.current) * (1 - Math.exp(-dt * 10));
+    const heading = CAMERA_YAW + yaw.current;
+    ahead.set(0, 0, -1).applyAxisAngle(UP, heading);
     const enemyTurn = sim.order[sim.turnPos]?.kind === 'boss';
     let dist = 1; let pull = 0;
     const foe = proj.world.get('boss') ?? [...proj.world.entries()].find(([k]) => k.startsWith('e'))?.[1];
@@ -775,26 +814,24 @@ function CameraRig({ sim, current, proj, closeUp, focusId, intro, orbit }: { sim
         focus.copy(hero);
         if (!sim.movePhase && target) focus.lerp(target, 0.4);
         // Look a little past the hero, so they stand in the lower part of the frame.
-        focus.z -= 1.7;
+        focus.addScaledVector(ahead, 1.2);
       }
-      dist = sim.movePhase ? 0.84 : 0.72;
-      pull = 0.9;
+      dist = sim.movePhase ? 0.66 : 0.56;
+      pull = 0.75;
     }
-    wantLook.copy(CAMERA_LOOK).lerp(focus, pull);
-    want.copy(CAMERA_HOME).sub(CAMERA_LOOK).multiplyScalar(dist).add(wantLook);
-    want.x += Math.sin(t * 0.35) * 0.12 + focus.x * pull * (closeUp ? 0.2 : 0.5);
-    want.y += Math.sin(t * 0.5) * 0.05;
-    // Swing round the look point by the player's orbit (smoothed, so the camera arcs rather than cuts through).
-    const target = orbit?.current.yaw ?? 0;
-    yaw.current += (target - yaw.current) * (1 - Math.exp(-dt * 8));
-    if (Math.abs(yaw.current) > 1e-4) {
-      // Turn both the camera and its aim round the board's centre. The stage's ruins stand close
-      // behind the enemy rows, so the further round we go the more the camera draws in and rises.
-      const away = Math.abs(Math.sin(yaw.current / 2));
-      want.applyAxisAngle(UP, yaw.current);
-      wantLook.applyAxisAngle(UP, yaw.current);
-      want.x *= 1 - 0.4 * away; want.z *= 1 - 0.4 * away; want.y += 1.2 * away;
-    }
+    // Aim at the board's middle (turned with the camera) drawn towards the focus.
+    wantLook.copy(CAMERA_LOOK).applyAxisAngle(UP, yaw.current).lerp(focus, pull);
+    // Stand back from the aim along the camera's heading; drift a little towards the focus's side.
+    offset.copy(CAMERA_HOME).sub(CAMERA_LOOK).multiplyScalar(dist * zoom.current);
+    const side = focus.x * Math.cos(heading) - focus.z * Math.sin(heading);
+    offset.x += Math.sin(t * 0.35) * 0.12 + side * pull * (closeUp ? 0.2 : 0.5);
+    offset.y += Math.sin(t * 0.5) * 0.05;
+    offset.applyAxisAngle(UP, heading);
+    // The stage's ruins stand close behind the enemy rows, so the further the player turns
+    // round, the more the camera draws in and rises.
+    const away = Math.abs(Math.sin(yaw.current / 2));
+    offset.x *= 1 - 0.4 * away; offset.z *= 1 - 0.4 * away; offset.y += 1.2 * away;
+    want.copy(wantLook).add(offset);
     const k = 1 - Math.exp(-dt * (sim.windup ? 3 : 2.4));
     camera.position.lerp(want, k);
     look.current.lerp(wantLook, k);
@@ -825,10 +862,12 @@ export interface ArenaProps {
   intro?: boolean;
   /** Share of weather particles to draw, 0 … 1 (graphics quality). */
   weather?: number;
+  /** The sun's shadow map size; 0 for none (graphics quality). */
+  shadows?: number;
   bossMonster?: MonsterLook; roomMonsters?: Record<EnemyRole, MonsterLook>;
 }
 
-export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear, closeUp = false, intro = false, weather = 1, orbit }: ArenaProps) {
+export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, current, reachable, bossMonster, roomMonsters, heroGear, closeUp = false, intro = false, weather = 1, shadows = 0, orbit }: ArenaProps) {
   const bp = sim.bossPos ? bossPos(sim.bossPos.row, sim.bossPos.col) : bossPos(0, Math.floor((GRID_COLS - BOSS_W) / 2));
   const sun = useMemo(() => sunDirection(theme).multiplyScalar(20), [theme]);
   const stunned = sim.stunned || sim.vulnerableRounds > 0;
@@ -836,12 +875,20 @@ export function Arena3D({ sim, theme, proj, isBoss, bossArt, roomArt, focusId, c
   const foeKeyFor = (enemyId: number) => (enemyId < 0 || (isBoss && !sim.minions.some((m) => m.id === enemyId)) ? 'boss' : 'e' + enemyId);
   return (
     <>
-      <fog attach="fog" args={[theme.sky[2], 12, 55]} />
+      {/* Haze swallows the distance, so the board stands out against its skyline. */}
+      <fog attach="fog" args={[theme.sky[2], 10, 46]} />
       <color attach="background" args={[theme.sky[1]]} />
-      <hemisphereLight args={[theme.sky[2], theme.ground[0], 1.6]} />
-      <ambientLight intensity={1.1} />
-      <directionalLight position={sun.toArray() as [number, number, number]} intensity={2.4} color={theme.glow.color} />
-      <directionalLight position={[0, 6, 8]} intensity={1.2} color="#ffffff" />
+      {/* Low, warm sun from the theme's glow and a cool fill from the camera side: light and shade
+          instead of the flat all-round wash, so figures read as solid. */}
+      <hemisphereLight args={[theme.sky[2], theme.ground[0], 1.35]} />
+      <ambientLight intensity={0.7} />
+      <directionalLight
+        position={sun.toArray() as [number, number, number]} intensity={3.1} color={theme.glow.color}
+        castShadow={shadows > 0} shadow-mapSize={[shadows || 512, shadows || 512]} shadow-bias={-0.0004} shadow-normalBias={0.03}
+        shadow-camera-left={-9} shadow-camera-right={9} shadow-camera-top={9} shadow-camera-bottom={-9} shadow-camera-near={2} shadow-camera-far={45}
+      />
+      <directionalLight position={[-3, 6, 10]} intensity={1.15} color="#d8dceb" />
+      {shadows > 0 ? <ShadowCasters /> : null}
       <Scenery theme={theme} weather={weather} />
       <Board sim={sim} theme={theme} current={current} reachable={reachable} proj={proj} />
       {isBoss ? (

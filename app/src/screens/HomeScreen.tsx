@@ -2,12 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameEngine } from '../engine/GameEngine';
-import { colors, font, roleColor } from '../theme/theme';
+import { colors, font, ink, roleColor } from '../theme/theme';
 import { DUNGEONS, LOCATIONS } from '../data/dungeons';
 import { Avatar } from '../components/Avatar';
 import { Icon, IconName } from '../components/Icon';
 import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
-import { Corners, Frame, Ornament } from '../components/Frame';
+import { Corners, Frame, Ornament, Parchment, WaxSeal } from '../components/Frame';
 import { useEngineVersion } from '../engine/useEngine';
 import { FEATURES, FEATURE_ORDER, Feature, unlockHint } from '../data/features';
 import { TiltArt } from '../components/TiltArt';
@@ -40,8 +40,8 @@ function MenuTile({ title, sub, icon, badge, onPress }: { title: string; sub: st
           <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: pressed ? GOLD : GOLD_DIM, alignItems: 'center', justifyContent: 'center', backgroundColor: '#15120e' }}>
             <Icon name={icon} size={18} color="#e3cc93" />
           </View>
-          <Text numberOfLines={1} style={{ fontSize: 12, fontFamily: font.semibold, color: '#efe4c8', textAlign: 'center' }}>{title}</Text>
-          <Text numberOfLines={1} style={{ fontSize: 10, color: colors.textDim, fontFamily: font.regular, textAlign: 'center' }}>{sub}</Text>
+          <Text numberOfLines={1} style={{ fontSize: 14, fontFamily: font.title, color: '#efe2c4', textAlign: 'center' }}>{title}</Text>
+          <Text numberOfLines={1} style={{ fontSize: 11.5, color: colors.textDim, fontFamily: font.italic, textAlign: 'center' }}>{sub}</Text>
           {badge ? (
             <View style={{ position: 'absolute', top: 6, right: 6, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: '#15120f', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: 10, lineHeight: 12, color: '#fff', fontFamily: font.semibold }}>{badge}</Text>
@@ -56,15 +56,15 @@ function MenuTile({ title, sub, icon, badge, onPress }: { title: string; sub: st
 /** A one-line camp notice; tap to dismiss. */
 function Notice({ icon, color, text, onClose }: { icon: IconName; color: string; text: string; onClose: () => void }) {
   return (
-    <Pressable onPress={onClose} style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: color, backgroundColor: 'rgba(14,12,16,0.88)' }}>
+    <Pressable onPress={onClose} style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: color, backgroundColor: 'rgba(16,12,9,0.9)' }}>
       <Icon name={icon} size={15} color={color} />
       <Text numberOfLines={2} style={{ flex: 1, fontSize: 12, lineHeight: 16, color, fontFamily: font.regular }}>{text}</Text>
       <Icon name="x" size={13} color={colors.textDim} />
     </Pressable>
   );
 }
-const GOLD = '#8a7650';
-const GOLD_DIM = '#4a4032';
+const GOLD = '#8f6f45';
+const GOLD_DIM = '#4d3b29';
 
 /** Where "Посмотреть" leads for a freshly opened system. */
 function openFeature(engine: GameEngine, f: Feature) {
@@ -83,40 +83,41 @@ function openFeature(engine: GameEngine, f: Feature) {
   }
 }
 
+/** A newly opened system arrives as a sealed letter from the guild. */
 function UnlockBanner({ engine, f }: { engine: GameEngine; f: Feature }) {
   const d = FEATURES[f];
   return (
-    <View
-      testID={'unlock-' + f}
-      style={{ borderWidth: 1, borderColor: colors.accent, borderRadius: 10, padding: 14, marginBottom: 22, backgroundColor: 'rgba(30,28,52,0.96)' }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-        <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(145,132,217,0.22)' }}>
-          <Icon name={d.icon} size={16} color={colors.accentSoft} />
+    <Parchment style={{ marginBottom: 22 }}>
+      <View testID={'unlock-' + f}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+          <WaxSeal size={38}><Icon name={d.icon} size={17} color="#f3dcc0" weight="fill" /></WaxSeal>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 12, letterSpacing: 1, color: ink.red, fontFamily: font.caps }}>Открыто новое</Text>
+            <Text style={{ fontSize: 20, color: ink.text, fontFamily: font.title }}>{d.title}</Text>
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 10.5, letterSpacing: 1.4, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>Открыто новое</Text>
-          <Text style={{ fontSize: 16, color: colors.text, fontFamily: font.medium }}>{d.title}</Text>
+        <Text style={{ fontSize: 14.5, lineHeight: 20, color: ink.muted, fontFamily: font.regular }}>{d.intro}</Text>
+        <View style={{ height: 1, backgroundColor: ink.rule, marginTop: 12 }} />
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+          <Pressable
+            testID="unlock-open"
+            onPress={() => { engine.markUnlockSeen(f); openFeature(engine, f); }}
+            style={({ pressed }) => ({ flex: 1, height: 40, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}
+          >
+            <Text style={{ fontSize: 16, color: ink.red, fontFamily: font.title }}>Посмотреть</Text>
+            <Icon name="arrow-right" size={15} color={ink.red} />
+          </Pressable>
+          <View style={{ width: 1, marginVertical: 8, backgroundColor: ink.rule }} />
+          <Pressable
+            testID="unlock-ok"
+            onPress={() => engine.markUnlockSeen(f)}
+            style={({ pressed }) => ({ flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}
+          >
+            <Text style={{ fontSize: 16, color: ink.muted, fontFamily: font.caps }}>Понятно</Text>
+          </Pressable>
         </View>
       </View>
-      <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textMuted, fontFamily: font.regular }}>{d.intro}</Text>
-      <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-        <Pressable
-          testID="unlock-open"
-          onPress={() => { engine.markUnlockSeen(f); openFeature(engine, f); }}
-          style={{ flex: 1, height: 38, borderRadius: 8, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Text style={{ fontSize: 13, color: colors.bg, fontFamily: font.semibold }}>Посмотреть</Text>
-        </Pressable>
-        <Pressable
-          testID="unlock-ok"
-          onPress={() => engine.markUnlockSeen(f)}
-          style={{ flex: 1, height: 38, borderRadius: 8, borderWidth: 1, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Text style={{ fontSize: 13, color: colors.textMuted, fontFamily: font.medium }}>Понятно</Text>
-        </Pressable>
-      </View>
-    </View>
+    </Parchment>
   );
 }
 
@@ -183,12 +184,12 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
     <View style={{ flex: 1 }} onTouchStart={askMotionPermission}>
       {/* Art behind the top of camp; the page scrolls over it. */}
       <TiltArt testID="camp-art" source={CAMP_ART} aspect={1600 / 893} focusX={0.66} fadeFrom={0.5} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 400 + insets.top }} />
-      <LinearGradient pointerEvents="none" colors={['rgba(22,24,38,0.75)', 'rgba(22,24,38,0)']} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120 + insets.top }} />
+      <LinearGradient pointerEvents="none" colors={['rgba(14,10,7,0.8)', 'rgba(14,10,7,0)']} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120 + insets.top }} />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 24 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <View>
             <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, fontFamily: font.medium }}>Отдел кадров</Text>
-            <Text style={{ fontSize: 32, fontFamily: font.semibold, color: '#f4e9cf', marginTop: 2, letterSpacing: -0.6, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 8 }}>Лагерь</Text>
+            <Text style={{ fontSize: 34, fontFamily: font.title, color: '#f1e4c6', marginTop: 2, letterSpacing: 0.3, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 8 }}>Лагерь</Text>
             <Ornament width={110} />
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -282,21 +283,19 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
           <Corners color="#b39462" />
         </Pressable>
 
-        {/* The next dungeon, one tap away. */}
+        {/* The next dungeon, one tap away: the contract on top of the pile, sealed and ready. */}
         {nextDungeon ? (
           <Pressable onPress={nextDungeon.onTap} style={{ marginBottom: 8 }}>
             {({ pressed }) => (
-              <Frame tone="gold" pressed={pressed} contentStyle={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 1, borderColor: '#c9b06d', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' }}>
-                  <Icon name="sword" size={22} color="#f0d58a" />
-                </View>
+              <Parchment pressed={pressed} contentStyle={{ paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <WaxSeal size={48}><Icon name="sword" size={22} color="#f3dcc0" weight="fill" /></WaxSeal>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 10.5, letterSpacing: 1.6, textTransform: 'uppercase', color: '#c9b06d', fontFamily: font.medium }}>{ready ? 'В поход' : 'Собрать отряд и в поход'}</Text>
-                  <Text style={{ fontSize: 18, fontFamily: font.semibold, color: '#f4e9cf', marginTop: 2 }}>{nextDungeon.name}</Text>
-                  <Text style={{ fontSize: 11.5, color: '#b9ab8e', marginTop: 2, fontFamily: font.regular }}>{nextDungeon.meta}</Text>
+                  <Text style={{ fontSize: 12.5, letterSpacing: 1, color: ink.red, fontFamily: font.caps }}>{ready ? 'Контракт · в поход' : 'Собрать отряд и в поход'}</Text>
+                  <Text style={{ fontSize: 21, fontFamily: font.title, color: ink.text, marginTop: 1 }}>{nextDungeon.name}</Text>
+                  <Text style={{ fontSize: 13, color: ink.muted, marginTop: 1, fontFamily: font.italic }}>{nextDungeon.meta}</Text>
                 </View>
-                <Icon name="arrow-right" size={22} color="#f0d58a" />
-              </Frame>
+                <Icon name="arrow-right" size={22} color={ink.text} />
+              </Parchment>
             )}
           </Pressable>
         ) : null}

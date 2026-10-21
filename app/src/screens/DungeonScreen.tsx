@@ -68,7 +68,7 @@ export function DungeonScreen({ engine }: { engine: GameEngine }) {
           <Corners color="#8a7650" />
         </View>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>Состояние отряда</Text>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 10, fontFamily: font.medium }}>Состояние отряда</Text>
         {chosen.map((c) => {
           const r = engine.sim ? engine.sim.raiders.find((x) => x.candidateId === c.id) : null;
           const pct = r ? Math.max(0, Math.round((r.hp / r.maxHp) * 100)) : 100;
@@ -91,8 +91,8 @@ export function DungeonScreen({ engine }: { engine: GameEngine }) {
       </ScrollView>
 
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-        <LinearGradient colors={['rgba(14,15,24,0)', 'rgba(14,15,24,0.9)']} style={{ height: 30 }} />
-        <View style={{ flexDirection: 'row', gap: 8, backgroundColor: 'rgba(14,15,24,0.9)', paddingHorizontal: 16, paddingTop: 4, paddingBottom: Math.max(20, insets.bottom + 12) }}>
+        <LinearGradient colors={['rgba(16,12,9,0)', 'rgba(16,12,9,0.9)']} style={{ height: 30 }} />
+        <View style={{ flexDirection: 'row', gap: 8, backgroundColor: 'rgba(16,12,9,0.9)', paddingHorizontal: 16, paddingTop: 4, paddingBottom: Math.max(20, insets.bottom + 12) }}>
           {canGoBackToGear ? <SecondaryButton label="Назад" onPress={() => engine.back()} /> : null}
           <PrimaryButton
             label={enc.type === 'boss' ? 'В тронный зал' : 'Войти в бой'}

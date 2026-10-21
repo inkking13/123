@@ -45,7 +45,7 @@ export function StartDraftScreen({ engine }: { engine: GameEngine }) {
           <View key={role} style={{ marginBottom: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}>
               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: roleColor[role] }} />
-              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', fontFamily: font.medium }}>{title}</Text>
+              <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', fontFamily: font.medium }}>{title}</Text>
             </View>
             <Text style={{ fontSize: 11.5, color: colors.textDim, marginBottom: 10, fontFamily: font.regular }}>{hint}</Text>
             {heroes.filter((h) => h.role === role).map((h) => {
@@ -83,7 +83,7 @@ export function StartDraftScreen({ engine }: { engine: GameEngine }) {
                       <Text numberOfLines={2} style={{ fontSize: 11.5, lineHeight: 16, color: colors.textFaint, marginTop: 4, fontFamily: font.regular }}>{h.bio}</Text>
                     </View>
                   </View>
-                  <Corners color={on ? '#f0d28e' : '#8a7650'} />
+                  <Corners color={on ? '#f0d28e' : '#8f6f45'} />
                 </Pressable>
               );
             })}
@@ -96,7 +96,7 @@ export function StartDraftScreen({ engine }: { engine: GameEngine }) {
         <LinearGradient colors={['rgba(14,12,16,0)', 'rgba(14,12,16,0.96)']} style={{ height: 24 }} />
         <Frame tone="plain" style={{ marginHorizontal: 12, marginBottom: 10 + insets.bottom }} contentStyle={{ padding: 12, gap: 10 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', fontFamily: font.medium }}>Отряд {picks.length}/{DRAFT_SIZE}</Text>
+            <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', fontFamily: font.medium }}>Отряд {picks.length}/{DRAFT_SIZE}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
               <Text style={{ fontSize: 12, color: colors.textDim, fontFamily: font.regular }}>Бюджет</Text>
               <Icon name="coins" size={14} color="#f0d58a" weight="fill" />
@@ -111,7 +111,7 @@ export function StartDraftScreen({ engine }: { engine: GameEngine }) {
               return (
                 <Pressable key={i} onPress={() => id != null && toggle(id)} style={{
                   flex: 1, aspectRatio: 1, borderRadius: 6, borderWidth: 1, overflow: 'hidden',
-                  borderColor: h ? roleColor[h.role] : '#4a4032', borderStyle: h ? 'solid' : 'dashed',
+                  borderColor: h ? roleColor[h.role] : '#4d3b29', borderStyle: h ? 'solid' : 'dashed',
                   alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)',
                 }}>
                   {h ? <Avatar id={h.id} size={60} radius={0} style={{ width: '100%', height: '100%' }} /> : <Icon name="plus" size={16} color="#5e4d37" />}

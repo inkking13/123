@@ -81,8 +81,8 @@ export function Tile({ row, col, state, activeColor, theme }: { row: number; col
   const fillMat = useRef<THREE.MeshBasicMaterial>(null);
   const plain = useMemo(() => strokeColor(theme).lerp(new THREE.Color('#ffffff'), 0.25), [theme]);
   const want = useMemo(() => new THREE.Color(), []);
-  // A faint checker so rows and columns read at a glance.
-  const plainFrame = (row + col) % 2 ? 0.3 : 0.38;
+  // A ghost of a grid, a faint checker so rows and columns still read: cells light up when they matter.
+  const plainFrame = (row + col) % 2 ? 0.1 : 0.14;
   useFrame((st, dt) => {
     const fm = frameMat.current, im = fillMat.current; if (!fm || !im) return;
     const t = st.clock.elapsedTime;

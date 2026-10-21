@@ -12,7 +12,7 @@ import { HeroPreview3D } from '../battle3d/HeroPreview3D';
 import { canRender3D } from '../battle3d/Battle3D';
 import { gearLookOf } from '../battle3d/gearLooks';
 
-const GOLD = '#8a7650';
+const GOLD = '#8f6f45';
 const GOLD_DIM = '#4a3f2c';
 const PANEL_BG = '#12100d';
 const CELL_BG = '#1a1712';

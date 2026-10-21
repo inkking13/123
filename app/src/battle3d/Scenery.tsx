@@ -322,7 +322,7 @@ export function Scenery({ theme, weather = 1 }: { theme: BattleTheme; weather?: 
       {theme.stage ? <><HorizonGlow theme={theme} /><StormClouds theme={theme} /></> : null}
       {theme.stage && weather > 0 ? <GroundMist /> : null}
       {/* Sunk under a stage model's floor, which would otherwise be hidden. */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, theme.stage ? -0.5 : -0.02, -10]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, theme.stage ? -0.5 : -0.02, -10]} userData={{ ground: true }}>
         <planeGeometry args={[140, 90]} />
         <meshLambertMaterial color={theme.ground[0]} />
       </mesh>

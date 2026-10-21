@@ -66,7 +66,7 @@ function Stage({ id, spin, gear }: { id: number; spin: React.MutableRefObject<Sp
       </mesh>
       <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[h * 0.36, h * 0.41, 32]} />
-        <meshBasicMaterial color={gear?.best ?? '#8a7650'} />
+        <meshBasicMaterial color={gear?.best ?? '#8f6f45'} />
       </mesh>
       <group ref={turn}>
         {sheet ? <sheet.Model anim={anim} gear={gear} /> : look ? <HeroModel look={look} anim={anim} gear={gear} /> : null}

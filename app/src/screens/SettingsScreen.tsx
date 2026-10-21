@@ -49,7 +49,7 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
         <BackLink engine={engine} />
         <ScreenTitle style={{ marginTop: 10, marginBottom: 22 }}>Настройки</ScreenTitle>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 10, fontFamily: font.medium }}>
           Обратная связь
         </Text>
         <Toggle icon="speaker-high" on={engine.settings.sound} onPress={() => engine.toggleSound()} title="Звуки" text="Удары, заклинания, лечение, победа и поражение." />
@@ -90,7 +90,7 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
           <Corners color="#8a7650" />
         </Pressable>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 10, fontFamily: font.medium }}>
           Качество графики
         </Text>
         <View style={{ borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 8, padding: 12, marginBottom: 22, backgroundColor: colors.surface }}>
@@ -137,7 +137,7 @@ export function SettingsScreen({ engine }: { engine: GameEngine }) {
           <Corners color="#8a7650" />
         </Pressable>
 
-        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b39462', marginBottom: 10, fontFamily: font.medium }}>
+        <Text style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#b8935c', marginBottom: 10, fontFamily: font.medium }}>
           Прогресс
         </Text>
         <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 14, marginBottom: 14 }}>
