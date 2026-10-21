@@ -6,7 +6,9 @@ import { colors, font } from '../theme/theme';
 import { Icon } from '../components/Icon';
 import { ItemIcon } from '../components/ItemIcon';
 import { ProgressBar } from '../components/ProgressBar';
-import { GhostLink } from '../components/Buttons';
+import { BackLink } from '../components/Buttons';
+import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
+
 import { useEngineVersion } from '../engine/useEngine';
 import { Corners, ScreenTitle } from '../components/Frame';
 
@@ -20,11 +22,12 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
     return (
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20 }}>
-          <GhostLink label="Назад" icon="arrow-left" onPress={() => engine.go('char')} />
+          <BackLink engine={engine} />
           <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 20, fontFamily: font.regular }}>
             У {cc.name} ещё нет профессии — выберите её на экране персонажа.
           </Text>
         </ScrollView>
+        <TabBar engine={engine} />
       </View>
     );
   }
@@ -34,8 +37,8 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: 40 }}>
-        <GhostLink label={cc.name} icon="arrow-left" onPress={() => engine.go('char')} />
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 20, paddingBottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom + 24 }}>
+        <BackLink engine={engine} />
         <Text style={{ fontSize: 11, letterSpacing: 2.2, textTransform: 'uppercase', color: colors.accent, marginTop: 16, fontFamily: font.medium }}>Прокачка профессии</Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8, marginBottom: 4 }}>
@@ -158,6 +161,7 @@ export function ProfessionScreen({ engine }: { engine: GameEngine }) {
           </View>
         ))}
       </ScrollView>
+      <TabBar engine={engine} />
     </View>
   );
 }

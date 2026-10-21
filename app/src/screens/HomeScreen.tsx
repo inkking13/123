@@ -31,21 +31,35 @@ const DUNGEON_ICON: Record<string, IconName> = {
   shareholderfloor: 'chart-line-up', councilantechamber: 'identification-card', boardroom: 'crown-simple',
 };
 
-/** A square camp menu tile: icon, title and a one-line status. */
-function MenuTile({ title, sub, icon, onPress }: { title: string; sub: string; icon: IconName; onPress: () => void }) {
+/** A compact camp menu tile, three to a row: icon, title, one status line and a badge when something waits there. */
+function MenuTile({ title, sub, icon, badge, onPress }: { title: string; sub: string; icon: IconName; badge?: number; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={{ width: '48.5%' }}>
+    <Pressable onPress={onPress} style={{ width: '31.8%' }}>
       {({ pressed }) => (
-        <Frame pressed={pressed} contentStyle={{ padding: 12, minHeight: 86, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
-          <View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: pressed ? GOLD : GOLD_DIM, alignItems: 'center', justifyContent: 'center', backgroundColor: '#15120e' }}>
-            <Icon name={icon} size={19} color="#e3cc93" />
+        <Frame pressed={pressed} contentStyle={{ paddingVertical: 10, paddingHorizontal: 6, minHeight: 92, alignItems: 'center', gap: 5 }}>
+          <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: pressed ? GOLD : GOLD_DIM, alignItems: 'center', justifyContent: 'center', backgroundColor: '#15120e' }}>
+            <Icon name={icon} size={18} color="#e3cc93" />
           </View>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={{ fontSize: 13.5, fontFamily: font.semibold, color: '#efe4c8' }}>{title}</Text>
-            <Text numberOfLines={3} style={{ fontSize: 11, lineHeight: 15, color: colors.textDim, fontFamily: font.regular }}>{sub}</Text>
-          </View>
+          <Text numberOfLines={1} style={{ fontSize: 12, fontFamily: font.semibold, color: '#efe4c8', textAlign: 'center' }}>{title}</Text>
+          <Text numberOfLines={1} style={{ fontSize: 10, color: colors.textDim, fontFamily: font.regular, textAlign: 'center' }}>{sub}</Text>
+          {badge ? (
+            <View style={{ position: 'absolute', top: 6, right: 6, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: '#15120f', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 10, lineHeight: 12, color: '#fff', fontFamily: font.semibold }}>{badge}</Text>
+            </View>
+          ) : null}
         </Frame>
       )}
+    </Pressable>
+  );
+}
+
+/** A one-line camp notice; tap to dismiss. */
+function Notice({ icon, color, text, onClose }: { icon: IconName; color: string; text: string; onClose: () => void }) {
+  return (
+    <Pressable onPress={onClose} style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: color, backgroundColor: 'rgba(14,12,16,0.88)' }}>
+      <Icon name={icon} size={15} color={color} />
+      <Text numberOfLines={2} style={{ flex: 1, fontSize: 12, lineHeight: 16, color, fontFamily: font.regular }}>{text}</Text>
+      <Icon name="x" size={13} color={colors.textDim} />
     </Pressable>
   );
 }
@@ -127,17 +141,19 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
   const show3d = canRender3D() && !failed3d;
   const gearKey = squad.map((m) => m.id + ':' + JSON.stringify(m.equipment)).join('|');
   const campGear = useMemo(() => Object.fromEntries(squad.map((m) => [m.id, gearLookOf(m.equipment)])), [gearKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const tiles: { title: string; sub: string; icon: IconName; onPress: () => void }[] = [];
+  const tiles: { title: string; sub: string; icon: IconName; badge?: number; onPress: () => void }[] = [];
+  const achievements = engine.achievementVM();
+  const achReady = achievements.filter((a) => a.achieved && !a.claimed).length;
   if (engine.isUnlocked('gear')) {
-    tiles.push({ title: 'Снаряжение', icon: 'shield', onPress: () => engine.go('gear'), sub: 'Надеть добычу на героев' });
-    tiles.push({ title: 'Инвентарь', icon: 'scroll', onPress: () => engine.go('inventory'), sub: inventory.length === 0 ? 'Склад пуст' : inventory.length + ' видов · ' + freeItems + ' свободно' });
+    tiles.push({ title: 'Снаряжение', icon: 'shield', onPress: () => engine.go('gear'), sub: 'Одеть отряд' });
+    tiles.push({ title: 'Инвентарь', icon: 'scroll', onPress: () => engine.go('inventory'), sub: inventory.length === 0 ? 'Склад пуст' : freeItems + ' свободно' });
   }
-  if (engine.isUnlocked('shop')) tiles.push({ title: 'Отдел закупок', icon: 'storefront', onPress: () => engine.go('shop'), sub: 'Купить и продать' });
-  if (engine.isUnlocked('hire')) tiles.push({ title: 'Найм героев', icon: 'door-open', onPress: () => engine.go('hire'), sub: hireCount === 0 ? 'Все наняты' : hireCount + ' на рынке труда' });
-  if (engine.isUnlocked('analytics')) tiles.push({ title: 'Аналитика', icon: 'chart-line-up', onPress: () => engine.go('analytics'), sub: 'Win-rate, бюджет, мораль' });
+  if (engine.isUnlocked('shop')) tiles.push({ title: 'Закупки', icon: 'storefront', onPress: () => engine.go('shop'), sub: 'Купить и продать' });
+  if (engine.isUnlocked('hire')) tiles.push({ title: 'Найм', icon: 'door-open', onPress: () => engine.go('hire'), sub: hireCount === 0 ? 'Все наняты' : hireCount + ' на рынке' });
+  if (engine.isUnlocked('analytics')) tiles.push({ title: 'Аналитика', icon: 'chart-line-up', onPress: () => engine.go('analytics'), sub: 'Win-rate, бюджет' });
   if (engine.isUnlocked('personnel')) tiles.push({ title: 'Личные дела', icon: 'identification-card', onPress: () => engine.go('personnel'), sub: 'Досье и архив' });
-  if (engine.isUnlocked('achievements')) tiles.push({ title: 'Достижения', icon: 'trophy', onPress: () => engine.go('achievements'), sub: engine.achievementVM().filter((a) => a.claimed).length + '/' + engine.achievementVM().length + ' получено' });
-  if (engine.isUnlocked('weekly')) tiles.push({ title: 'Испытание недели', icon: 'crown-simple', onPress: () => engine.go('weekly'), sub: weeklyVM.available ? (weeklyVM.claimed ? 'Награда получена' : weeklyVM.modifierName) : 'После первого босса' });
+  if (engine.isUnlocked('achievements')) tiles.push({ title: 'Достижения', icon: 'trophy', onPress: () => engine.go('achievements'), badge: achReady, sub: achievements.filter((a) => a.claimed).length + '/' + achievements.length + ' получено' });
+  if (engine.isUnlocked('weekly')) tiles.push({ title: 'Испытание', icon: 'crown-simple', onPress: () => engine.go('weekly'), badge: weeklyVM.available && !weeklyVM.claimed ? 1 : 0, sub: weeklyVM.available ? (weeklyVM.claimed ? 'Награда получена' : weeklyVM.modifierName) : 'После первого босса' });
 
   const locationGroups = LOCATIONS.map((loc) => ({
     loc,
@@ -194,7 +210,7 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
           </View>
         </View>
         {/* A window onto the art: the guild's heroes on the ridge. */}
-        <View style={{ height: fresh ? 22 : 60 }} />
+        <View style={{ height: fresh ? 14 : 18 }} />
 
         {fresh ? <UnlockBanner engine={engine} f={fresh} /> : null}
 
@@ -214,59 +230,31 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
           </View>
         ) : null}
 
-        {engine.payrollNotice ? (
-          <Pressable
-            onPress={() => engine.dismissPayrollNotice()}
-            style={{
-              borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 18,
-              borderColor: engine.payrollNotice.shortfall ? colors.danger : colors.border,
-              backgroundColor: engine.payrollNotice.shortfall ? 'rgba(209,104,92,0.1)' : colors.surface,
-              flexDirection: 'row', alignItems: 'center', gap: 10,
-            }}
-          >
-            <Icon name="coins" size={16} color={engine.payrollNotice.shortfall ? colors.danger : colors.warn} />
-            <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: engine.payrollNotice.shortfall ? colors.danger : colors.textMuted, fontFamily: font.regular }}>
-              {engine.payrollNotice.shortfall
-                ? `Бюджета не хватило на зарплату — выплачено только ${engine.payrollNotice.paid} из положенного. Гильдия недовольна.`
-                : `Зарплата выплачена: -${engine.payrollNotice.paid} золота.`}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {engine.employeeOfMonthNotice ? (
-          <Pressable
-            onPress={() => engine.dismissEmployeeOfMonthNotice()}
-            style={{
-              borderWidth: 1, borderColor: colors.warn, borderRadius: 8, padding: 12, marginBottom: 18,
-              backgroundColor: 'rgba(201,176,109,0.12)', flexDirection: 'row', alignItems: 'center', gap: 10,
-            }}
-          >
-            <Icon name="trophy" size={16} color={colors.warn} />
-            <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: colors.warn, fontFamily: font.regular }}>
-              Сотрудник месяца: {engine.employeeOfMonthNotice.name}. Премия по морали выплачена всей гильдии.
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {engine.resignationNotice ? (
-          <Pressable
-            onPress={() => engine.dismissResignationNotice()}
-            style={{
-              borderWidth: 1, borderColor: colors.danger, borderRadius: 8, padding: 12, marginBottom: 18,
-              backgroundColor: 'rgba(209,104,92,0.1)', flexDirection: 'row', alignItems: 'center', gap: 10,
-            }}
-          >
-            <Icon name="warning" size={16} color={colors.danger} />
-            <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: colors.danger, fontFamily: font.regular }}>
-              {engine.resignationNotice.name} написал(а) заявление по собственному желанию — мораль была слишком низкой.
-            </Text>
-          </Pressable>
+        {engine.payrollNotice || engine.employeeOfMonthNotice || engine.resignationNotice ? (
+          <View style={{ gap: 6, marginBottom: 14 }}>
+            {engine.payrollNotice ? (
+              <Notice
+                icon="coins"
+                color={engine.payrollNotice.shortfall ? colors.danger : colors.warn}
+                onClose={() => engine.dismissPayrollNotice()}
+                text={engine.payrollNotice.shortfall
+                  ? `Бюджета не хватило на зарплату — выплачено только ${engine.payrollNotice.paid}. Гильдия недовольна.`
+                  : `Зарплата выплачена: -${engine.payrollNotice.paid} золота.`}
+              />
+            ) : null}
+            {engine.employeeOfMonthNotice ? (
+              <Notice icon="trophy" color={colors.warn} onClose={() => engine.dismissEmployeeOfMonthNotice()} text={`Сотрудник месяца: ${engine.employeeOfMonthNotice.name}. Премия по морали выплачена всей гильдии.`} />
+            ) : null}
+            {engine.resignationNotice ? (
+              <Notice icon="warning" color={colors.danger} onClose={() => engine.dismissResignationNotice()} text={`${engine.resignationNotice.name} написал(а) заявление по собственному желанию — мораль была слишком низкой.`} />
+            ) : null}
+          </View>
         ) : null}
 
         {/* The squad round the fire; tap to change it. */}
         <Pressable onPress={() => engine.go('roster')} style={{ borderWidth: 1, borderColor: GOLD_DIM, borderRadius: 6, overflow: 'hidden', marginBottom: 14, backgroundColor: '#0d0b10' }}>
           {show3d ? (
-            <CampScene3D ids={squad.map((m) => m.id)} gear={campGear} height={230} quality={engine.settings.quality} onFail={() => setFailed3d(true)} />
+            <CampScene3D ids={squad.map((m) => m.id)} gear={campGear} height={180} quality={engine.settings.quality} onFail={() => setFailed3d(true)} />
           ) : (
             <View style={{ flexDirection: 'row', gap: 8, padding: 14, paddingBottom: 44 }}>
               {squad.map((m) => (
@@ -319,7 +307,7 @@ export function HomeScreen({ engine }: { engine: GameEngine }) {
         </Pressable>
 
         {tiles.length ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, marginBottom: 22 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: '2.3%', rowGap: 8, marginBottom: 22 }}>
             {tiles.map((t) => <MenuTile key={t.title} {...t} />)}
           </View>
         ) : null}

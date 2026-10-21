@@ -6,7 +6,9 @@ import { GameEngine } from '../engine/GameEngine';
 import { colors, font, roleColor, roleName } from '../theme/theme';
 import { Avatar } from '../components/Avatar';
 import { EquipmentPanel } from '../components/EquipmentPanel';
-import { GhostLink, PrimaryButton } from '../components/Buttons';
+import { BackLink, GhostLink, PrimaryButton } from '../components/Buttons';
+import { TabBar, TAB_BAR_CONTENT_HEIGHT } from '../components/TabBar';
+
 import { useEngineVersion } from '../engine/useEngine';
 import { ScreenTitle } from '../components/Frame';
 
@@ -19,9 +21,9 @@ export function GearScreen({ engine }: { engine: GameEngine }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 16, paddingBottom: 110 }}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 16, paddingBottom: 110 + TAB_BAR_CONTENT_HEIGHT + insets.bottom }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <GhostLink label="Отряд" icon="arrow-left" onPress={() => engine.go('roster')} />
+          <BackLink engine={engine} />
           <GhostLink label="Инвентарь" icon="scroll" onPress={() => engine.go('inventory')} />
         </View>
         <ScreenTitle style={{ marginTop: 10, marginBottom: 4 }}>Снаряжение</ScreenTitle>
@@ -46,12 +48,13 @@ export function GearScreen({ engine }: { engine: GameEngine }) {
         {cur ? <EquipmentPanel key={cur.id} engine={engine} c={cur} /> : null}
       </ScrollView>
 
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: TAB_BAR_CONTENT_HEIGHT + insets.bottom }}>
         <LinearGradient colors={['rgba(14,15,24,0)', 'rgba(14,15,24,0.97)']} style={{ height: 30 }} />
-        <View style={{ backgroundColor: 'rgba(14,15,24,0.97)', paddingHorizontal: 16, paddingTop: 4, paddingBottom: Math.max(20, insets.bottom + 12) }}>
+        <View style={{ backgroundColor: 'rgba(14,15,24,0.97)', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14 }}>
           <PrimaryButton label="В подземелье" icon="door-open" onPress={() => engine.goDungeon()} />
         </View>
       </View>
+      <TabBar engine={engine} />
     </View>
   );
 }

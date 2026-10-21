@@ -1,0 +1,6 @@
+# Copied from ../app/assets by tools/sync_assets.sh
+/assets/
+# Godot's import cache and build output
+.godot/
+/build/
+*.import

@@ -38,6 +38,12 @@ import {
 } from '../combat/types';
 
 export type Screen = 'title' | 'draft' | 'home' | 'roster' | 'char' | 'gear' | 'dungeon' | 'combat' | 'results' | 'quests' | 'inventory' | 'settings' | 'shop' | 'event' | 'analytics' | 'personnel' | 'levelmap' | 'hire' | 'arena' | 'profession' | 'achievements' | 'weekly';
+const TRANSIENT_SCREENS = new Set<Screen>(['draft', 'dungeon', 'combat', 'results', 'event']);
+const SCREEN_TITLE: Partial<Record<Screen, string>> = {
+  title: 'Меню', home: 'Лагерь', roster: 'Отряд', gear: 'Снаряжение', inventory: 'Инвентарь', shop: 'Закупки',
+  analytics: 'Аналитика', personnel: 'Личные дела', levelmap: 'Карта', hire: 'Найм', arena: 'Арена',
+  profession: 'Профессия', achievements: 'Достижения', weekly: 'Испытание', quests: 'KPI', settings: 'Настройки',
+};
 
 const SAVE_KEY = 'raid-commander.save.v1';
 const STARTING_GOLD = 60;
@@ -706,7 +712,54 @@ export class GameEngine {
   }
 
   // ── navigation ───────────────────────────────────────────
+  // The screens walked through since camp, so "back" (on screen or the
+  // phone's own button) returns where the player came from. Fight screens
+  // never go on it: backing out must not land in a finished battle.
+  private trail: Screen[] = [];
   go(screen: Screen) {
+    this.track(screen);
+    this.show(screen);
+  }
+  /** A bottom-bar tab: camp is the root, every other tab sits one step above it. */
+  goTab(screen: Screen) {
+    this.trail = screen === 'home' ? [] : ['home'];
+    this.show(screen);
+  }
+  back() {
+    this.show(this.trail.pop() ?? 'home');
+  }
+  /** What the back link is called: the screen it returns to. */
+  backLabel(): string {
+    const prev = this.trail[this.trail.length - 1] ?? 'home';
+    if (prev === 'char') return this.pool.find((c) => c.id === this.charId)?.name ?? 'Герой';
+    return SCREEN_TITLE[prev] ?? 'Лагерь';
+  }
+  /** The phone's back button. False lets the system close the app (from camp or the title). */
+  hardwareBack(): boolean {
+    switch (this.screen) {
+      case 'home': case 'title': return false;
+      case 'combat': case 'results': case 'event': case 'draft': return true;
+      case 'dungeon': if (this.encIdx === 0) this.back(); return true;
+      default: this.back(); return true;
+    }
+  }
+  /** One tap to the furthest open dungeon, or to the squad if it isn't ready. */
+  quickRaid() {
+    const open = LOCATIONS.flatMap((l) => DUNGEONS.filter((d) => d.locationId === l.id)).filter((d) => this.isDungeonUnlocked(d.id));
+    const last = open[open.length - 1];
+    if (!last) { this.goTab('levelmap'); return; }
+    this.selectDungeon(last.id);
+    if (this.squadReady()) { this.trail = ['home']; this.goDungeon(); } else this.goTab('roster');
+  }
+  private track(next: Screen) {
+    const cur = this.screen;
+    if (next === cur) return;
+    if (next === 'home' || next === 'title') { this.trail = []; return; }
+    const at = this.trail.lastIndexOf(next);
+    if (at >= 0) { this.trail.length = at; return; }
+    if (!TRANSIENT_SCREENS.has(cur)) this.trail.push(cur);
+  }
+  private show(screen: Screen) {
     if (screen !== 'combat') {
       this.clearTurnTimer();
       this.bossIntro = null;
@@ -717,8 +770,7 @@ export class GameEngine {
   }
   openChar(id: number) {
     this.charId = id;
-    this.screen = 'char';
-    this.notify();
+    this.go('char');
   }
 
   // ── roster / squad ───────────────────────────────────────

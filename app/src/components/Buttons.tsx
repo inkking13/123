@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors, font } from '../theme/theme';
 import { Corners } from './Frame';
 import { Icon, IconName } from './Icon';
+import type { GameEngine } from '../engine/GameEngine';
 
 interface PrimaryButtonProps {
   label: string;
@@ -90,4 +91,9 @@ export function GhostLink({ label, onPress, icon }: { label: string; onPress: ()
       <Text style={{ color: '#d9c595', fontFamily: font.medium, fontSize: 12 }}>{label}</Text>
     </Pressable>
   );
+}
+
+/** The "back" pill: returns to the screen the player came from and names it. */
+export function BackLink({ engine }: { engine: GameEngine }) {
+  return <GhostLink label={engine.backLabel()} icon="arrow-left" onPress={() => engine.back()} />;
 }

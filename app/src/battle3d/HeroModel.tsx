@@ -23,6 +23,12 @@ export interface HeroAnim {
   defending: boolean;
   speed: number;       // world units / second the figure is currently moving
   frozen: boolean;
+  /** The last action was a critical blow: the heavy swing plays. */
+  crit?: boolean;
+  /** The last hit was a hard one (a crit, or a big bite of health): a longer flinch. */
+  heavy?: boolean;
+  /** In a fight: wait in a fighting stance instead of standing at ease. */
+  stance?: boolean;
 }
 
 const G = {
