@@ -15,7 +15,7 @@ func build() -> void:
 	if arena: text = "Соперник повержен. Гильдия забирает свою долю и расходится." if res.win else "Не в этот раз — отряд отступает зализывать раны. Рейтинг слегка просел."
 	elif res.win: text = "Босс повержен. Раздели добычу, пока гильдия не разошлась." if res.isBoss else "Отряд идёт дальше. Раны остаются с вами до конца похода."
 	else: text = "Рейд не пережил этот пул. Чиним броню и пробуем снова." if res.isBoss else "Отряд полёг ещё до трона. Придётся начать путь заново."
-	var p = make_page(0, 32, 20, false)
+	var p = make_page(0, 32, 20, false, NARROW_W)
 	var mark = ColorRect.new(); mark.color = accent; mark.custom_minimum_size = Vector2(UI.px(34), UI.px(3))
 	mark.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	p.add_child(mark)

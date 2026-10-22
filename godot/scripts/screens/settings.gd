@@ -7,7 +7,7 @@ var confirm_reset = false
 
 
 func build() -> void:
-	var p = make_page(0, 24, 20, false)
+	var p = make_page(0, 24, 20, false, NARROW_W)
 	p.add_child(UI.back_link())
 	p.add_child(UI.space(10))
 	p.add_child(UI.screen_title("Настройки"))

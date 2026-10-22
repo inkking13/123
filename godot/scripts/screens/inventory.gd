@@ -55,6 +55,8 @@ func _gear(p: VBoxContainer) -> void:
 	rows.sort_custom(func(a, b): return RANK.find(DB.rarity_of(a.item)) < RANK.find(DB.rarity_of(b.item)))
 	if rows.is_empty():
 		p.add_child(empty_note("Склад пуст. Победите босса — добыча появится здесь."))
+	var list = UI.cards(10)
+	p.add_child(list)
 	for r in rows:
 		var rar = DB.rarity_of(r.item)
 		var right = UI.vbox(0)
@@ -66,20 +68,20 @@ func _gear(p: VBoxContainer) -> void:
 		if not r.wornBy.is_empty():
 			var v: VBoxContainer = card.get_child(0).get_child(1)
 			v.add_child(UI.label("Носят: " + ", ".join(r.wornBy), 12.5, UI.ACCENT_SOFT, "regular", true))
-		p.add_child(card)
-		p.add_child(UI.space(10))
+		list.add_child(card)
 
 
 func _reagents(p: VBoxContainer) -> void:
 	p.add_child(UI.label("Материалы для крафта — падают с врагов в подземельях, каждая земля даёт свой вид сырья.", 14, UI.TEXT_DIM, "regular", true))
 	p.add_child(UI.space(18))
 	var any = false
+	var list1 = UI.cards(10)
+	p.add_child(list1)
 	for r in DB.reagents.REAGENTS:
 		var n = Game.reagent_owned(r.id)
 		if n <= 0: continue
 		any = true
-		p.add_child(item_card(DB.item_icon_path(r.icon), "", r.name, r.desc, UI.TEXT, UI.label(str(n), 18, UI.ACCENT_SOFT, "medium")))
-		p.add_child(UI.space(10))
+		list1.add_child(item_card(DB.item_icon_path(r.icon), "", r.name, r.desc, UI.TEXT, UI.label(str(n), 18, UI.ACCENT_SOFT, "medium")))
 	if not any: p.add_child(empty_note("Материалов пока нет — они падают с побеждённых врагов в походах."))
 
 
@@ -87,7 +89,7 @@ func _curios(p: VBoxContainer) -> void:
 	p.add_child(UI.label("Трофеи и диковины без боевой пользы — просто то, что стоит найти. Падают с любого боя.", 14, UI.TEXT_DIM, "regular", true))
 	p.add_child(UI.space(18))
 	var grid = GridContainer.new()
-	grid.columns = 4
+	grid.columns = 8 if App.wide else 4
 	grid.add_theme_constant_override("h_separation", UI.px(8))
 	grid.add_theme_constant_override("v_separation", UI.px(14))
 	for c in DB.curios:

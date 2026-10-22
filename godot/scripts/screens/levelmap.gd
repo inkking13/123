@@ -16,7 +16,7 @@ const ICON := {
 
 
 func build() -> void:
-	var p = make_page(0)
+	var p = make_page(0, 24.0, 20.0, true, NARROW_W)
 	p.add_child(UI.kicker("Отдел кадров"))
 	p.add_child(UI.screen_title("Карта походов"))
 	p.add_child(UI.space(4))

@@ -13,17 +13,19 @@ func build() -> void:
 	p.add_child(UI.space(18))
 	p.add_child(UI.kicker("Ежедневные задачи · %d/%d" % [dailies.filter(func(q): return q.claimed).size(), dailies.size()], UI.ACCENT, 12))
 	p.add_child(UI.space(10))
+	var list = UI.cards(12)
+	p.add_child(list)
 	for d in dailies:
 		var t: Dictionary = d.t
-		p.add_child(_contract(t.name, t.desc, "Награда получена" if d.claimed else "%d/%d · +%d золота" % [d.progress, t.target, t.rewardGold], "coins", d.claimed, d.achieved, func(): Game.claim_daily(t.id)))
-		p.add_child(UI.space(12))
+		list.add_child(_contract(t.name, t.desc, "Награда получена" if d.claimed else "%d/%d · +%d золота" % [d.progress, t.target, t.rewardGold], "coins", d.claimed, d.achieved, func(): Game.claim_daily(t.id)))
 	p.add_child(UI.space(8))
 	p.add_child(UI.kicker("Постоянные KPI", UI.ACCENT, 12))
 	p.add_child(UI.space(10))
+	var list1 = UI.cards(12)
+	p.add_child(list1)
 	for r in quests:
 		var q: Dictionary = r.q
-		p.add_child(_contract(q.name, q.desc, "Награда получена" if r.claimed else q.rewardDesc, "scroll", r.claimed, r.achieved, func(): Game.claim_quest(q.id)))
-		p.add_child(UI.space(12))
+		list1.add_child(_contract(q.name, q.desc, "Награда получена" if r.claimed else q.rewardDesc, "scroll", r.claimed, r.achieved, func(): Game.claim_quest(q.id)))
 
 
 ## One task as a contract pinned to the board: a parchment note in ink, sealed in wax once it's met.

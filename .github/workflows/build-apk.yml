@@ -1,7 +1,7 @@
-name: Build Android APK
+name: Build Android and Windows
 
-# The game (godot/), exported for Android. Runs on any branch that touches it;
-# builds from main are published as the latest release.
+# The game (godot/), exported for Android and Windows. Runs on any branch that
+# touches it; builds from main are published as the latest release.
 on:
   workflow_dispatch: {}
   push:
@@ -46,11 +46,20 @@ jobs:
           godot --headless --path godot --export-release "Android" build/raid-commander.apk
           ls -la godot/build
 
-      - name: Upload APK
+      - name: Export for Windows
+        run: |
+          mkdir -p godot/build/windows
+          godot --headless --path godot --export-release "Windows" build/windows/RaidCommander.exe
+          cd godot/build/windows && zip -q ../raid-commander-windows.zip RaidCommander.exe
+          ls -la ..
+
+      - name: Upload builds
         uses: actions/upload-artifact@v4
         with:
-          name: raid-commander-apk
-          path: godot/build/raid-commander.apk
+          name: raid-commander
+          path: |
+            godot/build/raid-commander.apk
+            godot/build/raid-commander-windows.zip
 
       - name: Publish a release
         uses: softprops/action-gh-release@v2
@@ -60,4 +69,6 @@ jobs:
           target_commitish: ${{ github.sha }}
           prerelease: ${{ github.ref != 'refs/heads/main' }}
           make_latest: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
-          files: godot/build/raid-commander.apk
+          files: |
+            godot/build/raid-commander.apk
+            godot/build/raid-commander-windows.zip

@@ -2,6 +2,7 @@ extends Screen
 ## The fight: the 3D field behind, the state of the fight across the top, the
 ## hero's moves along the bottom. Taps on the field between them reach it.
 
+const SIDE_W := 440.0
 const ACTION_ICON := {"attack": "sword", "heal": "first-aid-kit", "ability": "flame", "interrupt": "hand-palm", "breakChain": "shield-chevron",
 	"breakIce": "snowflake", "brace": "shield", "rally": "megaphone", "defend": "shield", "breakShell": "snowflake", "valor": "crown-simple"}
 const DANGER_TITLE := {"meteor": "Огненный дождь по колоннам %s", "cleave": "Сокрушающий взмах по клеткам вокруг врага",
@@ -55,6 +56,10 @@ func _measure() -> void:
 	if not is_instance_valid(view) or not is_instance_valid(_top): return
 	var h = _bottom.get_combined_minimum_size().y
 	if _bottom.size.y > h + 0.5: _bottom.offset_top = _bottom.offset_bottom - h
+	if App.wide:
+		# The panels sit in corners: the board takes the middle of the window.
+		view.band_top = 0.0; view.band_bottom = 0.0
+		return
 	view.band_top = _top.get_global_rect().end.y
 	view.band_bottom = get_viewport_rect().size.y - _bottom.get_global_rect().position.y
 
@@ -73,9 +78,15 @@ func _panel_style(alpha := 0.86) -> StyleBoxFlat:
 # ── the top: the foe, the turn order, the meters, what's coming ─────────────
 func _top_panel(s: Dictionary) -> Control:
 	var wrap = UI.vbox(8)
-	wrap.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	wrap.offset_left = UI.px(10); wrap.offset_right = -UI.px(10)
-	wrap.offset_top = App.inset_top() + UI.px(8)
+	if App.wide:
+		# A card in the top-left corner; the field takes the rest of the window.
+		wrap.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		wrap.offset_left = UI.px(14); wrap.offset_right = UI.px(14 + SIDE_W)
+		wrap.offset_top = UI.px(14)
+	else:
+		wrap.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		wrap.offset_left = UI.px(10); wrap.offset_right = -UI.px(10)
+		wrap.offset_top = App.inset_top() + UI.px(8)
 	var pn = PanelContainer.new()
 	pn.add_theme_stylebox_override("panel", _panel_style())
 	pn.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -187,7 +198,15 @@ func _bottom_panel(s: Dictionary, cur) -> Control:
 	sb.content_margin_left = UI.px(14); sb.content_margin_right = UI.px(14)
 	sb.content_margin_top = UI.px(10); sb.content_margin_bottom = UI.px(14) + App.inset_bottom()
 	pn.add_theme_stylebox_override("panel", sb)
-	pn.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	if App.wide:
+		# The log and the actions stand in the bottom-right corner.
+		sb.set_border_width_all(2); sb.border_color = GOLD_LINE; sb.set_corner_radius_all(UI.px(12))
+		sb.content_margin_bottom = UI.px(14)
+		pn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		pn.offset_left = -UI.px(14 + SIDE_W); pn.offset_right = -UI.px(14); pn.offset_bottom = -UI.px(14)
+		pn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	else:
+		pn.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	pn.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	pn.mouse_filter = Control.MOUSE_FILTER_STOP
 	var v = UI.vbox(8)

@@ -1,8 +1,9 @@
 class_name App
 extends Control
 ## The whole game's window: the leather background, the current screen, and
-## the phone's back button. Rebuilds the screen (at most once a frame) when
-## the Game changes.
+## the phone's back button (Esc on a computer). Rebuilds the screen (at most
+## once a frame) when the Game changes, and when the window turns between
+## tall (phone layout) and wide (computer layout).
 
 const SCREENS := {
 	"title": "res://scripts/screens/title.gd", "draft": "res://scripts/screens/draft.gd", "home": "res://scripts/screens/home.gd",
@@ -16,6 +17,9 @@ const SCREENS := {
 }
 
 static var _insets = Vector2.ZERO
+## A window wider than tall gets the computer layout: a side rail instead of
+## the bottom bar, and screens laid out across.
+static var wide = false
 
 var current: Screen
 var current_name = ""
@@ -36,6 +40,8 @@ func _ready() -> void:
 	get_tree().set_auto_accept_quit(false)
 	get_tree().set_quit_on_go_back(false)
 	_measure_insets()
+	wide = _is_wide()
+	get_viewport().size_changed.connect(_on_resize)
 	var bg = TextureRect.new()
 	bg.texture = load("res://assets/ui/leather-bg.jpg")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -84,6 +90,19 @@ func _measure_insets() -> void:
 	_insets = Vector2(maxf(0, safe.position.y * k), maxf(0, (screen.y - safe.end.y) * k))
 
 
+func _is_wide() -> bool:
+	var v = get_viewport_rect().size
+	return v.x > v.y * 1.1
+
+
+func _on_resize() -> void:
+	var w = _is_wide()
+	if w == wide: return
+	wide = w
+	_measure_insets()
+	if current: current.refresh()
+
+
 func _update() -> void:
 	_dirty = false
 	if Game.screen != current_name:
@@ -95,6 +114,17 @@ func _update() -> void:
 		current = load(SCREENS[current_name]).new()
 		add_child(current)
 	current.refresh()
+
+
+func _unhandled_input(ev: InputEvent) -> void:
+	if not (ev is InputEventKey and ev.pressed and not ev.echo): return
+	if ev.keycode == KEY_ESCAPE:
+		Game.hardware_back()
+		get_viewport().set_input_as_handled()
+	elif ev.keycode == KEY_F11 or (ev.keycode == KEY_ENTER and ev.alt_pressed):
+		var full = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if full else DisplayServer.WINDOW_MODE_FULLSCREEN)
+		get_viewport().set_input_as_handled()
 
 
 func _notification(what: int) -> void:

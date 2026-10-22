@@ -41,10 +41,14 @@ func build() -> void:
 	p.add_child(head)
 	p.add_child(UI.space(16))
 
+	# On a wide window: news, squad and the way on at left; the camp's systems at right.
+	var cols = UI.split(p, 1.0, 24)
+	var L: VBoxContainer = cols[0]
+	var R: VBoxContainer = cols[1]
 	var fresh: Array = Game.new_unlocks()
 	if not fresh.is_empty():
-		p.add_child(_unlock_letter(fresh[0]))
-		p.add_child(UI.space(18))
+		L.add_child(_unlock_letter(fresh[0]))
+		L.add_child(UI.space(18))
 
 	var notices = UI.vbox(6)
 	if Game.payroll_notice:
@@ -55,33 +59,34 @@ func build() -> void:
 	if Game.resignation_notice:
 		notices.add_child(_notice("warning", UI.DANGER, "%s написал(а) заявление по собственному желанию — мораль была слишком низкой." % Game.resignation_notice.name, "resignation_notice"))
 	if notices.get_child_count() > 0:
-		p.add_child(notices)
-		p.add_child(UI.space(14))
+		L.add_child(notices)
+		L.add_child(UI.space(14))
 
-	p.add_child(_squad_strip())
-	p.add_child(UI.space(14))
+	L.add_child(_squad_strip())
+	L.add_child(UI.space(14))
 	var next = _next_card()
 	if next:
-		p.add_child(next)
-		p.add_child(UI.space(8))
+		L.add_child(next)
+		L.add_child(UI.space(8))
 	var map = UI.hbox(4, BoxContainer.ALIGNMENT_END)
 	map.add_child(UI.icon("path", 13, Color("#d9c595")))
 	map.add_child(UI.label("Карта походов", 13, Color("#d9c595"), "medium"))
 	map.add_child(UI.icon("caret-right", 12, Color("#d9c595")))
 	UI.tap(map, func(): Game.go("levelmap"))
-	p.add_child(map)
-	p.add_child(UI.space(18))
+	L.add_child(map)
+	L.add_child(UI.space(18))
 
 	var tiles = _tiles()
 	if not tiles.is_empty():
 		var grid = GridContainer.new()
 		grid.columns = 3
+		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		grid.add_theme_constant_override("h_separation", UI.px(8))
 		grid.add_theme_constant_override("v_separation", UI.px(8))
 		grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		for t in tiles: grid.add_child(_tile(t))
-		p.add_child(grid)
-		p.add_child(UI.space(22))
+		R.add_child(grid)
+		R.add_child(UI.space(22))
 
 	var upcoming: Array = DB.features.FEATURE_ORDER.filter(func(f): return not Game.is_unlocked(f))
 	if not upcoming.is_empty():
@@ -97,7 +102,7 @@ func build() -> void:
 		v.add_child(hr)
 		v.add_child(UI.label(", ".join(next_up.map(func(f): return DB.features.FEATURES[f].title)), 14, UI.TEXT_MUTED, "regular", true))
 		fr.add_child(v)
-		p.add_child(fr)
+		R.add_child(fr)
 
 
 func _notice(icon: String, color: Color, text: String, key: String) -> Control:

@@ -12,6 +12,8 @@ func build() -> void:
 	p.add_child(UI.space(4))
 	p.add_child(UI.label("Получено %d/%d" % [rows.filter(func(r): return r.claimed).size(), rows.size()], 14, UI.TEXT_DIM))
 	p.add_child(UI.space(18))
+	var list = UI.cards(10)
+	p.add_child(list)
 	for r in rows:
 		var a: Dictionary = r.a
 		var fr = UI.frame("gold" if r.achieved and not r.claimed else "plain", Vector4(14, 14, 14, 14))
@@ -28,5 +30,4 @@ func build() -> void:
 			var id: String = a.id
 			v.add_child(UI.secondary_button("Забрать награду", func(): Game.claim_achievement(id), 40))
 		fr.add_child(v)
-		p.add_child(fr)
-		p.add_child(UI.space(10))
+		list.add_child(fr)

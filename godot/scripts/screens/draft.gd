@@ -33,12 +33,13 @@ func build() -> void:
 		p.add_child(head)
 		p.add_child(UI.label(role[2], 12.5, UI.TEXT_DIM, "regular", true))
 		p.add_child(UI.space(8))
+		var list = UI.cards(10)
+		p.add_child(list)
 		for h in DB.characters.POOL:
 			if h.role != role[0]: continue
 			var on: bool = h.id in picks
 			var blocked: bool = not on and (h.hireCost > left or picks.size() >= size)
-			p.add_child(_card(h, on, blocked))
-			p.add_child(UI.space(10))
+			list.add_child(_card(h, on, blocked))
 		p.add_child(UI.space(6))
 	p.add_child(UI.space(190))
 	# The five slots, what's left of the budget, and the contract to sign.
@@ -46,6 +47,7 @@ func build() -> void:
 	dock.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	dock.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	dock.offset_left = UI.px(12); dock.offset_right = -UI.px(12); dock.offset_bottom = -UI.px(10) - App.inset_bottom()
+	span_column(dock)
 	add_child(dock)
 	var v = UI.vbox(10)
 	dock.add_child(v)

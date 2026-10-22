@@ -182,6 +182,36 @@ static func flex() -> Control:
 	return c
 
 
+static func flex_v() -> Control:
+	var c = Control.new()
+	c.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return c
+
+
+## A list of cards: one column on a phone, `wide_cols` side by side on a wide window.
+static func cards(sep: float = 10, wide_cols := 2) -> GridContainer:
+	var g = GridContainer.new()
+	g.columns = wide_cols if App.wide else 1
+	g.add_theme_constant_override("h_separation", px(sep))
+	g.add_theme_constant_override("v_separation", px(sep))
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	g.child_entered_tree.connect(func(c):
+		if c is Control: c.size_flags_horizontal = Control.SIZE_EXPAND_FILL)
+	return g
+
+
+## Two columns on a wide window, side by side; on a phone both are the page itself.
+static func split(page: VBoxContainer, left_weight := 1.0, sep := 20.0) -> Array:
+	if not App.wide: return [page, page]
+	var row = hbox(sep)
+	var l = vbox(0); l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; l.size_flags_stretch_ratio = left_weight
+	var r = vbox(0); r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(l); row.add_child(r)
+	page.add_child(row)
+	return [l, r]
+
+
 static func center(c: Control) -> CenterContainer:
 	var cc = CenterContainer.new()
 	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE

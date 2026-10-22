@@ -13,6 +13,8 @@ func build() -> void:
 	p.add_child(UI.space(18))
 	var opts: Array = Game.hire_options()
 	if opts.is_empty(): p.add_child(empty_note("Все соискатели уже в штате."))
+	var list = UI.cards(10)
+	p.add_child(list)
 	for c in opts:
 		var cost: int = c.get("hireCost", 0) if c.get("hireCost") != null else 0
 		var fr = UI.frame("plain", Vector4(12, 12, 12, 12))
@@ -38,5 +40,4 @@ func build() -> void:
 		if Game.gold < cost: b.modulate.a = 0.4
 		v.add_child(b)
 		fr.add_child(v)
-		p.add_child(fr)
-		p.add_child(UI.space(10))
+		list.add_child(fr)
