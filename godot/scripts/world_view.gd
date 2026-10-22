@@ -10,6 +10,17 @@ extends Node3D
 const FONT := preload("res://fonts/AlegreyaSC_700Bold.ttf")
 const BODY_FONT := preload("res://fonts/Alegreya_500Medium.ttf")
 const FILE_GAP := 1.5
+const SCATTER_CHUNK := 40.0
+const SCATTER_FAR := {"low": 95.0, "medium": 130.0, "high": 170.0}
+## Each land's models for its woods and rocks (assets/models/terrain): height
+## in metres before the random scale, and how often each turns up. A land
+## without them, or a missing file, keeps the drawn-in trees and stones.
+const TERRAIN_MODELS := {
+	"outskirts": {
+		"trees": [{"file": "pine-tall", "height": 4.6, "weight": 5.0}, {"file": "pine-young", "height": 2.8, "weight": 3.0}, {"file": "pine-dead", "height": 4.0, "weight": 1.0}],
+		"rocks": [{"file": "rock-mossy", "height": 1.0, "weight": 3.0, "sink": 0.05}, {"file": "rock-flat", "height": 0.6, "weight": 2.0, "sink": 0.03}, {"file": "stump", "height": 0.8, "weight": 1.0}],
+	},
+}
 
 signal place_tapped(id: String)
 
@@ -24,6 +35,8 @@ var band_labels = {}
 var place_nodes = {}    # place id -> Node3D (chests and herbs change look)
 var marker: MeshInstance3D
 var _blades: Array[Node3D] = []
+var _scatter_nodes: Array[GeometryInstance3D] = []
+var _terrain_cache = {}   # model path -> {mesh, base}
 var _folk = []           # townsfolk: {unit, to, wait}
 var band_top = 0.0
 var band_bottom = 0.0
@@ -69,6 +82,7 @@ func _ready() -> void:
 func apply_quality(q: String) -> void:
 	sun.shadow_enabled = q != "low"
 	env.glow_enabled = q == "high"
+	for n in _scatter_nodes: n.visibility_range_end = SCATTER_FAR.get(q, 130.0)
 
 
 # ── the land ───────────────────────────────────────────────────────────────
@@ -200,8 +214,9 @@ func _build_woods(th: Dictionary) -> void:
 		spots.append(p)
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	var rocks = spots.slice(int(spots.size() * 0.8))
-	_scatter(_tree_mesh(th), trees, rng, 0.8, 1.5)
-	_scatter(_rock_mesh(th), rocks, rng, 0.6, 1.6)
+	var models: Dictionary = TERRAIN_MODELS.get(Game.w.region, {})
+	_scatter_kinds(models.get("trees", []), _tree_mesh(th), trees, rng, 0.8, 1.5)
+	_scatter_kinds(models.get("rocks", []), _rock_mesh(th), rocks, rng, 0.6, 1.6)
 	var tufts = []
 	for _i in 1600:
 		var p = Vector2(rng.randf_range(-Game.w.size(), Game.w.size()), rng.randf_range(-Game.w.size(), Game.w.size()))
@@ -215,21 +230,84 @@ func _clear_of(kind: String) -> float:
 	return {"farm": 19.0, "lake": 24.0, "town": 11.0, "graveyard": 11.0, "ruins": 10.0, "tower": 9.0}.get(kind, 7.0)
 
 
-func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: float) -> void:
-	var mm = MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
-	mm.instance_count = at.size()
-	for i in at.size():
-		var p: Vector2 = at[i]
-		var edge = maxf(absf(p.x), absf(p.y)) - Game.w.size()
-		var y = maxf(0.0, edge) * 0.35
-		var t = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(lo, hi)), Vector3(p.x, y, p.y))
-		mm.set_instance_transform(i, t)
-	var mmi = MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	mmi.material_override = _vc_material(0.9)
-	add_child(mmi)
+## Spots shared out between a land's models, by weight; with no model files,
+## the drawn-in mesh takes them all.
+func _scatter_kinds(models: Array, fallback: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: float) -> void:
+	var kinds = []
+	for m in models:
+		var got = _terrain_mesh(m)
+		if not got.is_empty(): kinds.append(got)
+	if kinds.is_empty():
+		_scatter(fallback, at, rng, lo, hi)
+		return
+	var total = kinds.reduce(func(s, k): return s + k.weight, 0.0)
+	var groups = kinds.map(func(_k): return [])
+	for p in at:
+		var r = rng.randf() * total
+		var i = 0
+		while i < kinds.size() - 1 and r > kinds[i].weight:
+			r -= kinds[i].weight
+			i += 1
+		groups[i].append(p)
+	for i in kinds.size():
+		_scatter(kinds[i].mesh, groups[i], rng, lo, hi, kinds[i].base)
+
+
+## A model from assets/models/terrain as one mesh, and the transform that
+## stands it on the ground at its height in metres. Empty when the file is missing.
+func _terrain_mesh(def: Dictionary) -> Dictionary:
+	var path = "res://assets/models/terrain/%s.glb" % def.file
+	if not ResourceLoader.exists(path): return {}
+	if not _terrain_cache.has(path):
+		var scene: Node = (load(path) as PackedScene).instantiate()
+		var found = scene.find_children("*", "MeshInstance3D", true, false)
+		var out = {}
+		if not found.is_empty():
+			var mi: MeshInstance3D = found[0]
+			# Its place under the scene's root, so a turned import still stands up.
+			var xf = Transform3D.IDENTITY
+			var n: Node = mi
+			while n != scene:
+				xf = (n as Node3D).transform * xf
+				n = n.get_parent()
+			var box: AABB = xf * mi.mesh.get_aabb()
+			var s = def.height / maxf(box.size.y, 0.001)
+			var mid = box.get_center()
+			var fit = Transform3D(Basis().scaled(Vector3.ONE * s), Vector3(-mid.x * s, -box.position.y * s - def.get("sink", 0.0), -mid.z * s))
+			out = {"mesh": mi.mesh, "base": fit * xf}
+		scene.free()
+		_terrain_cache[path] = out
+	var got: Dictionary = _terrain_cache[path]
+	if got.is_empty(): return {}
+	return {"mesh": got.mesh, "base": got.base, "weight": def.get("weight", 1.0)}
+
+
+## Instances in square chunks, so the camera skips the woods it can't see and
+## the far ones fade into the fog unrendered.
+func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: float, base := Transform3D.IDENTITY) -> void:
+	var chunks = {}
+	for p in at:
+		var key = Vector2i(floori(p.x / SCATTER_CHUNK), floori(p.y / SCATTER_CHUNK))
+		if not chunks.has(key): chunks[key] = []
+		chunks[key].append(p)
+	for key in chunks:
+		var pts: Array = chunks[key]
+		var mm = MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = pts.size()
+		for i in pts.size():
+			var p: Vector2 = pts[i]
+			var edge = maxf(absf(p.x), absf(p.y)) - Game.w.size()
+			var y = maxf(0.0, edge) * 0.35
+			var t = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(lo, hi)), Vector3(p.x, y, p.y))
+			mm.set_instance_transform(i, t * base)
+		var mmi = MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		# Drawn-in meshes are vertex-coloured; models bring their own textures.
+		if mesh.surface_get_material(0) == null: mmi.material_override = _vc_material(0.9)
+		add_child(mmi)
+		_scatter_nodes.append(mmi)
 
 
 func _tree_mesh(th: Dictionary) -> Mesh:
