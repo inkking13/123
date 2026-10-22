@@ -49,10 +49,11 @@ func build() -> void:
 			refresh()))
 	p.add_child(filters)
 	p.add_child(UI.space(12))
+	var list = UI.cards(8)
+	p.add_child(list)
 	for c in Game.pool:
 		if role_filter != null and c.role != role_filter: continue
-		p.add_child(_card(c))
-		p.add_child(UI.space(8))
+		list.add_child(_card(c))
 	p.add_child(UI.space(120))
 	# The tally and the way on.
 	var dock = UI.vbox(10)
@@ -61,10 +62,7 @@ func build() -> void:
 	var bsb = StyleBoxFlat.new(); bsb.bg_color = Color(0.063, 0.047, 0.035, 0.97)
 	bg.add_theme_stylebox_override("panel", bsb)
 	bg.add_child(dm)
-	bg.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	bg.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	bg.offset_bottom = -UI.px(Tabs.HEIGHT) - App.inset_bottom()
-	add_child(bg)
+	pin_bottom(bg)
 	var tally = UI.hbox(6)
 	tally.add_child(UI.expand(UI.label("%d/5 · Танк %d · Хилер %d · ДПС %d" % [chosen.size(), tanks, heals, chosen.size() - tanks - heals], 13, UI.TEXT_MUTED)))
 	var warn = "" if not ready else ("Нет танка" if tanks == 0 else ("Нет хилера" if heals == 0 else "Состав готов"))

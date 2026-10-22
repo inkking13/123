@@ -51,6 +51,8 @@ func build() -> void:
 	p.add_child(UI.space(18))
 	p.add_child(UI.kicker("Рецепты", Color("#b8935c"), 12))
 	p.add_child(UI.space(10))
+	var list = UI.cards(10)
+	p.add_child(list)
 	for r in Game.recipes_for(c):
 		var rc: Dictionary = r.recipe
 		var card = UI.frame("plain", Vector4(12, 12, 12, 12))
@@ -76,5 +78,4 @@ func build() -> void:
 			if not r.craftable: b.modulate.a = 0.4
 			cv.add_child(b)
 		card.add_child(cv)
-		p.add_child(card)
-		p.add_child(UI.space(10))
+		list.add_child(card)

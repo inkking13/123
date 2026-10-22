@@ -5,7 +5,7 @@ extends Screen
 func build() -> void:
 	var dungeon: Dictionary = Game.current_dungeon()
 	var enc: Dictionary = dungeon.encounters[Game.enc_idx]
-	var p = make_page(0, 24, 16, false)
+	var p = make_page(0, 24, 16, false, NARROW_W)
 	var steps = UI.hbox(4)
 	for i in dungeon.encounters.size():
 		var e: Dictionary = dungeon.encounters[i]
@@ -95,6 +95,7 @@ func build() -> void:
 	bg.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	bg.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	bg.add_child(dock)
+	span_column(bg)
 	add_child(bg)
 	if Game.enc_idx == 0: dock.add_child(UI.secondary_button("Назад", Game.back, 50))
 	dock.add_child(UI.expand(UI.primary_button("В тронный зал" if enc.type == "boss" else "Войти в бой", Game.b.start_encounter, "crown-simple" if enc.type == "boss" else "sword")))

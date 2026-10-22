@@ -540,9 +540,12 @@ func _process(delta: float) -> void:
 	cam.look_at(_target)
 	# Put the board in the middle of the strip of screen the HUD leaves free.
 	var vp = get_viewport().get_visible_rect().size
+	# A phone frames the board's width; a wide window frames its height.
+	cam.keep_aspect = Camera3D.KEEP_HEIGHT if App.wide else Camera3D.KEEP_WIDTH
+	cam.fov = 44.0 if App.wide else 52.0
 	if vp.y > 0:
 		var aspect = vp.x / vp.y
-		var vfov = 2.0 * atan(tan(deg_to_rad(cam.fov) * 0.5) / aspect)
+		var vfov = deg_to_rad(cam.fov) if App.wide else 2.0 * atan(tan(deg_to_rad(cam.fov) * 0.5) / aspect)
 		var view_h = 2.0 * dist * tan(vfov * 0.5)
 		var mid = (band_top + (vp.y - band_bottom)) * 0.5 / vp.y
 		cam.v_offset = (mid - 0.5) * view_h

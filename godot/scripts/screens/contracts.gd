@@ -29,6 +29,8 @@ func build() -> void:
 	p.add_child(UI.space(18))
 	p.add_child(UI.kicker("Доска заказов", UI.ACCENT, 12))
 	p.add_child(UI.space(10))
+	var list = UI.cards(12)
+	p.add_child(list)
 	for c in board:
 		var id: String = c.id
 		var note = ContractNote.make(c)
@@ -36,5 +38,4 @@ func build() -> void:
 		v.add_child(UI.space(8))
 		v.add_child(UI.rule())
 		v.add_child(UI.ink_action("Сначала закройте взятый" if active else "Взять контракт", func(): Game.accept_contract(id), active == null, active != null))
-		p.add_child(note)
-		p.add_child(UI.space(12))
+		list.add_child(note)

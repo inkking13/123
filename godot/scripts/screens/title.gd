@@ -6,21 +6,38 @@ var confirm_new = false
 
 func build() -> void:
 	var art = UI.cover("title/title-art.jpg", 0)
-	art.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	art.anchor_bottom = 0.6
-	add_child(art)
-	var fade = UI.fade(Color(UI.BG, 0), Color(UI.BG, 1), 120)
-	fade.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	fade.anchor_top = 0.6; fade.anchor_bottom = 0.6
-	fade.offset_top = -UI.px(120)
-	add_child(fade)
 	var col = UI.vbox(10)
-	col.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	col.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	var m = UI.margin(col, 24, 0, 24, 28 + App.inset_bottom() / UI.K)
-	m.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	m.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	add_child(m)
+	if App.wide:
+		# The key art at left; the menu stands on a dark panel at the right.
+		art.set_anchors_preset(Control.PRESET_FULL_RECT)
+		art.offset_right = -UI.px(460)
+		add_child(art)
+		var panel = ColorRect.new()
+		panel.color = UI.BG
+		panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+		panel.offset_left = -UI.px(460)
+		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(panel)
+		col.alignment = BoxContainer.ALIGNMENT_END
+		var mw = UI.margin(col, 36, 36, 36, 40)
+		mw.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+		mw.offset_left = -UI.px(460)
+		add_child(mw)
+	else:
+		art.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		art.anchor_bottom = 0.6
+		add_child(art)
+		var fade = UI.fade(Color(UI.BG, 0), Color(UI.BG, 1), 120)
+		fade.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		fade.anchor_top = 0.6; fade.anchor_bottom = 0.6
+		fade.offset_top = -UI.px(120)
+		add_child(fade)
+		col.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		col.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		var m = UI.margin(col, 24, 0, 24, 28 + App.inset_bottom() / UI.K)
+		m.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		m.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		add_child(m)
 	var k = UI.kicker("Отдел кадров · Гильдия наёмников", UI.ACCENT, 11)
 	k.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(k)
@@ -57,6 +74,6 @@ func build() -> void:
 		col.add_child(row)
 	var foot = UI.hbox(6, BoxContainer.ALIGNMENT_CENTER)
 	foot.add_child(UI.icon("users-three", 12, UI.TEXT_FAINT))
-	foot.add_child(UI.label("Godot 4 · %d личных дел" % DB.all_candidates.size(), 12, UI.TEXT_FAINT))
+	foot.add_child(UI.label("%d личных дел" % DB.all_candidates.size(), 12, UI.TEXT_FAINT))
 	col.add_child(UI.space(4))
 	col.add_child(foot)

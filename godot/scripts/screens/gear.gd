@@ -51,8 +51,5 @@ func build() -> void:
 	var sb = StyleBoxFlat.new(); sb.bg_color = Color(0.063, 0.047, 0.035, 0.97)
 	sb.content_margin_left = UI.px(16); sb.content_margin_right = UI.px(16); sb.content_margin_top = UI.px(8); sb.content_margin_bottom = UI.px(14)
 	dock.add_theme_stylebox_override("panel", sb)
-	dock.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	dock.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	dock.offset_bottom = -UI.px(Tabs.HEIGHT) - App.inset_bottom()
 	dock.add_child(UI.primary_button("В подземелье", Game.go_dungeon, "door-open"))
-	add_child(dock)
+	pin_bottom(dock)

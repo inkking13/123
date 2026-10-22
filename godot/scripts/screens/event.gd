@@ -5,7 +5,7 @@ extends Screen
 func build() -> void:
 	var ev = Game.active_event
 	if ev == null: return
-	var p = make_page(0, 32, 20, false)
+	var p = make_page(0, 32, 20, false, NARROW_W)
 	var mark = ColorRect.new(); mark.color = UI.ACCENT; mark.custom_minimum_size = Vector2(UI.px(34), UI.px(3))
 	mark.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	p.add_child(mark)

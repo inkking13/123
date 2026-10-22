@@ -4,7 +4,11 @@ extends Control
 ## calls `refresh()` whenever the Game changes, which rebuilds the content and
 ## keeps the scroll where it was.
 
+const WIDE_W := 1000.0
+const NARROW_W := 620.0
+
 var scroll: ScrollContainer
+var _col = Vector2.ZERO
 var page: VBoxContainer
 
 
@@ -29,15 +33,45 @@ func refresh() -> void:
 		scroll.set_deferred("scroll_vertical", at)
 
 
-## The usual page: a scrolling column with the phone's insets and room for the tab bar.
-func make_page(sep := 0.0, top := 24.0, side := 20.0, tab_bar := true) -> VBoxContainer:
+## The usual page: a scrolling column with the phone's insets and room for the
+## tab bar. On a wide window the column sits right of the rail, at most
+## `wide_w` points across (narrow forms and letters ask for less).
+func make_page(sep := 0.0, top := 24.0, side := 20.0, tab_bar := true, wide_w := WIDE_W) -> VBoxContainer:
 	page = UI.vbox(sep)
-	var bottom = (Tabs.HEIGHT + 24.0) if tab_bar else 24.0
-	var m = UI.margin(page, side, App.inset_top() / UI.K + top, side, bottom + App.inset_bottom() / UI.K)
+	var m: MarginContainer
+	if App.wide:
+		var rail = Tabs.RAIL if tab_bar else 0.0
+		var vw = get_viewport_rect().size.x / UI.K
+		var col = minf(vw - rail - 64.0, wide_w)
+		var left = rail + (vw - rail - col) * 0.5
+		_col = Vector2(left, vw - left - col)
+		m = UI.margin(page, left, top + 12.0, vw - left - col, 40.0)
+	else:
+		var bottom = (Tabs.HEIGHT + 24.0) if tab_bar else 24.0
+		m = UI.margin(page, side, App.inset_top() / UI.K + top, side, bottom + App.inset_bottom() / UI.K)
 	scroll = UI.scroll(m)
 	add_child(scroll)
 	if tab_bar: add_child(Tabs.make())
 	return page
+
+
+## Pins a bar (the way on, a tally) to the bottom: above the tab bar on a
+## phone, under the page's column on a wide window.
+func pin_bottom(bar: Control) -> void:
+	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	if App.wide:
+		bar.offset_left = UI.px(_col.x); bar.offset_right = -UI.px(_col.y)
+		bar.offset_bottom = -UI.px(16)
+	else:
+		bar.offset_bottom = -UI.px(Tabs.HEIGHT) - App.inset_bottom()
+	add_child(bar)
+
+
+## On a wide window, lines a bar pinned to the screen's edge up with the page's column.
+func span_column(bar: Control) -> void:
+	if App.wide:
+		bar.offset_left = UI.px(_col.x); bar.offset_right = -UI.px(_col.y)
 
 
 ## A row of equal tab buttons; `pick` gets the chosen key.
