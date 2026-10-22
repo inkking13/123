@@ -21,7 +21,7 @@ func build() -> void:
 		p.add_child(list)
 		for r in Game.shop_rows(false):
 			var row: Dictionary = r
-			list.add_child(item_card(DB.item_icon_path(row.item.get("icon")), DB.slot_label(row.slot), row.item.name, row.item.desc, UI.TEXT, pill_button(str(row.price), row.affordable, func(): Game.buy_item(row.slot, row.item.id))))
+			list.add_child(item_card(DB.item_icon_path(row.item.get("icon")), DB.slot_label(row.slot), row.item.name, row.item.desc, UI.TEXT, pill_button(str(row.price), row.affordable, func(): Game.buy_item(row.slot, row.item.id), "coins")))
 	else:
 		p.add_child(UI.label("Продать можно только то, что сейчас не надето ни на ком. Цена — половина от стоимости покупки.", 14, UI.TEXT_DIM, "regular", true))
 		p.add_child(UI.space(18))
@@ -31,4 +31,4 @@ func build() -> void:
 		p.add_child(list1)
 		for r in rows:
 			var row: Dictionary = r
-			list1.add_child(item_card(DB.item_icon_path(row.item.get("icon")), DB.slot_label(row.slot), row.item.name, "Свободно: %d" % row.free, UI.TEXT, pill_button("+%d" % row.price, true, func(): Game.sell_item(row.slot, row.item.id))))
+			list1.add_child(item_card(DB.item_icon_path(row.item.get("icon")), DB.slot_label(row.slot), row.item.name, "Свободно: %d" % row.free, UI.TEXT, pill_button("+%d" % row.price, true, func(): Game.sell_item(row.slot, row.item.id), "coins")))

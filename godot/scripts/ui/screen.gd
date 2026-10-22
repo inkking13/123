@@ -107,7 +107,7 @@ func item_card(icon_path: String, kicker: String, name: String, desc: String, na
 	var row = UI.hbox(10)
 	row.add_child(UI.picture(icon_path, 44, 44, 8))
 	var v = UI.vbox(2)
-	if kicker != "": v.add_child(UI.label(kicker.to_upper(), 10.5, UI.TEXT_FAINT))
+	if kicker != "": v.add_child(UI.label(kicker.to_upper(), 10.5, UI.TEXT_DIM))
 	v.add_child(UI.label(name, 15.5, name_color, "medium", true))
 	if desc != "": v.add_child(UI.label(desc, 12.5, UI.TEXT_DIM, "regular", true))
 	row.add_child(UI.expand(v))
@@ -124,14 +124,17 @@ func empty_note(text: String) -> Control:
 	return fr
 
 
-## A small price/action button on a card.
-func pill_button(text: String, on: bool, fn: Callable) -> PanelContainer:
+## A small price/action button on a card; a price shows a coin before it.
+func pill_button(text: String, on: bool, fn: Callable, icon_name := "") -> PanelContainer:
 	var pn = PanelContainer.new()
 	var sb = UI.frame_style("pill", Vector4(12, 8, 12, 8), 7)
 	sb.border_color = UI.ACCENT if on else UI.BORDER
 	sb.bg_color = Color(UI.ACCENT, 0.12) if on else Color(0, 0, 0, 0)
 	pn.add_theme_stylebox_override("panel", sb)
-	pn.add_child(UI.label(text, 14, UI.ACCENT_SOFT if on else UI.TEXT_FAINT, "medium"))
+	var row = UI.hbox(5, BoxContainer.ALIGNMENT_CENTER)
+	if icon_name != "": row.add_child(UI.center(UI.icon(icon_name, 14, UI.WARN if on else UI.TEXT_FAINT, "fill")))
+	row.add_child(UI.label(text, 14, UI.ACCENT_SOFT if on else UI.TEXT_FAINT, "medium"))
+	pn.add_child(row)
 	if on: UI.tap(pn, fn)
 	else: pn.modulate.a = 0.5
 	return pn

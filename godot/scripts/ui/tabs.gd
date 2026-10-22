@@ -119,7 +119,8 @@ static func _seal(lit: bool) -> Control:
 	holder.resized.connect(func(): seal.position = Vector2(holder.size.x * 0.5 - UI.px(27), -lift))
 	holder.add_child(seal)
 	v.add_child(c)
-	var l = UI.label("В поход", 12, UI.ACCENT_BRIGHT, "title")
+	# Lit like the other tabs only on the map's screens.
+	var l = UI.label("В поход", 12, UI.ACCENT_BRIGHT if lit else Color("#8e7f69"), "title" if lit else "caps")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(l)
 	# Tap: the next dungeon. Hold: the campaign map.

@@ -66,10 +66,13 @@ func _measure() -> void:
 	var h = _bottom.get_combined_minimum_size().y
 	if _bottom.size.y > h + 0.5: _bottom.offset_top = _bottom.offset_bottom - h
 	if is_instance_valid(_cam):
-		# Up the right edge: mid-height on a wide window, over the bottom on a phone.
+		# Up the right edge, mid-height of the field: out of the fighters' way.
 		var ch = _cam.get_combined_minimum_size().y
 		var vp = get_viewport_rect().size
-		var y = (vp.y - ch) * 0.5 if App.wide else _bottom.get_global_rect().position.y - ch
+		var y = (vp.y - ch) * 0.5
+		if not App.wide:
+			var top_end = _top.get_global_rect().end.y
+			y = clampf((top_end + _bottom.get_global_rect().position.y - ch) * 0.5, top_end, maxf(top_end, vp.y - ch))
 		_cam.position = Vector2(vp.x - _cam.size.x - UI.px(12), y)
 	if App.wide:
 		view.band_top = 0.0; view.band_bottom = 0.0
@@ -548,7 +551,7 @@ func _foe_chips(s: Dictionary) -> Control:
 ## Turn, zoom and straighten the view. Drag on the field (right button on a
 ## computer) does the same; keys Q/E, +/−, PgUp/PgDn, R.
 func _camera_bar() -> Control:
-	var v = UI.vbox(6) if App.wide else UI.hbox(6)
+	var v = UI.vbox(6)
 	var d = 38.0 if App.wide else 32.0
 	var btn = func(icon: String, tip: String, fn: Callable) -> Control:
 		var pn = PanelContainer.new()
