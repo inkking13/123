@@ -266,7 +266,7 @@ func _place_card(w):
 				desc = "%d комнаты · рекоменд. ГС %d%s" % [d.encounters.size(), d.recommendedGs, " · уже зачищено" if Game.defeated.has(p.dungeon) else ""]
 				acts.append(["Пройти снова" if Game.defeated.has(p.dungeon) else "Войти", func(): Game.enter_dungeon(p.dungeon)])
 			else:
-				desc = "Закрыто: сначала одолейте хозяина предыдущего подземелья."
+				desc = "Закрыто. " + (d.lockedDesc if d.lockedDesc != "" else "Сначала одолейте хозяина предыдущего подземелья.")
 		"chest":
 			title = "Сундук"
 			desc = "Брошенный кем-то сундук. Может, внутри что-то осталось." if not w.opened.has(id) else "Пусто."

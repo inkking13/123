@@ -220,7 +220,7 @@ func layout(loc := "") -> Dictionary:
 	if idx > 0: places.append({"id": "west", "kind": "road", "pos": west, "to": DB.locations[idx - 1].id})
 	if idx < DB.locations.size() - 1: places.append({"id": "east", "kind": "road", "pos": east, "to": DB.locations[idx + 1].id})
 	# The road runs west to east through the dungeons and the town.
-	var ds = region_dungeons(id)
+	var ds = region_dungeons(id).filter(func(d): return not d.get("side", false))
 	var stops = [west]
 	var k = half / SIZE
 	var xs = [-38.0 * k, 2.0 * k, 36.0 * k]
@@ -241,6 +241,10 @@ func layout(loc := "") -> Dictionary:
 	# The land's other sights, then chests and gathering spots in what's left.
 	for kind in THEMES[id].get("extras", []):
 		places.append({"id": kind, "kind": kind, "pos": _free_spot(rng, places, 16.0, half)})
+	# Side dungeons lie off the road, out in the wilds.
+	for d in region_dungeons(id):
+		if d.get("side", false):
+			places.append({"id": "d:" + d.id, "kind": "dungeon", "pos": _free_spot(rng, places + [{"pos": town}], 22.0, half), "dungeon": d.id, "side": true})
 	var extra = int(round((k - 1.0) * 6))
 	for i in 5 + extra:
 		places.append({"id": "chest%d" % i, "kind": "chest", "pos": _free_spot(rng, places, 9.0, half)})

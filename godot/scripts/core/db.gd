@@ -235,6 +235,23 @@ func dungeon_index(id: String) -> int:
 	return -1
 
 
+## The campaign's road, without the side dungeons a land may have off it.
+func main_dungeons() -> Array:
+	return dungeon_list.filter(func(d): return not d.get("side", false))
+
+
+## How far along the road a dungeon is: its place on it, or for a side
+## dungeon the place of the hardest road dungeon it outranks.
+func dungeon_tier(id: String) -> int:
+	var d := dungeon(id)
+	var main := main_dungeons()
+	var tier := 0
+	for i in main.size():
+		if main[i].id == id: return i
+		if d.get("side", false) and main[i].recommendedGs <= d.recommendedGs: tier = i
+	return tier
+
+
 func location(id: String) -> Dictionary:
 	for l in locations:
 		if l.id == id: return l

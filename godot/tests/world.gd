@@ -138,4 +138,14 @@ func _run() -> void:
 	var saved = w.to_dict()
 	w.from_dict(saved)
 	print("save round trip region ", w.region, " day ", w.day)
+	# Side dungeons: a chain of their own off the road, never in its way.
+	var keep = game.defeated.duplicate()
+	game.defeated = {"wastes": true, "road": true, "groblot": true}
+	var db = root.get_node("DB")
+	var side = db.dungeon_list.filter(func(d): return d.get("side", false)).map(func(d): return d.id)
+	print("side dungeons ", side, " open ", side.map(func(id): return game.is_dungeon_unlocked(id)), " frostpass open ", game.is_dungeon_unlocked("frostpass"))
+	game.defeated["ratmill"] = true
+	print("after ratmill: wolfden ", game.is_dungeon_unlocked("wolfden"), " drowned ", game.is_dungeon_unlocked("drowned"), " tiers ", side.map(func(id): return db.dungeon_tier(id)))
+	print("side gates on the map ", w.layout("outskirts").places.filter(func(p): return p.get("side", false)).map(func(p): return p.pos.round()))
+	game.defeated = keep
 	quit()

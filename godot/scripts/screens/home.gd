@@ -194,7 +194,7 @@ func _next_card() -> Control:
 	var contract = Game.active_contract_vm()
 	var next = null
 	for l in DB.locations:
-		for d in DB.dungeon_list:
+		for d in DB.main_dungeons():
 			if d.locationId == l.id and Game.is_dungeon_unlocked(d.id): next = d
 	if next == null: return null
 	var sheet = UI.parchment(Vector4(16, 14, 16, 14))

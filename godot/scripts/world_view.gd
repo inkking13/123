@@ -409,7 +409,10 @@ func _town(root: Node3D, th: Dictionary) -> void:
 
 ## A dungeon's mouth: two standing stones under a lintel, a dark way in.
 func _gate(root: Node3D, p: Dictionary) -> void:
-	var stone = _solid(Color(0.36, 0.34, 0.32))
+	# Road dungeons get a guild gate with a banner; side ones a mossy old
+	# entrance with a single fire.
+	var side: bool = p.get("side", false)
+	var stone = _solid(Color(0.27, 0.31, 0.25) if side else Color(0.36, 0.34, 0.32))
 	for x in [-1.3, 1.3]:
 		var post = MeshInstance3D.new()
 		var b = BoxMesh.new(); b.size = Vector3(0.7, 3.0, 0.7)
@@ -426,16 +429,17 @@ func _gate(root: Node3D, p: Dictionary) -> void:
 	dark.mesh = db; dark.material_override = _solid(Color(0.02, 0.02, 0.03), 1.0)
 	dark.position = Vector3(0, 1.45, 0)
 	root.add_child(dark)
-	for x in [-2.4, 2.4]:
+	for x in ([-2.4] if side else [-2.4, 2.4]):
 		var br: Node3D = load("res://assets/models/decor-brazier.glb").instantiate()
 		br.scale = Vector3.ONE * 0.7
 		br.position = Vector3(x, 0.55, 1.2)
 		root.add_child(br)
 		_fire(root, Vector3(x, 1.3, 1.2))
-	var flag: Node3D = load("res://assets/models/decor-banner.glb").instantiate()
-	flag.scale = Vector3.ONE * 1.2
-	flag.position = Vector3(-3.4, 1.05, -0.6)
-	root.add_child(flag)
+	if not side:
+		var flag: Node3D = load("res://assets/models/decor-banner.glb").instantiate()
+		flag.scale = Vector3.ONE * 1.2
+		flag.position = Vector3(-3.4, 1.05, -0.6)
+		root.add_child(flag)
 	var d = DB.dungeon(p.dungeon)
 	var l = _label(root, d.name, 4.6, Color(0.95, 0.86, 0.62), 56)
 	root.set_meta("label", l)

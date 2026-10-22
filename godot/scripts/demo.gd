@@ -8,7 +8,7 @@ static func setup() -> void:
 	g.reset_progress()
 	g.finish_draft([0, 3, 8, 1, 6])
 	g.stats_room_wins = 40
-	for d in ["wastes", "road", "groblot", "frostpass"]: g.defeated[d] = true
+	for d in ["wastes", "road", "groblot", "frostpass", "ratmill"]: g.defeated[d] = true
 	for f in DB.features.FEATURE_ORDER: g.seen_unlocks[f] = true
 	g.seen_unlocks.erase("contracts")
 	g.payroll_notice = {"paid": 120, "shortfall": false}
@@ -44,6 +44,11 @@ static func open(what: String) -> void:
 			g.settings.auto = false
 			g.go_world()
 			g.w.pos = g.w.place(what.substr(9)).pos + Vector2(0, 9)
+			g.w._grace = 9999.0
+		"world-side":
+			g.settings.auto = false
+			g.go_world()
+			g.w.pos = g.w.place("d:ratmill").pos + Vector2(0, 9)
 			g.w._grace = 9999.0
 		"world", "world-night", "world-town", "world-gate", "world-band":
 			g.settings.auto = false
