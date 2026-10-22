@@ -23,12 +23,18 @@ const GOOD := Color("#93ad7f")
 const WARN := Color("#d0a955")
 const GOLD := Color("#f0d58a")
 const VALOR := Color("#f0c46a")
-const INK := Color("#2a1d12")
-const INK_MUTED := Color("#5b4530")
-const INK_FAINT := Color("#806849")
-const INK_RULE := Color(0.235, 0.157, 0.086, 0.35)
-const INK_RED := Color("#8c2a1d")
-const INK_GREEN := Color("#3f5a2a")
+# "Ink" is what's written on a sheet. After Wartales, sheets are dark
+# canvas panels, so the ink is light: cream, a warm ember red, moss green.
+const INK := Color("#ece0c4")
+const INK_MUTED := Color("#bcae90")
+const INK_FAINT := Color("#8e8069")
+const INK_RULE := Color(0.925, 0.878, 0.769, 0.16)
+const INK_RED := Color("#de7a52")
+const INK_GREEN := Color("#a3c47f")
+## Text on a light, filled button.
+const ON_LIGHT := Color("#1d150d")
+const SHEET_FILL := Color(0.09, 0.075, 0.06, 0.95)
+const SHEET_RIM := Color(0.925, 0.878, 0.769, 0.3)
 const WAX := Color("#9b2c20")
 const WAX_DARK := Color("#5e1710")
 const SEAL_TEXT := Color("#f3dcc0")
@@ -283,7 +289,7 @@ static func scroll(content: Control) -> ScrollContainer:
 
 # ── plates and sheets ───────────────────────────────────────────────────────
 const TONES := {
-	"plain": {"rim": Color("#4d3b29"), "corner": Color("#b8935c"), "fill": Color(0.13, 0.1, 0.07, 0.95), "line": Color(0.925, 0.85, 0.69, 0.13)},
+	"plain": {"rim": Color("#4d3b29"), "corner": Color("#b8935c"), "fill": Color(0.105, 0.088, 0.07, 0.95), "line": Color(0.925, 0.85, 0.69, 0.13)},
 	"gold": {"rim": Color("#8f6f45"), "corner": Color("#e6c27f"), "fill": Color("#2f2012"), "line": Color(0.925, 0.85, 0.69, 0.16)},
 	"muted": {"rim": Color("#2f251b"), "corner": Color("#5c4a35"), "fill": Color(0.08, 0.06, 0.045, 0.72), "line": Color(0.925, 0.85, 0.69, 0.06)},
 	"pill": {"rim": Color("#4d3b29"), "corner": Color(0, 0, 0, 0), "fill": Color(0.07, 0.05, 0.035, 0.85), "line": Color(0, 0, 0, 0)},
@@ -308,7 +314,8 @@ static func frame_style(tone := "plain", pad := Vector4(12, 12, 12, 12), radius 
 ## A leather plate in a tooled rim with a cream hairline inside and small ochre corners.
 static func frame(tone := "plain", pad := Vector4(12, 12, 12, 12)) -> PanelContainer:
 	var p = PanelContainer.new()
-	p.add_theme_stylebox_override("panel", frame_style(tone, pad))
+	# Squarer than a pill, as Wartales cuts its panels.
+	p.add_theme_stylebox_override("panel", frame_style(tone, pad, 2.0))
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var t: Dictionary = TONES[tone]
 	p.draw.connect(func():
@@ -328,9 +335,15 @@ static func _corners(c: CanvasItem, r: Rect2, color: Color, size := 9.0) -> void
 		c.draw_polyline(PackedVector2Array([o + Vector2(0, d.y * s), o, o + Vector2(d.x * s, 0)]), color, w)
 
 
-static func parchment_style(pad := Vector4(16, 14, 16, 14)) -> StyleBoxTexture:
-	var sb = StyleBoxTexture.new()
-	sb.texture = PAPER
+static func parchment_style(pad := Vector4(16, 14, 16, 14)) -> StyleBoxFlat:
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = SHEET_FILL
+	sb.border_color = SHEET_RIM
+	sb.set_border_width_all(1)
+	sb.border_width_top = 2
+	sb.set_corner_radius_all(px(2))
+	sb.shadow_color = Color(0, 0, 0, 0.35)
+	sb.shadow_size = px(4)
 	sb.content_margin_left = px(pad.x)
 	sb.content_margin_top = px(pad.y)
 	sb.content_margin_right = px(pad.z)
@@ -338,11 +351,13 @@ static func parchment_style(pad := Vector4(16, 14, 16, 14)) -> StyleBoxTexture:
 	return sb
 
 
-## A sheet of parchment with browned edges: write on it in ink.
+## A sheet to write on in ink: a dark canvas panel in a thin cream rim with
+## small notched corners, after Wartales (it was parchment once; the name stayed).
 static func parchment(pad := Vector4(16, 14, 16, 14)) -> PanelContainer:
 	var p = PanelContainer.new()
 	p.add_theme_stylebox_override("panel", parchment_style(pad))
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.draw.connect(func(): _corners(p, Rect2(Vector2.ZERO, p.size).grow(-px(3)), Color(ACCENT, 0.7), 6.0))
 	return p
 
 
@@ -488,17 +503,26 @@ static func tap(c: Control, fn: Callable, pressed_fx := true, on_hold := Callabl
 
 # ── buttons ─────────────────────────────────────────────────────────────────
 ## The main call to action: a strip of parchment with the order inked on it.
+## The main call to action: a flat cream plate with dark lettering, after Wartales.
 static func primary_button(text: String, fn: Callable, icon_name := "", trailing := "", height := 50.0, disabled := false) -> PanelContainer:
-	var p = parchment(Vector4(20, 0, 20, 0))
+	var p = PanelContainer.new()
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = Color("#e3d3ae")
+	sb.border_color = Color("#fff3d6"); sb.set_border_width_all(1)
+	sb.border_width_bottom = 3; sb.border_color = Color("#a8875a")
+	sb.set_corner_radius_all(px(2))
+	sb.content_margin_left = px(20); sb.content_margin_right = px(20)
+	p.add_theme_stylebox_override("panel", sb)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.custom_minimum_size = Vector2(0, px(height))
 	var row = hbox(8, BoxContainer.ALIGNMENT_CENTER)
-	if icon_name != "": row.add_child(icon(icon_name, 18, INK))
-	var l = label(text, 17, INK, "title")
+	if icon_name != "": row.add_child(icon(icon_name, 18, ON_LIGHT))
+	var l = label(text, 17, ON_LIGHT, "title")
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(l)
 	if trailing != "":
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(icon(trailing, 18, INK))
+		row.add_child(icon(trailing, 18, ON_LIGHT))
 	p.add_child(row)
 	if disabled: p.modulate = Color(1, 1, 1, 0.45)
 	else:
