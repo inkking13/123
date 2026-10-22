@@ -24,6 +24,44 @@ const BAND_CATCH := 1.7
 const BAND_RESPAWN_DAYS := 2
 const HERB_REGROW_DAYS := 2
 const NIGHT_ENEMY_DMG := 1.25
+const COOK_FOOD := 3
+const WELL_FED_FIGHTS := 2
+const AMBUSH_CHANCE := 0.35
+
+const EVENT_EVERY_HOURS := 4.0
+const EVENT_CHANCE := 0.45
+const TASKS_MAX := 3
+
+## Meetings on the road: a picture in words and two or three ways to answer.
+## Each option: what it costs (gold, food), and what it does (see _apply).
+const ROAD_EVENTS := [
+	{"id": "merchant", "title": "Бродячий торговец", "icon": "storefront", "text": "У обочины стоит телега, гружёная мешками. Торговец машет рукой: «Хлеб, вяленое мясо, отвары от усталости — недорого!»",
+		"options": [{"label": "5 пайков за 12 золота", "gold": 12, "food_gain": 5}, {"label": "Отвар бодрости за 15 золота", "gold": 15, "rest": 40}, {"label": "Пройти мимо"}]},
+	{"id": "beggar", "title": "Голодный путник", "icon": "fork-knife", "text": "Исхудавший путник просит поделиться едой. Отряд переглядывается.",
+		"options": [{"label": "Отдать 2 пайка", "food": 2, "morale": 4}, {"label": "Отказать", "morale": -1}]},
+	{"id": "wounded", "title": "Раненый наёмник", "icon": "first-aid", "text": "В канаве лежит наёмник из чужой гильдии — живой, но едва. «Помогите, я в долгу не останусь».",
+		"options": [{"label": "Перевязать (1 паёк)", "food": 1, "xp": 40, "morale": 2}, {"label": "Обыскать и уйти", "gold_gain": 25, "morale": -3}]},
+	{"id": "ambush", "title": "Засада на тракте", "icon": "sword", "text": "Из-за деревьев выходят вооружённые люди: «Кошелёк или жизнь, наёмнички».",
+		"options": [{"label": "Принять бой", "fight": true}, {"label": "Откупиться (30 золота)", "gold": 30}]},
+	{"id": "wagon", "title": "Брошенная повозка", "icon": "treasure-chest", "text": "Опрокинутая повозка, рядом ни души. Слишком тихо.",
+		"options": [{"label": "Обыскать", "gamble": true}, {"label": "Не трогать"}]},
+	{"id": "shrine", "title": "Старое святилище", "icon": "church", "text": "Замшелый алтарь у дороги. Говорят, здесь отдыхали паломники.",
+		"options": [{"label": "Отдохнуть у алтаря (1 ч)", "rest": 100, "hours": 1.0}, {"label": "Подношение (10 золота): благословение", "gold": 10, "fed": 2}, {"label": "Идти дальше"}]},
+	{"id": "hunters", "title": "Охотники у костра", "icon": "campfire", "text": "Охотники зовут к огню погреться и поделиться новостями.",
+		"options": [{"label": "Посидеть с ними (1 ч)", "food_gain": 3, "hours": 1.0, "morale": 2}, {"label": "Купить сырьё (20 золота)", "gold": 20, "reagent": 2}, {"label": "Поблагодарить и уйти"}]},
+	{"id": "deserters", "title": "Дезертиры", "icon": "footprints", "text": "Двое оборванцев знают тропы, где банды не ходят. За плату проведут.",
+		"options": [{"label": "Нанять проводниками (20 золота)", "gold": 20, "sneak": 90.0}, {"label": "Прогнать"}]},
+]
+
+## What a hero can do at camp, in the order the camp screen offers them.
+const ACTIVITIES := [
+	{"id": "rest", "name": "Отдых", "icon": "bed", "desc": "Спит у костра: мораль +3."},
+	{"id": "cook", "name": "Готовка", "icon": "fork-knife", "desc": "Сытный ужин: отряд бьёт на 10% сильнее два следующих боя. Ещё 3 пайка в котёл."},
+	{"id": "train", "name": "Тренировка", "icon": "sword", "desc": "Упражняется с оружием: +25 опыта."},
+	{"id": "craft", "name": "Ремесло", "icon": "hammer", "desc": "Работает по профессии: +20 к её прокачке.", "needs": "profession"},
+	{"id": "hunt", "name": "Охота", "icon": "paw-print", "desc": "Добывает дичь: +2 пайка."},
+	{"id": "watch", "name": "Дозор", "icon": "eye", "desc": "Сторожит лагерь. Ночью без дозорного могут напасть."},
+]
 
 ## How each land looks: ground, grass and rock tints, trees, sky and fog.
 const THEMES := {
@@ -62,7 +100,13 @@ var opened = {}                    # chest id -> true
 var gathered = {}                  # spot id -> day it was picked
 var bands = {}                     # region -> [band]
 var beaten = {}                    # band id -> day it was beaten
-var _grace = 0.0                   # seconds the bands leave the squad alone after a fight
+var _grace = 0.0
+var camp_plan = {}                 # hero id -> activity id, for the next camp
+var event = null                   # the road event waiting for an answer
+var _event_clock = 0.0
+var tasks = []                     # errands taken in towns
+var task_seq = 0
+var well_fed = 0                   # fights left on the cook's supper                   # seconds the bands leave the squad alone after a fight
 var _layouts = {}
 var log_note = ""                  # one line for the HUD: what just happened
 
@@ -74,7 +118,8 @@ func _init(game) -> void:
 # ── save ───────────────────────────────────────────────────────────────────
 func to_dict() -> Dictionary:
 	return {"region": region, "x": pos.x, "z": pos.y, "hours": hours, "day": day, "food": food, "mealClock": meal_clock,
-		"hungry": hungry, "fatigue": fatigue, "opened": opened.keys(), "gathered": gathered, "beaten": beaten}
+		"hungry": hungry, "fatigue": fatigue, "opened": opened.keys(), "gathered": gathered, "beaten": beaten,
+		"wellFed": well_fed, "campPlan": camp_plan, "tasks": tasks, "taskSeq": task_seq}
 
 
 func from_dict(d) -> void:
@@ -89,13 +134,20 @@ func from_dict(d) -> void:
 	for k in d.get("opened", []): opened[k] = true
 	gathered = d.get("gathered", {}) if d.get("gathered") is Dictionary else {}
 	beaten = d.get("beaten", {}) if d.get("beaten") is Dictionary else {}
+	well_fed = int(d.get("wellFed", 0))
+	tasks = d.get("tasks", []) if d.get("tasks") is Array else []
+	task_seq = int(d.get("taskSeq", 0))
+	camp_plan = {}
+	if d.get("campPlan") is Dictionary:
+		for k in d.campPlan: camp_plan[int(k)] = d.campPlan[k]
 	target = null; goal = ""
 
 
 func reset() -> void:
 	region = "outskirts"; pos = layout().start; target = null; goal = ""
 	hours = 9.0; day = 1; food = START_FOOD; meal_clock = 0.0; hungry = false; fatigue = 0.0
-	opened = {}; gathered = {}; bands = {}; beaten = {}
+	opened = {}; gathered = {}; bands = {}; beaten = {}; camp_plan = {}; well_fed = 0
+	event = null; _event_clock = 0.0; tasks = []; task_seq = 0
 
 
 # ── the region's layout (fixed per land) ───────────────────────────────────
@@ -210,6 +262,7 @@ func walk_to(p: Vector2, place_id := "") -> void:
 ## Returns a band that caught the squad, or null.
 func step(dt: float):
 	_grace = maxf(0.0, _grace - dt)
+	if event != null: return null
 	var moved = 0.0
 	if target != null:
 		var d: Vector2 = target - pos
@@ -218,7 +271,15 @@ func step(dt: float):
 		moved = stepd
 		if pos.distance_to(target) < 0.05:
 			target = null
-	if moved > 0: _pass_hours(moved / METRES_PER_HOUR)
+	if moved > 0:
+		_pass_hours(moved / METRES_PER_HOUR)
+		_event_clock += moved / METRES_PER_HOUR
+		if _event_clock >= EVENT_EVERY_HOURS:
+			_event_clock = 0.0
+			if randf() < EVENT_CHANCE:
+				event = ROAD_EVENTS.pick_random()
+				target = null; goal = ""
+				return null
 	var sight = BAND_SIGHT * (1.5 if is_night() else 1.0)
 	for b in region_bands():
 		var to_squad: Vector2 = pos - b.pos
@@ -280,6 +341,79 @@ func squad_size() -> int:
 	return maxi(1, g.squad().size())
 
 
+func activity(id: String) -> Dictionary:
+	for a in ACTIVITIES:
+		if a.id == id: return a
+	return ACTIVITIES[0]
+
+
+func plan_of(c: Dictionary) -> String:
+	var a: String = camp_plan.get(c.id, "rest")
+	if a == "craft" and c.professionId == null: return "rest"
+	return a
+
+
+func set_plan(cid: int, act: String) -> void:
+	camp_plan[cid] = act
+	g.notify()
+
+
+## Camp with everyone at their task: eight hours, a meal, the tiredness gone,
+## and whatever the tasks bring. Returns a band that falls on an unguarded
+## night camp, or null.
+func make_camp():
+	var squad: Array = g.squad()
+	# The eight hours touch the night if they start in it or run past 20:00.
+	var night: bool = is_night() or hours + 8.0 > 20.0
+	var by = {}
+	for c in squad: by[plan_of(c)] = by.get(plan_of(c), []) + [c]
+	var notes = []
+	camp()
+	for c in by.get("rest", []): g.adjust_morale(c.id, 3)
+	if by.has("cook"):
+		if food >= COOK_FOOD:
+			food -= COOK_FOOD
+			well_fed = WELL_FED_FIGHTS
+			notes.append("%s готовит сытный ужин (+10%% к урону на 2 боя)" % by.cook[0].name)
+		else:
+			notes.append("на ужин не хватило пайков")
+	for c in by.get("train", []):
+		g.gain_xp(c.id, 25)
+	if by.has("train"): notes.append("тренировка: +25 опыта (%s)" % ", ".join(by.train.map(func(c): return c.name)))
+	for c in by.get("craft", []):
+		var maxl: int = DB.professions.PROFESSION_MAX_LEVEL
+		var per: int = DB.professions.PROFESSION_XP_PER_LEVEL
+		if c.professionLevel >= maxl: continue
+		c.professionXp += 20
+		while c.professionXp >= per and c.professionLevel < maxl:
+			c.professionXp -= per
+			c.professionLevel += 1
+	if by.has("craft"): notes.append("ремесло: прогресс профессии")
+	if by.has("hunt"):
+		var n = 2 * by.hunt.size()
+		food += n
+		notes.append("охота: +%d пайка" % n)
+	var ambush = null
+	if night and not by.has("watch") and randf() < AMBUSH_CHANCE:
+		var near = null
+		for b in region_bands():
+			if near == null or b.pos.distance_to(pos) < near.pos.distance_to(pos): near = b
+		if near != null:
+			near.pos = pos + Vector2(2, 0)
+			ambush = near
+			notes.append("ночью без дозорного на лагерь напали!")
+	if not notes.is_empty():
+		var line: String = "; ".join(notes)
+		log_note = log_note + " " + line.left(1).to_upper() + line.substr(1) + "."
+	g.notify()
+	return ambush
+
+
+## A fight on the map or in a dungeon from the map eats into the cook's supper.
+func fight_done() -> void:
+	well_fed = maxi(0, well_fed - 1)
+
+
 ## Make camp anywhere: eight hours, a meal, the tiredness gone.
 func camp() -> void:
 	var mouths = squad_size()
@@ -292,7 +426,8 @@ func camp() -> void:
 		hours -= 24.0
 		day += 1
 	fatigue = 0.0 if fed else 40.0
-	for c in g.squad(): g.adjust_morale(c.id, 3 if fed else -2)
+	if not fed:
+		for c in g.squad(): g.adjust_morale(c.id, -2)
 	log_note = "Привал: отряд выспался у костра." if fed else "Привал без ужина — сон был тревожным."
 	target = null; goal = ""
 	g.notify()
@@ -324,6 +459,7 @@ func output_mult() -> float:
 	if fatigue >= 85: m *= 0.8
 	elif fatigue >= 60: m *= 0.9
 	if hungry: m *= 0.85
+	if well_fed > 0: m *= 1.1
 	return m
 
 
@@ -338,6 +474,7 @@ func fatigue_word() -> String:
 func open_chest(id: String) -> void:
 	if opened.has(id): return
 	opened[id] = true
+	task_event("chests")
 	var gold = 20 + randi() % 31
 	g.gold += gold
 	var parts = ["%d золота" % gold]
@@ -399,10 +536,162 @@ func travel_far(to: String) -> void:
 
 ## After a fight the bands give the squad a few seconds to walk off.
 func after_fight(band_id: String, won: bool) -> void:
-	if won: beaten[band_id] = day
+	if won:
+		beaten[band_id] = day
+		task_event("bounty", band_id)
 	_grace = 5.0
 	if not won:
 		pos = layout().town + Vector2(3, 0)
 		food = maxi(0, food - squad_size())
 		log_note = "Отряд отступил к городу, растеряв часть припасов."
 	target = null; goal = ""
+
+
+# ── road events ────────────────────────────────────────────────────────────
+## Can the squad pay for this answer?
+func can_take(o: Dictionary) -> bool:
+	return g.gold >= int(o.get("gold", 0)) and food >= int(o.get("food", 0))
+
+
+## Answers the road event. Returns a band to fight if it comes to blows.
+func answer(i: int):
+	if event == null: return null
+	var o: Dictionary = event.options[i]
+	if not can_take(o) and not o.get("fight", false):
+		o = event.options[0] if event.options[0].get("fight", false) else o
+	var notes = []
+	var fight = o.get("fight", false)
+	if can_take(o):
+		g.gold -= int(o.get("gold", 0))
+		food -= int(o.get("food", 0))
+	if o.has("food_gain"):
+		food += int(o.food_gain); notes.append("+%d пайков" % int(o.food_gain))
+	if o.has("gold_gain"):
+		g.gold += int(o.gold_gain); notes.append("+%d золота" % int(o.gold_gain))
+	if o.has("rest"):
+		fatigue = maxf(0.0, fatigue - float(o.rest)); notes.append("усталость спала")
+	if o.has("hours"): _pass_hours(float(o.hours))
+	if o.has("morale"):
+		for c in g.squad(): g.adjust_morale(c.id, int(o.morale))
+		notes.append(("мораль +%d" if int(o.morale) > 0 else "мораль %d") % int(o.morale))
+	if o.has("xp"):
+		var c = g.squad().pick_random()
+		g.gain_xp(c.id, int(o.xp)); notes.append("%s перенимает пару приёмов (+%d опыта)" % [c.name, int(o.xp)])
+	if o.has("fed"):
+		well_fed = maxi(well_fed, int(o.fed)); notes.append("благословение: +10% к урону на 2 боя")
+	if o.has("reagent"):
+		var rdef = DB.reagents.REAGENT_BY_LOCATION.get(region)
+		if rdef:
+			g.reagent_counts[rdef.id] = g.reagent_owned(rdef.id) + int(o.reagent); notes.append("%s ×%d" % [rdef.name, int(o.reagent)])
+	if o.has("sneak"):
+		_grace = float(o.sneak); notes.append("банды какое-то время не заметят отряд")
+	if o.get("gamble", false):
+		if randf() < 0.6:
+			var gold = 30 + randi() % 31
+			g.gold += gold
+			notes.append("в повозке нашлось %d золота" % gold)
+			var rdef = DB.reagents.REAGENT_BY_LOCATION.get(region)
+			if rdef: g.reagent_counts[rdef.id] = g.reagent_owned(rdef.id) + 1
+		else:
+			fight = true
+			notes.append("это была ловушка!")
+	log_note = "%s: %s." % [event.title, ", ".join(notes) if not notes.is_empty() else "отряд идёт дальше"]
+	event = null
+	g.notify()
+	if fight: return _ambushers()
+	return null
+
+
+## Whoever jumps the squad: the nearest band, brought up close.
+func _ambushers():
+	var near = null
+	for b in region_bands():
+		if near == null or b.pos.distance_to(pos) < near.pos.distance_to(pos): near = b
+	if near == null:
+		var list = bands.get(region, [])
+		if list.is_empty(): return null
+		near = list[0]
+		beaten.erase(near.id)
+	near.pos = pos + Vector2(2, 0)
+	return near
+
+
+# ── town errands ───────────────────────────────────────────────────────────
+## Two errands on the town's board, new each day.
+func task_offers() -> Array:
+	var rng = RandomNumberGenerator.new()
+	rng.seed = hash("%s:%d" % [region, day])
+	var out = []
+	var kinds = ["bounty", "gather", "chests", "dungeon"]
+	var rdef = DB.reagents.REAGENT_BY_LOCATION.get(region)
+	for i in 2:
+		var kind: String = kinds[rng.randi() % kinds.size()]
+		var id = "%s:%d:%d" % [region, day, i]
+		if tasks.any(func(t): return t.id == id): continue
+		var t = {"id": id, "region": region, "kind": kind, "done": false, "have": 0}
+		var lvl = location_index() + 1
+		match kind:
+			"bounty":
+				var list: Array = bands.get(region, region_bands())
+				var b: Dictionary = list[rng.randi() % list.size()]
+				t.target = b.id; t.need = 1
+				t.title = "Голова за банду"; t.desc = "Разбейте отряд «%s» в окрестностях." % b.name
+				t.gold = 40 + 15 * lvl; t.xp = 30
+			"gather":
+				t.target = rdef.id if rdef else ""; t.need = 3 + rng.randi() % 3
+				t.title = "Заказ ремесленников"; t.desc = "Принесите %s ×%d." % [rdef.name if rdef else "сырьё", t.need]
+				t.gold = 30 + 12 * lvl; t.xp = 20
+			"chests":
+				t.target = ""; t.need = 2
+				t.title = "Разведка округи"; t.desc = "Найдите и вскройте 2 сундука в этих землях."
+				t.gold = 30 + 10 * lvl; t.xp = 25
+			"dungeon":
+				var open = region_dungeons().filter(func(d): return g.is_dungeon_unlocked(d.id))
+				var d: Dictionary = open[rng.randi() % open.size()] if not open.is_empty() else region_dungeons()[0]
+				t.target = d.id; t.need = 1
+				t.title = "Зачистка"; t.desc = "Одолейте хозяина подземелья «%s»." % d.name
+				t.gold = 70 + 20 * lvl; t.xp = 45
+		out.append(t)
+	return out
+
+
+func take_task(t: Dictionary) -> void:
+	if tasks.size() >= TASKS_MAX or tasks.any(func(x): return x.id == t.id): return
+	tasks.append(t.duplicate(true))
+	g.notify()
+
+
+## Progress from things that happen on the map and in dungeons.
+func task_event(kind: String, target := "") -> void:
+	for t in tasks:
+		if t.done or t.kind != kind: continue
+		if t.target != "" and t.target != target: continue
+		t.have = mini(t.need, int(t.have) + 1)
+		if t.have >= t.need:
+			t.done = true
+			log_note = "Поручение выполнено: %s — сдайте его в городе." % t.title
+
+
+func task_ready(t: Dictionary) -> bool:
+	if t.kind == "gather": return g.reagent_owned(t.target) >= int(t.need)
+	return t.done
+
+
+func turn_in(id: String) -> void:
+	for t in tasks:
+		if t.id != id or not task_ready(t): continue
+		if t.kind == "gather": g.reagent_counts[t.target] = g.reagent_owned(t.target) - int(t.need)
+		g.gold += int(t.gold)
+		for c in g.squad():
+			g.gain_xp(c.id, int(t.xp))
+			g.adjust_morale(c.id, 2)
+		log_note = "Награда за «%s»: %d золота и опыт отряду." % [t.title, int(t.gold)]
+		tasks.erase(t)
+		g.notify()
+		return
+
+
+func drop_task(id: String) -> void:
+	tasks = tasks.filter(func(t): return t.id != id)
+	g.notify()
+

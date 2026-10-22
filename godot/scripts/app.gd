@@ -15,6 +15,7 @@ const SCREENS := {
 	"hire": "res://scripts/screens/hire.gd", "arena": "res://scripts/screens/arena.gd", "profession": "res://scripts/screens/profession.gd",
 	"achievements": "res://scripts/screens/achievements.gd", "weekly": "res://scripts/screens/weekly.gd",
 	"talents": "res://scripts/screens/talents.gd", "world": "res://scripts/screens/world.gd", "town": "res://scripts/screens/town.gd",
+	"bivouac": "res://scripts/screens/bivouac.gd",
 }
 
 static var _insets = Vector2.ZERO

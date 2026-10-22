@@ -37,6 +37,7 @@ func build() -> void:
 	_bottom = _bottom_bar(w)
 	add_child(_bottom)
 	add_child(Tabs.make())
+	if w.event != null: add_child(_event_card(w))
 	_measure.call_deferred()
 
 
@@ -64,7 +65,7 @@ func _process(dt: float) -> void:
 		w.log_note = ""
 		_note_at = 0.0
 	var chasing = w.region_bands().filter(func(b): return b.chasing).size()
-	var stamp = [int(w.hours), w.day, w.food, int(w.fatigue / 10), w.hungry, _place, w.log_note, w.region, chasing, Game.gold]
+	var stamp = [int(w.hours), w.day, w.food, int(w.fatigue / 10), w.hungry, _place, w.log_note, w.region, chasing, Game.gold, w.event != null, w.tasks.size()]
 	if stamp != _stamp:
 		var hour_changed = _stamp.is_empty() or stamp[0] != _stamp[0]
 		_stamp = stamp
@@ -132,6 +133,16 @@ func _top_bar(w) -> Control:
 		var note = _panel(0.8)
 		note.add_child(UI.label(w.log_note, 13, UI.ACCENT_SOFT, "italic", true))
 		wrap.add_child(note)
+	if not w.tasks.is_empty():
+		var tp = _panel(0.78)
+		var tv = UI.vbox(3)
+		tv.add_child(UI.kicker("Поручения", UI.TEXT_FAINT, 10))
+		for t in w.tasks:
+			var ready: bool = w.task_ready(t)
+			var line = "%s — %s" % [t.title, "сдать в городе" if ready else ("%d/%d" % [Game.reagent_owned(t.target) if t.kind == "gather" else int(t.have), int(t.need)])]
+			tv.add_child(UI.label(line, 12, UI.GOOD if ready else UI.TEXT_MUTED, "regular", true))
+		tp.add_child(tv)
+		wrap.add_child(tp)
 	var chasers = w.region_bands().filter(func(b): return b.chasing)
 	if not chasers.is_empty():
 		var warn = _panel(0.85)
@@ -154,7 +165,7 @@ func _bottom_bar(w) -> Control:
 	var card = _place_card(w)
 	if card: wrap.add_child(UI.center(_cap(card, 460)) if App.wide else card)
 	var row = UI.hbox(8, BoxContainer.ALIGNMENT_CENTER)
-	row.add_child(_round_btn("campfire", "Привал", "Разбить лагерь: 8 часов, по пайку на бойца, усталость уходит.", func(): w.camp()))
+	row.add_child(_round_btn("campfire", "Привал", "Разбить лагерь: 8 часов, по пайку на бойца, усталость уходит; у каждого героя своё дело.", func(): Game.go("bivouac")))
 	row.add_child(_round_btn("house", "В гильдию", "Вернуться в лагерь гильдии (отряд останется здесь).", func(): Game.go_tab("home")))
 	row.add_child(_round_btn("map-trifold", "Земли", "Карта всех земель.", func(): Game.go("levelmap")))
 	if is_instance_valid(view):
@@ -165,6 +176,41 @@ func _bottom_bar(w) -> Control:
 		row.add_child(_round_btn("magnifying-glass-minus", "", "Отдалить", func(): view.zoom_by(1.18)))
 	wrap.add_child(row)
 	return wrap
+
+
+## A meeting on the road: what happened and the answers.
+func _event_card(w) -> Control:
+	var e: Dictionary = w.event
+	var shade = ColorRect.new()
+	shade.color = Color(0.03, 0.02, 0.02, 0.55)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	var c = CenterContainer.new()
+	c.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.add_child(c)
+	var sheet = UI.parchment(Vector4(20, 16, 20, 16))
+	sheet.custom_minimum_size.x = UI.px(minf(480.0, get_viewport_rect().size.x / UI.K - 30.0))
+	c.add_child(sheet)
+	var v = UI.vbox(8)
+	sheet.add_child(v)
+	var top = UI.hbox(10)
+	top.add_child(UI.wax_seal(40, e.icon))
+	var tv = UI.vbox(0)
+	tv.add_child(UI.label("В пути", 12, UI.INK_RED, "caps"))
+	tv.add_child(UI.label(e.title, 21, UI.INK, "title", true))
+	top.add_child(UI.expand(tv))
+	v.add_child(top)
+	v.add_child(UI.label(e.text, 15, UI.INK_MUTED, "regular", true))
+	v.add_child(UI.rule())
+	for i in e.options.size():
+		var o: Dictionary = e.options[i]
+		var idx = i
+		var can: bool = w.can_take(o)
+		v.add_child(UI.ink_action(o.label + ("" if can else " — не хватает"), func():
+			var band = w.answer(idx)
+			if band != null: Game.start_skirmish(band)
+			else: refresh(), i == 0, not can))
+	return shade
 
 
 func _cap(c: Control, wpt: float) -> Control:

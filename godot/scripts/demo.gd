@@ -28,6 +28,18 @@ static func open(what: String) -> void:
 	var g = Game
 	match what:
 		"char": g.open_char(g.squad()[0].id)
+		"bivouac":
+			g.go_world()
+			g.go("bivouac")
+		"town":
+			g.go_world()
+			g.w.take_task(g.w.task_offers()[0])
+			g.go("town")
+		"world-event":
+			g.settings.auto = false
+			g.go_world()
+			g.w.event = World.ROAD_EVENTS[0]
+			g.w.take_task(g.w.task_offers()[0])
 		"world", "world-night", "world-town", "world-gate", "world-band":
 			g.settings.auto = false
 			g.go_world()

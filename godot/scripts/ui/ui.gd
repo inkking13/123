@@ -439,7 +439,9 @@ static func tap(c: Control, fn: Callable, pressed_fx := true) -> Control:
 			elif state.down:
 				state.down = false
 				rest.call()
-				if ev.global_position.distance_to(state.at) < px(10): fn.call()
+				if ev.global_position.distance_to(state.at) < px(10):
+					Sound.sfx("click", 0.45)
+					fn.call()
 		elif ev is InputEventMouseMotion and state.down and ev.global_position.distance_to(state.at) >= px(10):
 			state.down = false
 			rest.call())

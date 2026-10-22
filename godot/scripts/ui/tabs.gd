@@ -5,7 +5,7 @@ class_name Tabs
 
 const HEIGHT := 62.0
 const RAIL := 104.0
-const TAB_OF := {"roster": "roster", "char": "roster", "talents": "roster", "gear": "roster", "profession": "roster", "levelmap": "levelmap", "world": "levelmap", "town": "levelmap", "arena": "arena", "quests": "quests"}
+const TAB_OF := {"roster": "roster", "char": "roster", "talents": "roster", "gear": "roster", "profession": "roster", "levelmap": "levelmap", "world": "levelmap", "town": "levelmap", "bivouac": "levelmap", "arena": "arena", "quests": "quests"}
 
 
 static func make() -> Control:
