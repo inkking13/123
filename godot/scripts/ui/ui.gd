@@ -45,6 +45,12 @@ const FONTS := {
 const PAPER := preload("res://assets/ui/parchment.jpg")
 const ROUNDED := preload("res://shaders/rounded.gdshader")
 
+## A mouse that hovers (a computer, not a phone) lights what it points at.
+## (Not is_touchscreen_available(): mouse-to-touch emulation makes that true everywhere.)
+static var HOVER = not (OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios"))
+## The screen's main call to action, for Enter: the first enabled primary button built.
+static var default_action = Callable()
+
 static var _icons = {}
 static var _icon_cache = {}
 static var _tex_cache = {}
@@ -231,6 +237,17 @@ static func scroll(content: Control) -> ScrollContainer:
 	var s = ScrollContainer.new()
 	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	s.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	if HOVER:
+		# A computer gets a thin gold scroll bar to grab.
+		s.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		var bar = s.get_v_scroll_bar()
+		var track = StyleBoxFlat.new(); track.bg_color = Color(0, 0, 0, 0.18); track.content_margin_left = px(4); track.content_margin_right = px(4)
+		var grab = StyleBoxFlat.new(); grab.bg_color = Color(BORDER_HOVER, 0.75); grab.set_corner_radius_all(px(3))
+		var grab_hi = grab.duplicate(); grab_hi.bg_color = ACCENT
+		bar.add_theme_stylebox_override("scroll", track)
+		bar.add_theme_stylebox_override("grabber", grab)
+		bar.add_theme_stylebox_override("grabber_highlight", grab_hi)
+		bar.add_theme_stylebox_override("grabber_pressed", grab_hi)
 	s.set_anchors_preset(Control.PRESET_FULL_RECT)
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.add_child(content)
@@ -359,7 +376,8 @@ static func picture(path: String, w: float, h: float = -1, radius := 6.0, gray :
 	if h < 0: h = w
 	t.custom_minimum_size = Vector2(px(w), px(h))
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	t.stretch_mode = TextureRect.STRETCH_SCALE
+	# Never squashed: a box of another shape crops the picture instead.
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	t.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var m = ShaderMaterial.new()
@@ -371,6 +389,26 @@ static func picture(path: String, w: float, h: float = -1, radius := 6.0, gray :
 	return t
 
 
+## Keeps a box that stretches across `ratio` times as tall as it is wide
+## (at most `max_h` points), so a portrait in it stays a portrait.
+static func keep_ratio(c: Control, ratio: float, max_h := 1e6) -> Control:
+	c.resized.connect(func():
+		var h = minf(round(c.size.x * ratio), px(max_h))
+		if absf(c.custom_minimum_size.y - h) > 0.5: c.custom_minimum_size.y = h)
+	return c
+
+
+## Something drawn over a picture (a ring, a mark). Drawn on a layer of its
+## own, since the picture's rounding shader would paint it over.
+static func overlay(pic: Control, fn: Callable) -> Control:
+	var o = Control.new()
+	o.set_anchors_preset(Control.PRESET_FULL_RECT)
+	o.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	o.draw.connect(func(): fn.call(o))
+	pic.add_child(o)
+	return o
+
+
 static func portrait(cid: int, size: float, radius := 6.0, gray := false) -> TextureRect:
 	return picture(DB.portrait_path(cid), size, size, radius, gray)
 
@@ -380,20 +418,31 @@ static func portrait(cid: int, size: float, radius := 6.0, gray := false) -> Tex
 ## press and release without moving far. `pressed_fx` dims it while held.
 static func tap(c: Control, fn: Callable, pressed_fx := true) -> Control:
 	c.mouse_filter = Control.MOUSE_FILTER_PASS
-	var state = {"at": Vector2.ZERO, "down": false}
+	var state = {"at": Vector2.ZERO, "down": false, "base": c.modulate, "over": false}
+	var rest = func(): c.modulate = Color(state.base.r * 1.14, state.base.g * 1.1, state.base.b * 1.02, state.base.a) if state.over else state.base
+	if HOVER:
+		c.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		c.mouse_entered.connect(func():
+			if not state.over: state.base = c.modulate
+			state.over = true
+			if not state.down: rest.call())
+		c.mouse_exited.connect(func():
+			state.over = false
+			if not state.down: rest.call())
 	c.gui_input.connect(func(ev: InputEvent):
 		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
 			if ev.pressed:
 				state.at = ev.global_position
 				state.down = true
-				if pressed_fx: c.modulate = Color(0.82, 0.78, 0.72)
+				if not state.over: state.base = c.modulate
+				if pressed_fx: c.modulate = Color(0.82, 0.78, 0.72, state.base.a)
 			elif state.down:
 				state.down = false
-				c.modulate = Color.WHITE
+				rest.call()
 				if ev.global_position.distance_to(state.at) < px(10): fn.call()
 		elif ev is InputEventMouseMotion and state.down and ev.global_position.distance_to(state.at) >= px(10):
 			state.down = false
-			c.modulate = Color.WHITE)
+			rest.call())
 	return c
 
 
@@ -412,7 +461,9 @@ static func primary_button(text: String, fn: Callable, icon_name := "", trailing
 		row.add_child(icon(trailing, 18, INK))
 	p.add_child(row)
 	if disabled: p.modulate = Color(1, 1, 1, 0.45)
-	else: tap(p, fn)
+	else:
+		tap(p, fn)
+		if not default_action.is_valid(): default_action = fn
 	return p
 
 

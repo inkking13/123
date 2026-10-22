@@ -70,6 +70,8 @@ const SHAMAN_HEAL_SHARE := 0.07
 const ROOM_GROUP_HP_MULT := 0.9
 const BERSERK_TAKEN_MULT := 1.25
 const BOSS_DMG_SCALE := 1.6
+## The spellbook adds damage on top of the plain attack; foes grow to match.
+const SPELLBOOK_HP_MULT := 1.25
 
 var g  # Game
 var sim = null
@@ -126,7 +128,14 @@ func make_raiders(squad: Array) -> Array:
 		var lvl = 1.0 + (d.level - 1) * 0.02
 		var max_hp = int(round(d.hp * gm.hpMult * tm.hpMult * cm.hpMult * pm.hpMult * sm.hpMult * lvl))
 		var hr: float = 1.0 if g.in_arena else g.hr_mult(d.id, ids)
+		var tb: Dictionary = g.talent_bonus(d)
+		var rd: Dictionary = DB.resource_of(d.heroClass)
+		var spells = g.known_spells(d).map(func(sd): return {"id": sd.id, "cd": 0, "cdMax": maxi(0, int(sd.cd) - int(tb.cdr.get(sd.id, 0)))})
 		out.append({
+			"spec": d.spec, "power": float(d.power), "spells": spells, "buffs": [], "absorb": 0.0, "hots": [],
+			"res": {"kind": DB.specs.CLASS_RESOURCE[d.heroClass], "val": float(rd.start), "start": float(rd.start), "max": float(rd.max),
+				"regen": float(rd.regen + tb.regen), "onHit": float(rd.onHit), "onHurt": float(rd.onHurt)},
+			"crit": 0.14 + tb.crit, "healMult": 1.0 + tb.heal, "costMult": maxf(0.5, 1.0 + tb.cost), "spellMult": tb.spell,
 			"id": i, "name": d.name, "role": d.role, "heroClass": d.heroClass, "rageRound": 0, "regen": null,
 			"attackRange": d.attackRange, "candidateId": d.id, "trait": d.trait, "level": d.level,
 			"maxHp": max_hp, "hp": float(max_hp), "alive": true, "dps": float(d.dps), "healPower": float(d.get("healPower", 9) if d.get("healPower") != null else 9),
@@ -166,12 +175,14 @@ func fresh_sim(enc: Dictionary, keep, room_idx := 0) -> Dictionary:
 	else:
 		var dm = g.current_dungeon().get("dmgMult")
 		dmg_mult = (dm if dm != null else 1.0) * (g.weekly_dmg_mult if g.in_weekly else 1.0) * slot_comp_mult("dmg")
-	var enc_hp = int(round(enc.hp * (1.0 if g.in_arena else slot_comp_mult("hp"))))
+	var enc_hp = int(round(enc.hp * SPELLBOOK_HP_MULT * (1.0 if g.in_arena else slot_comp_mult("hp"))))
 	for i in raiders.size():
 		var r: Dictionary = raiders[i]
 		r.chainPartner = null; r.defending = false; r.regen = null
 		r.row = BACK_ROW; r.col = i + 1
 		r.ability.active = false; r.ability.activeRounds = 0; r.ability.cd = 0
+		r.res.val = r.res.start; r.buffs = []; r.absorb = 0.0; r.hots = []
+		for sp in r.spells: sp.cd = 0
 	var enemies: Array = _build_room_group(int(round(enc_hp * ROOM_GROUP_HP_MULT)), room_idx) if enc.type == "room" else []
 	var total = 0.0
 	for e in enemies: total += e.hp
@@ -191,6 +202,7 @@ func fresh_sim(enc: Dictionary, keep, room_idx := 0) -> Dictionary:
 		"frozen": null, "ashCurse": null, "danger": null,
 		"stagger": 0.0, "stunned": false, "vulnerableRounds": 0, "inspiredRounds": 0,
 		"enrageAt": ENRAGE_ROUND_BOSS if enc.type == "boss" else ENRAGE_ROUND_ROOM,
+		"dots": [], "partyBuffs": [],
 		"rallyCd": 0, "valor": VALOR_START, "valorSeq": 0, "tilt": 0.0, "phase": 1, "log": [], "over": false, "selected": null,
 	}
 
@@ -426,6 +438,8 @@ func _auto_action(r: Dictionary) -> Array:
 			"mage": want = sim.enemies.filter(func(e): return e.alive).size() >= 2 or sim.valor >= 4
 			_: want = sim.valor >= 4 or sim.vulnerableRounds > 0
 		if want: return ["valor", null]
+	var cast = _auto_spell(r, acts, alive_r, lowest)
+	if cast != null: return cast
 	if r.role == "heal" and has.call("heal") and lowest.hp / lowest.maxHp < 0.65:
 		var t = weakest.call()
 		if t: return ["heal", t.id]
@@ -438,6 +452,67 @@ func _auto_action(r: Dictionary) -> Array:
 		if t: return ["heal", t.id]
 	if has.call("defend"): return ["defend", null]
 	return ["attack", null]
+
+
+## Auto-battle's pick from the spellbook, most urgent first; null to fall back
+## to the plain moves.
+func _auto_spell(r: Dictionary, acts: Array, alive_r: Array, lowest: Dictionary):
+	var defs = []
+	for a in acts:
+		if a.key.begins_with("spell:") and not a.disabled: defs.append(DB.spell(r.heroClass, a.key.substr(6)))
+	if defs.is_empty(): return null
+	var low: float = lowest.hp / lowest.maxHp
+	var mine: float = r.hp / r.maxHp
+	var hurt_n = alive_r.filter(func(x): return x.hp / x.maxHp < 0.7).size()
+	var foes = sim.enemies.filter(func(e): return e.alive).size() + sim.minions.filter(func(m): return m.alive).size()
+	var threat: bool = sim.windup or sim.danger != null or sim.execution != null
+	var go = func(d: Dictionary, t = null): return ["spell:" + d.id, t]
+	var with_key = func(k: String) -> Array: return defs.filter(func(d): return d.eff.has(k))
+	for d in with_key.call("buff"):
+		var taken: float = float(d.eff.buff.get("taken", 1.0))
+		if taken < 1.0 and d.target == "self" and (mine < 0.45 or (r.role == "tank" and threat)): return go.call(d)
+		if taken < 1.0 and d.target == "ally" and low < 0.35: return go.call(d, lowest.id)
+	for d in with_key.call("healPct"):
+		if low < 0.25: return go.call(d, lowest.id)
+	for d in with_key.call("partyHeal") + with_key.call("partyHot"):
+		if hurt_n >= 3 or (hurt_n >= 2 and low < 0.45): return go.call(d)
+	if low < 0.7:
+		var best = null
+		for d in with_key.call("heal"):
+			if best == null or float(d.eff.heal) > float(best.eff.heal): best = d
+		if best != null: return go.call(best, lowest.id)
+		for d in with_key.call("shield"):
+			if lowest.absorb <= 0: return go.call(d, lowest.id)
+		for d in with_key.call("hot"):
+			if lowest.hots.is_empty(): return go.call(d, lowest.id)
+	for d in with_key.call("selfHealPct"):
+		if mine < 0.5: return go.call(d)
+	for d in with_key.call("gain"):
+		if r.res.val < 30 and not d.eff.has("buff"): return go.call(d)
+	for d in with_key.call("partyBuff"):
+		var pb: Dictionary = d.eff.partyBuff
+		if pb.has("taken") and threat: return go.call(d)
+		if pb.has("dmg") and sim.partyBuffs.is_empty(): return go.call(d)
+	for d in with_key.call("buff"):
+		if d.target == "self" and (d.eff.buff.has("dmg") or d.eff.buff.has("crit")) and r.buffs.is_empty() and r.role != "heal": return go.call(d)
+	if foes >= 2:
+		var best = null
+		for d in with_key.call("aoe"):
+			if best == null or float(d.eff.aoe) > float(best.eff.aoe): best = d
+		if best != null: return go.call(best)
+	for d in with_key.call("dot"):
+		if not d.eff.has("dmg") and not d.eff.has("aoe") and not sim.dots.any(func(x): return x.name == d.name): return go.call(d)
+	if r.role == "heal" and low < 0.85:
+		for d in with_key.call("shield"):
+			if lowest.absorb <= 0: return go.call(d, lowest.id)
+		for d in with_key.call("hot"):
+			if lowest.hots.is_empty(): return go.call(d, lowest.id)
+	var strike = null
+	for d in with_key.call("dmg"):
+		if d.eff.get("interrupt", false) and not sim.pendingCast: continue
+		if strike == null or float(d.eff.dmg) > float(strike.eff.dmg): strike = d
+	if strike != null: return go.call(strike)
+	return null
 
 
 # ── rounds and turns ────────────────────────────────────────────────────────
@@ -467,6 +542,14 @@ func _begin_round() -> void:
 			r.regen.rounds -= 1
 			if r.regen.rounds <= 0: r.regen = null
 	s.rallyCd = maxi(0, s.rallyCd - 1)
+	for pb in s.partyBuffs: pb.rounds -= 1
+	s.partyBuffs = s.partyBuffs.filter(func(pb): return pb.rounds > 0)
+	for r in alive():
+		for h in r.hots:
+			r.hp = minf(r.maxHp, r.hp + h.amt)
+			h.rounds -= 1
+		r.hots = r.hots.filter(func(h): return h.rounds > 0)
+	_tick_dots()
 	if s.partyWard:
 		s.partyWard.roundsLeft -= 1
 		if s.partyWard.roundsLeft <= 0: s.partyWard = null
@@ -669,6 +752,13 @@ func hurt(r: Dictionary, amount: float) -> void:
 	if r.defending: d *= DEFEND_MULT
 	if r.ability.kind == "berserk" and r.ability.active: d *= BERSERK_TAKEN_MULT
 	d *= r.wardMult
+	for b in r.buffs: d *= float(b.get("taken", 1.0))
+	if s:
+		for pb in s.partyBuffs: d *= float(pb.get("taken", 1.0))
+	if r.absorb > 0 and d > 0:
+		var soak = minf(r.absorb, d)
+		r.absorb -= soak; d -= soak
+	if amount > 0: _gain_res(r, r.res.onHurt)
 	r.hp -= d
 
 
@@ -690,6 +780,10 @@ func boss_dmg_mult(avoidable := false) -> float:
 
 func _tick_ability(r: Dictionary) -> void:
 	r.defending = false
+	r.res.val = minf(r.res.max, r.res.val + r.res.regen)
+	for sp in r.spells: sp.cd = maxi(0, sp.cd - 1)
+	for b in r.buffs: b.rounds -= 1
+	r.buffs = r.buffs.filter(func(b): return b.rounds > 0)
 	var a: Dictionary = r.ability
 	if a.cd > 0: a.cd -= 1
 	if a.active:
@@ -804,6 +898,9 @@ func hit_boss(r: Dictionary, raw: float, stagger_gain: float) -> Dictionary:
 	var m = 1.0
 	if r.ability.kind == "berserk" and r.ability.active:
 		m *= 2; tags.append("берсерк")
+	var bm = _buff_mult(r, "dmg")
+	if bm != 1.0:
+		m *= bm; tags.append("усиление")
 	var allies = _front_allies(r)
 	if allies > 0:
 		m *= 1 + FORMATION_BONUS * allies; tags.append("строй")
@@ -832,17 +929,23 @@ func hit_boss(r: Dictionary, raw: float, stagger_gain: float) -> Dictionary:
 	if s.debt and s.debt.targetId == r.id: s.debt.paid = true
 	if s.quota: s.quota.dealt += dmg
 	if target: tags.push_front("→ " + target.name)
-	if not on_minion and s.vulnerableRounds == 0 and not s.stunned and stagger_gain > 0 and s.boss.hp > 0:
-		s.stagger = minf(STAGGER_MAX, s.stagger + stagger_gain)
-		if s.stagger >= STAGGER_MAX:
-			s.stagger = 0.0
-			s.stunned = true
-			s.vulnerableRounds = VULNERABLE_ROUNDS + 1
-			gain_valor(1)
-			g.haptic(80)
-			log_line("Натиск смял строй врагов — они оглушены! Бейте, пока открыты." if not s.enemies.is_empty() else "Натиск сломил защиту — %s оглушён! Бейте, пока открыт." % s.boss.name, "ok")
+	if not on_minion: _add_stagger(stagger_gain)
 	_check_phase()
 	return {"dmg": dmg, "note": (" (" + ", ".join(tags) + ")") if not tags.is_empty() else ""}
+
+
+## Fills the stagger meter; full, it stuns the foes for a window of bonus damage.
+func _add_stagger(gain: float) -> void:
+	var s: Dictionary = sim
+	if s.vulnerableRounds != 0 or s.stunned or gain <= 0 or s.boss.hp <= 0: return
+	s.stagger = minf(STAGGER_MAX, s.stagger + gain)
+	if s.stagger >= STAGGER_MAX:
+		s.stagger = 0.0
+		s.stunned = true
+		s.vulnerableRounds = VULNERABLE_ROUNDS + 1
+		gain_valor(1)
+		g.haptic(80)
+		log_line("Натиск смял строй врагов — они оглушены! Бейте, пока открыты." if not s.enemies.is_empty() else "Натиск сломил защиту — %s оглушён! Бейте, пока открыт." % s.boss.name, "ok")
 
 
 func focus_enemy():
@@ -1005,6 +1108,17 @@ func turn_actions() -> Array:
 	var focus = attack_target(r)
 	act.call("attack", "Атаковать", {"disabled": not in_range, "sub": "подойдите вплотную к врагу" if not in_range else ("цель: " + focus.name if focus else null)})
 	if r.role == "heal": act.call("heal", "Лечить", {"needsTarget": true})
+	var res_name: String = DB.specs.RESOURCES[r.res.kind].name
+	for sp in r.spells:
+		var sd = DB.spell(r.heroClass, sp.id)
+		var cost = spell_cost(r, sd)
+		var reach: bool = sd.target != "enemy" or sd.eff.get("ranged", false) or in_range
+		var sub = null
+		if sp.cd > 0: sub = "КД: %d" % sp.cd
+		elif not reach: sub = "подойдите вплотную"
+		elif cost > 0: sub = "%d %s" % [cost, res_name.to_lower()]
+		act.call("spell:" + sp.id, sd.name, {"spellIcon": sd.icon, "disabled": sp.cd > 0 or r.res.val < cost or not reach,
+			"needsTarget": sd.target == "ally", "sub": sub, "cost": cost, "desc": sd.desc, "short": r.res.val < cost and sp.cd == 0})
 	var def = DB.ability(r.candidateId)
 	act.call("ability", def.name, {"abilityIcon": def.icon, "abilityArt": DB.ability_art_path(r.candidateId), "disabled": r.ability.cd > 0,
 		"sub": "КД: %d" % r.ability.cd if r.ability.cd > 0 else null})
@@ -1017,10 +1131,10 @@ func turn_actions() -> Array:
 	return acts
 
 
-func heal_targets() -> Array:
+func heal_targets(include_self := false) -> Array:
 	var r = current_raider()
 	if r == null: return []
-	return alive().filter(func(x): return x.id != r.id).map(func(x): return {"id": x.id, "name": x.name, "hpPct": maxi(0, int(round(100 * x.hp / x.maxHp)))})
+	return alive().filter(func(x): return include_self or x.id != r.id).map(func(x): return {"id": x.id, "name": x.name, "hpPct": maxi(0, int(round(100 * x.hp / x.maxHp)))})
 
 
 func raider_action(key: String, target_id = null) -> void:
@@ -1031,14 +1145,26 @@ func raider_action(key: String, target_id = null) -> void:
 	if key == "valor" and s.valor < DB.hero_class(r.heroClass).valorCost:
 		s.awaitingPlayer = true
 		return
+	var sd = {}
+	if key.begins_with("spell:"):
+		var sp = _spell_state(r, key.substr(6))
+		sd = DB.spell(r.heroClass, key.substr(6))
+		if sp == null or sd.is_empty() or sp.cd > 0 or r.res.val < spell_cost(r, sd):
+			s.awaitingPlayer = true
+			return
 	var valor_kind = VALOR_FX[r.heroClass] if key == "valor" else null
-	var strike: bool = key == "attack" or valor_kind == "strike"
+	var strike: bool = key == "attack" or valor_kind == "strike" or (not sd.is_empty() and sd.eff.has("dmg"))
 	var fx_kind = null
-	if strike: fx_kind = "melee" if r.attackRange == "melee" else "ranged"
+	if strike: fx_kind = "melee" if r.attackRange == "melee" and not sd.get("eff", {}).get("ranged", false) else "ranged"
 	elif key == "heal" or valor_kind == "heal": fx_kind = "heal"
 	elif key == "ability" or valor_kind == "spell": fx_kind = "ability"
 	elif key == "rally" or valor_kind == "shout": fx_kind = "rally"
-	var aims: bool = strike or key == "ability"
+	if not sd.is_empty() and fx_kind == null:
+		var e: Dictionary = sd.eff
+		if e.has("aoe"): fx_kind = "ability"
+		elif e.has("heal") or e.has("partyHeal") or e.has("hot") or e.has("partyHot") or e.has("shield") or e.has("healPct") or e.has("selfHealPct"): fx_kind = "heal"
+		else: fx_kind = "rally"
+	var aims: bool = strike or key == "ability" or (not sd.is_empty() and sd.eff.has("aoe"))
 	if strike and r.attackRange == "melee":
 		var t = attack_target(r)
 		if t and t.id != s.focusId: s.focusId = t.id
@@ -1069,6 +1195,8 @@ func raider_action(key: String, target_id = null) -> void:
 			r.defending = true
 			log_line("%s уходит в оборону." % r.name)
 		"valor": _do_valor(r)
+		_:
+			if not sd.is_empty(): _cast(r, sd, target_id)
 	_check_deaths()
 	g.notify()
 	if not _check_outcome(): _schedule_advance(0.65)
@@ -1082,7 +1210,8 @@ func gain_valor(n: int) -> void:
 
 
 func _do_attack(r: Dictionary) -> void:
-	var crit = randf() < 0.14
+	var crit = randf() < crit_chance(r)
+	_gain_res(r, r.res.onHit)
 	var raw: float = r.dps * out_mult(r) * dps_mult() * ATTACK_TURN_SCALE
 	if crit: raw *= 1.8
 	var front: bool = r.attackRange == "melee" and engaged(r)
@@ -1169,7 +1298,7 @@ func _do_heal(r: Dictionary, target_id) -> void:
 	if t == null: t = r
 	var inspired: bool = sim.inspiredRounds > 0
 	var priest: bool = r.heroClass == "priest"
-	var amt = maxi(1, int(round(r.healPower * out_mult(r) * heal_mult() * HEAL_TURN_SCALE * (INSPIRED_HEAL_MULT if inspired else 1.0) * (PRIEST_HEAL_MULT if priest else 1.0))))
+	var amt = maxi(1, int(round(heal_raw(r))))
 	t.hp = minf(t.maxHp, t.hp + amt)
 	sim.fx.targetRaider = t.id
 	var notes = []
@@ -1181,6 +1310,191 @@ func _do_heal(r: Dictionary, target_id) -> void:
 		t.regen = {"amt": maxi(1, int(round(amt * 0.25))), "rounds": 2}
 		notes.append("побеги")
 	log_line("%s лечит %s: +%d%s" % [r.name, t.name, amt, (" (" + ", ".join(notes) + ")") if not notes.is_empty() else ""], "ok")
+
+
+# ── the spellbook: resource, numbers, and casting any spell ─────────────────
+func _gain_res(r: Dictionary, n: float) -> void:
+	if n > 0: r.res.val = minf(r.res.max, r.res.val + n)
+
+
+func spell_cost(r: Dictionary, sd: Dictionary) -> int:
+	return int(round(float(sd.get("cost", 0)) * r.costMult))
+
+
+func _spell_state(r: Dictionary, id: String):
+	for sp in r.spells:
+		if sp.id == id: return sp
+	return null
+
+
+## The product of one stat over a hero's own buffs and the party's.
+func _buff_mult(r: Dictionary, key: String) -> float:
+	var m = 1.0
+	for b in r.buffs: m *= float(b.get(key, 1.0))
+	if sim:
+		for pb in sim.partyBuffs: m *= float(pb.get(key, 1.0))
+	return m
+
+
+func crit_chance(r: Dictionary) -> float:
+	var c: float = r.crit
+	for b in r.buffs: c += float(b.get("crit", 0.0))
+	return minf(0.95, c)
+
+
+## One turn's worth of healing from this hero: healers by their healing power,
+## others by a quarter of their power.
+func heal_raw(r: Dictionary) -> float:
+	var base: float = float(r.healPower) if r.role == "heal" and r.healPower != null else r.power * 0.25
+	var m: float = out_mult(r) * heal_mult() * HEAL_TURN_SCALE * r.healMult * _buff_mult(r, "dmg")
+	if sim.inspiredRounds > 0: m *= INSPIRED_HEAL_MULT
+	if r.heroClass == "priest": m *= PRIEST_HEAL_MULT
+	return base * m
+
+
+## One turn's worth of spell damage: healers cast from half their power.
+func spell_raw(r: Dictionary) -> float:
+	var base: float = r.power * 0.5 if r.role == "heal" else float(r.dps)
+	return base * out_mult(r) * dps_mult() * ATTACK_TURN_SCALE
+
+
+func _tick_dots() -> void:
+	var s: Dictionary = sim
+	var keep = []
+	for d in s.dots:
+		var alive_t = true
+		if d.enemyId != null:
+			alive_t = (s.enemies + s.minions).any(func(e): return e.id == d.enemyId and e.alive)
+		elif s.boss.hp <= 0: alive_t = false
+		if not alive_t: continue
+		_damage_foe(d.dmg, d.enemyId)
+		log_line("%s: -%d по %s." % [d.name, int(d.dmg), d.targetName], "ok")
+		d.rounds -= 1
+		if d.rounds > 0: keep.append(d)
+	s.dots = keep
+	_check_phase()
+
+
+func _add_dot(sd: Dictionary, r: Dictionary, mult: float, rounds: int, target) -> void:
+	var dmg = maxf(1, round(spell_raw(r) * mult * (1.0 + r.spellMult.get(sd.id, 0.0))))
+	var id = target.id if target != null and (not sim.enemies.is_empty() or target.id >= MINION_ID0) else null
+	sim.dots.append({"enemyId": id, "dmg": dmg, "rounds": rounds, "name": sd.name, "targetName": target.name if target != null else sim.boss.name})
+
+
+func _ally(r: Dictionary, target_id):
+	if target_id != null:
+		var x = _raider(target_id)
+		if x and x.alive: return x
+	var t = heal_target(r)
+	return t if t != null else r
+
+
+## Casts any spell from the book: its numbers say what it does.
+func _cast(r: Dictionary, sd: Dictionary, target_id) -> void:
+	var s: Dictionary = sim
+	var e: Dictionary = sd.eff
+	var sp = _spell_state(r, sd.id)
+	r.res.val -= spell_cost(r, sd)
+	sp.cd = sp.cdMax
+	var boost: float = 1.0 + float(r.spellMult.get(sd.id, 0.0))
+	var notes = []
+	g.ever_used_ability = true
+	if e.get("interrupt", false) and s.pendingCast:
+		s.pendingCast = null
+		add_tilt(-5); gain_valor(1)
+		g.ever_interrupted = true
+		notes.append("каст сорван")
+	if e.has("dmg"):
+		var t = attack_target(r) if not s.enemies.is_empty() or r.attackRange == "melee" else focus_enemy()
+		var m: float = float(e.dmg) * boost
+		if e.has("execute"):
+			var pct: float = t.hp / t.maxHp if t else s.boss.hp / s.boss.maxHp
+			if pct < 0.3:
+				m = float(e.execute) * boost; notes.append("казнь")
+		if e.has("flank") and t and alive().any(func(x): return x.id != r.id and adjacent_foes(x).any(func(f): return f.id == t.id)):
+			m = float(e.flank) * boost; notes.append("в спину")
+		var crit = randf() < crit_chance(r)
+		if crit:
+			m *= 1.8; notes.append("крит"); gain_valor(1)
+		s.fx.crit = crit
+		var h = hit_boss(r, spell_raw(r) * m, STAGGER_ATTACK + float(e.get("stagger", 0)) + (STAGGER_CRIT if crit else 0))
+		notes.append("-%d%s" % [h.dmg, h.note])
+		if e.has("selfHeal"):
+			var back = round(h.dmg * float(e.selfHeal))
+			r.hp = minf(r.maxHp, r.hp + back); notes.append("+%d себе" % back)
+		if t and (e.has("splash") or e.has("chain")) and not s.enemies.is_empty():
+			var others = s.enemies.filter(func(x): return x.alive and x.id != t.id)
+			if e.has("splash"): others = others.filter(func(x): return maxi(absi(x.row - t.row), absi(x.col - t.col)) <= 1)
+			var part = float(e.get("splash", e.get("chain", 0.0)))
+			for x in others.slice(0, 2): _damage_foe(maxi(1, int(round(h.dmg * part))), x.id)
+		if e.has("dot"): _add_dot(sd, r, float(e.dot[0]), int(e.dot[1]), t)
+		if e.has("healLowest"):
+			var low: Dictionary = alive()[0]
+			for x in alive():
+				if x.hp / x.maxHp < low.hp / low.maxHp: low = x
+			var amt = round(heal_raw(r) * float(e.healLowest) * boost)
+			low.hp = minf(low.maxHp, low.hp + amt)
+			notes.append("%s +%d" % [low.name, amt])
+	elif e.has("dot") and not e.has("aoe"):
+		var t = focus_enemy() if not s.enemies.is_empty() else attack_target(r)
+		_add_dot(sd, r, float(e.dot[0]), int(e.dot[1]), t)
+		notes.append("на %s" % (t.name if t else s.boss.name))
+	if e.has("aoe"):
+		var raw: float = spell_raw(r) * float(e.aoe) * boost
+		var foes = s.enemies.filter(func(x): return x.alive)
+		if not foes.is_empty():
+			for x in foes:
+				_damage_foe(maxi(1, int(round(raw))), x.id)
+				if e.has("dot"): _add_dot(sd, r, float(e.dot[0]), int(e.dot[1]), x)
+			_add_stagger(float(e.get("stagger", 0)))
+			notes.append("-%d каждому" % int(round(raw)))
+		else:
+			for x in s.minions.filter(func(m): return m.alive): _damage_foe(maxi(1, int(round(raw))), x.id)
+			var h = hit_boss(r, raw, STAGGER_ATTACK + float(e.get("stagger", 0)))
+			if e.has("dot"): _add_dot(sd, r, float(e.dot[0]), int(e.dot[1]), null)
+			notes.append("-%d%s" % [h.dmg, h.note])
+	if e.has("heal") or e.has("healPct") or e.has("hot") or e.has("shield"):
+		var t = _ally(r, target_id)
+		s.fx.targetRaider = t.id
+		if e.has("heal"):
+			var amt = round(heal_raw(r) * float(e.heal) * boost)
+			t.hp = minf(t.maxHp, t.hp + amt); notes.append("%s +%d" % [t.name, amt])
+		if e.has("healPct"):
+			var amt = round(t.maxHp * float(e.healPct))
+			t.hp = minf(t.maxHp, t.hp + amt); notes.append("%s +%d" % [t.name, amt])
+		if e.has("hot"):
+			t.hots.append({"amt": round(heal_raw(r) * float(e.hot[0]) * boost), "rounds": int(e.hot[1])})
+			if not e.has("heal"): notes.append("%s лечится %d раунда" % [t.name, int(e.hot[1])])
+		if e.has("shield"):
+			var amt = round(heal_raw(r) * float(e.shield) * boost)
+			t.absorb += amt; notes.append("щит %d на %s" % [amt, t.name])
+	if e.has("partyHeal"):
+		var amt = round(heal_raw(r) * float(e.partyHeal) * boost)
+		for x in alive(): x.hp = minf(x.maxHp, x.hp + amt)
+		s.fx.targetRaider = r.id
+		notes.append("+%d каждому" % amt)
+	if e.has("partyHot"):
+		var amt = round(heal_raw(r) * float(e.partyHot[0]) * boost)
+		for x in alive(): x.hots.append({"amt": amt, "rounds": int(e.partyHot[1])})
+		notes.append("отряд лечится %d раунда" % int(e.partyHot[1]))
+	if e.has("selfHealPct"):
+		var amt = round(r.maxHp * float(e.selfHealPct))
+		r.hp = minf(r.maxHp, r.hp + amt); notes.append("+%d себе" % amt)
+	if e.has("buff"):
+		var b: Dictionary = e.buff.duplicate()
+		var t = _ally(r, target_id) if sd.target == "ally" else r
+		b.rounds = int(b.rounds) + 1
+		b.name = sd.name
+		t.buffs.append(b)
+		if t != r: notes.append("на %s" % t.name)
+	if e.has("partyBuff"):
+		var pb: Dictionary = e.partyBuff.duplicate()
+		pb.name = sd.name
+		s.partyBuffs.append(pb)
+	if e.has("gain"): _gain_res(r, float(e.gain))
+	log_line("%s: %s%s" % [r.name, sd.name, (" (" + ", ".join(notes) + ")") if not notes.is_empty() else ""], "ok")
+	g.haptic(20)
+	_check_phase()
 
 
 func _do_interrupt(r: Dictionary) -> void:

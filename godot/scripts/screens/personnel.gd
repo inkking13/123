@@ -36,9 +36,7 @@ func build() -> void:
 		var hv = UI.vbox(1)
 		hv.add_child(UI.label(c.name, 16, UI.TEXT, "medium"))
 		var sub: String = c.epithet
-		if c.classId != null:
-			for o in Game.class_options(c):
-				if o.id == c.classId: sub += " · " + o.name
+		sub += " · " + DB.spec_def(c.heroClass, c.spec).get("name", "")
 		if c.professionId != null: sub += " · " + DB.profession(c.professionId).name
 		hv.add_child(UI.label("%s · %s · Ур. %d" % [sub, DB.ROLE_NAME[c.role], c.level], 12.5, UI.TEXT_FAINT, "regular", true))
 		head.add_child(UI.expand(hv))

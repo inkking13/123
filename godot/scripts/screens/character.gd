@@ -15,6 +15,8 @@ func build() -> void:
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var pic = UI.portrait(cc.id, 300, 0)
 	pic.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# The portrait is a wide banner: a wider window shows more of its height.
+	if App.wide: top.custom_minimum_size.y = UI.px(400)
 	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	pic.material = null
 	top.add_child(pic)
@@ -30,7 +32,7 @@ func build() -> void:
 	names.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	names.offset_left = UI.px(20); names.offset_right = -UI.px(20); names.offset_bottom = -UI.px(12)
 	var hc = DB.hero_class(cc.heroClass)
-	names.add_child(UI.label(("%s · %s · %s" % [hc.name, DB.ROLE_NAME[cc.role], cc.epithet]).to_upper(), 12, Color(hc.color), "medium"))
+	names.add_child(UI.label(("%s · %s · %s · %s" % [hc.name, DB.spec_def(cc.heroClass, cc.spec).name, DB.ROLE_NAME[cc.role], cc.epithet]).to_upper(), 12, Color(hc.color), "medium"))
 	names.add_child(UI.shadowed(UI.label(cc.name, 34, UI.TEXT, "title")))
 	top.add_child(names)
 	p.add_child(top)
@@ -117,10 +119,28 @@ func build() -> void:
 
 	if Game.is_unlocked("classes"):
 		body.add_child(UI.kicker("Специализация", Color("#b8935c"), 12))
-		body.add_child(UI.label("Выбор сделан навсегда." if cc.classId != null else "Выберите один раз, навсегда: упор на урон, здоровье или защиту.", 12.5, UI.TEXT_FAINT, "regular", true))
-		for o in Game.class_options(cc):
-			var opt: Dictionary = o
-			body.add_child(_option(opt.name, opt.desc, cc.classId == opt.id, cc.classId != null, func(): Game.choose_class(cc.id, opt.id)))
+		body.add_child(UI.label("От неё зависят роль и заклинания. Сменить можно в любой момент между походами.", 12.5, UI.TEXT_FAINT, "regular", true))
+		var specs = UI.cards(8, 3)
+		for o in DB.specs_of(cc.heroClass):
+			var sp: Dictionary = o
+			specs.add_child(_option("%s · %s" % [sp.name, DB.ROLE_NAME[sp.role]], sp.desc, cc.spec == sp.id, false, func(): Game.set_spec(cc.id, sp.id), sp.icon))
+		body.add_child(specs)
+	if Game.is_unlocked("talents"):
+		var free: int = Game.talent_points_total(cc) - Game.talent_points_spent(cc)
+		var tf = UI.frame("gold" if free > 0 else "plain", Vector4(12, 12, 12, 12))
+		var tr = UI.hbox(10)
+		tr.add_child(UI.icon("tree", 20, UI.ACCENT))
+		var tv = UI.vbox(2)
+		tv.add_child(UI.label("Таланты", 15, UI.ACCENT_SOFT, "medium"))
+		var split = DB.specs_of(cc.heroClass).map(func(sp): return "%s %d" % [sp.name, Game.tree_points(cc, sp.id)])
+		tv.add_child(UI.label(" · ".join(split), 12.5, UI.TEXT_DIM, "regular", true))
+		tr.add_child(UI.expand(tv))
+		if free > 0: tr.add_child(UI.center(UI.label("+%d" % free, 16, UI.WARN, "semibold")))
+		tr.add_child(UI.center(UI.icon("caret-right", 14, UI.ACCENT)))
+		tf.add_child(tr)
+		UI.tap(tf, func(): Game.go("talents"))
+		body.add_child(tf)
+	_spellbook(body, cc)
 	if Game.is_unlocked("professions"):
 		body.add_child(UI.kicker("Профессия", Color("#b8935c"), 12))
 		body.add_child(UI.label("Выбор сделан навсегда — прокачивайте мастерство на отдельном экране." if cc.professionId != null else "Выберите ремесло один раз, навсегда — его можно будет прокачивать за золото.", 12.5, UI.TEXT_FAINT, "regular", true))
@@ -149,8 +169,6 @@ func build() -> void:
 			v.add_child(row)
 		fr.add_child(v)
 		body.add_child(fr)
-
-	if Game.is_unlocked("talents"): _talents(body, cc)
 
 	body.add_child(UI.space(8))
 	body.add_child(UI.kicker("Кадровые решения", Color("#b8935c"), 12))
@@ -212,47 +230,43 @@ func _option(name: String, desc: String, selected: bool, locked: bool, fn: Calla
 	return pn
 
 
-func _talents(body: VBoxContainer, cc: Dictionary) -> void:
-	var tiers = DB.talent_tiers(cc.id)
-	var learned: int = cc.talents.filter(func(t): return t != null).size()
+## The class's spells: those the hero casts, and what the rest wait for.
+func _spellbook(body: VBoxContainer, cc: Dictionary) -> void:
+	var known: Array = Game.known_spells(cc).map(func(s): return s.id)
+	var res: Dictionary = DB.resource_of(cc.heroClass)
 	var head = UI.hbox(6)
-	head.add_child(UI.expand(UI.kicker("Дерево талантов", Color("#b8935c"), 12)))
-	head.add_child(UI.label("Изучено: %d/%d" % [learned, tiers.size()], 12.5, UI.WARN, "medium"))
+	head.add_child(UI.expand(UI.kicker("Книга заклинаний", Color("#b8935c"), 12)))
+	head.add_child(UI.label(res.name, 12, Color(res.color), "medium"))
 	body.add_child(head)
-	for i in tiers.size():
-		var tier: Dictionary = tiers[i]
-		var unlocked: bool = cc.level >= tier.level
-		var pick = cc.talents[i] if i < cc.talents.size() else null
-		if not unlocked:
-			var l = UI.label("Открывается на уровне %d" % tier.level, 12, UI.TEXT_FAINT)
-			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			body.add_child(l)
+	var list = UI.cards(8)
+	for o in DB.spells_of(cc.heroClass):
+		var sd: Dictionary = o
+		var has: bool = sd.id in known
+		var need = ""
+		if not has:
+			if sd.talent != null: need = "Талант в конце ветки «%s»" % DB.spec_def(cc.heroClass, sd.talent).name
+			elif sd.spec != null and sd.spec != cc.spec: need = "Специализация «%s»" % DB.spec_def(cc.heroClass, sd.spec).name
+			else: need = "С уровня %d" % sd.level
+		var fr = UI.frame("plain" if has else "muted", Vector4(10, 10, 10, 10))
 		var row = UI.hbox(10)
-		for o in tier.options:
-			var opt: Dictionary = o
-			var here: bool = pick == opt.id
-			var skipped: bool = pick != null and not here
-			var col = UI.vbox(4)
-			col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			if skipped: col.modulate.a = 0.35
-			var node = PanelContainer.new()
-			var sb = StyleBoxFlat.new()
-			sb.bg_color = UI.WARN if here else (UI.SURFACE if unlocked else Color("#0b0907"))
-			sb.border_color = UI.WARN if here else (UI.ACCENT if unlocked else UI.BORDER)
-			sb.set_border_width_all(4); sb.set_corner_radius_all(UI.px(12))
-			node.add_theme_stylebox_override("panel", sb)
-			node.custom_minimum_size = Vector2(UI.px(52), UI.px(52))
-			var art = DB.talent_art_path(opt.get("icon", "") if opt.get("icon") != null else "")
-			if unlocked and art != "": node.add_child(UI.center(UI.picture(art, 46, 46, 9)))
-			else: node.add_child(UI.center(UI.icon(opt.get("icon", "target") if unlocked and opt.get("icon") != null else ("target" if unlocked else "lock-simple"), 22, UI.BG if here else (UI.ACCENT_SOFT if unlocked else UI.BORDER_HOVER))))
-			col.add_child(UI.center(node))
-			var n = UI.label(opt.name, 12, UI.WARN if here else UI.TEXT, "medium", true)
-			n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			col.add_child(n)
-			var d = UI.label(opt.desc, 11, UI.TEXT_FAINT, "regular", true)
-			d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			col.add_child(d)
-			if unlocked and pick == null: UI.tap(col, func(): Game.choose_talent(cc.id, i, opt.id))
-			row.add_child(col)
-		body.add_child(row)
-		body.add_child(UI.space(6))
+		var ic = PanelContainer.new()
+		var sb = StyleBoxFlat.new(); sb.bg_color = Color(0.07, 0.05, 0.035); sb.border_color = UI.ACCENT if has else UI.BORDER
+		sb.set_border_width_all(2); sb.set_corner_radius_all(UI.px(6))
+		ic.add_theme_stylebox_override("panel", sb)
+		ic.custom_minimum_size = Vector2(UI.px(38), UI.px(38))
+		ic.add_child(UI.center(UI.icon(sd.icon, 19, UI.ACCENT_SOFT if has else UI.TEXT_FAINT)))
+		row.add_child(UI.center(ic))
+		var v = UI.vbox(2)
+		var top = UI.hbox(6)
+		top.add_child(UI.expand(UI.label(sd.name, 14, UI.TEXT if has else UI.TEXT_FAINT, "medium")))
+		var meta = []
+		if int(sd.cost) > 0: meta.append("%d %s" % [sd.cost, res.name.to_lower()])
+		if int(sd.cd) > 0: meta.append("КД %d" % sd.cd)
+		if not meta.is_empty(): top.add_child(UI.label(" · ".join(meta), 11, Color(res.color) if has else UI.TEXT_FAINT))
+		v.add_child(top)
+		v.add_child(UI.label(sd.desc, 12, UI.TEXT_DIM if has else UI.TEXT_FAINT, "regular", true))
+		if need != "": v.add_child(UI.label(need, 11, UI.WARN, "italic"))
+		row.add_child(UI.expand(v))
+		fr.add_child(row)
+		list.add_child(fr)
+	body.add_child(list)

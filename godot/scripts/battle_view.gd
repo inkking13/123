@@ -51,6 +51,10 @@ var clutter: Array[Node3D] = []
 var cam: Camera3D
 var yaw = 0.5
 var yaw_user = 0.0
+var _yaw_target = 0.0
+## Tilt over the default 54°, in degrees (drag up and down, PgUp/PgDn).
+var pitch_user = 0.0
+var _pitch_target = 0.0
 var zoom = 1.0
 var _zoom_target = 1.0
 var _target = Vector3(0, 0.3, 0)
@@ -60,6 +64,7 @@ var _tile_mat = {}
 var band_top = 0.0
 var band_bottom = 0.0
 var _touches = {}
+var _busy = {}
 var _pinch0 = 0.0
 var _zoom0 = 1.0
 var _press_at = Vector2.ZERO
@@ -367,7 +372,11 @@ func _sync(delta: float, snap := false) -> void:
 			if _moving.has(key):
 				_moving.erase(key)
 				u.play_idle()
-				u.rotation.y = u.face_yaw
+			# Standing: square up to the nearest foe still on the field.
+			if _busy.get(key, 0) <= Time.get_ticks_msec():
+				var foe = _nearest_foe(key, u)
+				var look = u.face_yaw if foe == null else atan2(foe.x - u.position.x, foe.z - u.position.z)
+				u.rotation.y = look if snap else lerp_angle(u.rotation.y, look, 1.0 - exp(-delta * 7.0))
 		else:
 			if not _moving.has(key):
 				_moving[key] = true
@@ -440,6 +449,8 @@ func _play_fx(s: Dictionary) -> void:
 	var kind: String = fx.kind
 	var clip = {"melee": "melee", "ranged": "ranged", "heal": "heal", "ability": "ability", "rally": "rally"}.get(kind, "melee")
 	var dur = u.play_action(clip)
+	# Keep facing whoever it strikes until the swing is done.
+	_busy[key] = Time.get_ticks_msec() + int(dur * 1000)
 	_back_to_idle(u, dur)
 	if fx.crit: _shake = maxf(_shake, 0.25)
 	if (kind == "ranged" or kind == "ability") and target:
@@ -533,8 +544,10 @@ func _process(delta: float) -> void:
 	for i in fires.size():
 		fires[i].light_energy = 2.2 + 0.35 * sin(t * 9.0 + i * 1.7) + 0.2 * sin(t * 23.0 + i)
 	zoom = lerpf(zoom, _zoom_target, 1.0 - exp(-delta * 10.0))
+	yaw_user = lerp_angle(yaw_user, _yaw_target, 1.0 - exp(-delta * 12.0))
+	pitch_user = lerpf(pitch_user, _pitch_target, 1.0 - exp(-delta * 12.0))
 	var heading = yaw + yaw_user
-	var pitch = deg_to_rad(54.0)
+	var pitch = deg_to_rad(54.0 + pitch_user)
 	var dist = 13.2 * zoom
 	cam.position = _target + Vector3(sin(heading) * cos(pitch), sin(pitch), cos(heading) * cos(pitch)) * dist
 	cam.look_at(_target)
@@ -571,34 +584,116 @@ func _unhandled_input(ev: InputEvent) -> void:
 			_zoom_target = clampf(_zoom0 * _pinch0 / maxf(1.0, p[0].distance_to(p[1])), 0.55, 1.4)
 			_dragged = true
 	elif ev is InputEventMouseButton:
-		if ev.button_index == MOUSE_BUTTON_WHEEL_UP: _zoom_target = clampf(_zoom_target * 0.92, 0.55, 1.4)
-		elif ev.button_index == MOUSE_BUTTON_WHEEL_DOWN: _zoom_target = clampf(_zoom_target * 1.08, 0.55, 1.4)
+		if ev.button_index == MOUSE_BUTTON_WHEEL_UP: zoom_by(0.92)
+		elif ev.button_index == MOUSE_BUTTON_WHEEL_DOWN: zoom_by(1.08)
 		elif ev.button_index == MOUSE_BUTTON_LEFT:
 			if ev.pressed:
 				_press_at = ev.position
 				_dragged = false
 			elif not _dragged and _touches.size() <= 1:
 				_tap(ev.position)
+	elif ev is InputEventMouseMotion and ev.button_mask == 0 and UI.HOVER:
+		_hover(ev.position)
+	elif ev is InputEventMouseMotion and ev.button_mask & (MOUSE_BUTTON_MASK_RIGHT | MOUSE_BUTTON_MASK_MIDDLE):
+		# Right or middle drag: turn and tilt, never a click.
+		_turn(ev.relative)
 	elif ev is InputEventMouseMotion and ev.button_mask & MOUSE_BUTTON_MASK_LEFT and _touches.size() <= 1:
 		if ev.position.distance_to(_press_at) > 14: _dragged = true
-		if _dragged: yaw_user = clampf(yaw_user - ev.relative.x * 0.006, -PI, PI)
+		if _dragged: _turn(ev.relative)
+	elif ev is InputEventKey and ev.pressed:
+		var done = true
+		match ev.keycode:
+			KEY_Q: rotate_by(-45.0)
+			KEY_E: rotate_by(45.0)
+			KEY_R: reset_camera()
+			KEY_EQUAL, KEY_KP_ADD: zoom_by(0.85)
+			KEY_MINUS, KEY_KP_SUBTRACT: zoom_by(1.18)
+			KEY_PAGEUP: tilt_by(6.0)
+			KEY_PAGEDOWN: tilt_by(-6.0)
+			_: done = false
+		if done: get_viewport().set_input_as_handled()
+
+
+func _turn(rel: Vector2) -> void:
+	_yaw_target -= rel.x * 0.006
+	yaw_user = _yaw_target
+	tilt_by(rel.y * 0.12)
+	pitch_user = _pitch_target
+
+
+## Turns the view round the board (degrees, + is clockwise from above).
+func rotate_by(deg: float) -> void:
+	_yaw_target += deg_to_rad(deg)
+
+
+func zoom_by(f: float) -> void:
+	_zoom_target = clampf(_zoom_target * f, 0.55, 1.4)
+
+
+func tilt_by(deg: float) -> void:
+	_pitch_target = clampf(_pitch_target + deg, -22.0, 26.0)
 
 
 func reset_camera() -> void:
-	yaw_user = 0.0
+	# Back the short way round.
+	_yaw_target = yaw_user - wrapf(yaw_user, -PI, PI)
+	_pitch_target = 0.0
 	_zoom_target = 1.0
 
 
 func turned() -> bool:
-	return absf(yaw_user) > 0.05 or absf(_zoom_target - 1.0) > 0.03
+	return absf(wrapf(_yaw_target, -PI, PI)) > 0.05 or absf(_pitch_target) > 0.5 or absf(_zoom_target - 1.0) > 0.03
+
+
+## Where the nearest living unit of the other side stands, or null.
+func _nearest_foe(key: String, u: Unit) -> Variant:
+	var hero = key.begins_with("r")
+	var best = null
+	var best_d = INF
+	for k in units:
+		if k.begins_with("r") == hero: continue
+		var o: Unit = units[k]
+		if not o.alive: continue
+		var d = o.position.distance_squared_to(u.position)
+		if d < best_d:
+			best_d = d
+			best = o.position
+	return best
 
 
 ## A tap on the field: a foe takes the focus, a lit cell takes the hero.
 func _tap(at: Vector2) -> void:
 	var s = Game.b.sim
 	if s == null or s.over: return
+	var best = _foe_at(at)
+	if best != "":
+		Game.b.set_focus(-1 if best == "boss" else int(best.substr(1)))
+		return
+	var cell = _cell_at(at)
+	if cell.x >= 0 and s.movePhase: Game.b.move_raider(cell.x, cell.y)
+
+
+## With a mouse: a hand over what a click would act on.
+func _hover(at: Vector2) -> void:
+	var s = Game.b.sim
+	var hand = false
+	if s and not s.over and Game.b.current_raider() and not Game.settings.auto:
+		if _foe_at(at) != "": hand = true
+		elif s.movePhase:
+			var cell = _cell_at(at)
+			hand = Game.b.reachable_cells().any(func(c): return c.row == cell.x and c.col == cell.y)
+	Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if hand else Input.CURSOR_ARROW)
+
+
+func _exit_tree() -> void:
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
+
+
+## The foe a tap at this point means ("boss", "m<i>"), or "".
+func _foe_at(at: Vector2) -> String:
 	var best = ""
-	var best_d = 70.0 * get_viewport().get_visible_rect().size.x / 720.0
+	var vp = get_viewport().get_visible_rect().size
+	var best_d = 70.0 * minf(vp.x, vp.y) / 720.0
 	for key in units:
 		if key.begins_with("r"): continue
 		var u: Unit = units[key]
@@ -608,14 +703,16 @@ func _tap(at: Vector2) -> void:
 		if d < reach and (best == "" or d < best_d):
 			best = key
 			best_d = d
-	if best != "":
-		Game.b.set_focus(-1 if best == "boss" else int(best.substr(1)))
-		return
+	return best
+
+
+## The board cell under this point (row, col), or (-1, -1).
+func _cell_at(at: Vector2) -> Vector2i:
 	var from = cam.project_ray_origin(at)
 	var dir = cam.project_ray_normal(at)
-	if absf(dir.y) < 1e-4: return
+	if absf(dir.y) < 1e-4: return Vector2i(-1, -1)
 	var hit = from + dir * (-from.y / dir.y)
 	var col = int(round(hit.x / TILE + (Battle.GRID_COLS - 1) / 2.0))
 	var row = int(round(hit.z / TILE + (Battle.GRID_ROWS - 1) / 2.0))
-	if row < 0 or col < 0 or row >= Battle.GRID_ROWS or col >= Battle.GRID_COLS: return
-	if s.movePhase: Game.b.move_raider(row, col)
+	if row < 0 or col < 0 or row >= Battle.GRID_ROWS or col >= Battle.GRID_COLS: return Vector2i(-1, -1)
+	return Vector2i(row, col)

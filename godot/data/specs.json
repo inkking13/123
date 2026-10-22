@@ -1,0 +1,292 @@
+{
+ "RESOURCES": {
+  "rage": {
+   "name": "Ярость",
+   "color": "#c4503f",
+   "max": 100,
+   "start": 10,
+   "regen": 0,
+   "onHit": 12,
+   "onHurt": 6
+  },
+  "mana": {
+   "name": "Мана",
+   "color": "#5b8fd9",
+   "max": 100,
+   "start": 100,
+   "regen": 12,
+   "onHit": 0,
+   "onHurt": 0
+  },
+  "energy": {
+   "name": "Энергия",
+   "color": "#e2c35a",
+   "max": 100,
+   "start": 100,
+   "regen": 25,
+   "onHit": 0,
+   "onHurt": 0
+  },
+  "focus": {
+   "name": "Концентрация",
+   "color": "#d98c4a",
+   "max": 100,
+   "start": 100,
+   "regen": 20,
+   "onHit": 0,
+   "onHurt": 0
+  },
+  "runic": {
+   "name": "Сила рун",
+   "color": "#6fc3d6",
+   "max": 100,
+   "start": 20,
+   "regen": 5,
+   "onHit": 12,
+   "onHurt": 5
+  }
+ },
+ "CLASS_RESOURCE": {
+  "warrior": "rage",
+  "paladin": "mana",
+  "priest": "mana",
+  "druid": "mana",
+  "mage": "mana",
+  "necromancer": "runic",
+  "rogue": "energy",
+  "hunter": "focus"
+ },
+ "SPECS": {
+  "warrior": [
+   {
+    "id": "arms",
+    "name": "Оружие",
+    "role": "dps",
+    "range": "melee",
+    "icon": "sword",
+    "desc": "Мастер тяжёлого оружия: точные смертельные удары."
+   },
+   {
+    "id": "fury",
+    "name": "Неистовство",
+    "role": "dps",
+    "range": "melee",
+    "icon": "flame",
+    "desc": "Ярость в чистом виде: быстрые удары и жажда крови."
+   },
+   {
+    "id": "protection",
+    "name": "Защита",
+    "role": "tank",
+    "range": "melee",
+    "icon": "shield",
+    "desc": "Щит отряда: держит врага и не падает."
+   }
+  ],
+  "paladin": [
+   {
+    "id": "holy",
+    "name": "Свет",
+    "role": "heal",
+    "range": "melee",
+    "icon": "sun",
+    "desc": "Целитель в латах: исцеляет Светом."
+   },
+   {
+    "id": "protection",
+    "name": "Защита",
+    "role": "tank",
+    "range": "melee",
+    "icon": "shield-star",
+    "desc": "Святой щит: держит врага и защищает отряд."
+   },
+   {
+    "id": "retribution",
+    "name": "Воздаяние",
+    "role": "dps",
+    "range": "melee",
+    "icon": "hand-fist",
+    "desc": "Карающий клинок Света."
+   }
+  ],
+  "priest": [
+   {
+    "id": "discipline",
+    "name": "Послушание",
+    "role": "heal",
+    "range": "ranged",
+    "icon": "shield-plus",
+    "desc": "Щиты и наказание: лечит, атакуя."
+   },
+   {
+    "id": "holy",
+    "name": "Свет",
+    "role": "heal",
+    "range": "ranged",
+    "icon": "cross",
+    "desc": "Чистое исцеление: сильнейшие лечения."
+   },
+   {
+    "id": "shadow",
+    "name": "Тьма",
+    "role": "dps",
+    "range": "ranged",
+    "icon": "eye",
+    "desc": "Тёмная магия разума и боли."
+   }
+  ],
+  "druid": [
+   {
+    "id": "balance",
+    "name": "Баланс",
+    "role": "dps",
+    "range": "ranged",
+    "icon": "moon",
+    "desc": "Сила Луны и Солнца."
+   },
+   {
+    "id": "guardian",
+    "name": "Страж",
+    "role": "tank",
+    "range": "melee",
+    "icon": "paw-print",
+    "desc": "Облик медведя: живучий защитник."
+   },
+   {
+    "id": "restoration",
+    "name": "Исцеление",
+    "role": "heal",
+    "range": "ranged",
+    "icon": "leaf",
+    "desc": "Целитель природы: лечение со временем."
+   }
+  ],
+  "mage": [
+   {
+    "id": "arcane",
+    "name": "Тайная магия",
+    "role": "dps",
+    "range": "ranged",
+    "icon": "sparkle",
+    "desc": "Сырая магия: мощные вспышки ценой маны."
+   },
+   {
+    "id": "fire",
+    "name": "Огонь",
+    "role": "dps",
+    "range": "ranged",
+    "icon": "fire",
+    "desc": "Пламя и критические удары."
+   },
+   {
+    "id": "frost",
+    "name": "Лёд",
+    "role": "dps",
+    "range": "ranged",
+    "icon": "snowflake",
+    "desc": "Холод сковывает и сбивает натиск врага."
+   }
+  ],
+  "necromancer": [
+   {
+    "id": "blood",
+    "name": "Кровь",
+    "role": "tank",
+    "range": "melee",
+    "icon": "drop",
+    "desc": "Тёмный страж, живущий за счёт чужой крови."
+   },
+   {
+    "id": "unholy",
+    "name": "Нечестивость",
+    "role": "dps",
+    "range": "ranged",
+    "icon": "skull",
+    "desc": "Повелитель мертвецов и проклятий."
+   },
+   {
+    "id": "plague",
+    "name": "Мор",
+    "role": "dps",
+    "range": "ranged",
+    "icon": "biohazard",
+    "desc": "Чума и разложение на всех врагов."
+   }
+  ],
+  "rogue": [
+   {
+    "id": "assassination",
+    "name": "Ликвидация",
+    "role": "dps",
+    "range": "melee",
+    "icon": "knife",
+    "desc": "Яды и раны, что не заживают."
+   },
+   {
+    "id": "combat",
+    "name": "Бой",
+    "role": "dps",
+    "range": "melee",
+    "icon": "sword",
+    "desc": "Честная драка: быстрые удары по всем."
+   },
+   {
+    "id": "subtlety",
+    "name": "Скрытность",
+    "role": "dps",
+    "range": "melee",
+    "icon": "eye-slash",
+    "desc": "Тень и удар в спину."
+   }
+  ],
+  "hunter": [
+   {
+    "id": "beastmastery",
+    "name": "Повелитель зверей",
+    "role": "dps",
+    "range": "ranged",
+    "icon": "paw-print",
+    "desc": "Зверь рвёт врага по команде."
+   },
+   {
+    "id": "marksmanship",
+    "name": "Стрельба",
+    "role": "dps",
+    "range": "ranged",
+    "icon": "crosshair",
+    "desc": "Один точный выстрел вместо десяти."
+   },
+   {
+    "id": "survival",
+    "name": "Выживание",
+    "role": "dps",
+    "range": "ranged",
+    "icon": "tree",
+    "desc": "Ловушки, взрывы и яд."
+   }
+  ]
+ },
+ "ROLE_STATS": {
+  "tank": {
+   "hp": 1.6,
+   "dps": 0.45
+  },
+  "heal": {
+   "hp": 1.0,
+   "dps": 0.15,
+   "heal": 0.6
+  },
+  "dps": {
+   "hp": 1.0,
+   "dps": 1.0
+  }
+ },
+ "TALENT_TIERS": [
+  0,
+  5,
+  10,
+  15,
+  20
+ ],
+ "RESPEC_COST_PER_LEVEL": 10
+}

@@ -6,12 +6,10 @@ var characters: Dictionary
 var gear: Dictionary
 var armour: Dictionary
 var dungeons: Dictionary
-var talents: Dictionary
 var abilities: Dictionary
 var skill_art: Dictionary
 var item_icons: Dictionary
 var monster_art: Dictionary
-var classes: Dictionary
 var hero_classes: Dictionary
 var professions: Dictionary
 var reagents: Dictionary
@@ -28,6 +26,11 @@ var traits: Dictionary
 var gear_sets: Array
 var gear_info: Dictionary
 var contracts: Dictionary
+## The WoW-style class rework: specs and resources, the spellbook, the talent trees.
+var specs: Dictionary
+var spellbook: Dictionary
+var talent_trees: Dictionary
+var _talent_by_id := {}
 
 ## Every hero who can ever join, by id.
 var candidates := {}
@@ -45,12 +48,10 @@ func _init() -> void:
 	gear = _load("gear")
 	armour = _load("armourSets")
 	dungeons = _load("dungeons")
-	talents = _load("talents").TALENT_TREE
 	abilities = _load("abilities").ABILITY_BY_CANDIDATE
 	skill_art = _load("skillArt")
 	item_icons = _load("itemIcons").ITEM_ICONS
 	monster_art = _load("monsterArt")
-	classes = _load("classes").CLASSES
 	hero_classes = _load("heroClasses").HERO_CLASSES
 	professions = _load("professions")
 	reagents = _load("reagents")
@@ -67,6 +68,12 @@ func _init() -> void:
 	gear_sets = _load("gearSets").GEAR_SETS
 	gear_info = _load("gearInfo")
 	contracts = _load("contracts")
+	specs = _load("specs")
+	spellbook = _load("spellbook").SPELLS
+	talent_trees = _load("talentTrees").TREES
+	for cls in talent_trees:
+		for sid in talent_trees[cls]:
+			for t in talent_trees[cls][sid]: _talent_by_id[t.id] = t
 	all_candidates = characters.ALL_CANDIDATES
 	for c in all_candidates: candidates[int(c.id)] = c
 	dungeon_list = dungeons.DUNGEONS
@@ -259,16 +266,6 @@ func ability_art_path(cid: int) -> String:
 	return skill_art.SKILL_ART[id].asset
 
 
-func talent_tiers(cid: int) -> Array:
-	return talents[str(cid)]
-
-
-func talent_art_path(talent_id: String) -> String:
-	var id = skill_art.TALENT_ART.get(talent_id)
-	if id == null or not skill_art.SKILL_ART.has(id): return ""
-	return skill_art.SKILL_ART[id].asset
-
-
 func hero_class(id: String) -> Dictionary:
 	return hero_classes[id]
 
@@ -352,3 +349,89 @@ func unlock_hint(f: String) -> String:
 	if b > 0: return "Откроется после первого босса" if b == 1 else "Откроется после %d-го босса" % b
 	var r: int = d.get("rooms", 0) if d.get("rooms") != null else 0
 	return "Откроется после первой победы" if r <= 1 else "Откроется после %d побед" % r
+
+
+# ── specs, resources, spellbook, talents ────────────────────────────────────
+func specs_of(cls: String) -> Array:
+	return specs.SPECS[cls]
+
+
+func spec_def(cls: String, spec_id) -> Dictionary:
+	for s in specs.SPECS[cls]:
+		if s.id == spec_id: return s
+	return {}
+
+
+## The spec a hero starts in: the first of their class that keeps their hired role.
+func default_spec(def: Dictionary) -> String:
+	var all: Array = specs.SPECS[def.heroClass]
+	for s in all:
+		if s.role == def.role: return s.id
+	return all[0].id
+
+
+## A hero's fighting numbers in a spec. The hired role keeps the hired numbers;
+## another role reshapes the same offence power and vitality.
+func stats_for(def: Dictionary, spec_id) -> Dictionary:
+	var sd = spec_def(def.heroClass, spec_id)
+	var role: String = sd.get("role", def.role)
+	var rs: Dictionary = specs.ROLE_STATS
+	var native: String = def.role
+	var heal = def.get("healPower")
+	var power: float = float(def.dps) / rs[native].dps
+	if native == "heal" and heal != null: power = float(heal) / rs.heal.heal
+	var vit: float = float(def.hp) / rs[native].hp
+	var out = {"role": role, "attackRange": sd.get("range", def.attackRange), "power": power}
+	if role == native:
+		out.hp = def.hp; out.dps = def.dps; out.healPower = heal if role == "heal" else null
+	else:
+		out.hp = int(round(vit * rs[role].hp))
+		out.dps = maxi(1, int(round(power * rs[role].dps)))
+		out.healPower = int(round(power * rs.heal.heal)) if role == "heal" else null
+	return out
+
+
+func resource_of(cls: String) -> Dictionary:
+	return specs.RESOURCES[specs.CLASS_RESOURCE[cls]]
+
+
+func spells_of(cls: String) -> Array:
+	return spellbook.get(cls, [])
+
+
+func spell(cls: String, id: String) -> Dictionary:
+	for s in spellbook.get(cls, []):
+		if s.id == id: return s
+	return {}
+
+
+func talent_tree(cls: String, spec_id: String) -> Array:
+	return talent_trees[cls][spec_id]
+
+
+func talent(id: String) -> Dictionary:
+	return _talent_by_id.get(id, {})
+
+
+## What a talent gives at a rank, in words.
+func talent_lines(cls: String, t: Dictionary, rank: int) -> Array:
+	var r = maxi(1, rank)
+	var e: Dictionary = t.eff
+	var pct = func(v: float) -> String: return "%d%%" % int(round(absf(v) * 100 * r))
+	var out = []
+	if e.has("dmg"): out.append("+%s к урону" % pct.call(e.dmg))
+	if e.has("heal"): out.append("+%s к лечению" % pct.call(e.heal))
+	if e.has("hp"): out.append("+%s к максимальному здоровью" % pct.call(e.hp))
+	if e.has("taken"): out.append("−%s к получаемому урону" % pct.call(e.taken))
+	if e.has("crit"): out.append("+%s к шансу крита" % pct.call(e.crit))
+	if e.has("regen"): out.append("+%d к восстановлению ресурса за ход" % (e.regen * r))
+	if e.has("cost"): out.append("−%s к цене заклинаний" % pct.call(e.cost))
+	if e.has("spell"):
+		for id in e.spell: out.append("+%s к силе: %s" % [pct.call(e.spell[id]), spell(cls, id).get("name", id)])
+	if e.has("cdr"):
+		for id in e.cdr: out.append("−%d к перезарядке: %s" % [e.cdr[id] * r, spell(cls, id).get("name", id)])
+	if e.has("grants"):
+		for s in spellbook.get(cls, []):
+			if s.talent == e.grants: out.append("Новое заклинание: %s — %s" % [s.name, s.desc])
+	return out
+

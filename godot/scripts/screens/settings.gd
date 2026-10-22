@@ -2,6 +2,7 @@ extends Screen
 ## Sound, music, vibration, graphics quality, tips, and wiping the save.
 
 const QUALITY := [["low", "Низкое"], ["medium", "Среднее"], ["high", "Высокое"]]
+const SCALES := [[0.85, "85%"], [1.0, "100%"], [1.15, "115%"], [1.3, "130%"]]
 
 var confirm_reset = false
 
@@ -31,6 +32,22 @@ func build() -> void:
 	fr.add_child(v)
 	p.add_child(fr)
 	p.add_child(UI.space(10))
+	if not OS.has_feature("mobile"):
+		p.add_child(UI.kicker("Экран", Color("#b8935c"), 12))
+		p.add_child(UI.space(10))
+		var sf = UI.frame("plain", Vector4(12, 12, 12, 12))
+		var sv = UI.vbox(10)
+		sv.add_child(UI.label("Масштаб интерфейса", 15, UI.TEXT, "medium"))
+		var sr = UI.hbox(8)
+		var cur = float(Game.settings.get("uiScale", 1.0))
+		for sc in SCALES:
+			var scale_v: float = sc[0]
+			sr.add_child(UI.expand(UI.chip(sc[1], is_equal_approx(cur, scale_v), func(): Game.set_ui_scale(scale_v))))
+		sv.add_child(sr)
+		sv.add_child(UI.label("Клавиши: Esc — назад, Enter — главная кнопка экрана, F11 — полный экран. В бою: 1–9 — действия, Пробел — пропустить перемещение, A — автобой, X — скорость; колесо мыши — масштаб поля.", 13, UI.TEXT_DIM, "regular", true))
+		sf.add_child(sv)
+		p.add_child(sf)
+		p.add_child(UI.space(10))
 	var tips = UI.frame("plain", Vector4(12, 12, 12, 12))
 	var tr = UI.hbox(12)
 	tr.add_child(UI.icon("target", 18, UI.ACCENT))

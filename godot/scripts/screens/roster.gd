@@ -23,6 +23,7 @@ func build() -> void:
 		cell.add_theme_stylebox_override("panel", sb)
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cell.custom_minimum_size = Vector2(0, UI.px(76))
+		UI.keep_ratio(cell, 1.15, 150)
 		if i < chosen.size():
 			var m: Dictionary = chosen[i]
 			sb.border_color = DB.ROLE_COLOR[m.role]
@@ -84,9 +85,9 @@ func _card(c: Dictionary) -> Control:
 	var pic = UI.portrait(c.id, 56, 8)
 	row.add_child(pic)
 	if sel:
-		pic.draw.connect(func():
-			var at = pic.size - Vector2(UI.px(6), UI.px(6))
-			pic.draw_circle(at, UI.px(10), UI.ACCENT))
+		UI.overlay(pic, func(o):
+			var at = o.size - Vector2(UI.px(6), UI.px(6))
+			o.draw_circle(at, UI.px(10), UI.ACCENT))
 	var info = UI.vbox(5)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var top = UI.hbox(6)
