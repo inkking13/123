@@ -151,7 +151,12 @@
   "ancientpeak": "star-gazer-dragon",
   "shareholderfloor": "gloom-caster-specter",
   "councilantechamber": "sunken-tyrant",
-  "boardroom": "blood-soaked-warden"
+  "boardroom": "blood-soaked-warden",
+  "ratmill": "carrion-rat-king",
+  "wolfden": "shadow-wolf",
+  "drowned": "fetid-swamp-thing",
+  "cultcrypt": "hooded-cultist",
+  "oldquarry": "iron-bound-colossus"
  },
  "ROOM_ART": {
   "outskirts": {
@@ -198,6 +203,31 @@
    "brute": "void-spawn-parasite",
    "archer": "shadow-weaver-sprite",
    "shaman": "hooded-cultist"
+  },
+  "ratmill": {
+   "brute": "rot-carcass-scavenger",
+   "archer": "crystal-spiderling",
+   "shaman": "corrupted-ooze"
+  },
+  "wolfden": {
+   "brute": "darkwood-treant",
+   "archer": "shadow-wolf",
+   "shaman": "gloom-stalker-wraith"
+  },
+  "drowned": {
+   "brute": "grave-dust-ghoul",
+   "archer": "void-spawn-parasite",
+   "shaman": "corrupted-ooze"
+  },
+  "cultcrypt": {
+   "brute": "skeleton-warrior",
+   "archer": "shadow-weaver-sprite",
+   "shaman": "hooded-cultist"
+  },
+  "oldquarry": {
+   "brute": "chitinous-scorpiid",
+   "archer": "shadow-silk-weaver",
+   "shaman": "cinder-kin-fiend"
   }
  },
  "roomArtFor": null

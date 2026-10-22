@@ -166,8 +166,8 @@ func _build_room_group(total_hp: int, room_idx: int) -> Array:
 
 
 func slot_comp_mult(kind: String) -> float:
-	var idx = maxi(0, DB.dungeon_index(g.dungeon_id) - 2)
-	return 1.0 + (GEAR_SLOT_COMP_HP if kind == "hp" else GEAR_SLOT_COMP_DMG) * idx / float(DB.dungeon_list.size() - 3)
+	var idx = maxi(0, DB.dungeon_tier(g.dungeon_id) - 2)
+	return 1.0 + (GEAR_SLOT_COMP_HP if kind == "hp" else GEAR_SLOT_COMP_DMG) * idx / float(DB.main_dungeons().size() - 3)
 
 
 func fresh_sim(enc: Dictionary, keep, room_idx := 0) -> Dictionary:

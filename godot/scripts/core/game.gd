@@ -356,7 +356,7 @@ func quick_raid() -> void:
 		return
 	var open = []
 	for l in DB.locations:
-		for d in DB.dungeon_list:
+		for d in DB.main_dungeons():
 			if d.locationId == l.id and is_dungeon_unlocked(d.id): open.append(d)
 	var target = null
 	if active_contract:
@@ -419,7 +419,7 @@ func start_skirmish(band: Dictionary) -> void:
 	var ds = w.region_dungeons()
 	var hardest = ds[0]
 	for d in ds:
-		if is_dungeon_unlocked(d.id): hardest = d
+		if is_dungeon_unlocked(d.id) and not d.get("side", false): hardest = d
 	select_dungeon(hardest.id)
 	b.start_skirmish(band)
 
@@ -481,10 +481,16 @@ func current_dungeon() -> Dictionary:
 	return DB.dungeon(dungeon_id)
 
 
+## The road opens one dungeon after another; a side dungeon opens after the
+## one it names.
 func is_dungeon_unlocked(id: String) -> bool:
 	var idx = DB.dungeon_index(id)
-	if idx <= 0: return idx == 0
-	return defeated.has(DB.dungeon_list[idx - 1].id)
+	if idx < 0: return false
+	var d: Dictionary = DB.dungeon_list[idx]
+	if d.has("after"): return defeated.has(d.after)
+	var main: Array = DB.main_dungeons()
+	var at = main.find(d)
+	return at == 0 or defeated.has(main[at - 1].id)
 
 
 func select_dungeon(id: String) -> void:
@@ -1051,7 +1057,7 @@ func _fill_contract_board() -> void:
 		for x in taken:
 			if x.dungeonId == d.id and x.term == term: dup = true
 		if dup: continue
-		var idx = DB.dungeon_index(d.id)
+		var idx = DB.dungeon_tier(d.id)
 		var pay = int(round((55 + idx * 14) * DB.contracts.CONTRACT_TERMS[term].payMult / 5.0)) * 5
 		contract_offers.append({"id": "%x%04x" % [Time.get_ticks_msec(), randi() % 65536], "dungeonId": d.id, "term": term,
 			"client": randi() % DB.contracts.CLIENTS.size(), "pay": pay})

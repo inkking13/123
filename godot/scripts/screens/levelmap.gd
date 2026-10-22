@@ -4,6 +4,9 @@ extends Screen
 
 const VBOX := Vector2(300, 460)
 const NODE_POS := [Vector2(90, 365), Vector2(210, 235), Vector2(90, 75)]
+## A land's side dungeons go on a taller sheet of their own.
+const SIDE_BOX := Vector2(300, 620)
+const SIDE_POS := [Vector2(85, 540), Vector2(215, 430), Vector2(85, 320), Vector2(215, 210), Vector2(130, 80)]
 const SKETCHES := [[235, 70, "peak", 1.1], [268, 92, "peak", 0.8], [40, 200, "tree", 1.0], [58, 222, "tree", 0.8], [250, 380, "hills", 1.0],
 	[165, 150, "hills", 0.8], [30, 440, "peak", 0.7], [270, 300, "tree", 0.9], [175, 430, "tree", 0.75]]
 const ICON := {
@@ -12,6 +15,7 @@ const ICON := {
 	"blackmarket": "storefront", "smugglercatacombs": "path", "nightsyndicate": "sword", "unmarkedgraves": "skull", "desertersfort": "shield",
 	"deadlegion": "users-three", "burntcliffs": "flame", "wyvernlair": "target", "ancientpeak": "fire", "shareholderfloor": "chart-line-up",
 	"councilantechamber": "identification-card", "boardroom": "crown-simple",
+	"ratmill": "skull", "wolfden": "target", "drowned": "drop", "cultcrypt": "flame", "oldquarry": "shield",
 }
 
 
@@ -24,15 +28,27 @@ func build() -> void:
 	p.add_child(UI.space(18))
 	var current = null
 	for d in DB.dungeon_list:
-		if current == null and Game.is_dungeon_unlocked(d.id) and not Game.defeated.has(d.id): current = d.id
+		if current == null and Game.is_dungeon_unlocked(d.id) and not Game.defeated.has(d.id) and not d.get("side", false): current = d.id
 	for gi in DB.locations.size():
 		var loc: Dictionary = DB.locations[gi]
-		var nodes: Array = DB.dungeon_list.filter(func(d): return d.locationId == loc.id)
+		var here: Array = DB.dungeon_list.filter(func(d): return d.locationId == loc.id)
+		var nodes: Array = here.filter(func(d): return not d.get("side", false))
+		var side: Array = here.filter(func(d): return d.get("side", false))
 		var open = nodes.any(func(d): return Game.is_dungeon_unlocked(d.id))
 		p.add_child(UI.kicker("%d. %s" % [gi + 1, loc.name], UI.ACCENT if open else UI.TEXT_FAINT, 12.5))
 		p.add_child(UI.label(loc.desc, 13, UI.TEXT_DIM, "regular", true))
 		p.add_child(UI.space(12))
-		p.add_child(_sheet(nodes, open, current))
+		p.add_child(_sheet(nodes, open, current, NODE_POS, VBOX))
+		if not side.is_empty():
+			var side_open = Game.is_dungeon_unlocked(side[0].id)
+			var side_next = null
+			for d in side:
+				if side_next == null and Game.is_dungeon_unlocked(d.id) and not Game.defeated.has(d.id): side_next = d.id
+			p.add_child(UI.space(14))
+			p.add_child(UI.kicker("Вне тракта · %d подземелий" % side.size(), UI.ACCENT if side_open else UI.TEXT_FAINT, 11.5))
+			p.add_child(UI.label("По желанию, в стороне от тракта. %s Дальше — одно за другим." % side[0].lockedDesc, 12.5, UI.TEXT_DIM, "regular", true))
+			p.add_child(UI.space(10))
+			p.add_child(_sheet(side, side_open, side_next, SIDE_POS, SIDE_BOX))
 		p.add_child(UI.space(26))
 
 
@@ -43,27 +59,27 @@ func _sketch(kind: String) -> Array:
 	return [[Vector2(-20, 6), Vector2(-14, -1), Vector2(-7, -2), Vector2(0, 6), Vector2(5, 1), Vector2(11, 0), Vector2(18, 6)]]
 
 
-func _sheet(nodes: Array, open: bool, current) -> Control:
+func _sheet(nodes: Array, open: bool, current, at: Array, vbox: Vector2) -> Control:
 	var box = Control.new()
 	box.custom_minimum_size = Vector2(0, 0)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if not open: box.modulate.a = 0.55
-	box.resized.connect(func(): box.custom_minimum_size.y = box.size.x * VBOX.y / VBOX.x)
-	box.custom_minimum_size.y = UI.px(530)
+	box.resized.connect(func(): box.custom_minimum_size.y = box.size.x * vbox.y / vbox.x)
+	box.custom_minimum_size.y = UI.px(530 * vbox.y / VBOX.y)
 	var tint: Color = Color(1, 1, 1, 0)
 	box.draw.connect(func():
-		var k = box.size.x / VBOX.x
+		var k = box.size.x / vbox.x
 		box.draw_texture_rect(UI.PAPER, Rect2(Vector2.ZERO, box.size), false)
 		for s in SKETCHES:
-			var at = Vector2(s[0], s[1]) * k
+			var o = Vector2(s[0], s[1] * vbox.y / VBOX.y) * k
 			for line in _sketch(s[2]):
 				var pts = PackedVector2Array()
-				for q in line: pts.append(at + q * s[3] * k)
+				for q in line: pts.append(o + q * s[3] * k)
 				box.draw_polyline(pts, Color(UI.INK_MUTED, 0.55), 1.4 * k, true)
 		for i in range(1, nodes.size()):
-			var a: Vector2 = NODE_POS[i - 1] * k
-			var b: Vector2 = NODE_POS[mini(i, NODE_POS.size() - 1)] * k
+			var a: Vector2 = at[i - 1] * k
+			var b: Vector2 = at[mini(i, at.size() - 1)] * k
 			var cleared: bool = Game.defeated.has(nodes[i - 1].id)
 			var next_open: bool = Game.is_dungeon_unlocked(nodes[i].id)
 			var col = UI.INK if cleared else (UI.INK_RED if next_open else UI.INK_FAINT)
@@ -115,9 +131,9 @@ func _sheet(nodes: Array, open: bool, current) -> Control:
 		tag.add_child(tv)
 		col.add_child(UI.center(tag))
 		box.add_child(col)
-		var pos: Vector2 = NODE_POS[mini(i, NODE_POS.size() - 1)]
+		var pos: Vector2 = at[mini(i, at.size() - 1)]
 		box.resized.connect(func():
-			var k = box.size.x / VBOX.x
+			var k = box.size.x / vbox.x
 			col.size = col.get_combined_minimum_size()
 			col.position = Vector2(pos.x * k - col.size.x * 0.5, pos.y * k - UI.px(30)))
 		if unlocked:
