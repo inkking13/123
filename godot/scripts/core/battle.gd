@@ -78,6 +78,8 @@ var sim = null
 var result = null
 var boss_intro = null
 var _timer_token = 0
+## The band being fought on the open map, or null.
+var skirmish = null
 
 
 func _init(game) -> void:
@@ -170,6 +172,8 @@ func slot_comp_mult(kind: String) -> float:
 
 func fresh_sim(enc: Dictionary, keep, room_idx := 0) -> Dictionary:
 	var raiders: Array = keep if keep != null else make_raiders(g.squad())
+	if keep == null and g.from_world and not g.in_arena:
+		for r in raiders: r.outputMult *= g.w.output_mult()
 	var dmg_mult: float
 	if g.in_arena: dmg_mult = g.arena_opponent.dmgMult if g.arena_opponent else 1.0
 	else:
@@ -220,6 +224,25 @@ func start_encounter() -> void:
 	_begin_round()
 	if enc.type == "boss": _open_boss_intro(enc.enemyName, g.current_dungeon().name, enc.desc)
 	elif not sim.over: advance_turn()
+	g.notify()
+
+
+## A fight on the open map against a roaming band: one room's worth of foes,
+## bolder at night, fought by a squad as tired and hungry as it is.
+func start_skirmish(band: Dictionary) -> void:
+	var base: Dictionary = g.current_dungeon().encounters[0]
+	var enc = {"type": "room", "name": band.name, "enemyName": band.name, "hp": int(round(float(base.hp) * (0.6 + 0.15 * band.size)))}
+	skirmish = band
+	sim = fresh_sim(enc, null, randi() % 3)
+	if g.w.is_night(): sim.dmgMult *= World.NIGHT_ENEMY_DMG
+	var tired: float = g.w.output_mult()
+	for r in sim.raiders: r.outputMult *= tired
+	g.trip = {"maxRound": 0, "lost": false, "valorSpent": 0}
+	log_line("%s преграждают путь%s! Выберите цель, нажав на врага." % [band.name, " под покровом ночи" if g.w.is_night() else ""])
+	if tired < 1.0: log_line("Отряд %s — урон снижен." % ("голоден" if g.w.hungry else "устал"), "warn")
+	g.screen = "combat"
+	_begin_round()
+	if not sim.over: advance_turn()
 	g.notify()
 
 
@@ -1988,7 +2011,7 @@ func end_game(win: bool) -> void:
 	if gold_found > 0: g.bump_daily("goldEarned", gold_found)
 	g.trip.maxRound = maxi(g.trip.maxRound, s.round)
 	if s.raiders.any(func(r): return not r.alive): g.trip.lost = true
-	g.settle_contract(win, is_boss)
+	if skirmish == null: g.settle_contract(win, is_boss)
 	result = {"win": win, "isBoss": is_boss, "loot": loot, "curioFound": curio, "goldFound": gold_found, "reagentFound": reagent}
 	g.screen = "results"
 	g.notify()
@@ -2047,6 +2070,12 @@ func assign_loot(idx: int, raider_id: int) -> void:
 
 func result_primary() -> void:
 	var res: Dictionary = result
+	if skirmish != null:
+		g.w.after_fight(skirmish.id, res.win)
+		skirmish = null
+		g.enc_idx = 0; sim = null; result = null
+		g.go_tab("world")
+		return
 	if g.in_arena:
 		g.in_arena = false
 		g.arena_opponent = null
@@ -2065,10 +2094,15 @@ func result_primary() -> void:
 	else:
 		if res.win and res.isBoss: g.defeated[g.dungeon_id] = true
 		g.enc_idx = 0; sim = null; result = null
-		g.return_to_camp("home")
+		var to_map: bool = g.from_world
+		g.from_world = false
+		g.return_to_camp("world" if to_map else "home")
 
 
 func result_secondary() -> void:
+	if skirmish != null:
+		result_primary()
+		return
 	var was_arena: bool = g.in_arena
 	g.in_arena = false
 	g.arena_opponent = null

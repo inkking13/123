@@ -22,7 +22,7 @@ const SCREEN_TITLE := {
 	"title": "Меню", "home": "Лагерь", "roster": "Отряд", "gear": "Снаряжение", "inventory": "Инвентарь", "shop": "Закупки",
 	"analytics": "Аналитика", "personnel": "Личные дела", "levelmap": "Карта", "hire": "Найм", "arena": "Арена",
 	"profession": "Профессия", "achievements": "Достижения", "weekly": "Испытание", "quests": "KPI", "settings": "Настройки",
-	"contracts": "Контракты",
+	"contracts": "Контракты", "world": "Карта", "town": "Город", "talents": "Таланты",
 }
 
 var screen = "title"
@@ -65,6 +65,9 @@ var claimed_achievements = {}
 var contract_offers: Array = []
 var active_contract = null
 var contracts_done = 0
+## The open map (World) and whether the dungeon under way was entered from it.
+var w
+var from_world = false
 var contract_outcome = null
 var trip = {"maxRound": 0, "lost": false, "valorSpent": 0}
 
@@ -98,6 +101,7 @@ var loaded = false
 
 func _ready() -> void:
 	b = Battle.new(self)
+	w = World.new(self)
 	inventory = DB.gear.STARTING_INVENTORY.duplicate()
 	load_game()
 
@@ -132,6 +136,7 @@ func _serialize() -> Dictionary:
 		"arenaWins": arena_wins, "arenaLosses": arena_losses, "weeklyChallengeWeek": weekly_week, "weeklyClaimed": weekly_claimed,
 		"seenUnlocks": seen_unlocks.keys(), "seenTips": seen_tips.keys(), "raises": raises, "feud": feud, "strikeTrips": strike_trips,
 		"contractOffers": contract_offers, "activeContract": active_contract, "contractsDone": contracts_done, "outfitted": true,
+		"world": w.to_dict(),
 	}
 
 
@@ -202,6 +207,8 @@ func _apply_save(data: Dictionary) -> void:
 	var ac = data.get("activeContract")
 	if ac is Dictionary and _known_contract(ac): active_contract = ac
 	contracts_done = data.get("contractsDone", 0)
+	if data.has("world"): w.from_dict(data.world)
+	else: w.reset()
 
 
 func _known_contract(c) -> bool:
@@ -231,6 +238,7 @@ func reset_progress() -> void:
 	weekly_week = ""; weekly_claimed = false; in_weekly = false; weekly_dmg_mult = 1.0
 	seen_unlocks = {}; seen_tips = {}; raises = {}; feud = null; strike_trips = 0
 	contract_offers = []; active_contract = null; contracts_done = 0; contract_outcome = null
+	w.reset(); from_world = false
 	payroll_notice = null; resignation_notice = null; active_event = null; employee_notice = null
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 	has_save = false
@@ -343,6 +351,9 @@ func hardware_back() -> bool:
 
 
 func quick_raid() -> void:
+	if is_unlocked_world():
+		go_world()
+		return
 	var open = []
 	for l in DB.locations:
 		for d in DB.dungeon_list:
@@ -361,6 +372,56 @@ func quick_raid() -> void:
 		go_dungeon()
 	else:
 		go_tab("roster")
+
+
+## Out onto the map, where the squad last stood.
+func go_world() -> void:
+	if not squad_ready():
+		go_tab("roster")
+		return
+	if not w.region_open(w.region):
+		w.region = "outskirts"
+		w.pos = w.layout().start
+	w.arrive()
+	go_tab("world")
+
+
+## To a dungeon: once the map is open the squad walks there over it (after the
+## road to its land); before that, straight in as before.
+func head_for(id: String) -> void:
+	if not is_dungeon_unlocked(id): return
+	if not is_unlocked_world():
+		select_dungeon(id)
+		if squad_ready(): go_dungeon()
+		else: go("roster")
+		return
+	if not squad_ready():
+		go_tab("roster")
+		return
+	var loc: String = DB.dungeon(id).locationId
+	if w.region != loc: w.travel_far(loc)
+	var p = w.place("d:" + id)
+	if p: w.walk_to(p.pos + (w.pos - p.pos).normalized() * World.REACH * 0.7, p.id)
+	w.arrive()
+	go_tab("world")
+
+
+## A dungeon entered from the map hands the squad back to the map after.
+func enter_dungeon(id: String) -> void:
+	if not is_dungeon_unlocked(id) or not squad_ready(): return
+	select_dungeon(id)
+	from_world = true
+	go_dungeon()
+
+
+## A band caught the squad (or the squad caught it): a fight in the open.
+func start_skirmish(band: Dictionary) -> void:
+	var ds = w.region_dungeons()
+	var hardest = ds[0]
+	for d in ds:
+		if is_dungeon_unlocked(d.id): hardest = d
+	select_dungeon(hardest.id)
+	b.start_skirmish(band)
 
 
 func _track(next: String) -> void:
@@ -409,6 +470,11 @@ func toggle_select(id: int) -> void:
 
 func squad_ready() -> bool:
 	return selected.size() == 5
+
+
+## The map opens once the squad has seen its first fight through.
+func is_unlocked_world() -> bool:
+	return stats_room_wins > 0 or not defeated.is_empty()
 
 
 func current_dungeon() -> Dictionary:
@@ -941,9 +1007,7 @@ func abandon_contract() -> void:
 func go_contract() -> void:
 	var c = active_contract
 	if not c or not is_dungeon_unlocked(c.dungeonId): return
-	select_dungeon(c.dungeonId)
-	if squad_ready(): go_dungeon()
-	else: go("roster")
+	head_for(c.dungeonId)
 
 
 func contract_vm(c: Dictionary) -> Dictionary:

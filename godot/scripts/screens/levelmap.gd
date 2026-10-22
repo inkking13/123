@@ -123,7 +123,5 @@ func _sheet(nodes: Array, open: bool, current) -> Control:
 		if unlocked:
 			var did: String = d.id
 			UI.tap(col, func():
-				Game.select_dungeon(did)
-				if Game.squad_ready(): Game.go_dungeon()
-				else: Game.go("roster"))
+				Game.head_for(did))
 	return box
