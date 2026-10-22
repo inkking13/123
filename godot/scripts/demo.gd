@@ -26,7 +26,9 @@ static func open(what: String) -> void:
 		"combat", "combat-act":
 			g.quick_raid()
 			g.b.start_encounter()
-			if what == "combat-act" and g.b.current_raider(): g.b.skip_move()
+			if what == "combat-act":
+				g.settings.auto = false
+				if g.b.current_raider(): g.b.skip_move()
 		"event":
 			g.maybe_trigger_event("home", true)
 			g.go("event")
