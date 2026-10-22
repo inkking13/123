@@ -24,6 +24,7 @@ func build() -> void:
 func refresh() -> void:
 	var at = scroll.scroll_vertical if scroll else 0
 	UI.clear(self)
+	UI.default_action = Callable()
 	scroll = null
 	page = null
 	build()

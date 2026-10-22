@@ -256,6 +256,12 @@ func set_quality(q: String) -> void:
 	notify()
 
 
+## The size of the interface on a computer screen (1.0 = as designed).
+func set_ui_scale(v: float) -> void:
+	settings.uiScale = v
+	notify()
+
+
 func toggle_setting(key: String) -> void:
 	settings[key] = not settings[key]
 	if key == "haptics" and settings.haptics: haptic(15)

@@ -23,9 +23,10 @@ static func open(what: String) -> void:
 	match what:
 		"char": g.open_char(g.squad()[0].id)
 		"dungeon": g.quick_raid()
-		"combat":
+		"combat", "combat-act":
 			g.quick_raid()
 			g.b.start_encounter()
+			if what == "combat-act" and g.b.current_raider(): g.b.skip_move()
 		"event":
 			g.maybe_trigger_event("home", true)
 			g.go("event")

@@ -40,6 +40,7 @@ func _ready() -> void:
 	get_tree().set_auto_accept_quit(false)
 	get_tree().set_quit_on_go_back(false)
 	_measure_insets()
+	theme = _theme()
 	wide = _is_wide()
 	get_viewport().size_changed.connect(_on_resize)
 	var bg = TextureRect.new()
@@ -90,6 +91,20 @@ func _measure_insets() -> void:
 	_insets = Vector2(maxf(0, safe.position.y * k), maxf(0, (screen.y - safe.end.y) * k))
 
 
+## Tooltips in the game's own ink and leather.
+func _theme() -> Theme:
+	var t = Theme.new()
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = Color(0.07, 0.05, 0.035, 0.97); sb.border_color = UI.BORDER_HOVER
+	sb.set_border_width_all(2); sb.set_corner_radius_all(UI.px(6))
+	sb.set_content_margin_all(UI.px(8))
+	t.set_stylebox("panel", "TooltipPanel", sb)
+	t.set_font("font", "TooltipLabel", UI.FONTS.regular)
+	t.set_font_size("font_size", "TooltipLabel", UI.px(12.5))
+	t.set_color("font_color", "TooltipLabel", UI.TEXT_MUTED)
+	return t
+
+
 func _is_wide() -> bool:
 	var v = get_viewport_rect().size
 	return v.x > v.y * 1.1
@@ -105,6 +120,9 @@ func _on_resize() -> void:
 
 func _update() -> void:
 	_dirty = false
+	var scale = float(Game.settings.get("uiScale", 1.0))
+	if not is_equal_approx(get_tree().root.content_scale_factor, scale):
+		get_tree().root.content_scale_factor = scale
 	if Game.screen != current_name:
 		if current:
 			current.queue_free()
@@ -120,6 +138,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if not (ev is InputEventKey and ev.pressed and not ev.echo): return
 	if ev.keycode == KEY_ESCAPE:
 		Game.hardware_back()
+		get_viewport().set_input_as_handled()
+	elif ev.keycode in [KEY_ENTER, KEY_KP_ENTER] and not ev.alt_pressed and UI.default_action.is_valid():
+		UI.default_action.call()
 		get_viewport().set_input_as_handled()
 	elif ev.keycode == KEY_F11 or (ev.keycode == KEY_ENTER and ev.alt_pressed):
 		var full = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN

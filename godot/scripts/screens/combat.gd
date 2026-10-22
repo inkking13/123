@@ -12,6 +12,9 @@ const GOLD_TEXT := Color("#e6cf9c")
 
 var view: BattleView
 var picking_heal = false
+## What keys 1–9 do this turn (the action tiles, or whom to heal).
+var _hotkeys = []
+var _cam: Control
 var _top: Control
 var _bottom: Control
 
@@ -26,6 +29,7 @@ func _exit_tree() -> void:
 
 
 func build() -> void:
+	_hotkeys = []
 	var s = Game.b.sim
 	if s == null: return
 	var cur = Game.b.current_raider()
@@ -34,13 +38,8 @@ func build() -> void:
 	add_child(_top)
 	_bottom = _bottom_panel(s, cur)
 	add_child(_bottom)
-	if view and view.turned():
-		var reset = UI.chip("Вернуть", false, func():
-			view.reset_camera()
-			refresh(), "arrow-left")
-		reset.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-		reset.position = Vector2(get_viewport_rect().size.x - UI.px(100), get_viewport_rect().size.y * 0.5)
-		add_child(reset)
+	_cam = _camera_bar()
+	add_child(_cam)
 	if Game.b.boss_intro: add_child(_intro(Game.b.boss_intro))
 	_measure.call_deferred()
 
@@ -56,6 +55,11 @@ func _measure() -> void:
 	if not is_instance_valid(view) or not is_instance_valid(_top): return
 	var h = _bottom.get_combined_minimum_size().y
 	if _bottom.size.y > h + 0.5: _bottom.offset_top = _bottom.offset_bottom - h
+	if is_instance_valid(_cam):
+		# Phone: up the right edge, just over the bottom panel. Wide: bottom-left corner.
+		var ch = _cam.get_combined_minimum_size().y
+		var bottom_y = get_viewport_rect().size.y - UI.px(14) if App.wide else _bottom.get_global_rect().position.y - UI.px(10)
+		_cam.position = Vector2(UI.px(14) if App.wide else get_viewport_rect().size.x - _cam.size.x - UI.px(10), bottom_y - ch)
 	if App.wide:
 		# The panels sit in corners: the board takes the middle of the window.
 		view.band_top = 0.0; view.band_bottom = 0.0
@@ -141,7 +145,10 @@ func _top_panel(s: Dictionary) -> Control:
 	var tilt_col = UI.DANGER if s.tilt >= 70 else (UI.WARN if s.tilt >= 40 else UI.GOOD)
 	meters.add_child(_meter("Тилт", s.tilt, tilt_col, "%d%%" % round(s.tilt)))
 	v.add_child(meters)
+	var foes = _foe_row(s)
+	if foes: v.add_child(foes)
 	wrap.add_child(pn)
+	if App.wide: wrap.add_child(_squad_panel(s))
 	for b in _banners(s): wrap.add_child(b)
 	return wrap
 
@@ -211,6 +218,7 @@ func _bottom_panel(s: Dictionary, cur) -> Control:
 	pn.mouse_filter = Control.MOUSE_FILTER_STOP
 	var v = UI.vbox(8)
 	pn.add_child(v)
+	if not App.wide: v.add_child(_squad_strip(s))
 	for e in s.log:
 		var col = UI.GOOD if e.kind == "ok" else (UI.WARN if e.kind == "warn" else UI.TEXT_MUTED)
 		v.add_child(UI.label(e.text, 12.5, col, "regular", true))
@@ -263,9 +271,12 @@ func _bottom_panel(s: Dictionary, cur) -> Control:
 		flow.add_theme_constant_override("v_separation", UI.px(8))
 		for t in Game.b.heal_targets():
 			var tid: int = t.id
-			flow.add_child(UI.chip("%s · %d%%" % [t.name, t.hpPct], false, func():
+			var heal = func():
 				picking_heal = false
-				Game.b.raider_action("heal", tid)))
+				Game.b.raider_action("heal", tid)
+			_hotkeys.append(heal)
+			var tag = ("%d · " % _hotkeys.size()) if UI.HOVER and _hotkeys.size() <= 9 else ""
+			flow.add_child(UI.chip(tag + "%s · %d%%" % [t.name, t.hpPct], false, heal))
 		v.add_child(flow)
 		v.add_child(UI.ghost_link("Отмена", func():
 			picking_heal = false
@@ -276,8 +287,124 @@ func _bottom_panel(s: Dictionary, cur) -> Control:
 		grid.add_theme_constant_override("h_separation", UI.px(8))
 		grid.add_theme_constant_override("v_separation", UI.px(8))
 		for a in Game.b.turn_actions(): grid.add_child(_action_tile(a))
+
 		v.add_child(grid)
 	return pn
+
+
+# ── who's standing: the squad's health, the foes to pick from ───────────────
+func _hp_color(pct: float) -> Color:
+	return UI.GOOD if pct > 55 else (UI.WARN if pct > 25 else UI.DANGER)
+
+
+## Taps a hero: while choosing whom to heal, heals them.
+func _hero_tap(r: Dictionary) -> Callable:
+	var id: int = r.id
+	return func():
+		if picking_heal and Game.b.heal_targets().any(func(t): return t.id == id):
+			picking_heal = false
+			Game.b.raider_action("heal", id)
+
+
+## Wide window: the squad as a list under the foe's card.
+func _squad_panel(s: Dictionary) -> Control:
+	var pn = PanelContainer.new()
+	pn.add_theme_stylebox_override("panel", _panel_style())
+	pn.mouse_filter = Control.MOUSE_FILTER_STOP
+	var v = UI.vbox(7)
+	pn.add_child(v)
+	var head = UI.hbox(6)
+	head.add_child(UI.expand(UI.kicker("Отряд", UI.TEXT_FAINT, 10.5)))
+	if picking_heal: head.add_child(UI.label("выберите, кого лечить", 11, UI.GOOD, "italic"))
+	v.add_child(head)
+	var cur = Game.b.current_raider()
+	for r in s.raiders:
+		var pct: float = maxf(0, 100.0 * r.hp / r.maxHp)
+		var row = UI.hbox(8)
+		var pic = UI.portrait(r.candidateId, 30, 15, not r.alive)
+		if cur and r.id == cur.id:
+			var col: Color = DB.ROLE_COLOR[r.role]
+			UI.overlay(pic, func(o): o.draw_arc(o.size * 0.5, o.size.x * 0.5 - 1, 0, TAU, 32, col, 2.5, true))
+		row.add_child(UI.center(pic))
+		var info = UI.vbox(3)
+		var top = UI.hbox(5)
+		top.add_child(UI.expand(UI.label(r.name, 12.5, UI.TEXT if r.alive else UI.TEXT_FAINT, "medium")))
+		if r.defending: top.add_child(UI.icon("shield", 12, UI.ACCENT_SOFT, "fill"))
+		top.add_child(UI.label("%d/%d" % [maxi(0, int(r.hp)), r.maxHp] if r.alive else "пал", 11, UI.TEXT_DIM))
+		info.add_child(top)
+		info.add_child(UI.progress(pct, _hp_color(pct), 5))
+		row.add_child(UI.expand(info))
+		if picking_heal and r.alive and cur and r.id != cur.id: UI.tap(row, _hero_tap(r))
+		v.add_child(row)
+	return pn
+
+
+## Phone: the squad as five small faces with health under each.
+func _squad_strip(s: Dictionary) -> Control:
+	var row = UI.hbox(6)
+	var cur = Game.b.current_raider()
+	for r in s.raiders:
+		var pct: float = maxf(0, 100.0 * r.hp / r.maxHp)
+		var cell = UI.vbox(3)
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var top = UI.hbox(4, BoxContainer.ALIGNMENT_CENTER)
+		var pic = UI.portrait(r.candidateId, 24, 12, not r.alive)
+		if cur and r.id == cur.id:
+			var col: Color = DB.ROLE_COLOR[r.role]
+			UI.overlay(pic, func(o): o.draw_arc(o.size * 0.5, o.size.x * 0.5 - 1, 0, TAU, 32, col, 2.5, true))
+		top.add_child(pic)
+		var n = UI.label(r.name, 11, UI.TEXT_MUTED if r.alive else UI.TEXT_FAINT, "medium")
+		n.clip_text = true
+		n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		top.add_child(n)
+		if r.defending: top.add_child(UI.icon("shield", 10, UI.ACCENT_SOFT, "fill"))
+		cell.add_child(top)
+		cell.add_child(UI.progress(pct, _hp_color(pct), 4))
+		if picking_heal and r.alive and cur and r.id != cur.id:
+			cell.modulate = Color(1.15, 1.25, 1.1)
+			UI.tap(cell, _hero_tap(r))
+		row.add_child(cell)
+	return row
+
+
+## The foes still up, as chips: the ringed one is the target; tap to switch.
+func _foe_row(s: Dictionary) -> Control:
+	var foes = (s.enemies + s.minions).filter(func(e): return e.alive)
+	if foes.is_empty(): return null
+	var flow = HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", UI.px(6))
+	flow.add_theme_constant_override("v_separation", UI.px(6))
+	flow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for e in foes:
+		var on: bool = s.focusId != null and e.id == s.focusId
+		var id: int = e.id
+		var chip = UI.chip("%s %d" % [e.name, maxi(0, int(e.hp))], on, func(): Game.b.set_focus(id), "crosshair" if on else "")
+		chip.tooltip_text = "%s — %d/%d HP. Нажмите, чтобы сделать целью." % [e.name, maxi(0, int(e.hp)), e.maxHp]
+		flow.add_child(chip)
+	return flow
+
+
+## Turn, zoom and straighten the view. Drag on the field (right button on a
+## computer) does the same; keys Q/E, +/−, PgUp/PgDn, R.
+func _camera_bar() -> Control:
+	var v = UI.vbox(6)
+	var btn = func(icon: String, tip: String, fn: Callable) -> Control:
+		var pn = PanelContainer.new()
+		var sb = StyleBoxFlat.new()
+		sb.bg_color = Color(0.063, 0.047, 0.035, 0.82); sb.border_color = GOLD_LINE
+		sb.set_border_width_all(2); sb.set_corner_radius_all(UI.px(19))
+		pn.add_theme_stylebox_override("panel", sb)
+		pn.custom_minimum_size = Vector2(UI.px(38), UI.px(38))
+		pn.add_child(UI.center(UI.icon(icon, 17, GOLD_TEXT)))
+		pn.tooltip_text = tip
+		UI.tap(pn, fn)
+		return pn
+	v.add_child(btn.call("arrow-counter-clockwise", "Повернуть влево (Q)", func(): view.rotate_by(-45.0)))
+	v.add_child(btn.call("arrow-clockwise", "Повернуть вправо (E)", func(): view.rotate_by(45.0)))
+	v.add_child(btn.call("magnifying-glass-plus", "Приблизить (+, колесо)", func(): view.zoom_by(0.85)))
+	v.add_child(btn.call("magnifying-glass-minus", "Отдалить (−, колесо)", func(): view.zoom_by(1.18)))
+	v.add_child(btn.call("camera-rotate", "Вернуть камеру (R)", func(): view.reset_camera()))
+	return v
 
 
 func _valor(n: int) -> Control:
@@ -324,15 +451,62 @@ func _action_tile(a: Dictionary) -> Control:
 		sl.clip_text = true
 		v.add_child(sl)
 	pn.add_child(v)
+	pn.tooltip_text = _action_tip(a)
+	var fn = Callable()
 	if not a.disabled:
 		var key: String = a.key
 		var needs: bool = a.needsTarget
-		UI.tap(pn, func():
+		fn = func():
 			if needs:
 				picking_heal = true
 				refresh()
-			else: Game.b.raider_action(key))
+			else: Game.b.raider_action(key)
+		UI.tap(pn, fn)
+	_hotkeys.append(fn)
+	if UI.HOVER and _hotkeys.size() <= 9:
+		# The key that does it, in the corner.
+		var k = UI.label(str(_hotkeys.size()), 10.5, UI.TEXT_FAINT, "semibold")
+		k.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		k.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		k.position = Vector2(-UI.px(2), -UI.px(5))
+		pn.add_child(k)
 	return pn
+
+
+func _action_tip(a: Dictionary) -> String:
+	var cur = Game.b.current_raider()
+	match a.key:
+		"attack": return "Обычный удар по цели." + ("\n" + a.sub if a.sub else "")
+		"heal": return "Лечит союзника на выбор."
+		"ability":
+			var d = DB.ability(cur.candidateId) if cur else {}
+			return "%s — %s%s" % [a.label, d.get("desc", ""), ("\n" + a.sub) if a.sub else ""]
+		"valor": return "%s — %s\nСтоит %d доблести." % [a.label, a.sub, a.valorCost]
+		"rally": return "Поднимает дух отряда."
+		"defend": return "Оборона: −40% урона до следующего хода."
+	return a.label + (("\n" + a.sub) if a.sub else "")
+
+
+func _unhandled_input(ev: InputEvent) -> void:
+	if not (ev is InputEventKey and ev.pressed and not ev.echo): return
+	var s = Game.b.sim
+	if s == null: return
+	var done = true
+	if ev.keycode >= KEY_1 and ev.keycode <= KEY_9:
+		var i: int = ev.keycode - KEY_1
+		if i < _hotkeys.size() and _hotkeys[i].is_valid(): _hotkeys[i].call()
+	elif ev.keycode == KEY_SPACE:
+		if Game.b.boss_intro: Game.b.end_boss_intro()
+		elif s.movePhase and Game.b.current_raider() and not Game.settings.auto: Game.b.skip_move()
+	elif ev.keycode == KEY_A:
+		picking_heal = false
+		Game.toggle_auto()
+	elif ev.keycode == KEY_X: Game.toggle_speed()
+	elif ev.keycode == KEY_ESCAPE and picking_heal:
+		picking_heal = false
+		refresh()
+	else: done = false
+	if done: get_viewport().set_input_as_handled()
 
 
 ## First-fight coaching: one tip at a time, each shown once, when it's relevant.
