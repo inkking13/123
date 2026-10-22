@@ -12,6 +12,7 @@ func _walk(w, to: Vector2, id := "") -> void:
 	w.walk_to(to, id)
 	var guard = 0
 	while w.target != null and guard < 20000:
+		w.event = null
 		var band = w.step(0.05)
 		guard += 1
 		if band != null:
@@ -47,9 +48,10 @@ func _run() -> void:
 	# A band: walk into it.
 	w._grace = 0.0
 	var band = w.region_bands()[0]
-	w.walk_to(band.pos)
 	var caught = null
-	for i in 4000:
+	for i in 8000:
+		if i % 50 == 0: w.walk_to(band.pos)
+		w.event = null  # a road meeting would hold the squad until answered
 		caught = w.step(0.05)
 		if caught != null: break
 	print("met band: ", caught.name if caught else "none")
@@ -72,6 +74,12 @@ func _run() -> void:
 	w.safe_camp = true
 	var night_raid = w.make_camp()
 	print("safe camp: ", w.log_note, " ambush ", night_raid != null)
+	# The walled town: its buildings are places of their own.
+	print("town buildings: ", w.layout().places.filter(func(p): return p.id.begins_with("town:")).map(func(p): return p.kind))
+	game.gold = 300
+	w.sharpen(); print("smith: ", w.log_note, " output ", w.output_mult())
+	w.drill(); print("barracks: ", w.log_note)
+	w.drill(); print("drill again same day blocked: ", w.used_today("town:barracks"))
 	# A dungeon from the map, played through on auto.
 	var d = w.region_dungeons()[0]
 	game.enter_dungeon(d.id)
@@ -104,7 +112,7 @@ func _run() -> void:
 	var amb = w.make_camp()
 	print("camp tasks: ", w.log_note, " · fed ", w.well_fed, " food ", w.food, " trainee xp/level ", sq[1].xp, "/", sq[1].level, " (was lvl ", lv, ") ambush ", amb != null)
 	# Every road event, every answer.
-	for e in World.ROAD_EVENTS:
+	for e in w.ROAD_EVENTS:
 		for i in e.options.size():
 			w.event = e
 			game.gold = 500; w.food = 20

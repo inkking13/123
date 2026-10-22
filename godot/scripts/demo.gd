@@ -51,6 +51,7 @@ static func open(what: String) -> void:
 			if what == "world-night": g.w.hours = 22.0
 			if what == "world-town":
 				g.w.pos = g.w.layout().town + Vector2(2, 0)
+				g.w._grace = 9999.0
 			if what == "world-gate":
 				g.w.pos = g.w.place("d:wastes").pos + Vector2(0, 2)
 			if what == "world-band":

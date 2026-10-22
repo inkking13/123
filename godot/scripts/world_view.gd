@@ -24,6 +24,7 @@ var band_labels = {}
 var place_nodes = {}    # place id -> Node3D (chests and herbs change look)
 var marker: MeshInstance3D
 var _blades: Array[Node3D] = []
+var _folk = []           # townsfolk: {unit, to, wait}
 var band_top = 0.0
 var band_bottom = 0.0
 
@@ -195,6 +196,7 @@ func _build_woods(th: Dictionary) -> void:
 		var inside = absf(p.x) < Game.w.size() and absf(p.y) < Game.w.size()
 		if inside and rng.randf() < 0.3: continue
 		if _near_road(p, 4.0) or places.any(func(q): return q.pos.distance_to(p) < _clear_of(q.kind)): continue
+		if Game.w.has_big_town() and Game.w.layout().town.distance_to(p) < World.TOWN_RADIUS + 5.0: continue
 		spots.append(p)
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	var rocks = spots.slice(int(spots.size() * 0.8))
@@ -203,6 +205,7 @@ func _build_woods(th: Dictionary) -> void:
 	var tufts = []
 	for _i in 1600:
 		var p = Vector2(rng.randf_range(-Game.w.size(), Game.w.size()), rng.randf_range(-Game.w.size(), Game.w.size()))
+		if Game.w.has_big_town() and Game.w.layout().town.distance_to(p) < World.TOWN_RADIUS: continue
 		if not _near_road(p, 2.0) and not places.any(func(q): return q.kind in ["lake", "farm", "town"] and (q.pos + (Vector2(0, -10) if q.kind == "lake" else Vector2.ZERO)).distance_to(p) < _clear_of(q.kind) * (0.6 if q.kind == "lake" else 1.0)): tufts.append(p)
 	_scatter(_tuft_mesh(th), tufts, rng, 0.6, 1.3)
 
@@ -323,7 +326,15 @@ func _build_places(th: Dictionary) -> void:
 			"camp": _campsite(root)
 			"ruins": _ruins(root, th)
 			"shrine": _shrine(root, th)
+			"tavern": _tavern(root)
+			"market": _market(root)
+			"smith": _smithy(root)
+			"board": _board(root)
+			"barracks": _barracks(root)
 		if World.SIGHTS.has(p.kind): _label(root, World.SIGHTS[p.kind].name, _sight_height(p.kind), Color(0.88, 0.82, 0.66), 46)
+		var bdef = Game.w.building(p.kind)
+		if not bdef.is_empty(): _label(root, bdef.name, 5.6, Color(0.95, 0.86, 0.62), 40)
+	if Game.w.has_big_town(): _walled_town(th)
 	_roadside(th)
 	refresh_places()
 
@@ -717,6 +728,212 @@ func _shrine(root: Node3D, th: Dictionary) -> void:
 	root.add_child(l)
 
 
+# ── the walled town ────────────────────────────────────────────────────────
+## The palisade with gates where the road comes in and out, the square and
+## its well, houses between the buildings, townsfolk about and guards at the gates.
+func _walled_town(th: Dictionary) -> void:
+	var w = Game.w
+	var lay: Dictionary = w.layout()
+	var town: Vector2 = lay.town
+	var root = Node3D.new()
+	root.position = Vector3(town.x, 0, town.y)
+	add_child(root)
+	# Where the road meets the wall.
+	var road: Array = lay.road
+	var gates = []
+	for i in road.size():
+		if road[i] == town:
+			if i > 0: gates.append((road[i - 1] - town).angle())
+			if i < road.size() - 1: gates.append((road[i + 1] - town).angle())
+	var logs = []
+	var r = World.TOWN_RADIUS
+	var n = int(TAU * r / 0.55)
+	for k in n:
+		var a = k * TAU / n
+		if gates.any(func(g): return absf(wrapf(a - g, -PI, PI)) < 0.17): continue
+		logs.append(Vector2(cos(a), sin(a)) * r)
+	var mm = MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	var log_mesh = CylinderMesh.new(); log_mesh.top_radius = 0.18; log_mesh.bottom_radius = 0.24; log_mesh.height = 3.2; log_mesh.radial_segments = 6
+	mm.mesh = log_mesh
+	mm.instance_count = logs.size()
+	for i in logs.size():
+		var h = 1.0 + (i % 3) * 0.06
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(1, h, 1)), Vector3(logs[i].x, 1.6 * h, logs[i].y)))
+	var mmi = MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.material_override = _solid(Color(0.36, 0.25, 0.15))
+	root.add_child(mmi)
+	var wood = Color(0.33, 0.22, 0.13)
+	for gang in gates:
+		var dir = Vector2(cos(gang), sin(gang))
+		var side = dir.orthogonal()
+		var at = dir * r
+		for s in [-1.0, 1.0]:
+			var p = at + side * 2.6 * s
+			_box(root, Vector3(1.6, 5.0, 1.6), Vector3(p.x, 2.5, p.y), wood)
+			var top = MeshInstance3D.new()
+			var pr = PrismMesh.new(); pr.size = Vector3(2.0, 1.2, 2.0)
+			top.mesh = pr; top.material_override = _solid(Color(0.42, 0.2, 0.14))
+			top.position = Vector3(p.x, 5.6, p.y)
+			root.add_child(top)
+		var beam = _box(root, Vector3(5.6, 0.5, 0.5), Vector3(at.x, 4.6, at.y), wood)
+		beam.rotation.y = -gang + PI * 0.5
+		_folk_unit(root, {"body": "human", "right": "longsword", "left": "roundShield", "set": "knight"}, at + side * 1.4 - dir * 1.2, gang, true)
+	# The square and its well.
+	var sq = MeshInstance3D.new()
+	var sqm = CylinderMesh.new(); sqm.top_radius = 7.0; sqm.bottom_radius = 7.0; sqm.height = 0.04; sqm.radial_segments = 24
+	sq.mesh = sqm
+	sq.material_override = _solid(th.road.darkened(0.1))
+	sq.position.y = 0.035
+	root.add_child(sq)
+	_cyl(root, 0.8, 0.9, 0.8, Vector3(0, 0.4, 0), th.rock.darkened(0.1), 10)
+	_box(root, Vector3(0.1, 1.6, 0.1), Vector3(-0.7, 1.3, 0), wood)
+	_box(root, Vector3(0.1, 1.6, 0.1), Vector3(0.7, 1.3, 0), wood)
+	var well_roof = MeshInstance3D.new()
+	var wpr = PrismMesh.new(); wpr.size = Vector3(2.0, 0.6, 1.4)
+	well_roof.mesh = wpr; well_roof.material_override = _solid(Color(0.42, 0.2, 0.14))
+	well_roof.position.y = 2.3
+	root.add_child(well_roof)
+	var lamp = OmniLight3D.new()
+	lamp.light_color = Color(1.0, 0.65, 0.3); lamp.light_energy = 1.2; lamp.omni_range = 12.0
+	lamp.position = Vector3(0, 3.0, 0)
+	root.add_child(lamp)
+	# Houses between the buildings.
+	for h in [[Vector2(0, -12), 0.0], [Vector2(12, 0), 1.57], [Vector2(-13, -1), -1.57], [Vector2(4, 12), 3.14], [Vector2(-5, 13), 3.0]]:
+		_house(root, Vector3(h[0].x, 0, h[0].y), 2.6, 2.2, h[1], Color(0.64, 0.56, 0.45), Color(0.45, 0.22, 0.15))
+	# Townsfolk walk between the buildings.
+	for k in 5:
+		var start: Vector2 = w.TOWN_BUILDINGS[k % w.TOWN_BUILDINGS.size()].at * 0.6
+		_folk_unit(root, {"body": ["human", "dwarf", "elf"][k % 3], "set": ["leather", "arcane"][k % 2]}, start, randf() * TAU, false)
+
+
+func _folk_unit(root: Node3D, spec: Dictionary, at: Vector2, turn: float, guard: bool) -> void:
+	var u = _unit(spec, 0, "")
+	u.position = root.position + Vector3(at.x, 0, at.y)
+	u.rotation.y = turn if guard else u.rotation.y
+	u.play_idle()
+	if not guard: _folk.append({"unit": u, "to": u.position, "wait": randf() * 3.0, "center": root.position})
+
+
+func _sync_folk(dt: float) -> void:
+	for f in _folk:
+		var u: Unit = f.unit
+		var d: Vector3 = f.to - u.position
+		if d.length() < 0.2:
+			f.wait -= dt
+			if u.get_meta("moving", false):
+				u.play_idle(); u.set_meta("moving", false)
+			if f.wait <= 0:
+				var b: Dictionary = World.TOWN_BUILDINGS.pick_random()
+				f.to = f.center + Vector3(b.at.x * 0.75 + randf_range(-1.5, 1.5), 0, b.at.y * 0.75 + randf_range(-1.5, 1.5))
+				f.wait = 2.0 + randf() * 5.0
+		else:
+			if not u.get_meta("moving", false):
+				u.play_run(); u.set_meta("moving", true)
+			u.position += d.normalized() * minf(d.length(), dt * 1.8)
+			u.face(u.position + d)
+
+
+func _tavern(root: Node3D) -> void:
+	var plaster = Color(0.72, 0.64, 0.5)
+	var beam = Color(0.28, 0.18, 0.1)
+	_box(root, Vector3(6.0, 3.8, 4.4), Vector3(0, 1.9, 0), plaster)
+	for x in [-2.9, -1.0, 1.0, 2.9]: _box(root, Vector3(0.18, 3.8, 4.5), Vector3(x, 1.9, 0), beam)
+	_box(root, Vector3(6.1, 0.2, 4.5), Vector3(0, 1.9, 0), beam)
+	var roof = MeshInstance3D.new()
+	var pr = PrismMesh.new(); pr.size = Vector3(6.8, 2.2, 5.0)
+	roof.mesh = pr; roof.material_override = _solid(Color(0.4, 0.2, 0.13))
+	roof.position.y = 4.9
+	root.add_child(roof)
+	_box(root, Vector3(1.0, 1.6, 0.1), Vector3(0, 0.8, 2.25), Color(0.2, 0.12, 0.07))
+	for x in [-2.0, 2.0]:
+		_box(root, Vector3(0.8, 0.6, 0.06), Vector3(x, 1.0, 2.23), Color(1, 0.75, 0.4), 0.0, 0.5)
+		_box(root, Vector3(0.8, 0.6, 0.06), Vector3(x, 2.9, 2.23), Color(1, 0.75, 0.4), 0.0, 0.5)
+	_box(root, Vector3(0.1, 0.1, 1.2), Vector3(1.2, 2.6, 2.8), beam)
+	_box(root, Vector3(0.9, 0.6, 0.08), Vector3(1.2, 2.2, 3.3), Color(0.55, 0.38, 0.2))
+	var l = OmniLight3D.new()
+	l.light_color = Color(1.0, 0.65, 0.3); l.light_energy = 1.6; l.omni_range = 7.0
+	l.position = Vector3(0, 2.0, 3.0)
+	root.add_child(l)
+	for x in [-2.4, 2.4]:
+		_box(root, Vector3(1.6, 0.12, 0.4), Vector3(x, 0.45, 3.0), beam)
+	for k in 3:
+		_cyl(root, 0.3, 0.3, 0.75, Vector3(3.4, 0.38, 1.6 - k * 0.7), Color(0.42, 0.28, 0.15), 8)
+
+
+func _stall(root: Node3D, at: Vector3, awning: Color) -> void:
+	var wood = Color(0.38, 0.26, 0.15)
+	for p in [Vector3(-1.2, 0, -0.8), Vector3(1.2, 0, -0.8), Vector3(-1.2, 0, 0.8), Vector3(1.2, 0, 0.8)]:
+		_box(root, Vector3(0.12, 2.2, 0.12), at + p + Vector3(0, 1.1, 0), wood)
+	var top = _box(root, Vector3(2.8, 0.08, 2.2), at + Vector3(0, 2.25, 0), awning)
+	top.rotation.x = 0.2
+	_box(root, Vector3(2.4, 0.8, 0.6), at + Vector3(0, 0.4, 0.5), wood)
+	for k in 3:
+		var s = MeshInstance3D.new()
+		var sm = SphereMesh.new(); sm.radius = 0.22; sm.height = 0.36
+		s.mesh = sm
+		s.material_override = _solid([Color(0.8, 0.45, 0.2), Color(0.6, 0.7, 0.3), Color(0.75, 0.2, 0.15)][k])
+		s.position = at + Vector3(-0.7 + k * 0.7, 0.95, 0.5)
+		root.add_child(s)
+
+
+func _market(root: Node3D) -> void:
+	_stall(root, Vector3(-3, 0, 0), Color(0.62, 0.18, 0.14))
+	_stall(root, Vector3(0, 0, -1.5), Color(0.22, 0.4, 0.25))
+	_stall(root, Vector3(3, 0, 0), Color(0.2, 0.3, 0.55))
+	for k in 4:
+		_box(root, Vector3(0.6, 0.6, 0.6), Vector3(-1.5 + k * 0.9, 0.3, 2.2), Color(0.5, 0.36, 0.2), k * 0.3)
+
+
+func _smithy(root: Node3D) -> void:
+	var wood = Color(0.3, 0.2, 0.12)
+	for p in [Vector3(-2.2, 0, -1.6), Vector3(2.2, 0, -1.6), Vector3(-2.2, 0, 1.6), Vector3(2.2, 0, 1.6)]:
+		_box(root, Vector3(0.22, 3.0, 0.22), p + Vector3(0, 1.5, 0), wood)
+	var roof = MeshInstance3D.new()
+	var pr = PrismMesh.new(); pr.size = Vector3(5.2, 1.2, 4.0)
+	roof.mesh = pr; roof.material_override = _solid(Color(0.32, 0.3, 0.3))
+	roof.position.y = 3.6
+	root.add_child(roof)
+	var stone = Color(0.4, 0.38, 0.36)
+	_box(root, Vector3(1.6, 1.1, 1.4), Vector3(-1.2, 0.55, -0.7), stone)
+	_box(root, Vector3(0.7, 3.6, 0.7), Vector3(-1.6, 2.3, -1.2), stone)
+	_fire(root, Vector3(-1.2, 1.2, -0.7))
+	_box(root, Vector3(0.5, 0.6, 0.35), Vector3(0.9, 0.3, 0.4), Color(0.2, 0.2, 0.22))
+	_box(root, Vector3(0.9, 0.18, 0.4), Vector3(0.9, 0.7, 0.4), Color(0.25, 0.25, 0.28), 0.0, 0.3)
+	_model(root, "decor-weapons", 0.45, Vector3(1.8, 0.25, -1.0), 0.3)
+
+
+func _board(root: Node3D) -> void:
+	var wood = Color(0.38, 0.26, 0.15)
+	for x in [-1.1, 1.1]: _box(root, Vector3(0.18, 2.6, 0.18), Vector3(x, 1.3, 0), wood)
+	_box(root, Vector3(2.4, 1.4, 0.12), Vector3(0, 1.6, 0), Color(0.45, 0.32, 0.18))
+	var top = MeshInstance3D.new()
+	var pr = PrismMesh.new(); pr.size = Vector3(2.8, 0.5, 0.6)
+	top.mesh = pr; top.material_override = _solid(Color(0.4, 0.2, 0.13))
+	top.position.y = 2.75
+	root.add_child(top)
+	var rng = RandomNumberGenerator.new(); rng.seed = 5
+	for k in 6:
+		var note = _box(root, Vector3(0.38, 0.48, 0.02), Vector3(-0.85 + (k % 3) * 0.85 + rng.randf_range(-0.1, 0.1), 1.95 - (k / 3) * 0.6, 0.08), Color(0.92, 0.88, 0.75))
+		note.rotation.z = rng.randf_range(-0.15, 0.15)
+
+
+func _barracks(root: Node3D) -> void:
+	_box(root, Vector3(8.0, 2.6, 3.6), Vector3(0, 1.3, -1.6), Color(0.5, 0.42, 0.33))
+	var roof = MeshInstance3D.new()
+	var pr = PrismMesh.new(); pr.size = Vector3(8.6, 1.4, 4.2)
+	roof.mesh = pr; roof.material_override = _solid(Color(0.36, 0.2, 0.14))
+	roof.position = Vector3(0, 3.3, -1.6)
+	root.add_child(roof)
+	_box(root, Vector3(1.0, 1.7, 0.1), Vector3(0, 0.85, 0.22), Color(0.2, 0.12, 0.07))
+	for x in [-2.5, 0.0, 2.5]:
+		_cyl(root, 0.12, 0.12, 1.8, Vector3(x, 0.9, 2.8), Color(0.4, 0.28, 0.16), 6)
+		_box(root, Vector3(1.0, 0.14, 0.14), Vector3(x, 1.4, 2.8), Color(0.4, 0.28, 0.16))
+		_cyl(root, 0.28, 0.28, 0.7, Vector3(x, 1.7, 2.8), Color(0.75, 0.66, 0.42), 8)
+	_model(root, "decor-banner", 0.9, Vector3(-4.6, 0.8, 0.4), 0.2)
+
+
 ## Milestones along the road; barrels, crates and a cart by the town.
 func _roadside(th: Dictionary) -> void:
 	var road: Array = Game.w.layout().road
@@ -730,11 +947,15 @@ func _roadside(th: Dictionary) -> void:
 		var t = 20.0 - fmod(walked, 20.0)
 		while t < seg:
 			var p = a.lerp(b, t / seg) + side
+			if Game.w.has_big_town() and p.distance_to(Game.w.layout().town) < World.TOWN_RADIUS + 2.0:
+				t += 20.0
+				continue
 			var n = Node3D.new()
 			add_child(n)
 			_box(n, Vector3(0.4, 0.9, 0.3), Vector3(p.x, 0.45, p.y), stone)
 			t += 20.0
 		walked += seg
+	if Game.w.has_big_town(): return
 	var town: Vector2 = Game.w.layout().town
 	var by = Node3D.new()
 	by.position = Vector3(town.x, 0, town.y)
@@ -923,6 +1144,7 @@ func _sync_sky() -> void:
 func _process(delta: float) -> void:
 	if Game.w == null: return
 	for h in _blades: h.rotation.z += delta * 0.6
+	_sync_folk(delta)
 	_sync_party(delta)
 	_sync_bands()
 	_sync_sky()

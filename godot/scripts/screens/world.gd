@@ -279,6 +279,29 @@ func _place_card(w):
 			if w.herb_ready(id): acts.append(["Собрать", func():
 				w.gather(id)
 				if is_instance_valid(view): view.refresh_places()])
+		"tavern", "market", "smith", "board", "barracks":
+			title = w.building(p.kind).name
+			match p.kind:
+				"tavern":
+					desc = "Тёплый очаг, эль и комнаты наверху. За столами сидят наёмники без работы."
+					acts.append(["Ночлег · %d" % World.INN_PRICE, func(): w.rest_at_inn(), Game.gold < World.INN_PRICE])
+					if Game.is_unlocked("hire"): acts.append(["Наёмники", func(): Game.go("hire")])
+				"market":
+					desc = "Лавки под пёстрыми навесами: снедь, ткани, оружие с чужих плеч. Сейчас %d пайков." % w.food
+					acts.append(["Провизия · %d" % World.FOOD_PACK_PRICE, func(): w.buy_food(), Game.gold < World.FOOD_PACK_PRICE])
+					if Game.is_unlocked("shop"): acts.append(["Торговые ряды", func(): Game.go("shop")])
+				"smith":
+					desc = "Горн не гаснет с рассвета. Кузнец наточит клинки отряда: +10%% к урону на %d боя%s." % [World.SHARPEN_FIGHTS, (" (ещё %d)" % w.sharpened) if w.sharpened > 0 else ""]
+					acts.append(["Заточка · %d" % World.SHARPEN_PRICE, func(): w.sharpen(), Game.gold < World.SHARPEN_PRICE])
+					if Game.is_unlocked("gear"): acts.append(["Снаряжение", func(): Game.go("gear")])
+				"board":
+					desc = "Объявления о наградах, заказы горожан и контракты гильдий."
+					acts.append(["Поручения", func(): Game.go("town")])
+					if Game.is_unlocked("contracts"): acts.append(["Контракты", func(): Game.go("contracts")])
+				"barracks":
+					desc = "Стража гоняет новобранцев на плацу. За плату пустят и ваш отряд: +%d опыта каждому, 3 часа, отряд устанет." % World.DRILL_XP
+					if w.used_today("town:barracks"): desc = "Сегодня отряд уже тренировался со стражей."
+					else: acts.append(["Учения · %d" % World.DRILL_PRICE, func(): w.drill(), Game.gold < World.DRILL_PRICE])
 		"farm", "tower", "lake", "graveyard", "camp", "ruins", "shrine":
 			title = World.SIGHTS[p.kind].name
 			desc = w.sight_desc(p.kind)
@@ -333,6 +356,6 @@ func _place_card(w):
 	if not acts.is_empty():
 		v.add_child(UI.rule())
 		var row = UI.hbox(10)
-		for a in acts: row.add_child(UI.expand(UI.ink_action(a[0], a[1], true)))
+		for a in acts: row.add_child(UI.expand(UI.ink_action(a[0], a[1], true, a.size() > 2 and a[2])))
 		v.add_child(row)
 	return sheet

@@ -63,6 +63,19 @@ const SIGHTS := {
 	"ruins": {"name": "Руины форта", "icon": "castle-turret", "desc": "Обрушенные стены старого форта. Среди камней ещё можно найти оружие и монеты."},
 	"shrine": {"name": "Святилище у дороги", "icon": "church", "desc": "Помолиться (1 ч): усталость уходит, мораль растёт. Раз в день."},
 }
+## The buildings of a walled town, around its square (the road runs through it).
+const TOWN_BUILDINGS := [
+	{"kind": "tavern", "at": Vector2(-7, -7), "name": "Таверна «Ржавый шлем»", "icon": "beer-stein"},
+	{"kind": "market", "at": Vector2(7, -7), "name": "Рыночная площадь", "icon": "storefront"},
+	{"kind": "smith", "at": Vector2(9, 7), "name": "Кузница", "icon": "hammer"},
+	{"kind": "board", "at": Vector2(-1, 6), "name": "Доска объявлений", "icon": "scroll"},
+	{"kind": "barracks", "at": Vector2(-10, 7), "name": "Казармы стражи", "icon": "sword"},
+]
+const TOWN_RADIUS := 17.0
+const SHARPEN_PRICE := 40
+const SHARPEN_FIGHTS := 3
+const DRILL_PRICE := 60
+const DRILL_XP := 30
 const FARM_PACK := 5
 const FARM_PRICE := 12
 
@@ -78,7 +91,7 @@ const ACTIVITIES := [
 
 ## How each land looks: ground, grass and rock tints, trees, sky and fog.
 const THEMES := {
-	"outskirts": {"size": 100.0, "extras": ["farm", "tower", "lake", "graveyard", "camp", "ruins", "shrine"], "ground": Color(0.27, 0.28, 0.17), "ground2": Color(0.22, 0.26, 0.14), "road": Color(0.42, 0.36, 0.27), "tree": "pine", "leaf": Color(0.2, 0.32, 0.17), "rock": Color(0.45, 0.43, 0.4), "sky": Color(0.55, 0.62, 0.72), "fog": Color(0.55, 0.58, 0.6), "town": "Пограничная Застава"},
+	"outskirts": {"size": 100.0, "bigTown": true, "extras": ["farm", "tower", "lake", "graveyard", "camp", "ruins", "shrine"], "ground": Color(0.27, 0.28, 0.17), "ground2": Color(0.22, 0.26, 0.14), "road": Color(0.42, 0.36, 0.27), "tree": "pine", "leaf": Color(0.2, 0.32, 0.17), "rock": Color(0.45, 0.43, 0.4), "sky": Color(0.55, 0.62, 0.72), "fog": Color(0.55, 0.58, 0.6), "town": "Пограничная Застава"},
 	"icefrontier": {"extras": ["tower", "camp", "shrine"], "ground": Color(0.78, 0.82, 0.86), "ground2": Color(0.62, 0.68, 0.74), "road": Color(0.5, 0.5, 0.52), "tree": "pine", "leaf": Color(0.25, 0.36, 0.33), "rock": Color(0.55, 0.6, 0.68), "sky": Color(0.7, 0.78, 0.88), "fog": Color(0.8, 0.85, 0.9), "town": "Зимовье Волчьей Тропы"},
 	"ashlands": {"extras": ["ruins", "graveyard", "camp"], "ground": Color(0.24, 0.22, 0.21), "ground2": Color(0.32, 0.25, 0.2), "road": Color(0.4, 0.33, 0.28), "tree": "dead", "leaf": Color(0.15, 0.13, 0.12), "rock": Color(0.3, 0.27, 0.26), "sky": Color(0.55, 0.42, 0.35), "fog": Color(0.45, 0.36, 0.32), "town": "Пепельный Приход"},
 	"debtprovince": {"extras": ["farm", "camp", "shrine"], "ground": Color(0.42, 0.4, 0.24), "ground2": Color(0.36, 0.38, 0.22), "road": Color(0.47, 0.4, 0.3), "tree": "round", "leaf": Color(0.33, 0.38, 0.17), "rock": Color(0.5, 0.47, 0.42), "sky": Color(0.65, 0.66, 0.6), "fog": Color(0.62, 0.62, 0.55), "town": "Долговой Посад"},
@@ -121,6 +134,7 @@ var tasks = []                     # errands taken in towns
 var used = {}                      # place id -> day it was last used (daily sights)
 var scouted_until = 0.0            # absolute hour until which the bands see less
 var safe_camp = false              # the next camp is at a sheltered spot
+var sharpened = 0                  # fights left on the smith's edge
 var task_seq = 0
 var well_fed = 0                   # fights left on the cook's supper                   # seconds the bands leave the squad alone after a fight
 var _layouts = {}
@@ -135,7 +149,7 @@ func _init(game) -> void:
 func to_dict() -> Dictionary:
 	return {"region": region, "x": pos.x, "z": pos.y, "hours": hours, "day": day, "food": food, "mealClock": meal_clock,
 		"hungry": hungry, "fatigue": fatigue, "opened": opened.keys(), "gathered": gathered, "beaten": beaten,
-		"wellFed": well_fed, "campPlan": camp_plan, "tasks": tasks, "taskSeq": task_seq, "used": used, "scouted": scouted_until}
+		"wellFed": well_fed, "campPlan": camp_plan, "tasks": tasks, "taskSeq": task_seq, "used": used, "scouted": scouted_until, "sharpened": sharpened}
 
 
 func from_dict(d) -> void:
@@ -155,6 +169,7 @@ func from_dict(d) -> void:
 	task_seq = int(d.get("taskSeq", 0))
 	used = d.get("used", {}) if d.get("used") is Dictionary else {}
 	scouted_until = float(d.get("scouted", 0.0))
+	sharpened = int(d.get("sharpened", 0))
 	camp_plan = {}
 	if d.get("campPlan") is Dictionary:
 		for k in d.campPlan: camp_plan[int(k)] = d.campPlan[k]
@@ -165,7 +180,7 @@ func reset() -> void:
 	region = "outskirts"; pos = layout().start; target = null; goal = ""
 	hours = 9.0; day = 1; food = START_FOOD; meal_clock = 0.0; hungry = false; fatigue = 0.0
 	opened = {}; gathered = {}; bands = {}; beaten = {}; camp_plan = {}; well_fed = 0
-	event = null; _event_clock = 0.0; tasks = []; task_seq = 0; used = {}; scouted_until = 0.0; safe_camp = false
+	event = null; _event_clock = 0.0; tasks = []; task_seq = 0; used = {}; scouted_until = 0.0; safe_camp = false; sharpened = 0
 
 
 # ── the region's layout (fixed per land) ───────────────────────────────────
@@ -214,7 +229,12 @@ func layout(loc := "") -> Dictionary:
 		places.append({"id": "d:" + ds[i].id, "kind": "dungeon", "pos": p, "dungeon": ds[i].id})
 		stops.append(p)
 	var town = Vector2(-16 + rng.randf_range(-4, 4), rng.randf_range(-14, 14))
-	places.append({"id": "town", "kind": "town", "pos": town})
+	if THEMES[id].get("bigTown", false):
+		# A walled town: each building is a place of its own.
+		for b in TOWN_BUILDINGS:
+			places.append({"id": "town:" + b.kind, "kind": b.kind, "pos": town + b.at})
+	else:
+		places.append({"id": "town", "kind": "town", "pos": town})
 	stops.append(town)
 	stops.append(east)
 	stops.sort_custom(func(a, b): return a.x < b.x)
@@ -447,6 +467,7 @@ func make_camp():
 ## A fight on the map or in a dungeon from the map eats into the cook's supper.
 func fight_done() -> void:
 	well_fed = maxi(0, well_fed - 1)
+	sharpened = maxi(0, sharpened - 1)
 
 
 ## Make camp anywhere: eight hours, a meal, the tiredness gone.
@@ -495,6 +516,7 @@ func output_mult() -> float:
 	elif fatigue >= 60: m *= 0.9
 	if hungry: m *= 0.85
 	if well_fed > 0: m *= 1.1
+	if sharpened > 0: m *= 1.1
 	return m
 
 
@@ -829,5 +851,38 @@ func pray(id: String) -> void:
 	fatigue = 0.0
 	for c in g.squad(): g.adjust_morale(c.id, 2)
 	log_note = "Тихая молитва у святилища: отряд снова свеж."
+	g.notify()
+
+
+# ── the walled town ────────────────────────────────────────────────────────
+func has_big_town() -> bool:
+	return THEMES[region].get("bigTown", false)
+
+
+func building(kind: String) -> Dictionary:
+	for b in TOWN_BUILDINGS:
+		if b.kind == kind: return b
+	return {}
+
+
+## The smith puts an edge on every blade in the squad: +10% damage for three fights.
+func sharpen() -> void:
+	if g.gold < SHARPEN_PRICE: return
+	g.gold -= SHARPEN_PRICE
+	sharpened = SHARPEN_FIGHTS
+	_pass_hours(1.0)
+	log_note = "Кузнец наточил клинки и подправил доспехи: +10%% к урону на %d боя." % SHARPEN_FIGHTS
+	g.notify()
+
+
+## A morning's drill with the town's guard: experience for the whole squad, once a day.
+func drill() -> void:
+	if g.gold < DRILL_PRICE or used_today("town:barracks"): return
+	g.gold -= DRILL_PRICE
+	_use("town:barracks")
+	_pass_hours(3.0)
+	fatigue = minf(100.0, fatigue + 15.0)
+	for c in g.squad(): g.gain_xp(c.id, DRILL_XP)
+	log_note = "Учения с городской стражей: +%d опыта каждому, но отряд подустал." % DRILL_XP
 	g.notify()
 
