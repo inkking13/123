@@ -1,0 +1,2108 @@
+{
+ "TREES": {
+  "warrior": {
+   "arms": [
+    {
+     "id": "warrior.arms.t1",
+     "name": "Мастерство оружия",
+     "icon": "sword",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "warrior.arms.t2",
+     "name": "Глубокие раны",
+     "icon": "drop",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "warrior.arms.t3",
+     "name": "Улучшенный Смертельный удар",
+     "icon": "axe",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "mortal-strike": 0.1
+      }
+     }
+    },
+    {
+     "id": "warrior.arms.t4",
+     "name": "Ярость тактика",
+     "icon": "flame",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "warrior.arms.t5",
+     "name": "Закалка",
+     "icon": "shield",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "warrior.arms.t6",
+     "name": "Привычка к крови",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "mortal-strike": 1
+      }
+     }
+    },
+    {
+     "id": "warrior.arms.t7",
+     "name": "Сокрушение",
+     "icon": "hammer",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "warrior.arms.t8",
+     "name": "Вихрь клинков",
+     "icon": "tornado",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "arms"
+     }
+    }
+   ],
+   "fury": [
+    {
+     "id": "warrior.fury.t1",
+     "name": "Жестокость",
+     "icon": "flame",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "warrior.fury.t2",
+     "name": "Неистовый удар",
+     "icon": "lightning",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "warrior.fury.t3",
+     "name": "Улучшенная Кровожадность",
+     "icon": "drop",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "bloodthirst": 0.1
+      }
+     }
+    },
+    {
+     "id": "warrior.fury.t4",
+     "name": "Кипящая кровь",
+     "icon": "fire",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "warrior.fury.t5",
+     "name": "Стойкость берсерка",
+     "icon": "heart",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "warrior.fury.t6",
+     "name": "Свирепость",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "bloodthirst": 1
+      }
+     }
+    },
+    {
+     "id": "warrior.fury.t7",
+     "name": "Бойня",
+     "icon": "skull",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "warrior.fury.t8",
+     "name": "Безрассудство",
+     "icon": "flame",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "fury"
+     }
+    }
+   ],
+   "protection": [
+    {
+     "id": "warrior.protection.t1",
+     "name": "Крепость",
+     "icon": "heart",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "warrior.protection.t2",
+     "name": "Блок щитом",
+     "icon": "shield",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "taken": 0.02
+     }
+    },
+    {
+     "id": "warrior.protection.t3",
+     "name": "Улучшенный удар щитом",
+     "icon": "shield-check",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "shield-slam": 0.1
+      }
+     }
+    },
+    {
+     "id": "warrior.protection.t4",
+     "name": "Сосредоточенная ярость",
+     "icon": "flame",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "warrior.protection.t5",
+     "name": "Ответный удар",
+     "icon": "sword",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "warrior.protection.t6",
+     "name": "Мастер щита",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "shield-slam": 1
+      }
+     }
+    },
+    {
+     "id": "warrior.protection.t7",
+     "name": "Последний рубеж",
+     "icon": "shield-star",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "taken": 0.03
+     }
+    },
+    {
+     "id": "warrior.protection.t8",
+     "name": "Ударная волна",
+     "icon": "waves",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "protection"
+     }
+    }
+   ]
+  },
+  "paladin": {
+   "holy": [
+    {
+     "id": "paladin.holy.t1",
+     "name": "Божественная мудрость",
+     "icon": "sun",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "heal": 0.02
+     }
+    },
+    {
+     "id": "paladin.holy.t2",
+     "name": "Святая сила",
+     "icon": "heart",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "hp": 0.02
+     }
+    },
+    {
+     "id": "paladin.holy.t3",
+     "name": "Улучшенный Шок небес",
+     "icon": "lightning",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "holy-shock": 0.1
+      }
+     }
+    },
+    {
+     "id": "paladin.holy.t4",
+     "name": "Озарение",
+     "icon": "sparkle",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "paladin.holy.t5",
+     "name": "Божественное благоволение",
+     "icon": "star",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "crit": 0.02
+     }
+    },
+    {
+     "id": "paladin.holy.t6",
+     "name": "Святой свет",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "holy-shock": 1
+      }
+     }
+    },
+    {
+     "id": "paladin.holy.t7",
+     "name": "Сияние",
+     "icon": "sun",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "heal": 0.04
+     }
+    },
+    {
+     "id": "paladin.holy.t8",
+     "name": "Свет зари",
+     "icon": "sun",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "holy"
+     }
+    }
+   ],
+   "protection": [
+    {
+     "id": "paladin.protection.t1",
+     "name": "Стойкость",
+     "icon": "heart",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "paladin.protection.t2",
+     "name": "Отражение",
+     "icon": "shield",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "taken": 0.02
+     }
+    },
+    {
+     "id": "paladin.protection.t3",
+     "name": "Улучшенный Щит мстителя",
+     "icon": "shield-star",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "avengers-shield": 0.1
+      }
+     }
+    },
+    {
+     "id": "paladin.protection.t4",
+     "name": "Благословение святилища",
+     "icon": "church",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "paladin.protection.t5",
+     "name": "Праведный гнев",
+     "icon": "hammer",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "paladin.protection.t6",
+     "name": "Быстрый щит",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "avengers-shield": 1
+      }
+     }
+    },
+    {
+     "id": "paladin.protection.t7",
+     "name": "Святой щит",
+     "icon": "shield-plus",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "taken": 0.03
+     }
+    },
+    {
+     "id": "paladin.protection.t8",
+     "name": "Ревностный защитник",
+     "icon": "shield-check",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "protection"
+     }
+    }
+   ],
+   "retribution": [
+    {
+     "id": "paladin.retribution.t1",
+     "name": "Благословение мощи",
+     "icon": "hand-fist",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "paladin.retribution.t2",
+     "name": "Сосредоточение Света",
+     "icon": "crosshair",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "paladin.retribution.t3",
+     "name": "Улучшенный Вердикт",
+     "icon": "scales",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "templars-verdict": 0.1
+      }
+     }
+    },
+    {
+     "id": "paladin.retribution.t4",
+     "name": "Искусство войны",
+     "icon": "sparkle",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "paladin.retribution.t5",
+     "name": "Праведная стойкость",
+     "icon": "shield",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "paladin.retribution.t6",
+     "name": "Скорый суд",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "templars-verdict": 1
+      }
+     }
+    },
+    {
+     "id": "paladin.retribution.t7",
+     "name": "Священная ярость",
+     "icon": "fire",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "paladin.retribution.t8",
+     "name": "Гнев карателя",
+     "icon": "sparkle",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "retribution"
+     }
+    }
+   ]
+  },
+  "priest": {
+   "discipline": [
+    {
+     "id": "priest.discipline.t1",
+     "name": "Внутренний огонь",
+     "icon": "fire",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "heal": 0.02
+     }
+    },
+    {
+     "id": "priest.discipline.t2",
+     "name": "Дух",
+     "icon": "heart",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "hp": 0.02
+     }
+    },
+    {
+     "id": "priest.discipline.t3",
+     "name": "Улучшенная Исповедь",
+     "icon": "cross",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "penance": 0.1
+      }
+     }
+    },
+    {
+     "id": "priest.discipline.t4",
+     "name": "Медитация",
+     "icon": "hourglass",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "priest.discipline.t5",
+     "name": "Прозрение",
+     "icon": "eye",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "crit": 0.02
+     }
+    },
+    {
+     "id": "priest.discipline.t6",
+     "name": "Воля мученика",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "penance": 1
+      }
+     }
+    },
+    {
+     "id": "priest.discipline.t7",
+     "name": "Искупление",
+     "icon": "shield-plus",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "heal": 0.04
+     }
+    },
+    {
+     "id": "priest.discipline.t8",
+     "name": "Слово силы: Барьер",
+     "icon": "shield-star",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "discipline"
+     }
+    }
+   ],
+   "holy": [
+    {
+     "id": "priest.holy.t1",
+     "name": "Духовное исцеление",
+     "icon": "heart",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "heal": 0.02
+     }
+    },
+    {
+     "id": "priest.holy.t2",
+     "name": "Благословенное восстановление",
+     "icon": "plant",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "hp": 0.02
+     }
+    },
+    {
+     "id": "priest.holy.t3",
+     "name": "Улучшенное Быстрое исцеление",
+     "icon": "first-aid",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "flash-heal": 0.1
+      }
+     }
+    },
+    {
+     "id": "priest.holy.t4",
+     "name": "Святое сосредоточение",
+     "icon": "hourglass",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "priest.holy.t5",
+     "name": "Вдохновение",
+     "icon": "star",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "crit": 0.02
+     }
+    },
+    {
+     "id": "priest.holy.t6",
+     "name": "Скорая молитва",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "flash-heal": 1
+      }
+     }
+    },
+    {
+     "id": "priest.holy.t7",
+     "name": "Спасение духа",
+     "icon": "church",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "heal": 0.04
+     }
+    },
+    {
+     "id": "priest.holy.t8",
+     "name": "Божественный гимн",
+     "icon": "music-notes",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "holy"
+     }
+    }
+   ],
+   "shadow": [
+    {
+     "id": "priest.shadow.t1",
+     "name": "Тёмная мощь",
+     "icon": "eye",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "priest.shadow.t2",
+     "name": "Мрак",
+     "icon": "skull",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "priest.shadow.t3",
+     "name": "Улучшенный Взрыв разума",
+     "icon": "eye",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "mind-blast": 0.1
+      }
+     }
+    },
+    {
+     "id": "priest.shadow.t4",
+     "name": "Вампирские объятия",
+     "icon": "heart",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "priest.shadow.t5",
+     "name": "Тёмная форма",
+     "icon": "ghost",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "priest.shadow.t6",
+     "name": "Отчаяние",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "mind-blast": 1
+      }
+     }
+    },
+    {
+     "id": "priest.shadow.t7",
+     "name": "Слияние с Тьмой",
+     "icon": "eye-slash",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "priest.shadow.t8",
+     "name": "Извержение Бездны",
+     "icon": "planet",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "shadow"
+     }
+    }
+   ]
+  },
+  "druid": {
+   "balance": [
+    {
+     "id": "druid.balance.t1",
+     "name": "Лунная ярость",
+     "icon": "moon",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "druid.balance.t2",
+     "name": "Звёздный дождь",
+     "icon": "star",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "druid.balance.t3",
+     "name": "Улучшенный Звёздный огонь",
+     "icon": "star",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "starfire": 0.1
+      }
+     }
+    },
+    {
+     "id": "druid.balance.t4",
+     "name": "Лунное сияние",
+     "icon": "sun",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "druid.balance.t5",
+     "name": "Природная броня",
+     "icon": "tree",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "druid.balance.t6",
+     "name": "Затмение",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "starfire": 1
+      }
+     }
+    },
+    {
+     "id": "druid.balance.t7",
+     "name": "Гнев Элуны",
+     "icon": "moon",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "druid.balance.t8",
+     "name": "Воплощение",
+     "icon": "moon",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "balance"
+     }
+    }
+   ],
+   "guardian": [
+    {
+     "id": "druid.guardian.t1",
+     "name": "Толстая шкура",
+     "icon": "paw-print",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "druid.guardian.t2",
+     "name": "Инстинкт выживания",
+     "icon": "shield",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "taken": 0.02
+     }
+    },
+    {
+     "id": "druid.guardian.t3",
+     "name": "Улучшенное Увечье",
+     "icon": "paw-print",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "mangle": 0.1
+      }
+     }
+    },
+    {
+     "id": "druid.guardian.t4",
+     "name": "Неистовство",
+     "icon": "flame",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "druid.guardian.t5",
+     "name": "Острые когти",
+     "icon": "knife",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "druid.guardian.t6",
+     "name": "Быстрые лапы",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "mangle": 1
+      }
+     }
+    },
+    {
+     "id": "druid.guardian.t7",
+     "name": "Сердце дикой природы",
+     "icon": "heart",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "taken": 0.03
+     }
+    },
+    {
+     "id": "druid.guardian.t8",
+     "name": "Неистовое восстановление",
+     "icon": "heartbeat",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "guardian"
+     }
+    }
+   ],
+   "restoration": [
+    {
+     "id": "druid.restoration.t1",
+     "name": "Дар природы",
+     "icon": "leaf",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "heal": 0.02
+     }
+    },
+    {
+     "id": "druid.restoration.t2",
+     "name": "Живительная сила",
+     "icon": "plant",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "hp": 0.02
+     }
+    },
+    {
+     "id": "druid.restoration.t3",
+     "name": "Улучшенное Восстановление",
+     "icon": "plant",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "regrowth": 0.1
+      }
+     }
+    },
+    {
+     "id": "druid.restoration.t4",
+     "name": "Чародейство",
+     "icon": "hourglass",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "druid.restoration.t5",
+     "name": "Природная быстрота",
+     "icon": "wind",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "crit": 0.02
+     }
+    },
+    {
+     "id": "druid.restoration.t6",
+     "name": "Быстрое восстановление",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "regrowth": 1
+      }
+     }
+    },
+    {
+     "id": "druid.restoration.t7",
+     "name": "Древо жизни",
+     "icon": "tree",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "heal": 0.04
+     }
+    },
+    {
+     "id": "druid.restoration.t8",
+     "name": "Спокойствие",
+     "icon": "wind",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "restoration"
+     }
+    }
+   ]
+  },
+  "mage": {
+   "arcane": [
+    {
+     "id": "mage.arcane.t1",
+     "name": "Чародейская концентрация",
+     "icon": "sparkle",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "mage.arcane.t2",
+     "name": "Чародейский разум",
+     "icon": "star",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "mage.arcane.t3",
+     "name": "Улучшенная Вспышка",
+     "icon": "sparkle",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "arcane-blast": 0.1
+      }
+     }
+    },
+    {
+     "id": "mage.arcane.t4",
+     "name": "Магическое поглощение",
+     "icon": "hourglass",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "mage.arcane.t5",
+     "name": "Чародейская стойкость",
+     "icon": "shield",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "mage.arcane.t6",
+     "name": "Присутствие разума",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "arcane-blast": 1
+      }
+     }
+    },
+    {
+     "id": "mage.arcane.t7",
+     "name": "Чародейская мощь",
+     "icon": "lightning",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "mage.arcane.t8",
+     "name": "Мощь тайной магии",
+     "icon": "sparkle",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "arcane"
+     }
+    }
+   ],
+   "fire": [
+    {
+     "id": "mage.fire.t1",
+     "name": "Обжигающее пламя",
+     "icon": "fire",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "mage.fire.t2",
+     "name": "Воспламенение",
+     "icon": "flame",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "mage.fire.t3",
+     "name": "Улучшенный Огненный шар",
+     "icon": "fire",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "fireball": 0.1
+      }
+     }
+    },
+    {
+     "id": "mage.fire.t4",
+     "name": "Горящая душа",
+     "icon": "fire-simple",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "mage.fire.t5",
+     "name": "Огненная броня",
+     "icon": "shield",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "mage.fire.t6",
+     "name": "Огненная стремительность",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "fireball": 1
+      }
+     }
+    },
+    {
+     "id": "mage.fire.t7",
+     "name": "Критическая масса",
+     "icon": "meteor",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "mage.fire.t8",
+     "name": "Возгорание",
+     "icon": "flame",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "fire"
+     }
+    }
+   ],
+   "frost": [
+    {
+     "id": "mage.frost.t1",
+     "name": "Ледяные осколки",
+     "icon": "snowflake",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "mage.frost.t2",
+     "name": "Пронизывающий лёд",
+     "icon": "snowflake",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "mage.frost.t3",
+     "name": "Улучшенная Ледяная стрела",
+     "icon": "snowflake",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "frostbolt": 0.1
+      }
+     }
+    },
+    {
+     "id": "mage.frost.t4",
+     "name": "Холодный расчёт",
+     "icon": "hourglass",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "mage.frost.t5",
+     "name": "Ледяная броня",
+     "icon": "shield",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "mage.frost.t6",
+     "name": "Холодная хватка",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "frostbolt": 1
+      }
+     }
+    },
+    {
+     "id": "mage.frost.t7",
+     "name": "Ледяные вены",
+     "icon": "drop",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "mage.frost.t8",
+     "name": "Буря комет",
+     "icon": "meteor",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "frost"
+     }
+    }
+   ]
+  },
+  "necromancer": {
+   "blood": [
+    {
+     "id": "necromancer.blood.t1",
+     "name": "Кровавая плоть",
+     "icon": "drop",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "necromancer.blood.t2",
+     "name": "Кровавый доспех",
+     "icon": "shield",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "taken": 0.02
+     }
+    },
+    {
+     "id": "necromancer.blood.t3",
+     "name": "Улучшенный Удар смерти",
+     "icon": "drop",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "death-strike": 0.1
+      }
+     }
+    },
+    {
+     "id": "necromancer.blood.t4",
+     "name": "Пожиратель рун",
+     "icon": "hourglass",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "necromancer.blood.t5",
+     "name": "Кровожадность",
+     "icon": "skull",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "necromancer.blood.t6",
+     "name": "Тёмная воля",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "death-strike": 1
+      }
+     }
+    },
+    {
+     "id": "necromancer.blood.t7",
+     "name": "Вампиризм",
+     "icon": "heartbeat",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "taken": 0.03
+     }
+    },
+    {
+     "id": "necromancer.blood.t8",
+     "name": "Кровь вампира",
+     "icon": "heartbeat",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "blood"
+     }
+    }
+   ],
+   "unholy": [
+    {
+     "id": "necromancer.unholy.t1",
+     "name": "Нечестивая сила",
+     "icon": "skull",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "necromancer.unholy.t2",
+     "name": "Злоба",
+     "icon": "eye",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "necromancer.unholy.t3",
+     "name": "Улучшенный Удар Плети",
+     "icon": "bone",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "scourge-strike": 0.1
+      }
+     }
+    },
+    {
+     "id": "necromancer.unholy.t4",
+     "name": "Руническая мощь",
+     "icon": "hourglass",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "necromancer.unholy.t5",
+     "name": "Тёмная плоть",
+     "icon": "heart",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "necromancer.unholy.t6",
+     "name": "Некротика",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "scourge-strike": 1
+      }
+     }
+    },
+    {
+     "id": "necromancer.unholy.t7",
+     "name": "Повелитель мёртвых",
+     "icon": "ghost",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "necromancer.unholy.t8",
+     "name": "Войско мёртвых",
+     "icon": "ghost",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "unholy"
+     }
+    }
+   ],
+   "plague": [
+    {
+     "id": "necromancer.plague.t1",
+     "name": "Разносчик чумы",
+     "icon": "biohazard",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "necromancer.plague.t2",
+     "name": "Заражённые раны",
+     "icon": "drop",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "necromancer.plague.t3",
+     "name": "Улучшенная Чума",
+     "icon": "virus",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "festering-plague": 0.1
+      }
+     }
+    },
+    {
+     "id": "necromancer.plague.t4",
+     "name": "Гниль рун",
+     "icon": "hourglass",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "necromancer.plague.t5",
+     "name": "Иммунитет",
+     "icon": "heart",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "necromancer.plague.t6",
+     "name": "Быстрое заражение",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "festering-plague": 1
+      }
+     }
+    },
+    {
+     "id": "necromancer.plague.t7",
+     "name": "Чёрная смерть",
+     "icon": "skull",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "necromancer.plague.t8",
+     "name": "Эпидемия",
+     "icon": "virus",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "plague"
+     }
+    }
+   ]
+  },
+  "rogue": {
+   "assassination": [
+    {
+     "id": "rogue.assassination.t1",
+     "name": "Смертоносные яды",
+     "icon": "drop",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "rogue.assassination.t2",
+     "name": "Безжалостность",
+     "icon": "knife",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "rogue.assassination.t3",
+     "name": "Улучшенная Расправа",
+     "icon": "knife",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "mutilate": 0.1
+      }
+     }
+    },
+    {
+     "id": "rogue.assassination.t4",
+     "name": "Расслабленная мощь",
+     "icon": "lightning",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "rogue.assassination.t5",
+     "name": "Хладнокровие",
+     "icon": "heart",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "rogue.assassination.t6",
+     "name": "Быстрые клинки",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "mutilate": 1
+      }
+     }
+    },
+    {
+     "id": "rogue.assassination.t7",
+     "name": "Убийственный яд",
+     "icon": "skull",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "rogue.assassination.t8",
+     "name": "Вендетта",
+     "icon": "skull",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "assassination"
+     }
+    }
+   ],
+   "combat": [
+    {
+     "id": "rogue.combat.t1",
+     "name": "Двуручный бой",
+     "icon": "sword",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "rogue.combat.t2",
+     "name": "Точность",
+     "icon": "crosshair",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "rogue.combat.t3",
+     "name": "Улучшенный Шквал",
+     "icon": "tornado",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "blade-flurry": 0.1
+      }
+     }
+    },
+    {
+     "id": "rogue.combat.t4",
+     "name": "Энергичность",
+     "icon": "lightning",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "rogue.combat.t5",
+     "name": "Неуловимость",
+     "icon": "person-simple-run",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "rogue.combat.t6",
+     "name": "Мастер клинков",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "blade-flurry": 1
+      }
+     }
+    },
+    {
+     "id": "rogue.combat.t7",
+     "name": "Сокрушение",
+     "icon": "hammer",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "rogue.combat.t8",
+     "name": "Выброс адреналина",
+     "icon": "lightning",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "combat"
+     }
+    }
+   ],
+   "subtlety": [
+    {
+     "id": "rogue.subtlety.t1",
+     "name": "Мастер тени",
+     "icon": "eye-slash",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "rogue.subtlety.t2",
+     "name": "Удар из засады",
+     "icon": "knife",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "rogue.subtlety.t3",
+     "name": "Улучшенный Удар в спину",
+     "icon": "eye-slash",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "backstab": 0.1
+      }
+     }
+    },
+    {
+     "id": "rogue.subtlety.t4",
+     "name": "Тёмная энергия",
+     "icon": "lightning",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "rogue.subtlety.t5",
+     "name": "Покров ночи",
+     "icon": "moon",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "rogue.subtlety.t6",
+     "name": "Внезапность",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "backstab": 1
+      }
+     }
+    },
+    {
+     "id": "rogue.subtlety.t7",
+     "name": "Смертельный танец",
+     "icon": "mask-happy",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "rogue.subtlety.t8",
+     "name": "Танец теней",
+     "icon": "mask-happy",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "subtlety"
+     }
+    }
+   ]
+  },
+  "hunter": {
+   "beastmastery": [
+    {
+     "id": "hunter.beastmastery.t1",
+     "name": "Звериная ярость",
+     "icon": "paw-print",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "hunter.beastmastery.t2",
+     "name": "Острые когти",
+     "icon": "knife",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "hunter.beastmastery.t3",
+     "name": "Улучшенная команда",
+     "icon": "paw-print",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "kill-command": 0.1
+      }
+     }
+    },
+    {
+     "id": "hunter.beastmastery.t4",
+     "name": "Звериный ритм",
+     "icon": "hourglass",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "hunter.beastmastery.t5",
+     "name": "Выносливость зверя",
+     "icon": "heart",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "hunter.beastmastery.t6",
+     "name": "Быстрый зверь",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "kill-command": 1
+      }
+     }
+    },
+    {
+     "id": "hunter.beastmastery.t7",
+     "name": "Дикий зов",
+     "icon": "bird",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "hunter.beastmastery.t8",
+     "name": "Звериный гнев",
+     "icon": "paw-print",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "beastmastery"
+     }
+    }
+   ],
+   "marksmanship": [
+    {
+     "id": "hunter.marksmanship.t1",
+     "name": "Меткость",
+     "icon": "crosshair",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "hunter.marksmanship.t2",
+     "name": "Смертельные выстрелы",
+     "icon": "target",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "hunter.marksmanship.t3",
+     "name": "Улучшенный прицельный",
+     "icon": "target",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "aimed-shot": 0.1
+      }
+     }
+    },
+    {
+     "id": "hunter.marksmanship.t4",
+     "name": "Хладнокровный стрелок",
+     "icon": "hourglass",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "hunter.marksmanship.t5",
+     "name": "Стойкость охотника",
+     "icon": "shield",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "hunter.marksmanship.t6",
+     "name": "Быстрый прицел",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "aimed-shot": 1
+      }
+     }
+    },
+    {
+     "id": "hunter.marksmanship.t7",
+     "name": "Снайпер",
+     "icon": "eye",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "hunter.marksmanship.t8",
+     "name": "Шквальный огонь",
+     "icon": "arrows-out-cardinal",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "marksmanship"
+     }
+    }
+   ],
+   "survival": [
+    {
+     "id": "hunter.survival.t1",
+     "name": "Мастер ловушек",
+     "icon": "tree",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "dmg": 0.02
+     }
+    },
+    {
+     "id": "hunter.survival.t2",
+     "name": "Смертельный яд",
+     "icon": "drop",
+     "tier": 0,
+     "max": 5,
+     "eff": {
+      "crit": 0.01
+     }
+    },
+    {
+     "id": "hunter.survival.t3",
+     "name": "Улучшенный разрывной",
+     "icon": "fire",
+     "tier": 1,
+     "max": 3,
+     "eff": {
+      "spell": {
+       "explosive-shot": 0.1
+      }
+     }
+    },
+    {
+     "id": "hunter.survival.t4",
+     "name": "Выживальщик",
+     "icon": "hourglass",
+     "tier": 1,
+     "max": 2,
+     "eff": {
+      "regen": 3,
+      "cost": -0.05
+     }
+    },
+    {
+     "id": "hunter.survival.t5",
+     "name": "Живучесть",
+     "icon": "heart",
+     "tier": 2,
+     "max": 3,
+     "eff": {
+      "hp": 0.03
+     }
+    },
+    {
+     "id": "hunter.survival.t6",
+     "name": "Быстрые ловушки",
+     "icon": "timer",
+     "tier": 2,
+     "max": 1,
+     "eff": {
+      "cdr": {
+       "explosive-shot": 1
+      }
+     }
+    },
+    {
+     "id": "hunter.survival.t7",
+     "name": "Охотник на хищников",
+     "icon": "skull",
+     "tier": 3,
+     "max": 3,
+     "eff": {
+      "dmg": 0.03
+     }
+    },
+    {
+     "id": "hunter.survival.t8",
+     "name": "Укус мангуста",
+     "icon": "bird",
+     "tier": 4,
+     "max": 1,
+     "eff": {
+      "grants": "survival"
+     }
+    }
+   ]
+  }
+ }
+}

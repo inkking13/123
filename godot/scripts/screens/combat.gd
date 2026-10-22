@@ -14,6 +14,8 @@ const GOLD_TEXT := Color("#e6cf9c")
 
 var view: BattleView
 var picking_heal = false
+## The move waiting for an ally to aim at: "heal" or a spell ("spell:<id>").
+var _pick_key = "heal"
 ## What keys 1–9 do this turn (the action tiles, or whom to heal).
 var _hotkeys = []
 ## The skill bar's squares (points): smaller on a phone so a turn fits one row.
@@ -290,7 +292,7 @@ func _hint(s: Dictionary, cur) -> Control:
 	if s.over or cur == null or Game.settings.auto: return null
 	var t = ""
 	if s.movePhase: t = "выберите клетку или пропустите" if not Game.b.reachable_cells().is_empty() else "нет свободных клеток рядом"
-	elif picking_heal: t = "выберите, кого лечить"
+	elif picking_heal: t = "выберите, кого лечить" if _pick_key == "heal" else "выберите союзника"
 	elif s.encounterType == "boss": t = "цель: скелет или босс" if s.minions.any(func(m): return m.alive) else "ближний бой вплотную к врагу"
 	else: t = "нажмите на врага, чтобы выбрать цель"
 	var l = UI.shadowed(UI.label("%s · %s" % [cur.name, t], 13, UI.TEXT_MUTED, "medium"))
@@ -325,6 +327,14 @@ func _hero_card(s: Dictionary, r: Dictionary) -> Control:
 	hp.add_child(UI.progress(pct, _hp_color(pct), 7))
 	hp.add_child(UI.label("%d/%d" % [maxi(0, int(r.hp)), r.maxHp], 11, UI.TEXT_DIM))
 	v.add_child(hp)
+	var res: Dictionary = r.res
+	var rd: Dictionary = DB.specs.RESOURCES[res.kind]
+	var rr = UI.hbox(6)
+	rr.add_child(UI.progress(100.0 * res.val / res.max, Color(rd.color), 5))
+	rr.add_child(UI.label("%d %s" % [int(res.val), rd.name.to_lower()], 10.5, Color(rd.color)))
+	rr.tooltip_text = "%s: %d из %d. %s" % [rd.name, int(res.val), int(res.max), ("+%d в начале хода." % int(res.regen)) if res.regen > 0 else "Копится от ударов и полученного урона."]
+	rr.mouse_filter = Control.MOUSE_FILTER_PASS
+	v.add_child(rr)
 	var pips = UI.hbox(5)
 	for i in Battle.VALOR_MAX: pips.add_child(UI.valor_pip(i < s.valor, 8))
 	pips.tooltip_text = "Доблесть: %d из %d. Копится в бою, тратится на приёмы класса." % [s.valor, Battle.VALOR_MAX]
@@ -372,18 +382,29 @@ func _center_bar(s: Dictionary, cur, auto: bool) -> Control:
 	bar.add_theme_constant_override("v_separation", UI.px(8))
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if picking_heal:
-		for t in Game.b.heal_targets():
+		var key: String = _pick_key
+		for t in Game.b.heal_targets(key != "heal"):
 			var tid: int = t.id
 			var r = Game.b._raider(tid)
 			var heal = func():
 				picking_heal = false
-				Game.b.raider_action("heal", tid)
+				Game.b.raider_action(key, tid)
 			var pic = UI.portrait(r.candidateId, SLOT * 0.7, 6)
-			bar.add_child(_slot(pic, "%s · %d%%" % [t.name, t.hpPct], "Лечить: %s (%d%% HP)" % [t.name, t.hpPct], heal, false, UI.GOOD, t.hpPct))
+			bar.add_child(_slot(pic, "%s · %d%%" % [t.name, t.hpPct], "%s: %s (%d%% HP)" % ["Лечить" if key == "heal" else "Цель", t.name, t.hpPct], heal, false, UI.GOOD, t.hpPct))
 		bar.add_child(_slot(UI.icon("x", SLOT * 0.36, UI.TEXT_DIM), "Отмена", "Отмена (Esc)", func():
 			picking_heal = false
 			refresh(), false, UI.BORDER_STRONG, -1, false))
 		return bar
+	if not App.wide:
+		# A phone keeps the bar to one row that scrolls sideways, to leave the field in view.
+		var row = UI.hbox(4)
+		for a in Game.b.turn_actions(): row.add_child(_action_slot(a))
+		var sc = ScrollContainer.new()
+		sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+		sc.custom_minimum_size.y = UI.px(SLOT + 40)
+		sc.add_child(row)
+		return sc
 	for a in Game.b.turn_actions(): bar.add_child(_action_slot(a))
 	return bar
 
@@ -433,7 +454,7 @@ func _action_slot(a: Dictionary) -> Control:
 	var pic: Control
 	if art != "": pic = UI.picture(art, SLOT * 0.62, SLOT * 0.62, 5)
 	else:
-		var icon: String = a.get("classIcon") if a.get("classIcon") != null else (a.abilityIcon if a.key == "ability" and a.get("abilityIcon") != null else ACTION_ICON.get(a.key, "sword"))
+		var icon: String = a.get("spellIcon") if a.get("spellIcon") != null else (a.get("classIcon") if a.get("classIcon") != null else (a.abilityIcon if a.key == "ability" and a.get("abilityIcon") != null else ACTION_ICON.get(a.key, "sword")))
 		pic = UI.center(UI.icon(icon, SLOT * 0.42, UI.VALOR if valor else GOLD_TEXT))
 		pic.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(pic)
@@ -460,9 +481,11 @@ func _action_slot(a: Dictionary) -> Control:
 	var fn = func():
 		if needs:
 			picking_heal = true
+			_pick_key = key
 			refresh()
 		else: Game.b.raider_action(key)
 	var border = UI.VALOR if valor else GOLD_LINE
+	if a.key.begins_with("spell:"): border = Color(_res_color(), 0.75)
 	if a.key == "defend": border = UI.BORDER_HOVER
 	return _slot(box, a.label, _action_tip(a), fn, a.disabled, border)
 
@@ -544,8 +567,15 @@ func _camera_bar() -> Control:
 	return v
 
 
+func _res_color() -> Color:
+	var cur = Game.b.current_raider()
+	return Color(DB.specs.RESOURCES[cur.res.kind].color) if cur else GOLD_LINE
+
+
 func _action_tip(a: Dictionary) -> String:
 	var cur = Game.b.current_raider()
+	if a.key.begins_with("spell:"):
+		return "%s — %s%s" % [a.label, a.desc, ("\n" + a.sub) if a.sub else ""]
 	match a.key:
 		"attack": return "Обычный удар по цели." + ("\n" + a.sub if a.sub else "")
 		"heal": return "Лечит союзника на выбор."

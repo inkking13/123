@@ -1,0 +1,1562 @@
+{
+ "SPELLS": {
+  "warrior": [
+   {
+    "id": "heroic-strike",
+    "name": "Удар героя",
+    "icon": "sword",
+    "desc": "Мощный удар оружием: ×1.5 урона.",
+    "level": 1,
+    "spec": null,
+    "talent": null,
+    "cost": 30,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.5
+    }
+   },
+   {
+    "id": "battle-shout",
+    "name": "Боевой крик",
+    "icon": "megaphone",
+    "desc": "Отряд наносит на 10% больше урона 3 раунда.",
+    "level": 4,
+    "spec": null,
+    "talent": null,
+    "cost": 20,
+    "cd": 5,
+    "target": "party",
+    "eff": {
+     "partyBuff": {
+      "dmg": 1.1,
+      "rounds": 3
+     }
+    }
+   },
+   {
+    "id": "pummel",
+    "name": "Зуботычина",
+    "icon": "hand-fist",
+    "desc": "Сбивает вражеский каст и бьёт: ×0.6 урона.",
+    "level": 6,
+    "spec": null,
+    "talent": null,
+    "cost": 10,
+    "cd": 3,
+    "target": "enemy",
+    "eff": {
+     "dmg": 0.6,
+     "interrupt": true
+    }
+   },
+   {
+    "id": "mortal-strike",
+    "name": "Смертельный удар",
+    "icon": "axe",
+    "desc": "Удар, что режет до кости: ×2.2 урона.",
+    "level": 8,
+    "spec": "arms",
+    "talent": null,
+    "cost": 30,
+    "cd": 2,
+    "target": "enemy",
+    "eff": {
+     "dmg": 2.2,
+     "stagger": 6
+    }
+   },
+   {
+    "id": "bloodthirst",
+    "name": "Кровожадность",
+    "icon": "drop",
+    "desc": "×1.8 урона, 30% нанесённого — себе в здоровье.",
+    "level": 8,
+    "spec": "fury",
+    "talent": null,
+    "cost": 25,
+    "cd": 2,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.8,
+     "selfHeal": 0.3
+    }
+   },
+   {
+    "id": "shield-slam",
+    "name": "Мощный удар щитом",
+    "icon": "shield",
+    "desc": "×1.6 урона и сильный натиск.",
+    "level": 8,
+    "spec": "protection",
+    "talent": null,
+    "cost": 20,
+    "cd": 2,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.6,
+     "stagger": 15
+    }
+   },
+   {
+    "id": "shield-wall",
+    "name": "Глухая оборона",
+    "icon": "shield-check",
+    "desc": "Получаемый урон −60% на 2 раунда.",
+    "level": 14,
+    "spec": "protection",
+    "talent": null,
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "taken": 0.4,
+      "rounds": 2
+     }
+    }
+   },
+   {
+    "id": "execute",
+    "name": "Казнь",
+    "icon": "skull",
+    "desc": "Добивание: ×1.2 урона, по цели ниже 30% — ×3.",
+    "level": 14,
+    "spec": null,
+    "talent": null,
+    "cost": 30,
+    "cd": 1,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.2,
+     "execute": 3.0
+    }
+   },
+   {
+    "id": "whirlwind",
+    "name": "Вихрь",
+    "icon": "tornado",
+    "desc": "Удар по всем врагам: ×1.0 урона каждому.",
+    "level": 18,
+    "spec": null,
+    "talent": null,
+    "cost": 40,
+    "cd": 3,
+    "target": "enemies",
+    "eff": {
+     "aoe": 1.0
+    }
+   },
+   {
+    "id": "bladestorm",
+    "name": "Вихрь клинков",
+    "icon": "tornado",
+    "desc": "Буря стали: ×1.7 урона всем врагам.",
+    "level": 1,
+    "spec": null,
+    "talent": "arms",
+    "cost": 0,
+    "cd": 5,
+    "target": "enemies",
+    "eff": {
+     "aoe": 1.7
+    }
+   },
+   {
+    "id": "recklessness",
+    "name": "Безрассудство",
+    "icon": "flame",
+    "desc": "3 раунда: +25% урона и +40% к шансу крита.",
+    "level": 1,
+    "spec": null,
+    "talent": "fury",
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "dmg": 1.25,
+      "crit": 0.4,
+      "rounds": 3
+     }
+    }
+   },
+   {
+    "id": "shockwave",
+    "name": "Ударная волна",
+    "icon": "waves",
+    "desc": "×1.0 урона всем врагам и мощный натиск.",
+    "level": 1,
+    "spec": null,
+    "talent": "protection",
+    "cost": 20,
+    "cd": 5,
+    "target": "enemies",
+    "eff": {
+     "aoe": 1.0,
+     "stagger": 30
+    }
+   }
+  ],
+  "paladin": [
+   {
+    "id": "judgement",
+    "name": "Правосудие",
+    "icon": "scales",
+    "desc": "Свет судит врага: ×1.3 урона.",
+    "level": 1,
+    "spec": null,
+    "talent": null,
+    "cost": 15,
+    "cd": 1,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.3,
+     "ranged": true
+    }
+   },
+   {
+    "id": "flash-of-light",
+    "name": "Вспышка Света",
+    "icon": "sun",
+    "desc": "Быстро лечит союзника: ×1.2 лечения.",
+    "level": 2,
+    "spec": null,
+    "talent": null,
+    "cost": 20,
+    "cd": 0,
+    "target": "ally",
+    "eff": {
+     "heal": 1.2
+    }
+   },
+   {
+    "id": "hammer-of-justice",
+    "name": "Молот правосудия",
+    "icon": "hammer",
+    "desc": "Сбивает каст и оглушает натиском: ×0.5 урона.",
+    "level": 6,
+    "spec": null,
+    "talent": null,
+    "cost": 15,
+    "cd": 4,
+    "target": "enemy",
+    "eff": {
+     "dmg": 0.5,
+     "interrupt": true,
+     "stagger": 12,
+     "ranged": true
+    }
+   },
+   {
+    "id": "holy-shock",
+    "name": "Шок небес",
+    "icon": "lightning",
+    "desc": "Сгусток Света: ×1.6 лечения союзнику.",
+    "level": 8,
+    "spec": "holy",
+    "talent": null,
+    "cost": 20,
+    "cd": 1,
+    "target": "ally",
+    "eff": {
+     "heal": 1.6
+    }
+   },
+   {
+    "id": "avengers-shield",
+    "name": "Щит мстителя",
+    "icon": "shield-star",
+    "desc": "Брошенный щит: ×1.4 урона, сбивает каст, отскакивает в других на ×0.5.",
+    "level": 8,
+    "spec": "protection",
+    "talent": null,
+    "cost": 20,
+    "cd": 3,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.4,
+     "interrupt": true,
+     "chain": 0.5,
+     "ranged": true
+    }
+   },
+   {
+    "id": "templars-verdict",
+    "name": "Вердикт храмовника",
+    "icon": "hand-fist",
+    "desc": "Приговор Света: ×2.3 урона.",
+    "level": 8,
+    "spec": "retribution",
+    "talent": null,
+    "cost": 30,
+    "cd": 2,
+    "target": "enemy",
+    "eff": {
+     "dmg": 2.3
+    }
+   },
+   {
+    "id": "lay-on-hands",
+    "name": "Возложение рук",
+    "icon": "hand-heart",
+    "desc": "Полностью исцеляет союзника. Раз в долгое время.",
+    "level": 12,
+    "spec": null,
+    "talent": null,
+    "cost": 0,
+    "cd": 10,
+    "target": "ally",
+    "eff": {
+     "healPct": 1.0
+    }
+   },
+   {
+    "id": "consecration",
+    "name": "Освящение",
+    "icon": "circle-notch",
+    "desc": "Святая земля: ×0.7 урона всем врагам и ещё ×0.3 два раунда.",
+    "level": 16,
+    "spec": null,
+    "talent": null,
+    "cost": 30,
+    "cd": 3,
+    "target": "enemies",
+    "eff": {
+     "aoe": 0.7,
+     "dot": [
+      0.3,
+      2
+     ]
+    }
+   },
+   {
+    "id": "light-of-dawn",
+    "name": "Свет зари",
+    "icon": "sun",
+    "desc": "Лечит весь отряд: ×1.0 лечения каждому.",
+    "level": 1,
+    "spec": null,
+    "talent": "holy",
+    "cost": 30,
+    "cd": 5,
+    "target": "party",
+    "eff": {
+     "partyHeal": 1.0
+    }
+   },
+   {
+    "id": "ardent-defender",
+    "name": "Ревностный защитник",
+    "icon": "shield-check",
+    "desc": "Получаемый урон −50% на 3 раунда.",
+    "level": 1,
+    "spec": null,
+    "talent": "protection",
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "taken": 0.5,
+      "rounds": 3
+     }
+    }
+   },
+   {
+    "id": "avenging-wrath",
+    "name": "Гнев карателя",
+    "icon": "sparkle",
+    "desc": "3 раунда: +40% урона и лечения.",
+    "level": 1,
+    "spec": null,
+    "talent": "retribution",
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "dmg": 1.4,
+      "rounds": 3
+     }
+    }
+   }
+  ],
+  "priest": [
+   {
+    "id": "smite",
+    "name": "Кара",
+    "icon": "lightning",
+    "desc": "Священный огонь: ×1.2 урона.",
+    "level": 1,
+    "spec": null,
+    "talent": null,
+    "cost": 10,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.2
+    }
+   },
+   {
+    "id": "power-word-shield",
+    "name": "Слово силы: Щит",
+    "icon": "shield-plus",
+    "desc": "Щит на союзнике поглощает ×1.6 от силы лечения.",
+    "level": 2,
+    "spec": null,
+    "talent": null,
+    "cost": 20,
+    "cd": 1,
+    "target": "ally",
+    "eff": {
+     "shield": 1.6
+    }
+   },
+   {
+    "id": "renew",
+    "name": "Обновление",
+    "icon": "plant",
+    "desc": "Лечит союзника 3 раунда: ×0.6 в начале каждого.",
+    "level": 4,
+    "spec": null,
+    "talent": null,
+    "cost": 15,
+    "cd": 0,
+    "target": "ally",
+    "eff": {
+     "hot": [
+      0.6,
+      3
+     ]
+    }
+   },
+   {
+    "id": "penance",
+    "name": "Исповедь",
+    "icon": "cross",
+    "desc": "×1.0 урона врагу и ×1.0 лечения самому раненому.",
+    "level": 8,
+    "spec": "discipline",
+    "talent": null,
+    "cost": 20,
+    "cd": 2,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.0,
+     "healLowest": 1.0
+    }
+   },
+   {
+    "id": "flash-heal",
+    "name": "Быстрое исцеление",
+    "icon": "first-aid",
+    "desc": "×1.6 лечения союзнику.",
+    "level": 8,
+    "spec": "holy",
+    "talent": null,
+    "cost": 25,
+    "cd": 0,
+    "target": "ally",
+    "eff": {
+     "heal": 1.6
+    }
+   },
+   {
+    "id": "mind-blast",
+    "name": "Взрыв разума",
+    "icon": "eye",
+    "desc": "Удар по разуму: ×1.9 урона.",
+    "level": 8,
+    "spec": "shadow",
+    "talent": null,
+    "cost": 25,
+    "cd": 2,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.9
+    }
+   },
+   {
+    "id": "shadow-word-pain",
+    "name": "Слово Тьмы: Боль",
+    "icon": "skull",
+    "desc": "×0.3 урона и ещё ×0.6 урона 3 раунда.",
+    "level": 10,
+    "spec": null,
+    "talent": null,
+    "cost": 15,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 0.3,
+     "dot": [
+      0.6,
+      3
+     ]
+    }
+   },
+   {
+    "id": "pain-suppression",
+    "name": "Подавление боли",
+    "icon": "hand-palm",
+    "desc": "Союзник получает на 40% меньше урона 2 раунда.",
+    "level": 14,
+    "spec": "discipline",
+    "talent": null,
+    "cost": 0,
+    "cd": 6,
+    "target": "ally",
+    "eff": {
+     "buff": {
+      "taken": 0.6,
+      "rounds": 2
+     }
+    }
+   },
+   {
+    "id": "prayer-of-healing",
+    "name": "Молитва исцеления",
+    "icon": "church",
+    "desc": "Лечит весь отряд: ×0.8 лечения каждому.",
+    "level": 14,
+    "spec": "holy",
+    "talent": null,
+    "cost": 40,
+    "cd": 2,
+    "target": "party",
+    "eff": {
+     "partyHeal": 0.8
+    }
+   },
+   {
+    "id": "power-word-barrier",
+    "name": "Слово силы: Барьер",
+    "icon": "shield-star",
+    "desc": "Весь отряд получает на 40% меньше урона 2 раунда.",
+    "level": 1,
+    "spec": null,
+    "talent": "discipline",
+    "cost": 0,
+    "cd": 6,
+    "target": "party",
+    "eff": {
+     "partyBuff": {
+      "taken": 0.6,
+      "rounds": 2
+     }
+    }
+   },
+   {
+    "id": "divine-hymn",
+    "name": "Божественный гимн",
+    "icon": "music-notes",
+    "desc": "Гимн лечит весь отряд: ×1.7 каждому.",
+    "level": 1,
+    "spec": null,
+    "talent": "holy",
+    "cost": 40,
+    "cd": 6,
+    "target": "party",
+    "eff": {
+     "partyHeal": 1.7
+    }
+   },
+   {
+    "id": "void-eruption",
+    "name": "Извержение Бездны",
+    "icon": "planet",
+    "desc": "×1.5 урона всем врагам.",
+    "level": 1,
+    "spec": null,
+    "talent": "shadow",
+    "cost": 30,
+    "cd": 5,
+    "target": "enemies",
+    "eff": {
+     "aoe": 1.5
+    }
+   }
+  ],
+  "druid": [
+   {
+    "id": "wrath",
+    "name": "Гнев",
+    "icon": "sun",
+    "desc": "Сгусток природы: ×1.2 урона.",
+    "level": 1,
+    "spec": null,
+    "talent": null,
+    "cost": 10,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.2,
+     "ranged": true
+    }
+   },
+   {
+    "id": "rejuvenation",
+    "name": "Омоложение",
+    "icon": "leaf",
+    "desc": "Лечит союзника 3 раунда: ×0.7 в начале каждого.",
+    "level": 2,
+    "spec": null,
+    "talent": null,
+    "cost": 15,
+    "cd": 0,
+    "target": "ally",
+    "eff": {
+     "hot": [
+      0.7,
+      3
+     ]
+    }
+   },
+   {
+    "id": "moonfire",
+    "name": "Лунный огонь",
+    "icon": "moon",
+    "desc": "×0.4 урона и ещё ×0.6 урона 3 раунда.",
+    "level": 4,
+    "spec": null,
+    "talent": null,
+    "cost": 15,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 0.4,
+     "dot": [
+      0.6,
+      3
+     ],
+     "ranged": true
+    }
+   },
+   {
+    "id": "starfire",
+    "name": "Звёздный огонь",
+    "icon": "star",
+    "desc": "Звезда падает на врага: ×2.0 урона.",
+    "level": 8,
+    "spec": "balance",
+    "talent": null,
+    "cost": 25,
+    "cd": 1,
+    "target": "enemy",
+    "eff": {
+     "dmg": 2.0,
+     "ranged": true
+    }
+   },
+   {
+    "id": "mangle",
+    "name": "Увечье",
+    "icon": "paw-print",
+    "desc": "Удар когтями: ×1.6 урона и натиск.",
+    "level": 8,
+    "spec": "guardian",
+    "talent": null,
+    "cost": 10,
+    "cd": 1,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.6,
+     "stagger": 10
+    }
+   },
+   {
+    "id": "regrowth",
+    "name": "Восстановление",
+    "icon": "plant",
+    "desc": "×1.4 лечения союзнику и ещё ×0.3 два раунда.",
+    "level": 8,
+    "spec": "restoration",
+    "talent": null,
+    "cost": 25,
+    "cd": 0,
+    "target": "ally",
+    "eff": {
+     "heal": 1.4,
+     "hot": [
+      0.3,
+      2
+     ]
+    }
+   },
+   {
+    "id": "barkskin",
+    "name": "Дубовая кожа",
+    "icon": "tree",
+    "desc": "Получаемый урон −40% на 2 раунда.",
+    "level": 12,
+    "spec": null,
+    "talent": null,
+    "cost": 0,
+    "cd": 5,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "taken": 0.6,
+      "rounds": 2
+     }
+    }
+   },
+   {
+    "id": "starfall",
+    "name": "Звездопад",
+    "icon": "star-four",
+    "desc": "Звёзды падают на всех врагов: ×1.2 урона.",
+    "level": 14,
+    "spec": "balance",
+    "talent": null,
+    "cost": 40,
+    "cd": 3,
+    "target": "enemies",
+    "eff": {
+     "aoe": 1.2
+    }
+   },
+   {
+    "id": "thrash",
+    "name": "Взбучка",
+    "icon": "paw-print",
+    "desc": "×0.8 урона всем врагам рядом и ещё ×0.3 два раунда.",
+    "level": 14,
+    "spec": "guardian",
+    "talent": null,
+    "cost": 20,
+    "cd": 2,
+    "target": "enemies",
+    "eff": {
+     "aoe": 0.8,
+     "dot": [
+      0.3,
+      2
+     ]
+    }
+   },
+   {
+    "id": "wild-growth",
+    "name": "Буйный рост",
+    "icon": "tree",
+    "desc": "Весь отряд лечится 3 раунда: ×0.45 в начале каждого.",
+    "level": 14,
+    "spec": "restoration",
+    "talent": null,
+    "cost": 40,
+    "cd": 3,
+    "target": "party",
+    "eff": {
+     "partyHot": [
+      0.45,
+      3
+     ]
+    }
+   },
+   {
+    "id": "incarnation",
+    "name": "Воплощение: Избранный Элуны",
+    "icon": "moon",
+    "desc": "3 раунда: +35% урона.",
+    "level": 1,
+    "spec": null,
+    "talent": "balance",
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "dmg": 1.35,
+      "rounds": 3
+     }
+    }
+   },
+   {
+    "id": "frenzied-regeneration",
+    "name": "Неистовое восстановление",
+    "icon": "heartbeat",
+    "desc": "Восстанавливает себе 40% здоровья.",
+    "level": 1,
+    "spec": null,
+    "talent": "guardian",
+    "cost": 20,
+    "cd": 5,
+    "target": "self",
+    "eff": {
+     "selfHealPct": 0.4
+    }
+   },
+   {
+    "id": "tranquility",
+    "name": "Спокойствие",
+    "icon": "wind",
+    "desc": "Лечит весь отряд: ×1.8 каждому.",
+    "level": 1,
+    "spec": null,
+    "talent": "restoration",
+    "cost": 50,
+    "cd": 7,
+    "target": "party",
+    "eff": {
+     "partyHeal": 1.8
+    }
+   }
+  ],
+  "mage": [
+   {
+    "id": "fire-blast",
+    "name": "Огненный взрыв",
+    "icon": "fire-simple",
+    "desc": "Мгновенный взрыв: ×1.0 урона.",
+    "level": 1,
+    "spec": null,
+    "talent": null,
+    "cost": 10,
+    "cd": 1,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.0
+    }
+   },
+   {
+    "id": "arcane-blast",
+    "name": "Чародейская вспышка",
+    "icon": "sparkle",
+    "desc": "×1.7 урона.",
+    "level": 4,
+    "spec": "arcane",
+    "talent": null,
+    "cost": 25,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.7
+    }
+   },
+   {
+    "id": "fireball",
+    "name": "Огненный шар",
+    "icon": "fire",
+    "desc": "×1.5 урона и ещё ×0.3 два раунда.",
+    "level": 4,
+    "spec": "fire",
+    "talent": null,
+    "cost": 20,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.5,
+     "dot": [
+      0.3,
+      2
+     ]
+    }
+   },
+   {
+    "id": "frostbolt",
+    "name": "Ледяная стрела",
+    "icon": "snowflake",
+    "desc": "×1.4 урона и натиск: холод сковывает.",
+    "level": 4,
+    "spec": "frost",
+    "talent": null,
+    "cost": 15,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.4,
+     "stagger": 10
+    }
+   },
+   {
+    "id": "counterspell",
+    "name": "Антимагия",
+    "icon": "hand-palm",
+    "desc": "Сбивает вражеский каст.",
+    "level": 6,
+    "spec": null,
+    "talent": null,
+    "cost": 10,
+    "cd": 4,
+    "target": "enemy",
+    "eff": {
+     "dmg": 0.3,
+     "interrupt": true
+    }
+   },
+   {
+    "id": "evocation",
+    "name": "Прилив сил",
+    "icon": "hourglass",
+    "desc": "Восстанавливает 60 маны.",
+    "level": 10,
+    "spec": null,
+    "talent": null,
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "gain": 60
+    }
+   },
+   {
+    "id": "ice-block",
+    "name": "Ледяная глыба",
+    "icon": "cube",
+    "desc": "Почти неуязвим 1 раунд: урон −90%.",
+    "level": 12,
+    "spec": null,
+    "talent": null,
+    "cost": 0,
+    "cd": 7,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "taken": 0.1,
+      "rounds": 1
+     }
+    }
+   },
+   {
+    "id": "blizzard",
+    "name": "Снежная буря",
+    "icon": "cloud-snow",
+    "desc": "×0.9 урона всем врагам и натиск.",
+    "level": 16,
+    "spec": null,
+    "talent": null,
+    "cost": 40,
+    "cd": 3,
+    "target": "enemies",
+    "eff": {
+     "aoe": 0.9,
+     "stagger": 8
+    }
+   },
+   {
+    "id": "arcane-power",
+    "name": "Мощь тайной магии",
+    "icon": "sparkle",
+    "desc": "3 раунда: +40% урона.",
+    "level": 1,
+    "spec": null,
+    "talent": "arcane",
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "dmg": 1.4,
+      "rounds": 3
+     }
+    }
+   },
+   {
+    "id": "combustion",
+    "name": "Возгорание",
+    "icon": "flame",
+    "desc": "2 раунда: +70% к шансу крита.",
+    "level": 1,
+    "spec": null,
+    "talent": "fire",
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "crit": 0.7,
+      "rounds": 2
+     }
+    }
+   },
+   {
+    "id": "comet-storm",
+    "name": "Буря комет",
+    "icon": "meteor",
+    "desc": "Кометы бьют всех врагов: ×1.6 урона.",
+    "level": 1,
+    "spec": null,
+    "talent": "frost",
+    "cost": 30,
+    "cd": 5,
+    "target": "enemies",
+    "eff": {
+     "aoe": 1.6,
+     "stagger": 15
+    }
+   }
+  ],
+  "necromancer": [
+   {
+    "id": "death-coil",
+    "name": "Лик смерти",
+    "icon": "skull",
+    "desc": "Сгусток тлена: ×1.6 урона.",
+    "level": 1,
+    "spec": null,
+    "talent": null,
+    "cost": 30,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.6,
+     "ranged": true
+    }
+   },
+   {
+    "id": "icy-touch",
+    "name": "Ледяное прикосновение",
+    "icon": "snowflake",
+    "desc": "×0.6 урона и ещё ×0.5 урона 3 раунда.",
+    "level": 2,
+    "spec": null,
+    "talent": null,
+    "cost": 10,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 0.6,
+     "dot": [
+      0.5,
+      3
+     ],
+     "ranged": true
+    }
+   },
+   {
+    "id": "mind-freeze",
+    "name": "Заморозка разума",
+    "icon": "hand-palm",
+    "desc": "Сбивает вражеский каст.",
+    "level": 6,
+    "spec": null,
+    "talent": null,
+    "cost": 10,
+    "cd": 3,
+    "target": "enemy",
+    "eff": {
+     "dmg": 0.3,
+     "interrupt": true,
+     "ranged": true
+    }
+   },
+   {
+    "id": "death-strike",
+    "name": "Удар смерти",
+    "icon": "drop",
+    "desc": "×1.3 урона, половина нанесённого — себе в здоровье.",
+    "level": 8,
+    "spec": "blood",
+    "talent": null,
+    "cost": 35,
+    "cd": 1,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.3,
+     "selfHeal": 0.5
+    }
+   },
+   {
+    "id": "scourge-strike",
+    "name": "Удар Плети",
+    "icon": "bone",
+    "desc": "×1.9 урона.",
+    "level": 8,
+    "spec": "unholy",
+    "talent": null,
+    "cost": 30,
+    "cd": 1,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.9,
+     "ranged": true
+    }
+   },
+   {
+    "id": "festering-plague",
+    "name": "Гнойная чума",
+    "icon": "virus",
+    "desc": "×0.5 урона и ещё ×0.9 урона 3 раунда.",
+    "level": 8,
+    "spec": "plague",
+    "talent": null,
+    "cost": 25,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 0.5,
+     "dot": [
+      0.9,
+      3
+     ],
+     "ranged": true
+    }
+   },
+   {
+    "id": "bone-shield",
+    "name": "Костяной щит",
+    "icon": "shield",
+    "desc": "Получаемый урон −30% на 3 раунда.",
+    "level": 12,
+    "spec": "blood",
+    "talent": null,
+    "cost": 20,
+    "cd": 4,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "taken": 0.7,
+      "rounds": 3
+     }
+    }
+   },
+   {
+    "id": "outbreak",
+    "name": "Вспышка болезни",
+    "icon": "biohazard",
+    "desc": "Заражает всех врагов: ×0.5 урона 3 раунда.",
+    "level": 14,
+    "spec": null,
+    "talent": null,
+    "cost": 30,
+    "cd": 3,
+    "target": "enemies",
+    "eff": {
+     "aoe": 0.2,
+     "dot": [
+      0.5,
+      3
+     ],
+     "ranged": true
+    }
+   },
+   {
+    "id": "vampiric-blood",
+    "name": "Кровь вампира",
+    "icon": "heartbeat",
+    "desc": "Восстанавливает 30% здоровья, урон −30% на 2 раунда.",
+    "level": 1,
+    "spec": null,
+    "talent": "blood",
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "selfHealPct": 0.3,
+     "buff": {
+      "taken": 0.7,
+      "rounds": 2
+     }
+    }
+   },
+   {
+    "id": "army-of-the-dead",
+    "name": "Войско мёртвых",
+    "icon": "ghost",
+    "desc": "Мертвецы встают из земли: ×2.0 урона всем врагам.",
+    "level": 1,
+    "spec": null,
+    "talent": "unholy",
+    "cost": 40,
+    "cd": 7,
+    "target": "enemies",
+    "eff": {
+     "aoe": 2.0
+    }
+   },
+   {
+    "id": "epidemic",
+    "name": "Эпидемия",
+    "icon": "virus",
+    "desc": "×1.2 урона всем врагам и ещё ×0.5 два раунда.",
+    "level": 1,
+    "spec": null,
+    "talent": "plague",
+    "cost": 30,
+    "cd": 5,
+    "target": "enemies",
+    "eff": {
+     "aoe": 1.2,
+     "dot": [
+      0.5,
+      2
+     ]
+    }
+   }
+  ],
+  "rogue": [
+   {
+    "id": "sinister-strike",
+    "name": "Коварный удар",
+    "icon": "knife",
+    "desc": "×1.4 урона.",
+    "level": 1,
+    "spec": null,
+    "talent": null,
+    "cost": 40,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.4
+    }
+   },
+   {
+    "id": "eviscerate",
+    "name": "Потрошение",
+    "icon": "drop",
+    "desc": "Добивающий: ×2.2 урона.",
+    "level": 4,
+    "spec": null,
+    "talent": null,
+    "cost": 55,
+    "cd": 1,
+    "target": "enemy",
+    "eff": {
+     "dmg": 2.2
+    }
+   },
+   {
+    "id": "kick",
+    "name": "Пинок",
+    "icon": "footprints",
+    "desc": "Сбивает вражеский каст и бьёт: ×0.4 урона.",
+    "level": 6,
+    "spec": null,
+    "talent": null,
+    "cost": 15,
+    "cd": 3,
+    "target": "enemy",
+    "eff": {
+     "dmg": 0.4,
+     "interrupt": true
+    }
+   },
+   {
+    "id": "mutilate",
+    "name": "Расправа",
+    "icon": "knife",
+    "desc": "×1.6 урона ядовитыми клинками и ещё ×0.4 два раунда.",
+    "level": 8,
+    "spec": "assassination",
+    "talent": null,
+    "cost": 45,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.6,
+     "dot": [
+      0.4,
+      2
+     ]
+    }
+   },
+   {
+    "id": "blade-flurry",
+    "name": "Шквал клинков",
+    "icon": "tornado",
+    "desc": "×0.9 урона всем врагам.",
+    "level": 8,
+    "spec": "combat",
+    "talent": null,
+    "cost": 40,
+    "cd": 2,
+    "target": "enemies",
+    "eff": {
+     "aoe": 0.9
+    }
+   },
+   {
+    "id": "backstab",
+    "name": "Удар в спину",
+    "icon": "eye-slash",
+    "desc": "×1.5 урона; по врагу, на котором стоит другой боец, — ×2.4.",
+    "level": 8,
+    "spec": "subtlety",
+    "talent": null,
+    "cost": 45,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.5,
+     "flank": 2.4
+    }
+   },
+   {
+    "id": "evasion",
+    "name": "Ускользание",
+    "icon": "person-simple-run",
+    "desc": "Получаемый урон −50% на 2 раунда.",
+    "level": 12,
+    "spec": null,
+    "talent": null,
+    "cost": 0,
+    "cd": 5,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "taken": 0.5,
+      "rounds": 2
+     }
+    }
+   },
+   {
+    "id": "rupture",
+    "name": "Рваная рана",
+    "icon": "drop-half",
+    "desc": "Кровь течёт: ×1.0 урона 3 раунда.",
+    "level": 14,
+    "spec": null,
+    "talent": null,
+    "cost": 30,
+    "cd": 2,
+    "target": "enemy",
+    "eff": {
+     "dot": [
+      1.0,
+      3
+     ]
+    }
+   },
+   {
+    "id": "vendetta",
+    "name": "Вендетта",
+    "icon": "skull",
+    "desc": "3 раунда: +40% урона.",
+    "level": 1,
+    "spec": null,
+    "talent": "assassination",
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "dmg": 1.4,
+      "rounds": 3
+     }
+    }
+   },
+   {
+    "id": "adrenaline-rush",
+    "name": "Выброс адреналина",
+    "icon": "lightning",
+    "desc": "Полная энергия и +20% урона 2 раунда.",
+    "level": 1,
+    "spec": null,
+    "talent": "combat",
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "gain": 100,
+     "buff": {
+      "dmg": 1.2,
+      "rounds": 2
+     }
+    }
+   },
+   {
+    "id": "shadow-dance",
+    "name": "Танец теней",
+    "icon": "mask-happy",
+    "desc": "2 раунда: +50% урона и +30% к шансу крита.",
+    "level": 1,
+    "spec": null,
+    "talent": "subtlety",
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "dmg": 1.5,
+      "crit": 0.3,
+      "rounds": 2
+     }
+    }
+   }
+  ],
+  "hunter": [
+   {
+    "id": "arcane-shot",
+    "name": "Чародейский выстрел",
+    "icon": "sparkle",
+    "desc": "×1.4 урона.",
+    "level": 1,
+    "spec": null,
+    "talent": null,
+    "cost": 30,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.4
+    }
+   },
+   {
+    "id": "serpent-sting",
+    "name": "Укус змеи",
+    "icon": "drop",
+    "desc": "Яд: ×0.3 урона и ещё ×0.6 урона 3 раунда.",
+    "level": 2,
+    "spec": null,
+    "talent": null,
+    "cost": 20,
+    "cd": 0,
+    "target": "enemy",
+    "eff": {
+     "dmg": 0.3,
+     "dot": [
+      0.6,
+      3
+     ]
+    }
+   },
+   {
+    "id": "counter-shot",
+    "name": "Глушащий выстрел",
+    "icon": "crosshair",
+    "desc": "Сбивает вражеский каст.",
+    "level": 6,
+    "spec": null,
+    "talent": null,
+    "cost": 10,
+    "cd": 4,
+    "target": "enemy",
+    "eff": {
+     "dmg": 0.3,
+     "interrupt": true
+    }
+   },
+   {
+    "id": "kill-command",
+    "name": "Команда «Взять!»",
+    "icon": "paw-print",
+    "desc": "Зверь рвёт врага: ×1.9 урона.",
+    "level": 8,
+    "spec": "beastmastery",
+    "talent": null,
+    "cost": 30,
+    "cd": 1,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.9
+    }
+   },
+   {
+    "id": "aimed-shot",
+    "name": "Прицельный выстрел",
+    "icon": "target",
+    "desc": "×2.3 урона.",
+    "level": 8,
+    "spec": "marksmanship",
+    "talent": null,
+    "cost": 45,
+    "cd": 1,
+    "target": "enemy",
+    "eff": {
+     "dmg": 2.3
+    }
+   },
+   {
+    "id": "explosive-shot",
+    "name": "Разрывной выстрел",
+    "icon": "fire",
+    "desc": "×1.4 урона; рядом с целью ×0.5.",
+    "level": 8,
+    "spec": "survival",
+    "talent": null,
+    "cost": 35,
+    "cd": 1,
+    "target": "enemy",
+    "eff": {
+     "dmg": 1.4,
+     "splash": 0.5
+    }
+   },
+   {
+    "id": "multi-shot",
+    "name": "Залп",
+    "icon": "arrows-out-cardinal",
+    "desc": "×0.8 урона всем врагам.",
+    "level": 10,
+    "spec": null,
+    "talent": null,
+    "cost": 40,
+    "cd": 2,
+    "target": "enemies",
+    "eff": {
+     "aoe": 0.8
+    }
+   },
+   {
+    "id": "feign-death",
+    "name": "Притвориться мёртвым",
+    "icon": "ghost",
+    "desc": "Урон −70% на 1 раунд.",
+    "level": 12,
+    "spec": null,
+    "talent": null,
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "taken": 0.3,
+      "rounds": 1
+     }
+    }
+   },
+   {
+    "id": "bestial-wrath",
+    "name": "Звериный гнев",
+    "icon": "paw-print",
+    "desc": "3 раунда: +40% урона.",
+    "level": 1,
+    "spec": null,
+    "talent": "beastmastery",
+    "cost": 0,
+    "cd": 6,
+    "target": "self",
+    "eff": {
+     "buff": {
+      "dmg": 1.4,
+      "rounds": 3
+     }
+    }
+   },
+   {
+    "id": "barrage",
+    "name": "Шквальный огонь",
+    "icon": "arrows-out-cardinal",
+    "desc": "×1.5 урона всем врагам.",
+    "level": 1,
+    "spec": null,
+    "talent": "marksmanship",
+    "cost": 40,
+    "cd": 5,
+    "target": "enemies",
+    "eff": {
+     "aoe": 1.5
+    }
+   },
+   {
+    "id": "mongoose-bite",
+    "name": "Укус мангуста",
+    "icon": "bird",
+    "desc": "×2.5 урона и ещё ×0.5 два раунда.",
+    "level": 1,
+    "spec": null,
+    "talent": "survival",
+    "cost": 30,
+    "cd": 3,
+    "target": "enemy",
+    "eff": {
+     "dmg": 2.5,
+     "dot": [
+      0.5,
+      2
+     ]
+    }
+   }
+  ]
+ }
+}

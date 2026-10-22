@@ -14,6 +14,7 @@ const SCREENS := {
 	"analytics": "res://scripts/screens/analytics.gd", "personnel": "res://scripts/screens/personnel.gd", "levelmap": "res://scripts/screens/levelmap.gd",
 	"hire": "res://scripts/screens/hire.gd", "arena": "res://scripts/screens/arena.gd", "profession": "res://scripts/screens/profession.gd",
 	"achievements": "res://scripts/screens/achievements.gd", "weekly": "res://scripts/screens/weekly.gd",
+	"talents": "res://scripts/screens/talents.gd",
 }
 
 static var _insets = Vector2.ZERO
@@ -60,12 +61,14 @@ func _ready() -> void:
 
 
 ## For checking screens without a phone:
-## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto]` sets up, renders, saves and quits.
+## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px]` sets up, renders, saves and quits.
 func _maybe_shot() -> void:
 	var path = ""
 	var go = ""
 	var wait = 1.5
+	var down = 0
 	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--scroll="): down = int(a.substr(9))
 		if a.begins_with("--shot="): path = a.substr(7)
 		if a.begins_with("--go="): go = a.substr(5)
 		if a.begins_with("--wait="): wait = float(a.substr(7))
@@ -74,6 +77,9 @@ func _maybe_shot() -> void:
 	if path == "": return
 	if go != "": Demo.open(go)
 	await get_tree().create_timer(wait).timeout
+	if down > 0 and current and current.scroll:
+		current.scroll.scroll_vertical = down
+		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(path)

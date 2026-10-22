@@ -16,7 +16,7 @@ static func quest(g, id: String) -> bool:
 		"mines-down": return g.defeated.has("mines")
 		"boardroom-down": return g.defeated.has("boardroom")
 		"gear-up": return g.pool.any(func(c): return c.equipment.values().any(func(v): return v != "none"))
-		"first-talent": return g.pool.any(func(c): return c.talents.any(func(t): return t != null))
+		"first-talent": return g.pool.any(func(c): return not c.talentPoints.is_empty())
 		"veteran": return g.pool.any(func(c): return c.level >= 10)
 		"grandmaster": return g.pool.any(func(c): return c.level >= DB.characters.MAX_LEVEL)
 		"interrupter": return g.ever_interrupted

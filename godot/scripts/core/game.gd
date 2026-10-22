@@ -120,7 +120,7 @@ func _schedule_save() -> void:
 func _serialize() -> Dictionary:
 	var p = []
 	for c in pool:
-		p.append({"id": c.id, "level": c.level, "xp": c.xp, "equipment": c.equipment, "talents": c.talents, "classId": c.classId,
+		p.append({"id": c.id, "level": c.level, "xp": c.xp, "equipment": c.equipment, "spec": c.spec, "talentPoints": c.talentPoints,
 			"professionId": c.professionId, "professionLevel": c.professionLevel, "professionXp": c.professionXp, "morale": c.morale})
 	return {
 		"pool": p, "selected": selected.keys(), "inventoryCounts": inventory, "reagentCounts": reagent_counts, "gold": gold,
@@ -150,7 +150,12 @@ func _apply_save(data: Dictionary) -> void:
 			if not DB.candidates.has(saved.id): continue
 			var c: Dictionary = DB.candidates[saved.id].duplicate(true)
 			c.level = saved.level; c.xp = saved.xp; c.equipment = DB.migrate_equipment(saved.equipment)
-			c.talents = saved.talents; c.classId = saved.get("classId"); c.professionId = saved.get("professionId")
+			# Saves from before the talent trees keep their spec default and no points spent.
+			c.spec = saved.get("spec", DB.default_spec(c))
+			if DB.spec_def(c.heroClass, c.spec).is_empty(): c.spec = DB.default_spec(c)
+			c.talentPoints = saved.talentPoints if saved.get("talentPoints") is Dictionary else {}
+			apply_spec(c)
+			c.professionId = saved.get("professionId")
 			c.professionLevel = saved.get("professionLevel", 1); c.professionXp = saved.get("professionXp", 0); c.morale = saved.morale
 			pool.append(c)
 	selected = {}
@@ -453,36 +458,109 @@ func gear_mults(c: Dictionary) -> Dictionary:
 
 
 func talent_mults(c: Dictionary) -> Dictionary:
+	var b = talent_bonus(c)
 	var m = _mults()
-	var tiers = DB.talent_tiers(c.id)
-	for i in c.talents.size():
-		var pick = c.talents[i]
-		if pick == null or i >= tiers.size(): continue
-		for o in tiers[i].options:
-			if o.id == pick:
-				m.outputMult *= _num(o.get("outputMult")); m.hpMult *= _num(o.get("hpMult"))
-				m.wardMult *= _num(o.get("wardMult")); m.cdMult *= _num(o.get("cdMult"))
+	m.outputMult = 1.0 + b.dmg; m.hpMult = 1.0 + b.hp; m.wardMult = maxf(0.3, 1.0 - b.taken)
 	return m
 
 
-func class_options(c: Dictionary) -> Array:
-	return DB.classes[c.role]
+## The spec's role is gone into the old one-off specialization: nothing extra.
+func class_mults(_c: Dictionary) -> Dictionary:
+	return _mults()
 
 
-func class_mults(c: Dictionary) -> Dictionary:
-	var m = _mults()
-	if c.classId == null: return m
-	for o in class_options(c):
-		if o.id == c.classId:
-			m.outputMult = _num(o.get("outputMult")); m.hpMult = _num(o.get("hpMult")); m.wardMult = _num(o.get("wardMult"))
-	return m
+# ── specs and talent trees (classic WoW: three trees, a point a level) ──────
+## Sets the hero's role, range and numbers from their spec.
+func apply_spec(c: Dictionary) -> void:
+	var st = DB.stats_for(DB.candidates[c.id], c.spec)
+	c.role = st.role; c.attackRange = st.attackRange
+	c.hp = st.hp; c.dps = st.dps; c.healPower = st.healPower; c.power = st.power
 
 
-func choose_class(cid: int, class_id: String) -> void:
+func set_spec(cid: int, spec_id: String) -> void:
 	var c = find_hero(cid)
-	if c == null or c.classId != null: return
-	c.classId = class_id
+	if c == null or c.spec == spec_id or DB.spec_def(c.heroClass, spec_id).is_empty(): return
+	c.spec = spec_id
+	apply_spec(c)
 	notify()
+
+
+func talent_points_total(c: Dictionary) -> int:
+	return maxi(0, c.level - 1)
+
+
+func talent_points_spent(c: Dictionary) -> int:
+	var n = 0
+	for id in c.talentPoints: n += int(c.talentPoints[id])
+	return n
+
+
+func tree_points(c: Dictionary, spec_id: String) -> int:
+	var n = 0
+	for t in DB.talent_tree(c.heroClass, spec_id):
+		n += int(c.talentPoints.get(t.id, 0))
+	return n
+
+
+func talent_rank(c: Dictionary, tid: String) -> int:
+	return int(c.talentPoints.get(tid, 0))
+
+
+## Why a talent can't take a point now, or "" if it can.
+func talent_block(c: Dictionary, spec_id: String, t: Dictionary) -> String:
+	if talent_rank(c, t.id) >= t.max: return "Изучен полностью"
+	var need: int = DB.specs.TALENT_TIERS[t.tier]
+	if tree_points(c, spec_id) < need: return "Нужно %d очк. в этой ветке" % need
+	if talent_points_spent(c) >= talent_points_total(c): return "Нет свободных очков"
+	return ""
+
+
+func learn_talent(cid: int, spec_id: String, tid: String) -> void:
+	var c = find_hero(cid)
+	if c == null: return
+	var t = DB.talent(tid)
+	if t.is_empty() or talent_block(c, spec_id, t) != "": return
+	c.talentPoints[tid] = talent_rank(c, tid) + 1
+	notify()
+
+
+func respec_cost(c: Dictionary) -> int:
+	return 0 if talent_points_spent(c) == 0 else int(DB.specs.RESPEC_COST_PER_LEVEL) * c.level
+
+
+func reset_talents(cid: int) -> void:
+	var c = find_hero(cid)
+	if c == null or talent_points_spent(c) == 0 or gold < respec_cost(c): return
+	gold -= respec_cost(c)
+	c.talentPoints = {}
+	notify()
+
+
+## Every talent's effect on a hero, summed over ranks.
+func talent_bonus(c: Dictionary) -> Dictionary:
+	var b = {"dmg": 0.0, "heal": 0.0, "hp": 0.0, "taken": 0.0, "crit": 0.0, "regen": 0, "cost": 0.0, "spell": {}, "cdr": {}, "grants": []}
+	for tid in c.talentPoints:
+		var r: int = int(c.talentPoints[tid])
+		var t = DB.talent(tid)
+		if t.is_empty() or r <= 0: continue
+		var e: Dictionary = t.eff
+		for k in ["dmg", "heal", "hp", "taken", "crit", "cost"]:
+			if e.has(k): b[k] += float(e[k]) * r
+		if e.has("regen"): b.regen += int(e.regen) * r
+		if e.has("spell"):
+			for id in e.spell: b.spell[id] = b.spell.get(id, 0.0) + float(e.spell[id]) * r
+		if e.has("cdr"):
+			for id in e.cdr: b.cdr[id] = b.cdr.get(id, 0) + int(e.cdr[id]) * r
+		if e.has("grants"): b.grants.append(e.grants)
+	return b
+
+
+## The spells a hero can cast: by level, spec, or a capstone talent.
+func known_spells(c: Dictionary) -> Array:
+	var grants: Array = talent_bonus(c).grants
+	return DB.spells_of(c.heroClass).filter(func(s):
+		if s.talent != null: return s.talent in grants
+		return s.level <= c.level and (s.spec == null or s.spec == c.spec))
 
 
 func set_bonuses_for(c: Dictionary) -> Array:
@@ -662,16 +740,6 @@ func equipment_vm(c: Dictionary) -> Dictionary:
 	var g = gear_mults(c); var sb = set_bonus_mults(c)
 	var totals = DB.stat_lines({"mult": g.outputMult * sb.outputMult, "hpMult": g.hpMult * sb.hpMult, "wardMult": g.wardMult * sb.wardMult, "cdMult": g.cdMult * sb.cdMult})
 	return {"slots": slots, "totals": totals}
-
-
-# ── talents ─────────────────────────────────────────────────────────────────
-func choose_talent(cid: int, tier_idx: int, option_id: String) -> void:
-	var c = find_hero(cid)
-	if c == null: return
-	var tiers = DB.talent_tiers(cid)
-	if tier_idx >= tiers.size() or c.level < tiers[tier_idx].level or c.talents[tier_idx] != null: return
-	c.talents[tier_idx] = option_id
-	notify()
 
 
 # ── profession and crafting ─────────────────────────────────────────────────
@@ -1003,8 +1071,10 @@ func hire_options() -> Array:
 
 func _new_hero(def: Dictionary) -> Dictionary:
 	var c = def.duplicate(true)
-	c.level = 1; c.xp = 0; c.equipment = DB.starting_equipment(def.id); c.talents = [null, null, null, null]
-	c.classId = null; c.professionId = null; c.professionLevel = 1; c.professionXp = 0
+	c.level = 1; c.xp = 0; c.equipment = DB.starting_equipment(def.id)
+	c.spec = DB.default_spec(def); c.talentPoints = {}
+	apply_spec(c)
+	c.professionId = null; c.professionLevel = 1; c.professionXp = 0
 	return c
 
 

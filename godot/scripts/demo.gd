@@ -14,6 +14,12 @@ static func setup() -> void:
 	g.payroll_notice = {"paid": 120, "shortfall": false}
 	g.gold = 420
 	g.settings.quality = "medium"
+	# Seasoned heroes, with a few talents learned, for the trees and spellbooks.
+	for c in g.pool:
+		c.level = 16
+		var tree: Array = DB.talent_tree(c.heroClass, c.spec)
+		for t in tree.filter(func(x): return x.tier == 0): c.talentPoints[t.id] = 5
+		c.talentPoints[tree.filter(func(x): return x.tier == 1)[0].id] = 2
 	for t in ["move", "act", "focus"]: g.seen_tips[t] = true
 	g.notify()
 
@@ -22,6 +28,9 @@ static func open(what: String) -> void:
 	var g = Game
 	match what:
 		"char": g.open_char(g.squad()[0].id)
+		"talents":
+			g.open_char(g.squad()[0].id)
+			g.go("talents")
 		"dungeon": g.quick_raid()
 		"combat", "combat-act":
 			g.quick_raid()
