@@ -281,9 +281,8 @@ func _curios(p: VBoxContainer) -> void:
 	p.add_child(grid)
 
 
-func _unhandled_input(ev: InputEvent) -> void:
-	# Esc closes the item sheet before it leaves the screen.
-	if picked != "" and ev is InputEventKey and ev.pressed and not ev.echo and ev.keycode == KEY_ESCAPE:
-		picked = ""
-		refresh()
-		get_viewport().set_input_as_handled()
+func close_overlay() -> bool:
+	if picked == "": return false
+	picked = ""
+	refresh()
+	return true

@@ -160,7 +160,7 @@ func _update() -> void:
 func _unhandled_input(ev: InputEvent) -> void:
 	if not (ev is InputEventKey and ev.pressed and not ev.echo): return
 	if ev.keycode == KEY_ESCAPE:
-		Game.hardware_back()
+		if not (current and current.close_overlay()): Game.hardware_back()
 		get_viewport().set_input_as_handled()
 	elif ev.keycode in [KEY_ENTER, KEY_KP_ENTER] and not ev.alt_pressed and UI.default_action.is_valid():
 		UI.default_action.call()
@@ -173,4 +173,5 @@ func _unhandled_input(ev: InputEvent) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST or what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if what == NOTIFICATION_WM_GO_BACK_REQUEST and current and current.close_overlay(): return
 		if what == NOTIFICATION_WM_CLOSE_REQUEST or not Game.hardware_back(): get_tree().quit()

@@ -315,18 +315,26 @@ func _hero_card(s: Dictionary, r: Dictionary) -> Control:
 	pn.add_theme_stylebox_override("panel", sb)
 	pn.mouse_filter = Control.MOUSE_FILTER_STOP
 	var row = UI.hbox(10)
-	var size = 62.0 if App.wide else 46.0
+	var size = 62.0 if App.wide else 40.0
 	var pic = UI.portrait(r.candidateId, size, 6)
 	var rc: Color = DB.ROLE_COLOR[r.role]
 	UI.overlay(pic, func(o): o.draw_rect(Rect2(Vector2.ONE, o.size - Vector2(2, 2)), rc, false, 2.0))
-	row.add_child(UI.center(pic))
+	var face = UI.vbox(5)
+	face.alignment = BoxContainer.ALIGNMENT_CENTER
+	face.add_child(UI.center(pic))
+	row.add_child(face)
 	var v = UI.vbox(3)
 	var hc = DB.hero_class(r.heroClass)
 	var top = UI.hbox(6)
 	top.add_child(UI.label(r.name, 16 if App.wide else 14.5, Color("#f1e4c6"), "title"))
 	if r.defending: top.add_child(UI.center(UI.icon("shield", 13, UI.ACCENT_SOFT, "fill")))
+	var cls = UI.label("%s · %s" % [hc.name, DB.ROLE_NAME[r.role]], 11, Color(hc.color), "medium")
 	v.add_child(top)
-	v.add_child(UI.label("%s · %s" % [hc.name, DB.ROLE_NAME[r.role]], 11, Color(hc.color), "medium"))
+	# A phone keeps the card to three lines: class beside the name, valor at the end of it.
+	if App.wide: v.add_child(cls)
+	else:
+		cls.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		top.add_child(cls)
 	var pct: float = maxf(0, 100.0 * r.hp / r.maxHp)
 	var hp = UI.hbox(6)
 	hp.add_child(UI.progress(pct, _hp_color(pct), 7))
@@ -341,10 +349,15 @@ func _hero_card(s: Dictionary, r: Dictionary) -> Control:
 	rr.mouse_filter = Control.MOUSE_FILTER_PASS
 	v.add_child(rr)
 	var pips = UI.hbox(5)
-	for i in Battle.VALOR_MAX: pips.add_child(UI.valor_pip(i < s.valor, 8))
+	for i in Battle.VALOR_MAX: pips.add_child(UI.valor_pip(i < s.valor, 8 if App.wide else 6.5))
 	pips.tooltip_text = "Доблесть: %d из %d. Копится в бою, тратится на приёмы класса." % [s.valor, Battle.VALOR_MAX]
 	pips.mouse_filter = Control.MOUSE_FILTER_PASS
-	v.add_child(pips)
+	if App.wide: v.add_child(pips)
+	else:
+		# Valor goes under the face.
+		pips.add_theme_constant_override("separation", UI.px(2))
+		pips.alignment = BoxContainer.ALIGNMENT_CENTER
+		face.add_child(pips)
 	row.add_child(UI.expand(v))
 	pn.add_child(row)
 	return pn
@@ -591,6 +604,13 @@ func _action_tip(a: Dictionary) -> String:
 		"rally": return "Поднимает дух отряда."
 		"defend": return "Оборона: −40% урона до следующего хода."
 	return a.label + (("\n" + a.sub) if a.sub else "")
+
+
+func close_overlay() -> bool:
+	if not picking_heal: return false
+	picking_heal = false
+	refresh()
+	return true
 
 
 func _unhandled_input(ev: InputEvent) -> void:

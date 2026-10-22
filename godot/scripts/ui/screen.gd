@@ -21,6 +21,12 @@ func build() -> void:
 	pass
 
 
+## Back (Esc or the phone's back) first closes what the screen has open over
+## itself — a sheet, a pick; true if it closed something.
+func close_overlay() -> bool:
+	return false
+
+
 func refresh() -> void:
 	var at = scroll.scroll_vertical if scroll else 0
 	UI.clear(self)
