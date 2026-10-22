@@ -1,15 +1,20 @@
-; Raid Commander — the battle rebuilt in Godot 4, to compare its look and speed
-; with the Expo + three.js game in ../app. See README.md.
+; Raid Commander — the guild raid game, in Godot 4. See README.md.
 
 config_version=5
 
 [application]
 
-config/name="Raid Commander — Godot"
-run/main_scene="res://main.tscn"
+config/name="Raid Commander"
+run/main_scene="res://app.tscn"
 config/features=PackedStringArray("4.5", "Mobile")
+config/icon="res://icons/icon.png"
 boot_splash/bg_color=Color(0.055, 0.047, 0.063, 1)
 boot_splash/show_image=false
+
+[autoload]
+
+DB="*res://scripts/core/db.gd"
+Game="*res://scripts/core/game.gd"
 
 [display]
 
@@ -32,6 +37,7 @@ common/enable_object_picking=true
 renderer/rendering_method="mobile"
 renderer/rendering_method.mobile="mobile"
 rendering_device/fallback_to_opengl3=true
+renderer/rendering_method.web="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=1
 

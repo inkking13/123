@@ -1,0 +1,61 @@
+{
+ "WEEKLY_MODIFIERS": [
+  {
+   "id": "audit",
+   "name": "Аудит эффективности",
+   "desc": "+35% к HP босса — зато +60% к золоту с победы.",
+   "hpMult": 1.35,
+   "dmgMult": 1,
+   "goldMult": 1.6,
+   "bonusReagentQty": 0,
+   "guaranteedCurio": false,
+   "extraLootRoll": false
+  },
+  {
+   "id": "deadline",
+   "name": "Горящий дедлайн",
+   "desc": "+25% к урону способностей босса — зато гарантированно +2 реагента.",
+   "hpMult": 1,
+   "dmgMult": 1.25,
+   "goldMult": 1.2,
+   "bonusReagentQty": 2,
+   "guaranteedCurio": false,
+   "extraLootRoll": false
+  },
+  {
+   "id": "overtime",
+   "name": "Сверхурочная смена",
+   "desc": "+20% к HP босса — зато гарантированная диковина за победу.",
+   "hpMult": 1.2,
+   "dmgMult": 1,
+   "goldMult": 1.15,
+   "bonusReagentQty": 0,
+   "guaranteedCurio": true,
+   "extraLootRoll": false
+  },
+  {
+   "id": "inspection",
+   "name": "Внеплановая проверка",
+   "desc": "+20% к урону способностей босса — зато лишний трофей в добыче.",
+   "hpMult": 1,
+   "dmgMult": 1.2,
+   "goldMult": 1.2,
+   "bonusReagentQty": 0,
+   "guaranteedCurio": false,
+   "extraLootRoll": true
+  },
+  {
+   "id": "cost-cutting",
+   "name": "Оптимизация расходов",
+   "desc": "+15% к HP и +15% к урону босса — зато x2 к золоту и реагентам.",
+   "hpMult": 1.15,
+   "dmgMult": 1.15,
+   "goldMult": 2,
+   "bonusReagentQty": 2,
+   "guaranteedCurio": false,
+   "extraLootRoll": false
+  }
+ ],
+ "pickWeeklyModifier": null,
+ "pickWeeklyDungeonId": null
+}

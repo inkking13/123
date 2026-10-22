@@ -1,0 +1,112 @@
+class_name Screen
+extends Control
+## One screen of the game. `build()` fills it from the Game's state; the app
+## calls `refresh()` whenever the Game changes, which rebuilds the content and
+## keeps the scroll where it was.
+
+var scroll: ScrollContainer
+var page: VBoxContainer
+
+
+func _init() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func build() -> void:
+	pass
+
+
+func refresh() -> void:
+	var at = scroll.scroll_vertical if scroll else 0
+	UI.clear(self)
+	scroll = null
+	page = null
+	build()
+	if scroll:
+		scroll.scroll_vertical = at
+		# The new content has no size yet: set it again once laid out.
+		scroll.set_deferred("scroll_vertical", at)
+
+
+## The usual page: a scrolling column with the phone's insets and room for the tab bar.
+func make_page(sep := 0.0, top := 24.0, side := 20.0, tab_bar := true) -> VBoxContainer:
+	page = UI.vbox(sep)
+	var bottom = (Tabs.HEIGHT + 24.0) if tab_bar else 24.0
+	var m = UI.margin(page, side, App.inset_top() / UI.K + top, side, bottom + App.inset_bottom() / UI.K)
+	scroll = UI.scroll(m)
+	add_child(scroll)
+	if tab_bar: add_child(Tabs.make())
+	return page
+
+
+## A row of equal tab buttons; `pick` gets the chosen key.
+func tab_row(options: Array, current: String, pick: Callable) -> HBoxContainer:
+	var row = UI.hbox(8)
+	for o in options:
+		var key: String = o[0]
+		var on = key == current
+		var pn = PanelContainer.new()
+		var sb = UI.frame_style("pill", Vector4(6, 0, 6, 0), 8)
+		sb.border_color = UI.ACCENT if on else UI.BORDER_STRONG
+		sb.bg_color = Color(UI.ACCENT, 0.12) if on else Color(0, 0, 0, 0)
+		pn.add_theme_stylebox_override("panel", sb)
+		pn.custom_minimum_size = Vector2(0, UI.px(38))
+		pn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var l = UI.label(o[1], 13.5, UI.ACCENT_SOFT if on else UI.TEXT_DIM, "medium")
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		pn.add_child(l)
+		UI.tap(pn, func(): pick.call(key))
+		row.add_child(pn)
+	return row
+
+
+## An item as a card: icon, slot, name and a line under it, with something on the right.
+func item_card(icon_path: String, kicker: String, name: String, desc: String, name_color: Color = UI.TEXT, right: Control = null, accent = null) -> PanelContainer:
+	var fr = UI.frame("plain", Vector4(12, 12, 12, 12))
+	if accent != null:
+		var sb: StyleBoxFlat = fr.get_theme_stylebox("panel")
+		sb.border_width_left = 6
+		sb.border_color = accent
+	var row = UI.hbox(10)
+	row.add_child(UI.picture(icon_path, 44, 44, 8))
+	var v = UI.vbox(2)
+	if kicker != "": v.add_child(UI.label(kicker.to_upper(), 10.5, UI.TEXT_FAINT))
+	v.add_child(UI.label(name, 15.5, name_color, "medium", true))
+	if desc != "": v.add_child(UI.label(desc, 12.5, UI.TEXT_DIM, "regular", true))
+	row.add_child(UI.expand(v))
+	if right: row.add_child(UI.center(right))
+	fr.add_child(row)
+	return fr
+
+
+func empty_note(text: String) -> Control:
+	var fr = UI.frame("muted", Vector4(20, 20, 20, 20))
+	var l = UI.label(text, 14, UI.TEXT_FAINT, "regular", true)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	fr.add_child(l)
+	return fr
+
+
+## A small price/action button on a card.
+func pill_button(text: String, on: bool, fn: Callable) -> PanelContainer:
+	var pn = PanelContainer.new()
+	var sb = UI.frame_style("pill", Vector4(12, 8, 12, 8), 7)
+	sb.border_color = UI.ACCENT if on else UI.BORDER
+	sb.bg_color = Color(UI.ACCENT, 0.12) if on else Color(0, 0, 0, 0)
+	pn.add_theme_stylebox_override("panel", sb)
+	pn.add_child(UI.label(text, 14, UI.ACCENT_SOFT if on else UI.TEXT_FAINT, "medium"))
+	if on: UI.tap(pn, fn)
+	else: pn.modulate.a = 0.5
+	return pn
+
+
+## Back link and the treasury, across the top of a camp screen.
+func header_with_gold() -> HBoxContainer:
+	var head = UI.hbox(8)
+	head.add_child(UI.back_link())
+	head.add_child(UI.flex())
+	head.add_child(UI.icon("coins", 15, UI.WARN, "fill"))
+	head.add_child(UI.label(str(Game.gold), 16, UI.WARN, "medium"))
+	return head

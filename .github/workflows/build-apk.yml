@@ -1,12 +1,14 @@
 name: Build Android APK
 
+# The game (godot/), exported for Android. Runs on any branch that touches it;
+# builds from main are published as the latest release.
 on:
   workflow_dispatch: {}
   push:
-    branches: [main]
     paths:
-      - 'app/**'
+      - 'godot/**'
       - '.github/workflows/build-apk.yml'
+      - '.github/actions/setup-godot/**'
 
 permissions:
   contents: write
@@ -14,44 +16,48 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Install dependencies
-        run: npm ci
+      - uses: ./.github/actions/setup-godot
+        with:
+          android: 'true'
 
-      - name: Generate native Android project
-        run: npx expo prebuild --platform android --no-install
+      - name: Check scripts and play a raid headless
+        run: |
+          godot --headless --path godot -s res://tests/loadall.gd
+          timeout 600 godot --headless --path godot -s res://tests/smoke.gd
 
-      - name: Build release APK
-        working-directory: app/android
-        # The debug build type loads its JS from a Metro dev server instead of
-        # bundling it, so it can't run standalone off a phone. Release always
-        # bundles the JS, and the generated project signs it with the debug
-        # keystore by default (fine for sideloading, not for a store listing).
-        run: ./gradlew assembleRelease --no-daemon
+      - name: Export APK
+        env:
+          # A throwaway key for sideloading (password in the clear on purpose).
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ github.workspace }}/godot/android/proto.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: proto
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: raidproto
+        run: |
+          # Each build gets a higher version code, so it installs over the last one.
+          sed -i "s/^version\/code=.*/version\/code=$((100 + GITHUB_RUN_NUMBER))/" godot/export_presets.cfg
+          mkdir -p godot/build
+          godot --headless --path godot --export-release "Android" build/raid-commander.apk
+          ls -la godot/build
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: raid-commander-release-apk
-          path: app/android/app/build/outputs/apk/release/app-release.apk
+          name: raid-commander-apk
+          path: godot/build/raid-commander.apk
 
-      - name: Publish APK as a release asset
+      - name: Publish a release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-build-${{ github.run_number }}
-          name: Release APK build ${{ github.run_number }}
-          files: app/android/app/build/outputs/apk/release/app-release.apk
+          tag_name: game-${{ github.run_number }}
+          name: Raid Commander ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
+          make_latest: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
+          files: godot/build/raid-commander.apk

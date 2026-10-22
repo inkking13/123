@@ -1,12 +1,14 @@
 name: Deploy web version to GitHub Pages
 
+# The game (godot/) exported for the browser. Every branch checks that the
+# export works; only main goes live.
 on:
   workflow_dispatch: {}
   push:
-    branches: [main]
     paths:
-      - 'app/**'
+      - 'godot/**'
       - '.github/workflows/deploy-web.yml'
+      - '.github/actions/setup-godot/**'
 
 permissions:
   contents: read
@@ -14,36 +16,29 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm ci
+      - uses: ./.github/actions/setup-godot
 
       - name: Export web build
-        # Pages serves the site from /<repo-name>/, so every asset path needs that prefix.
-        run: npx expo export --platform web --output-dir dist
-        env:
-          EXPO_BASE_URL: /${{ github.event.repository.name }}
+        run: |
+          mkdir -p godot/build/web
+          godot --headless --path godot --export-release "Web" build/web/index.html
+          ls -la godot/build/web
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: app/dist
+          path: godot/build/web
 
   deploy:
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment:
