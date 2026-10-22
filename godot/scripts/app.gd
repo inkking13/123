@@ -15,6 +15,7 @@ const SCREENS := {
 	"hire": "res://scripts/screens/hire.gd", "arena": "res://scripts/screens/arena.gd", "profession": "res://scripts/screens/profession.gd",
 	"achievements": "res://scripts/screens/achievements.gd", "weekly": "res://scripts/screens/weekly.gd",
 	"talents": "res://scripts/screens/talents.gd", "world": "res://scripts/screens/world.gd", "town": "res://scripts/screens/town.gd",
+	"bivouac": "res://scripts/screens/bivouac.gd",
 }
 
 static var _insets = Vector2.ZERO
@@ -38,6 +39,8 @@ static func inset_bottom() -> float:
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Taps that miss every button go on to the 3D field or map underneath.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	get_tree().set_auto_accept_quit(false)
 	get_tree().set_quit_on_go_back(false)
 	_measure_insets()
@@ -61,7 +64,7 @@ func _ready() -> void:
 
 
 ## For checking screens without a phone:
-## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px]` sets up, renders, saves and quits.
+## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y]` sets up, renders, saves and quits.
 func _maybe_shot() -> void:
 	var path = ""
 	var go = ""
@@ -77,6 +80,20 @@ func _maybe_shot() -> void:
 	if path == "": return
 	if go != "": Demo.open(go)
 	await get_tree().create_timer(wait).timeout
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--click="):
+			var xy = a.substr(8).split(",")
+			var at = Vector2(float(xy[0]), float(xy[1]))
+			for pressed in [true, false]:
+				var ev = InputEventMouseButton.new()
+				ev.button_index = MOUSE_BUTTON_LEFT
+				ev.pressed = pressed
+				ev.position = at
+				ev.global_position = at
+				Input.parse_input_event(ev)
+				await get_tree().process_frame
+			await get_tree().create_timer(1.0).timeout
+			print("clicked: squad at ", Game.w.pos, " walking to ", Game.w.target)
 	if down > 0 and current and current.scroll:
 		current.scroll.scroll_vertical = down
 		await get_tree().process_frame

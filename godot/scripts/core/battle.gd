@@ -2012,6 +2012,7 @@ func end_game(win: bool) -> void:
 	g.trip.maxRound = maxi(g.trip.maxRound, s.round)
 	if s.raiders.any(func(r): return not r.alive): g.trip.lost = true
 	if skirmish == null: g.settle_contract(win, is_boss)
+	if skirmish != null or g.from_world: g.w.fight_done()
 	result = {"win": win, "isBoss": is_boss, "loot": loot, "curioFound": curio, "goldFound": gold_found, "reagentFound": reagent}
 	g.screen = "results"
 	g.notify()
@@ -2092,7 +2093,9 @@ func result_primary() -> void:
 		g.enc_idx = mini(g.current_dungeon().encounters.size() - 1, g.enc_idx + 1)
 		g.go("dungeon")
 	else:
-		if res.win and res.isBoss: g.defeated[g.dungeon_id] = true
+		if res.win and res.isBoss:
+			g.defeated[g.dungeon_id] = true
+			g.w.task_event("dungeon", g.dungeon_id)
 		g.enc_idx = 0; sim = null; result = null
 		var to_map: bool = g.from_world
 		g.from_world = false

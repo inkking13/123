@@ -22,7 +22,7 @@ const SCREEN_TITLE := {
 	"title": "Меню", "home": "Лагерь", "roster": "Отряд", "gear": "Снаряжение", "inventory": "Инвентарь", "shop": "Закупки",
 	"analytics": "Аналитика", "personnel": "Личные дела", "levelmap": "Карта", "hire": "Найм", "arena": "Арена",
 	"profession": "Профессия", "achievements": "Достижения", "weekly": "Испытание", "quests": "KPI", "settings": "Настройки",
-	"contracts": "Контракты", "world": "Карта", "town": "Город", "talents": "Таланты",
+	"contracts": "Контракты", "world": "Карта", "town": "Город", "talents": "Таланты", "bivouac": "Привал",
 }
 
 var screen = "title"

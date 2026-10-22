@@ -15,6 +15,7 @@ boot_splash/show_image=false
 
 DB="*res://scripts/core/db.gd"
 Game="*res://scripts/core/game.gd"
+Sound="*res://scripts/core/sound.gd"
 
 [display]
 

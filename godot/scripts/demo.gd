@@ -28,12 +28,30 @@ static func open(what: String) -> void:
 	var g = Game
 	match what:
 		"char": g.open_char(g.squad()[0].id)
+		"bivouac":
+			g.go_world()
+			g.go("bivouac")
+		"town":
+			g.go_world()
+			g.w.take_task(g.w.task_offers()[0])
+			g.go("town")
+		"world-event":
+			g.settings.auto = false
+			g.go_world()
+			g.w.event = World.ROAD_EVENTS[0]
+			g.w.take_task(g.w.task_offers()[0])
+		"world-at-farm", "world-at-tower", "world-at-lake", "world-at-graveyard", "world-at-camp", "world-at-ruins", "world-at-shrine":
+			g.settings.auto = false
+			g.go_world()
+			g.w.pos = g.w.place(what.substr(9)).pos + Vector2(0, 9)
+			g.w._grace = 9999.0
 		"world", "world-night", "world-town", "world-gate", "world-band":
 			g.settings.auto = false
 			g.go_world()
 			if what == "world-night": g.w.hours = 22.0
 			if what == "world-town":
 				g.w.pos = g.w.layout().town + Vector2(2, 0)
+				g.w._grace = 9999.0
 			if what == "world-gate":
 				g.w.pos = g.w.place("d:wastes").pos + Vector2(0, 2)
 			if what == "world-band":

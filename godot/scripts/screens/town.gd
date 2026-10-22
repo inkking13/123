@@ -21,8 +21,43 @@ func build() -> void:
 	if Game.is_unlocked("hire"): list.add_child(_service("beer-stein", "Таверна: наёмники", "Соискатели ждут за кружкой — нанять в гильдию.", "К столам", true, func(): Game.go("hire")))
 	if Game.is_unlocked("contracts"): list.add_child(_service("scroll", "Доска контрактов", "Заказы на подземелья этих и других земель.", "К доске", true, func(): Game.go("contracts")))
 	p.add_child(list)
+	p.add_child(UI.space(18))
+	_errands(p, w)
 	p.add_child(UI.space(14))
 	p.add_child(UI.secondary_button("Покинуть город", func(): Game.go_tab("world")))
+
+
+## The board of errands: what's on offer, what the squad is doing, the reward.
+func _errands(p: VBoxContainer, w) -> void:
+	p.add_child(UI.kicker("Поручения · %d/%d взято" % [w.tasks.size(), World.TASKS_MAX], Color("#b8935c"), 12))
+	p.add_child(UI.space(8))
+	var list = UI.cards(10, 1)
+	for t in w.tasks:
+		var ready: bool = w.task_ready(t)
+		var here: bool = t.region == w.region
+		var prog = "%d/%d" % [Game.reagent_owned(t.target) if t.kind == "gather" else int(t.have), int(t.need)]
+		var tid: String = t.id
+		var action = pill_button("Сдать · +%d" % int(t.gold), ready and here, func(): w.turn_in(tid)) if ready else pill_button("Отказаться", true, func(): w.drop_task(tid))
+		list.add_child(_task_card(t, ("Готово" if ready else prog) + ("" if here else " · сдать в «%s»" % World.THEMES[t.region].town), action, true))
+	for t in w.task_offers():
+		var offer: Dictionary = t
+		list.add_child(_task_card(t, "Награда: %d золота, %d опыта каждому" % [int(t.gold), int(t.xp)], pill_button("Взять", w.tasks.size() < World.TASKS_MAX, func(): w.take_task(offer)), false))
+	p.add_child(list)
+
+
+func _task_card(t: Dictionary, sub: String, action: Control, taken: bool) -> Control:
+	var fr = UI.frame("gold" if taken and Game.w.task_ready(t) else "plain", Vector4(12, 12, 12, 12))
+	var row = UI.hbox(12)
+	var icon = {"bounty": "sword", "gather": "hand-coins", "chests": "treasure-chest", "dungeon": "door-open"}[t.kind]
+	row.add_child(UI.center(UI.icon(icon, 20, UI.ACCENT)))
+	var v = UI.vbox(2)
+	v.add_child(UI.label(t.title, 15, UI.TEXT, "medium"))
+	v.add_child(UI.label(t.desc, 12.5, UI.TEXT_DIM, "regular", true))
+	v.add_child(UI.label(sub, 12, UI.GOOD if taken else UI.WARN, "italic", true))
+	row.add_child(UI.expand(v))
+	row.add_child(UI.center(action))
+	fr.add_child(row)
+	return fr
 
 
 func _service(icon: String, name: String, desc: String, action: String, can: bool, fn: Callable) -> Control:

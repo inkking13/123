@@ -12,6 +12,7 @@ func _walk(w, to: Vector2, id := "") -> void:
 	w.walk_to(to, id)
 	var guard = 0
 	while w.target != null and guard < 20000:
+		w.event = null
 		var band = w.step(0.05)
 		guard += 1
 		if band != null:
@@ -47,9 +48,10 @@ func _run() -> void:
 	# A band: walk into it.
 	w._grace = 0.0
 	var band = w.region_bands()[0]
-	w.walk_to(band.pos)
 	var caught = null
-	for i in 4000:
+	for i in 8000:
+		if i % 50 == 0: w.walk_to(band.pos)
+		w.event = null  # a road meeting would hold the squad until answered
 		caught = w.step(0.05)
 		if caught != null: break
 	print("met band: ", caught.name if caught else "none")
@@ -58,6 +60,26 @@ func _run() -> void:
 	print("skirmish: screen ", game.screen, " win ", game.b.result.win if game.b.result else "?")
 	game.b.result_primary()
 	print("after: screen ", game.screen, " note ", w.log_note, " beaten ", w.beaten.keys())
+	# The land's other sights.
+	print("outskirts size ", w.size(), " places ", w.layout().places.size(), " bands ", w.region_bands().size())
+	w.food = 10; game.gold = 300
+	w.farm_buy("farm"); print("farm: ", w.log_note, " food ", w.food)
+	w.tower_look("tower"); print("tower: ", w.log_note, " scouted ", w.scouted())
+	w.fish("lake"); print("lake: ", w.log_note)
+	w.search_ruins("ruins"); print("ruins: ", w.log_note)
+	w.pray("shrine"); print("shrine: ", w.log_note, " fatigue ", w.fatigue)
+	w.hours = 12.0
+	var ghosts = w.search_graves("graveyard")
+	print("graveyard: ", w.log_note, " fight ", ghosts != null)
+	w.safe_camp = true
+	var night_raid = w.make_camp()
+	print("safe camp: ", w.log_note, " ambush ", night_raid != null)
+	# The walled town: its buildings are places of their own.
+	print("town buildings: ", w.layout().places.filter(func(p): return p.id.begins_with("town:")).map(func(p): return p.kind))
+	game.gold = 300
+	w.sharpen(); print("smith: ", w.log_note, " output ", w.output_mult())
+	w.drill(); print("barracks: ", w.log_note)
+	w.drill(); print("drill again same day blocked: ", w.used_today("town:barracks"))
 	# A dungeon from the map, played through on auto.
 	var d = w.region_dungeons()[0]
 	game.enter_dungeon(d.id)
@@ -82,6 +104,37 @@ func _run() -> void:
 	game.defeated["road"] = true; game.defeated["groblot"] = true
 	w.travel(east.to)
 	print("travelled to ", w.region, " at ", w.pos, " ", w.log_note)
+	# Camp with tasks: a cook, a trainee, a hunter, a watch.
+	w.food = 20
+	var sq = game.squad()
+	w.set_plan(sq[0].id, "cook"); w.set_plan(sq[1].id, "train"); w.set_plan(sq[2].id, "hunt"); w.set_plan(sq[3].id, "watch")
+	var lv = sq[1].level
+	var amb = w.make_camp()
+	print("camp tasks: ", w.log_note, " · fed ", w.well_fed, " food ", w.food, " trainee xp/level ", sq[1].xp, "/", sq[1].level, " (was lvl ", lv, ") ambush ", amb != null)
+	# Every road event, every answer.
+	for e in w.ROAD_EVENTS:
+		for i in e.options.size():
+			w.event = e
+			game.gold = 500; w.food = 20
+			var jumped = w.answer(i)
+			if jumped != null:
+				game.b.clear_timer()
+		print("event ", e.id, ": ", w.log_note)
+	# Errands: take what the board offers, do a bounty and the chests, hand in.
+	w.tasks = []
+	for t in w.task_offers(): w.take_task(t)
+	print("tasks taken: ", w.tasks.map(func(t): return t.kind + ":" + t.desc))
+	for t in w.tasks:
+		match t.kind:
+			"bounty": w.after_fight(t.target, true)
+			"chests":
+				for p in w.layout().places:
+					if p.kind == "chest" and not w.opened.has(p.id): w.open_chest(p.id)
+			"gather": game.reagent_counts[t.target] = 10
+			"dungeon": w.task_event("dungeon", t.target)
+	var gold0 = game.gold
+	for t in w.tasks.duplicate(): w.turn_in(t.id)
+	print("handed in, gold +", game.gold - gold0, " left ", w.tasks.size(), " · ", w.log_note)
 	var saved = w.to_dict()
 	w.from_dict(saved)
 	print("save round trip region ", w.region, " day ", w.day)
