@@ -8,7 +8,7 @@ extends Node3D
 
 const TILE := 1.25
 const GOLD := Color(0.94, 0.82, 0.55)
-const FONT := preload("res://fonts/Alegreya_800ExtraBold.ttf")
+static var FONT := UI.lining(preload("res://fonts/Alegreya_800ExtraBold.ttf"))
 
 ## How each hero is drawn: body, armour set, what they hold, and their clips.
 const HEROES := {

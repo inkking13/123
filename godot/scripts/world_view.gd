@@ -7,8 +7,8 @@ extends Node3D
 ## walk there, a place to go to it, a band to go at it. Drag turns the view,
 ## pinch or wheel zooms, Q/E turn, R straightens.
 
-const FONT := preload("res://fonts/AlegreyaSC_700Bold.ttf")
-const BODY_FONT := preload("res://fonts/Alegreya_500Medium.ttf")
+static var FONT := UI.lining(preload("res://fonts/AlegreyaSC_700Bold.ttf"))
+static var BODY_FONT := UI.lining(preload("res://fonts/Alegreya_500Medium.ttf"))
 const FILE_GAP := 1.5
 
 signal place_tapped(id: String)

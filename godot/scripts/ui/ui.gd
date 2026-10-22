@@ -33,14 +33,16 @@ const WAX := Color("#9b2c20")
 const WAX_DARK := Color("#5e1710")
 const SEAL_TEXT := Color("#f3dcc0")
 
-const FONTS := {
-	"regular": preload("res://fonts/Alegreya_400Regular.ttf"),
-	"italic": preload("res://fonts/Alegreya_400Regular_Italic.ttf"),
-	"medium": preload("res://fonts/Alegreya_500Medium.ttf"),
-	"semibold": preload("res://fonts/Alegreya_700Bold.ttf"),
-	"bold": preload("res://fonts/Alegreya_800ExtraBold.ttf"),
-	"title": preload("res://fonts/AlegreyaSC_700Bold.ttf"),
-	"caps": preload("res://fonts/AlegreyaSC_500Medium.ttf"),
+## Alegreya's own figures are old-style (a "0" reads as an "o"); the game is
+## full of numbers, so every face is set with lining figures.
+static var FONTS := {
+	"regular": lining(preload("res://fonts/Alegreya_400Regular.ttf")),
+	"italic": lining(preload("res://fonts/Alegreya_400Regular_Italic.ttf")),
+	"medium": lining(preload("res://fonts/Alegreya_500Medium.ttf")),
+	"semibold": lining(preload("res://fonts/Alegreya_700Bold.ttf")),
+	"bold": lining(preload("res://fonts/Alegreya_800ExtraBold.ttf")),
+	"title": lining(preload("res://fonts/AlegreyaSC_700Bold.ttf")),
+	"caps": lining(preload("res://fonts/AlegreyaSC_500Medium.ttf")),
 }
 const PAPER := preload("res://assets/ui/parchment.jpg")
 const ROUNDED := preload("res://shaders/rounded.gdshader")
@@ -54,6 +56,13 @@ static var default_action = Callable()
 static var _icons = {}
 static var _icon_cache = {}
 static var _tex_cache = {}
+
+
+static func lining(base: Font) -> FontVariation:
+	var f = FontVariation.new()
+	f.base_font = base
+	f.opentype_features = {TextServerManager.get_primary_interface().name_to_tag("lnum"): 1}
+	return f
 
 
 static func px(v: float) -> int:
