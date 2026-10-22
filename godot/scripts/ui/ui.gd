@@ -443,9 +443,11 @@ static func portrait(cid: int, size: float, radius := 6.0, gray := false) -> Tex
 # ── touch ───────────────────────────────────────────────────────────────────
 ## Makes any control a button that still lets its scroll view drag: a tap is a
 ## press and release without moving far. `pressed_fx` dims it while held.
-static func tap(c: Control, fn: Callable, pressed_fx := true) -> Control:
+## `on_hold`, if given, runs when the press is held still for a moment (a
+## phone's stand-in for hovering: what a thing does), and the tap is dropped.
+static func tap(c: Control, fn: Callable, pressed_fx := true, on_hold := Callable()) -> Control:
 	c.mouse_filter = Control.MOUSE_FILTER_PASS
-	var state = {"at": Vector2.ZERO, "down": false, "base": c.modulate, "over": false}
+	var state = {"at": Vector2.ZERO, "down": false, "base": c.modulate, "over": false, "press": 0}
 	var rest = func(): c.modulate = Color(state.base.r * 1.14, state.base.g * 1.1, state.base.b * 1.02, state.base.a) if state.over else state.base
 	if HOVER:
 		c.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -463,12 +465,21 @@ static func tap(c: Control, fn: Callable, pressed_fx := true) -> Control:
 				state.down = true
 				if not state.over: state.base = c.modulate
 				if pressed_fx: c.modulate = Color(0.82, 0.78, 0.72, state.base.a)
+				if on_hold.is_valid():
+					state.press += 1
+					var press = state.press
+					c.get_tree().create_timer(0.45).timeout.connect(func():
+						if not is_instance_valid(c) or not state.down or state.press != press: return
+						state.down = false
+						rest.call()
+						on_hold.call())
 			elif state.down:
 				state.down = false
 				rest.call()
 				if ev.global_position.distance_to(state.at) < px(10):
-					Sound.sfx("click", 0.45)
-					fn.call()
+					if fn.is_valid():
+						Sound.sfx("click", 0.45)
+						fn.call()
 		elif ev is InputEventMouseMotion and state.down and ev.global_position.distance_to(state.at) >= px(10):
 			state.down = false
 			rest.call())

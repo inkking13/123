@@ -64,7 +64,7 @@ func _ready() -> void:
 
 
 ## For checking screens without a phone:
-## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y]` sets up, renders, saves and quits.
+## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y] [--hold=x,y]` sets up, renders, saves and quits.
 func _maybe_shot() -> void:
 	var path = ""
 	var go = ""
@@ -81,8 +81,8 @@ func _maybe_shot() -> void:
 	if go != "": Demo.open(go)
 	await get_tree().create_timer(wait).timeout
 	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--click="):
-			var xy = a.substr(8).split(",")
+		if a.begins_with("--click=") or a.begins_with("--hold="):
+			var xy = a.substr(a.find("=") + 1).split(",")
 			var at = Vector2(float(xy[0]), float(xy[1]))
 			for pressed in [true, false]:
 				var ev = InputEventMouseButton.new()
@@ -92,6 +92,7 @@ func _maybe_shot() -> void:
 				ev.global_position = at
 				Input.parse_input_event(ev)
 				await get_tree().process_frame
+				if pressed and a.begins_with("--hold="): await get_tree().create_timer(0.7).timeout
 			await get_tree().create_timer(1.0).timeout
 			print("clicked: squad at ", Game.w.pos, " walking to ", Game.w.target)
 	if down > 0 and current and current.scroll:
