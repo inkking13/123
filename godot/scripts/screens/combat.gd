@@ -23,6 +23,10 @@ var SLOT = 58.0
 var _cam: Control
 var _top: Control
 var _bottom: Control
+## A move's card, opened by holding its square: [title, text], or [] for none.
+var _info = []
+## The log opened out to the whole fight's recent lines.
+var _log_open = false
 
 
 func _enter_tree() -> void:
@@ -50,8 +54,36 @@ func build() -> void:
 	add_child(_bottom)
 	_cam = _camera_bar()
 	add_child(_cam)
+	if not _info.is_empty(): add_child(_info_card())
 	if Game.b.boss_intro: add_child(_intro(Game.b.boss_intro))
 	_measure.call_deferred()
+
+
+## The held move's card, over the middle of the field; a tap anywhere closes it.
+func _info_card() -> Control:
+	var shade = Control.new()
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	UI.tap(shade, close_overlay, false)
+	var c = CenterContainer.new()
+	c.set_anchors_preset(Control.PRESET_FULL_RECT)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shade.add_child(c)
+	var pn = PanelContainer.new()
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = Color(0.07, 0.05, 0.035, 0.97); sb.border_color = UI.BORDER_HOVER
+	sb.set_border_width_all(2); sb.set_corner_radius_all(UI.px(10)); sb.set_content_margin_all(UI.px(14))
+	pn.add_theme_stylebox_override("panel", sb)
+	pn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pn.custom_minimum_size.x = UI.px(minf(320.0, get_viewport_rect().size.x / UI.K - 40.0))
+	var v = UI.vbox(6)
+	v.add_child(UI.label(_info[0], 17, Color("#f1e4c6"), "title", true))
+	v.add_child(UI.label(_info[1], 13.5, UI.TEXT_MUTED, "regular", true))
+	v.add_child(UI.space(2))
+	v.add_child(UI.label("Нажмите, чтобы закрыть", 11, UI.TEXT_FAINT))
+	pn.add_child(v)
+	c.add_child(pn)
+	return shade
 
 
 # Wrapped labels start out tall at zero width; the bottom must shrink back
@@ -66,10 +98,13 @@ func _measure() -> void:
 	var h = _bottom.get_combined_minimum_size().y
 	if _bottom.size.y > h + 0.5: _bottom.offset_top = _bottom.offset_bottom - h
 	if is_instance_valid(_cam):
-		# Up the right edge: mid-height on a wide window, over the bottom on a phone.
+		# Up the right edge, mid-height of the field: out of the fighters' way.
 		var ch = _cam.get_combined_minimum_size().y
 		var vp = get_viewport_rect().size
-		var y = (vp.y - ch) * 0.5 if App.wide else _bottom.get_global_rect().position.y - ch
+		var y = (vp.y - ch) * 0.5
+		if not App.wide:
+			var top_end = _top.get_global_rect().end.y
+			y = clampf((top_end + _bottom.get_global_rect().position.y - ch) * 0.5, top_end, maxf(top_end, vp.y - ch))
 		_cam.position = Vector2(vp.x - _cam.size.x - UI.px(12), y)
 	if App.wide:
 		view.band_top = 0.0; view.band_bottom = 0.0
@@ -80,21 +115,19 @@ func _measure() -> void:
 
 # ── the top, Wartales-style: the foe's name and health, then who acts when ──
 func _top_block(s: Dictionary) -> Control:
-	var root = Control.new()
+	# A panel, so the shade behind grows with what the top holds.
+	var root = PanelContainer.new()
+	root.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	root.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var shade = UI.fade(Color(0.03, 0.02, 0.015, 0.8), Color(0.03, 0.02, 0.015, 0.0), 10)
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var shade = UI.fade(Color(0.03, 0.02, 0.015, 0.85), Color(0.03, 0.02, 0.015, 0.0), 10)
 	shade.custom_minimum_size = Vector2.ZERO
 	root.add_child(shade)
 	var col = UI.vbox(7)
-	var w = TOP_W if App.wide else 0.0
-	var m = UI.margin(col, 12, 10 + App.inset_top() / UI.K, 12, 18)
+	var m = UI.margin(col, 12, 10 + App.inset_top() / UI.K, 12, 22)
 	if App.wide:
-		m.set_anchors_preset(Control.PRESET_CENTER_TOP)
-		m.offset_left = -UI.px(w * 0.5); m.offset_right = UI.px(w * 0.5)
-	else:
-		m.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		m.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		m.custom_minimum_size.x = UI.px(TOP_W)
 	root.add_child(m)
 	# Name and health of what we fight.
 	var name_row = UI.hbox(8, BoxContainer.ALIGNMENT_CENTER)
@@ -170,8 +203,9 @@ func _timeline(s: Dictionary) -> Control:
 	row.add_child(UI.space(0, 4))
 	row.add_child(UI.center(sep))
 	var enraged: bool = s.round >= s.enrageAt
-	var clock = UI.shadowed(UI.label(("Ярость ×%.2f" % Game.b.enrage_mult()) if enraged else ("Раунд %d\nярость через %d" % [s.round, s.enrageAt - s.round]), 11.5, UI.DANGER if enraged else UI.TEXT_DIM, "semibold" if enraged else "regular"))
-	row.add_child(UI.center(clock))
+	var clock = UI.shadowed(UI.label(("Ярость ×%.2f" % Game.b.enrage_mult()) if enraged else ("Раунд %d\nярость через %d" % [s.round, s.enrageAt - s.round]), 11.5, UI.DANGER if enraged else UI.TEXT_MUTED, "semibold" if enraged else "medium"))
+	clock.add_theme_constant_override("line_spacing", -UI.px(2))
+	row.add_child(UI.center(UI.plate(clock, Vector2(7, 4), 0.6, 6)))
 	return row
 
 
@@ -179,8 +213,8 @@ func _meter(label: String, pct: float, color: Color, value: String) -> Control:
 	var v = UI.vbox(4)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var h = UI.hbox(4)
-	h.add_child(UI.expand(UI.shadowed(UI.label(label.to_upper(), 10.5, UI.TEXT_DIM, "medium"))))
-	if value != "": h.add_child(UI.shadowed(UI.label(value, 10.5, UI.TEXT_DIM)))
+	h.add_child(UI.expand(UI.shadowed(UI.label(label.to_upper(), 10.5, UI.TEXT_MUTED, "medium"))))
+	if value != "": h.add_child(UI.shadowed(UI.label(value, 10.5, UI.TEXT_MUTED, "medium")))
 	v.add_child(h)
 	v.add_child(UI.progress(pct, color, 5))
 	return v
@@ -276,15 +310,25 @@ func _cap(c: Control, w: float) -> Control:
 
 
 func _log(s: Dictionary, n: int) -> Control:
+	if _log_open: n = 10
 	var v = UI.vbox(2)
 	var lines: Array = s.log.slice(maxi(0, s.log.size() - n))
+	if lines.is_empty(): return v
 	for i in lines.size():
 		var e: Dictionary = lines[i]
-		var c = UI.GOOD if e.kind == "ok" else (UI.WARN if e.kind == "warn" else UI.TEXT_MUTED)
-		var l = UI.shadowed(UI.label(e.text, 12, c, "regular", true))
-		l.modulate.a = 0.55 + 0.45 * float(i + 1) / lines.size()
+		var c = UI.GOOD if e.kind == "ok" else (UI.WARN if e.kind == "warn" else UI.TEXT)
+		var l = UI.label(e.text, 12.5, c, "regular", true)
+		# The older line fades a little; the newest reads in full.
+		l.modulate.a = 0.7 + 0.3 * float(i + 1) / lines.size()
 		v.add_child(l)
-	return v
+	var plate = UI.plate(v, Vector2(10, 6), 0.78 if _log_open else 0.6)
+	# A tap opens the log out to the fight's last lines, and folds it back.
+	if s.log.size() > n or _log_open:
+		UI.tap(plate, func():
+			_log_open = not _log_open
+			refresh(), false)
+		plate.mouse_filter = Control.MOUSE_FILTER_STOP
+	return plate
 
 
 ## What the player is being asked, under the bar's heading.
@@ -295,9 +339,10 @@ func _hint(s: Dictionary, cur) -> Control:
 	elif picking_heal: t = "выберите, кого лечить" if _pick_key == "heal" else "выберите союзника"
 	elif s.encounterType == "boss": t = "цель: скелет или босс" if s.minions.any(func(m): return m.alive) else "ближний бой вплотную к врагу"
 	else: t = "нажмите на врага, чтобы выбрать цель"
-	var l = UI.shadowed(UI.label("%s · %s" % [cur.name, t], 13, UI.TEXT_MUTED, "medium"))
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	return l
+	var row = UI.hbox(6)
+	row.add_child(UI.label(cur.name, 13.5, UI.ACCENT_BRIGHT, "semibold"))
+	row.add_child(UI.label("·  " + t, 13.5, UI.TEXT, "medium"))
+	return UI.center(UI.plate(row, Vector2(12, 5), 0.6, 14))
 
 
 ## The hero whose turn it is: face, name and class, health, valor.
@@ -310,18 +355,26 @@ func _hero_card(s: Dictionary, r: Dictionary) -> Control:
 	pn.add_theme_stylebox_override("panel", sb)
 	pn.mouse_filter = Control.MOUSE_FILTER_STOP
 	var row = UI.hbox(10)
-	var size = 62.0 if App.wide else 46.0
+	var size = 62.0 if App.wide else 40.0
 	var pic = UI.portrait(r.candidateId, size, 6)
 	var rc: Color = DB.ROLE_COLOR[r.role]
 	UI.overlay(pic, func(o): o.draw_rect(Rect2(Vector2.ONE, o.size - Vector2(2, 2)), rc, false, 2.0))
-	row.add_child(UI.center(pic))
+	var face = UI.vbox(5)
+	face.alignment = BoxContainer.ALIGNMENT_CENTER
+	face.add_child(UI.center(pic))
+	row.add_child(face)
 	var v = UI.vbox(3)
 	var hc = DB.hero_class(r.heroClass)
 	var top = UI.hbox(6)
 	top.add_child(UI.label(r.name, 16 if App.wide else 14.5, Color("#f1e4c6"), "title"))
 	if r.defending: top.add_child(UI.center(UI.icon("shield", 13, UI.ACCENT_SOFT, "fill")))
+	var cls = UI.label("%s · %s" % [hc.name, DB.ROLE_NAME[r.role]], 11, Color(hc.color), "medium")
 	v.add_child(top)
-	v.add_child(UI.label("%s · %s" % [hc.name, DB.ROLE_NAME[r.role]], 11, Color(hc.color), "medium"))
+	# A phone keeps the card to three lines: class beside the name, valor at the end of it.
+	if App.wide: v.add_child(cls)
+	else:
+		cls.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		top.add_child(cls)
 	var pct: float = maxf(0, 100.0 * r.hp / r.maxHp)
 	var hp = UI.hbox(6)
 	hp.add_child(UI.progress(pct, _hp_color(pct), 7))
@@ -336,10 +389,15 @@ func _hero_card(s: Dictionary, r: Dictionary) -> Control:
 	rr.mouse_filter = Control.MOUSE_FILTER_PASS
 	v.add_child(rr)
 	var pips = UI.hbox(5)
-	for i in Battle.VALOR_MAX: pips.add_child(UI.valor_pip(i < s.valor, 8))
+	for i in Battle.VALOR_MAX: pips.add_child(UI.valor_pip(i < s.valor, 8 if App.wide else 6.5))
 	pips.tooltip_text = "Доблесть: %d из %d. Копится в бою, тратится на приёмы класса." % [s.valor, Battle.VALOR_MAX]
 	pips.mouse_filter = Control.MOUSE_FILTER_PASS
-	v.add_child(pips)
+	if App.wide: v.add_child(pips)
+	else:
+		# Valor goes under the face.
+		pips.add_theme_constant_override("separation", UI.px(2))
+		pips.alignment = BoxContainer.ALIGNMENT_CENTER
+		face.add_child(pips)
 	row.add_child(UI.expand(v))
 	pn.add_child(row)
 	return pn
@@ -361,7 +419,7 @@ func _pace_buttons() -> Control:
 func _center_bar(s: Dictionary, cur, auto: bool) -> Control:
 	if s.over: return UI.space(4)
 	if cur == null:
-		var l = UI.shadowed(UI.label("Противник замахивается для мощного удара!" if s.windup else ("Ход противника…" if s.turnPos >= 0 and s.turnPos < s.order.size() and s.order[s.turnPos].kind == "boss" else "…"), 15, UI.TEXT_DIM, "italic"))
+		var l = UI.shadowed(UI.label("Противник замахивается для мощного удара!" if s.windup else ("Ход противника…" if s.turnPos >= 0 and s.turnPos < s.order.size() and s.order[s.turnPos].kind == "boss" else "…"), 15, UI.TEXT_MUTED, "italic"))
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.custom_minimum_size.y = UI.px(SLOT + 18)
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -410,7 +468,7 @@ func _center_bar(s: Dictionary, cur, auto: bool) -> Control:
 
 
 ## One square of the bar: a picture, the key that presses it, a name under it.
-func _slot(content: Control, name: String, tip: String, fn: Callable, disabled: bool, border: Color, hp_pct := -1.0, counts := true) -> Control:
+func _slot(content: Control, name: String, tip: String, fn: Callable, disabled: bool, border: Color, hp_pct := -1.0, counts := true, cost := "", cost_color := UI.TEXT) -> Control:
 	var v = UI.vbox(3)
 	v.custom_minimum_size.x = UI.px(SLOT + 22)
 	var pn = PanelContainer.new()
@@ -435,13 +493,23 @@ func _slot(content: Control, name: String, tip: String, fn: Callable, disabled: 
 		k.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		k.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		pn.add_child(UI.margin(k, 5, 2, 0, 0))
+	if cost != "":
+		var cl = UI.shadowed(UI.label(cost, 10.5, cost_color, "semibold"))
+		cl.size_flags_horizontal = Control.SIZE_SHRINK_END
+		cl.size_flags_vertical = Control.SIZE_SHRINK_END
+		pn.add_child(UI.margin(cl, 0, 0, 5, 1))
 	v.add_child(pn)
-	var l = UI.shadowed(UI.label(name, 10.5, UI.TEXT_FAINT if disabled else UI.TEXT_MUTED, "medium", true))
+	var l = UI.shadowed(UI.label(name, 11, UI.TEXT_FAINT if disabled else UI.TEXT, "medium", true))
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.custom_minimum_size.x = UI.px(SLOT + 22)
 	v.add_child(l)
-	if not disabled: UI.tap(pn, fn)
+	# Holding a square shows what it does (a phone has no hover for the tooltip).
+	var hold = func():
+		# The tooltip opens with "Name — "; the card has the name as its title.
+		_info = [name, tip.trim_prefix(name + " — ")]
+		refresh()
+	UI.tap(pn, Callable() if disabled else fn, not disabled, hold)
 	return v
 
 
@@ -487,7 +555,12 @@ func _action_slot(a: Dictionary) -> Control:
 	var border = UI.VALOR if valor else GOLD_LINE
 	if a.key.begins_with("spell:"): border = Color(_res_color(), 0.75)
 	if a.key == "defend": border = UI.BORDER_HOVER
-	return _slot(box, a.label, _action_tip(a), fn, a.disabled, border)
+	var cost = ""
+	var cost_color = _res_color()
+	if a.get("cost") != null and a.cost > 0:
+		cost = str(int(a.cost))
+		if a.get("short"): cost_color = UI.DANGER
+	return _slot(box, a.label, _action_tip(a), fn, a.disabled, border, -1.0, true, cost, cost_color)
 
 
 # ── who's standing ─────────────────────────────────────────────────────────
@@ -546,7 +619,7 @@ func _foe_chips(s: Dictionary) -> Control:
 ## Turn, zoom and straighten the view. Drag on the field (right button on a
 ## computer) does the same; keys Q/E, +/−, PgUp/PgDn, R.
 func _camera_bar() -> Control:
-	var v = UI.vbox(6) if App.wide else UI.hbox(6)
+	var v = UI.vbox(6)
 	var d = 38.0 if App.wide else 32.0
 	var btn = func(icon: String, tip: String, fn: Callable) -> Control:
 		var pn = PanelContainer.new()
@@ -586,6 +659,15 @@ func _action_tip(a: Dictionary) -> String:
 		"rally": return "Поднимает дух отряда."
 		"defend": return "Оборона: −40% урона до следующего хода."
 	return a.label + (("\n" + a.sub) if a.sub else "")
+
+
+func close_overlay() -> bool:
+	if not _info.is_empty(): _info = []
+	elif _log_open: _log_open = false
+	elif picking_heal: picking_heal = false
+	else: return false
+	refresh()
+	return true
 
 
 func _unhandled_input(ev: InputEvent) -> void:

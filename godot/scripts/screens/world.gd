@@ -232,7 +232,7 @@ func _round_btn(icon: String, label: String, tip: String, fn: Callable) -> Contr
 	UI.tap(pn, fn)
 	v.add_child(UI.center(pn))
 	if label != "":
-		var l = UI.shadowed(UI.label(label, 11, UI.TEXT_MUTED, "medium"))
+		var l = UI.shadowed(UI.label(label, 11.5, UI.TEXT, "medium"))
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(l)
 	v.size_flags_vertical = Control.SIZE_SHRINK_END

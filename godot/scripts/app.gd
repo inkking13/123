@@ -64,7 +64,7 @@ func _ready() -> void:
 
 
 ## For checking screens without a phone:
-## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y]` sets up, renders, saves and quits.
+## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y] [--hold=x,y]` sets up, renders, saves and quits.
 func _maybe_shot() -> void:
 	var path = ""
 	var go = ""
@@ -81,8 +81,8 @@ func _maybe_shot() -> void:
 	if go != "": Demo.open(go)
 	await get_tree().create_timer(wait).timeout
 	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--click="):
-			var xy = a.substr(8).split(",")
+		if a.begins_with("--click=") or a.begins_with("--hold="):
+			var xy = a.substr(a.find("=") + 1).split(",")
 			var at = Vector2(float(xy[0]), float(xy[1]))
 			for pressed in [true, false]:
 				var ev = InputEventMouseButton.new()
@@ -92,6 +92,7 @@ func _maybe_shot() -> void:
 				ev.global_position = at
 				Input.parse_input_event(ev)
 				await get_tree().process_frame
+				if pressed and a.begins_with("--hold="): await get_tree().create_timer(0.7).timeout
 			await get_tree().create_timer(1.0).timeout
 			print("clicked: squad at ", Game.w.pos, " walking to ", Game.w.target)
 	if down > 0 and current and current.scroll:
@@ -160,7 +161,7 @@ func _update() -> void:
 func _unhandled_input(ev: InputEvent) -> void:
 	if not (ev is InputEventKey and ev.pressed and not ev.echo): return
 	if ev.keycode == KEY_ESCAPE:
-		Game.hardware_back()
+		if not (current and current.close_overlay()): Game.hardware_back()
 		get_viewport().set_input_as_handled()
 	elif ev.keycode in [KEY_ENTER, KEY_KP_ENTER] and not ev.alt_pressed and UI.default_action.is_valid():
 		UI.default_action.call()
@@ -173,4 +174,5 @@ func _unhandled_input(ev: InputEvent) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST or what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if what == NOTIFICATION_WM_GO_BACK_REQUEST and current and current.close_overlay(): return
 		if what == NOTIFICATION_WM_CLOSE_REQUEST or not Game.hardware_back(): get_tree().quit()

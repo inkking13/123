@@ -71,6 +71,8 @@ func _sheet(nodes: Array, open: bool, current, at: Array, vbox: Vector2) -> Cont
 	box.draw.connect(func():
 		var k = box.size.x / vbox.x
 		box.draw_texture_rect(UI.PAPER, Rect2(Vector2.ZERO, box.size), false)
+		# Darkened to a campaign map by night: the ink on it is light now.
+		box.draw_rect(Rect2(Vector2.ZERO, box.size), Color(0.07, 0.055, 0.04, 0.84))
 		for s in SKETCHES:
 			var o = Vector2(s[0], s[1] * vbox.y / VBOX.y) * k
 			for line in _sketch(s[2]):
@@ -109,7 +111,7 @@ func _sheet(nodes: Array, open: bool, current, at: Array, vbox: Vector2) -> Cont
 			ic.position = Vector2(UI.px(30), UI.px(30)) - ic.custom_minimum_size * 0.5
 			node.draw.connect(func():
 				var c = node.size * 0.5
-				node.draw_circle(c, node.size.x * 0.5, Color(0.965, 0.918, 0.808, 0.55))
+				node.draw_circle(c, node.size.x * 0.5, Color(0.1, 0.08, 0.06, 0.9))
 				node.draw_arc(c, node.size.x * 0.5 - 2, 0, TAU, 48, UI.INK if unlocked else UI.INK_FAINT, 3.0, true))
 		col.add_child(UI.center(node))
 		if here:
@@ -117,7 +119,8 @@ func _sheet(nodes: Array, open: bool, current, at: Array, vbox: Vector2) -> Cont
 			hl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			col.add_child(hl)
 		var tag = PanelContainer.new()
-		var sb = StyleBoxFlat.new(); sb.bg_color = Color(0.925, 0.871, 0.745, 0.82); sb.set_corner_radius_all(UI.px(6))
+		var sb = StyleBoxFlat.new(); sb.bg_color = Color(0.07, 0.055, 0.04, 0.88); sb.set_corner_radius_all(UI.px(3))
+		sb.border_color = UI.SHEET_RIM; sb.set_border_width_all(1)
 		sb.content_margin_left = UI.px(6); sb.content_margin_right = UI.px(6); sb.content_margin_top = UI.px(2); sb.content_margin_bottom = UI.px(2)
 		tag.add_theme_stylebox_override("panel", sb)
 		tag.custom_minimum_size.x = UI.px(112)

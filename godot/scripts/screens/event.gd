@@ -44,7 +44,16 @@ func build() -> void:
 			var row = UI.hbox(10)
 			row.add_child(UI.label("%d." % (i + 1), 16, UI.INK_RED, "title"))
 			row.add_child(UI.label(opts[i][1], 16, UI.INK, "semibold", true))
-			var holder = UI.margin(row, 6, 9, 6, 9)
+			row.add_child(UI.center(UI.icon("arrow-right", 15, UI.INK_RED)))
+			# Each answer is a box ruled in ink, so it reads as something to tap.
+			var holder = PanelContainer.new()
+			var sb = StyleBoxFlat.new()
+			sb.bg_color = Color(UI.INK, 0.06); sb.border_color = Color(UI.INK, 0.35)
+			sb.set_border_width_all(1); sb.set_corner_radius_all(UI.px(6))
+			sb.content_margin_left = UI.px(10); sb.content_margin_right = UI.px(10)
+			sb.content_margin_top = UI.px(10); sb.content_margin_bottom = UI.px(10)
+			holder.add_theme_stylebox_override("panel", sb)
+			holder.add_child(row)
 			UI.tap(holder, func(): Game.choose_event(key))
 			v.add_child(holder)
 	else:
