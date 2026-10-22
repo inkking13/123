@@ -21,7 +21,7 @@ Game="*res://scripts/core/game.gd"
 window/size/viewport_width=720
 window/size/viewport_height=1280
 window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
+window/stretch/aspect="keep_width"
 window/handheld/orientation=1
 
 [input_devices]
@@ -40,6 +40,7 @@ rendering_device/fallback_to_opengl3=true
 renderer/rendering_method.web="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=1
+environment/defaults/default_clear_color=Color(0.055, 0.047, 0.063, 1)
 
 [importer_defaults]
 

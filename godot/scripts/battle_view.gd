@@ -85,7 +85,7 @@ func apply_quality(q: String) -> void:
 	env.glow_enabled = q == "high"
 	var vp = get_viewport()
 	vp.msaa_3d = Viewport.MSAA_2X if q == "high" else Viewport.MSAA_DISABLED
-	vp.scaling_3d_scale = 1.0 if high else 0.8
+	vp.scaling_3d_scale = 1.0
 	for c in clutter: c.visible = high
 
 
