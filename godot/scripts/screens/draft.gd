@@ -65,11 +65,13 @@ func build() -> void:
 		cell.add_theme_stylebox_override("panel", sb)
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cell.custom_minimum_size = Vector2(0, UI.px(58))
+		UI.keep_ratio(cell, 1.0, 110)
 		if i < picks.size():
 			var id: int = picks[i]
 			sb.border_color = DB.ROLE_COLOR[DB.candidates[id].role]
 			var pic = UI.portrait(id, 56, 5)
 			pic.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			pic.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			cell.add_child(pic)
 			UI.tap(cell, func(): _toggle(id))
 		else:

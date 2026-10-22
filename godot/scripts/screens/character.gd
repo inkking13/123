@@ -15,6 +15,8 @@ func build() -> void:
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var pic = UI.portrait(cc.id, 300, 0)
 	pic.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# The portrait is a wide banner: a wider window shows more of its height.
+	if App.wide: top.custom_minimum_size.y = UI.px(400)
 	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	pic.material = null
 	top.add_child(pic)

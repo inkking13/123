@@ -165,6 +165,7 @@ func _squad_strip() -> Control:
 		var pic = UI.portrait(m.id, 58, 6)
 		pic.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		pic.custom_minimum_size.y = UI.px(58)
+		UI.keep_ratio(pic, 1.0, 120)
 		cell.add_child(pic)
 		var n = UI.label(m.name, 11.5, Color("#efe4c8"), "medium")
 		n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

@@ -359,7 +359,8 @@ static func picture(path: String, w: float, h: float = -1, radius := 6.0, gray :
 	if h < 0: h = w
 	t.custom_minimum_size = Vector2(px(w), px(h))
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	t.stretch_mode = TextureRect.STRETCH_SCALE
+	# Never squashed: a box of another shape crops the picture instead.
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	t.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var m = ShaderMaterial.new()
@@ -369,6 +370,26 @@ static func picture(path: String, w: float, h: float = -1, radius := 6.0, gray :
 	t.material = m
 	t.resized.connect(func(): m.set_shader_parameter("size_px", t.size))
 	return t
+
+
+## Keeps a box that stretches across `ratio` times as tall as it is wide
+## (at most `max_h` points), so a portrait in it stays a portrait.
+static func keep_ratio(c: Control, ratio: float, max_h := 1e6) -> Control:
+	c.resized.connect(func():
+		var h = minf(round(c.size.x * ratio), px(max_h))
+		if absf(c.custom_minimum_size.y - h) > 0.5: c.custom_minimum_size.y = h)
+	return c
+
+
+## Something drawn over a picture (a ring, a mark). Drawn on a layer of its
+## own, since the picture's rounding shader would paint it over.
+static func overlay(pic: Control, fn: Callable) -> Control:
+	var o = Control.new()
+	o.set_anchors_preset(Control.PRESET_FULL_RECT)
+	o.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	o.draw.connect(func(): fn.call(o))
+	pic.add_child(o)
+	return o
 
 
 static func portrait(cid: int, size: float, radius := 6.0, gray := false) -> TextureRect:

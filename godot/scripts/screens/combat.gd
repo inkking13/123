@@ -127,7 +127,7 @@ func _top_panel(s: Dictionary) -> Control:
 			if not r.alive or (not active and i < s.turnPos): pic.modulate.a = 0.5
 			if active:
 				var col: Color = DB.ROLE_COLOR[r.role]
-				pic.draw.connect(func(): pic.draw_arc(pic.size * 0.5, pic.size.x * 0.5 - 1, 0, TAU, 40, col, 3.0, true))
+				UI.overlay(pic, func(o): o.draw_arc(o.size * 0.5, o.size.x * 0.5 - 1, 0, TAU, 40, col, 3.0, true))
 			q.add_child(UI.center(pic))
 	q.add_child(UI.flex())
 	var enraged: bool = s.round >= s.enrageAt
