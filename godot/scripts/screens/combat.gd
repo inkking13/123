@@ -80,21 +80,19 @@ func _measure() -> void:
 
 # ── the top, Wartales-style: the foe's name and health, then who acts when ──
 func _top_block(s: Dictionary) -> Control:
-	var root = Control.new()
+	# A panel, so the shade behind grows with what the top holds.
+	var root = PanelContainer.new()
+	root.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	root.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var shade = UI.fade(Color(0.03, 0.02, 0.015, 0.8), Color(0.03, 0.02, 0.015, 0.0), 10)
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var shade = UI.fade(Color(0.03, 0.02, 0.015, 0.85), Color(0.03, 0.02, 0.015, 0.0), 10)
 	shade.custom_minimum_size = Vector2.ZERO
 	root.add_child(shade)
 	var col = UI.vbox(7)
-	var w = TOP_W if App.wide else 0.0
-	var m = UI.margin(col, 12, 10 + App.inset_top() / UI.K, 12, 18)
+	var m = UI.margin(col, 12, 10 + App.inset_top() / UI.K, 12, 22)
 	if App.wide:
-		m.set_anchors_preset(Control.PRESET_CENTER_TOP)
-		m.offset_left = -UI.px(w * 0.5); m.offset_right = UI.px(w * 0.5)
-	else:
-		m.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		m.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		m.custom_minimum_size.x = UI.px(TOP_W)
 	root.add_child(m)
 	# Name and health of what we fight.
 	var name_row = UI.hbox(8, BoxContainer.ALIGNMENT_CENTER)
@@ -170,8 +168,9 @@ func _timeline(s: Dictionary) -> Control:
 	row.add_child(UI.space(0, 4))
 	row.add_child(UI.center(sep))
 	var enraged: bool = s.round >= s.enrageAt
-	var clock = UI.shadowed(UI.label(("Ярость ×%.2f" % Game.b.enrage_mult()) if enraged else ("Раунд %d\nярость через %d" % [s.round, s.enrageAt - s.round]), 11.5, UI.DANGER if enraged else UI.TEXT_DIM, "semibold" if enraged else "regular"))
-	row.add_child(UI.center(clock))
+	var clock = UI.shadowed(UI.label(("Ярость ×%.2f" % Game.b.enrage_mult()) if enraged else ("Раунд %d\nярость через %d" % [s.round, s.enrageAt - s.round]), 11.5, UI.DANGER if enraged else UI.TEXT_MUTED, "semibold" if enraged else "medium"))
+	clock.add_theme_constant_override("line_spacing", -UI.px(2))
+	row.add_child(UI.center(UI.plate(clock, Vector2(7, 4), 0.6, 6)))
 	return row
 
 
@@ -179,8 +178,8 @@ func _meter(label: String, pct: float, color: Color, value: String) -> Control:
 	var v = UI.vbox(4)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var h = UI.hbox(4)
-	h.add_child(UI.expand(UI.shadowed(UI.label(label.to_upper(), 10.5, UI.TEXT_DIM, "medium"))))
-	if value != "": h.add_child(UI.shadowed(UI.label(value, 10.5, UI.TEXT_DIM)))
+	h.add_child(UI.expand(UI.shadowed(UI.label(label.to_upper(), 10.5, UI.TEXT_MUTED, "medium"))))
+	if value != "": h.add_child(UI.shadowed(UI.label(value, 10.5, UI.TEXT_MUTED, "medium")))
 	v.add_child(h)
 	v.add_child(UI.progress(pct, color, 5))
 	return v
@@ -278,13 +277,15 @@ func _cap(c: Control, w: float) -> Control:
 func _log(s: Dictionary, n: int) -> Control:
 	var v = UI.vbox(2)
 	var lines: Array = s.log.slice(maxi(0, s.log.size() - n))
+	if lines.is_empty(): return v
 	for i in lines.size():
 		var e: Dictionary = lines[i]
-		var c = UI.GOOD if e.kind == "ok" else (UI.WARN if e.kind == "warn" else UI.TEXT_MUTED)
-		var l = UI.shadowed(UI.label(e.text, 12, c, "regular", true))
-		l.modulate.a = 0.55 + 0.45 * float(i + 1) / lines.size()
+		var c = UI.GOOD if e.kind == "ok" else (UI.WARN if e.kind == "warn" else UI.TEXT)
+		var l = UI.label(e.text, 12.5, c, "regular", true)
+		# The older line fades a little; the newest reads in full.
+		l.modulate.a = 0.7 + 0.3 * float(i + 1) / lines.size()
 		v.add_child(l)
-	return v
+	return UI.plate(v, Vector2(10, 6), 0.6)
 
 
 ## What the player is being asked, under the bar's heading.
@@ -295,9 +296,10 @@ func _hint(s: Dictionary, cur) -> Control:
 	elif picking_heal: t = "выберите, кого лечить" if _pick_key == "heal" else "выберите союзника"
 	elif s.encounterType == "boss": t = "цель: скелет или босс" if s.minions.any(func(m): return m.alive) else "ближний бой вплотную к врагу"
 	else: t = "нажмите на врага, чтобы выбрать цель"
-	var l = UI.shadowed(UI.label("%s · %s" % [cur.name, t], 13, UI.TEXT_MUTED, "medium"))
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	return l
+	var row = UI.hbox(6)
+	row.add_child(UI.label(cur.name, 13.5, UI.ACCENT_BRIGHT, "semibold"))
+	row.add_child(UI.label("·  " + t, 13.5, UI.TEXT, "medium"))
+	return UI.center(UI.plate(row, Vector2(12, 5), 0.6, 14))
 
 
 ## The hero whose turn it is: face, name and class, health, valor.
@@ -361,7 +363,7 @@ func _pace_buttons() -> Control:
 func _center_bar(s: Dictionary, cur, auto: bool) -> Control:
 	if s.over: return UI.space(4)
 	if cur == null:
-		var l = UI.shadowed(UI.label("Противник замахивается для мощного удара!" if s.windup else ("Ход противника…" if s.turnPos >= 0 and s.turnPos < s.order.size() and s.order[s.turnPos].kind == "boss" else "…"), 15, UI.TEXT_DIM, "italic"))
+		var l = UI.shadowed(UI.label("Противник замахивается для мощного удара!" if s.windup else ("Ход противника…" if s.turnPos >= 0 and s.turnPos < s.order.size() and s.order[s.turnPos].kind == "boss" else "…"), 15, UI.TEXT_MUTED, "italic"))
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.custom_minimum_size.y = UI.px(SLOT + 18)
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -436,7 +438,7 @@ func _slot(content: Control, name: String, tip: String, fn: Callable, disabled: 
 		k.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		pn.add_child(UI.margin(k, 5, 2, 0, 0))
 	v.add_child(pn)
-	var l = UI.shadowed(UI.label(name, 10.5, UI.TEXT_FAINT if disabled else UI.TEXT_MUTED, "medium", true))
+	var l = UI.shadowed(UI.label(name, 11, UI.TEXT_FAINT if disabled else UI.TEXT, "medium", true))
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.custom_minimum_size.x = UI.px(SLOT + 22)

@@ -74,11 +74,29 @@ static func label(text: String, size: float, color: Color = TEXT, font := "regul
 	return l
 
 
+## Text that sits on a picture or the 3D field: a thin dark rim and a soft
+## shadow keep it legible over light and busy ground alike.
 static func shadowed(l: Label) -> Label:
+	l.add_theme_color_override("font_outline_color", Color(0.03, 0.02, 0.015, 0.85))
+	l.add_theme_constant_override("outline_size", maxi(3, px(2.2)))
 	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
 	l.add_theme_constant_override("shadow_offset_y", 2)
 	l.add_theme_constant_override("shadow_outline_size", 6)
 	return l
+
+
+## A dark, rounded plate for text over the 3D field (the log, a hint, the round).
+static func plate(child: Control, pad := Vector2(10, 6), alpha := 0.62, radius := 8.0) -> PanelContainer:
+	var pn = PanelContainer.new()
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = Color(0.04, 0.03, 0.02, alpha)
+	sb.set_corner_radius_all(px(radius))
+	sb.content_margin_left = px(pad.x); sb.content_margin_right = px(pad.x)
+	sb.content_margin_top = px(pad.y); sb.content_margin_bottom = px(pad.y)
+	pn.add_theme_stylebox_override("panel", sb)
+	pn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pn.add_child(child)
+	return pn
 
 
 ## A small uppercase heading in the accent colour ("ОТДЕЛ КАДРОВ").
@@ -524,13 +542,14 @@ static func chip(text: String, on: bool, fn: Callable, icon_name := "") -> Panel
 	var p = PanelContainer.new()
 	var sb = frame_style("pill", Vector4(10, 0, 10, 0), 14)
 	sb.border_color = ACCENT if on else BORDER_STRONG
-	sb.bg_color = Color(ACCENT, 0.12) if on else Color(0, 0, 0, 0)
+	# A dark fill even when off, so a chip over the 3D field stays legible.
+	sb.bg_color = Color(ACCENT, 0.16) if on else Color(0.04, 0.03, 0.02, 0.55)
 	p.add_theme_stylebox_override("panel", sb)
 	p.custom_minimum_size = Vector2(0, px(28))
 	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var row = hbox(5, BoxContainer.ALIGNMENT_CENTER)
-	if icon_name != "": row.add_child(icon(icon_name, 13, ACCENT_SOFT if on else TEXT_DIM))
-	var l = label(text, 12.5, TEXT if on else TEXT_DIM, "medium")
+	if icon_name != "": row.add_child(icon(icon_name, 13, ACCENT_SOFT if on else TEXT_MUTED))
+	var l = label(text, 12.5, TEXT if on else TEXT_MUTED, "medium")
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(l)
 	p.add_child(row)

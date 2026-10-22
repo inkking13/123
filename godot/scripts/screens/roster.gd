@@ -31,11 +31,17 @@ func build() -> void:
 			pic.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			pic.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			cell.add_child(pic)
+			# The name on a dark strip along the picture's foot.
 			var n = UI.shadowed(UI.label(m.name, 11, Color("#f0e6cc"), "medium"))
 			n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			n.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 			n.clip_text = true
-			cell.add_child(n)
+			var foot = UI.vbox(0)
+			foot.add_child(UI.flex_v())
+			var strip = UI.plate(n, Vector2(2, 1), 0.6, 0)
+			var ssb: StyleBoxFlat = strip.get_theme_stylebox("panel")
+			ssb.corner_radius_bottom_left = UI.px(5); ssb.corner_radius_bottom_right = UI.px(5)
+			foot.add_child(strip)
+			cell.add_child(foot)
 			UI.tap(cell, func(): Game.toggle_select(m.id))
 		else:
 			cell.add_child(UI.center(UI.label("+", 20, UI.TEXT_FAINT)))
@@ -86,8 +92,12 @@ func _card(c: Dictionary) -> Control:
 	row.add_child(pic)
 	if sel:
 		UI.overlay(pic, func(o):
+			# A gold seal with a tick: on shift.
 			var at = o.size - Vector2(UI.px(6), UI.px(6))
-			o.draw_circle(at, UI.px(10), UI.ACCENT))
+			var r = UI.px(10)
+			o.draw_circle(at, r, UI.ACCENT)
+			o.draw_arc(at, r, 0, TAU, 24, UI.BG, 2.0)
+			o.draw_polyline(PackedVector2Array([at + Vector2(-0.45, 0.0) * r, at + Vector2(-0.1, 0.35) * r, at + Vector2(0.45, -0.3) * r]), UI.BG, 2.5))
 	var info = UI.vbox(5)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var top = UI.hbox(6)
