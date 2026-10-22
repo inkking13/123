@@ -279,6 +279,39 @@ func _place_card(w):
 			if w.herb_ready(id): acts.append(["Собрать", func():
 				w.gather(id)
 				if is_instance_valid(view): view.refresh_places()])
+		"farm", "tower", "lake", "graveyard", "camp", "ruins", "shrine":
+			title = World.SIGHTS[p.kind].name
+			desc = w.sight_desc(p.kind)
+			var redraw = func():
+				if is_instance_valid(view): view.refresh_places()
+			match p.kind:
+				"farm":
+					if w.used_today(id): desc = "Сегодня хуторяне уже всё продали — приходите завтра."
+					else: acts.append(["Купить · %d" % World.FARM_PRICE, func(): w.farm_buy(id)])
+				"tower":
+					if w.used_today(id): desc = "Сегодня отряд уже поднимался на башню."
+					else: acts.append(["Подняться (1 ч)", func(): w.tower_look(id)])
+				"lake":
+					if w.used_today(id): desc = "Рыба на сегодня ушла на глубину."
+					else: acts.append(["Рыбачить (2 ч)", func(): w.fish(id)])
+				"graveyard":
+					if w.opened.has(id): desc = "Склепы пусты, могилы раскопаны."
+					else: acts.append(["Обыскать склепы", func():
+						var band = w.search_graves(id)
+						redraw.call()
+						if band != null: Game.start_skirmish(band)])
+				"camp":
+					acts.append(["Разбить лагерь здесь", func():
+						w.safe_camp = true
+						Game.go("bivouac")])
+				"ruins":
+					if w.opened.has(id): desc = "Всё ценное отсюда уже унесли."
+					else: acts.append(["Обыскать (1 ч)", func():
+						w.search_ruins(id)
+						redraw.call()])
+				"shrine":
+					if w.used_today(id): desc = "Сегодня отряд уже молился здесь."
+					else: acts.append(["Помолиться (1 ч)", func(): w.pray(id)])
 		"road":
 			var name: String = DB.locations[w.location_index(p.to)].name
 			title = "Дорога: " + name

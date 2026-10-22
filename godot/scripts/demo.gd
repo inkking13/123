@@ -40,6 +40,11 @@ static func open(what: String) -> void:
 			g.go_world()
 			g.w.event = World.ROAD_EVENTS[0]
 			g.w.take_task(g.w.task_offers()[0])
+		"world-at-farm", "world-at-tower", "world-at-lake", "world-at-graveyard", "world-at-camp", "world-at-ruins", "world-at-shrine":
+			g.settings.auto = false
+			g.go_world()
+			g.w.pos = g.w.place(what.substr(9)).pos + Vector2(0, 9)
+			g.w._grace = 9999.0
 		"world", "world-night", "world-town", "world-gate", "world-band":
 			g.settings.auto = false
 			g.go_world()

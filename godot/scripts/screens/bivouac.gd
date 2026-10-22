@@ -19,7 +19,10 @@ func build() -> void:
 	var eat: int = squad.size() + (World.COOK_FOOD if cooks else 0)
 	var end = fmod(w.hours + 8.0, 24.0)
 	p.add_child(UI.label("С %02d:00 до %02d:00. Отряд съест %d пайков (есть %d)%s." % [int(w.hours), int(end), eat, w.food, ", включая котёл" if cooks else ""], 14, UI.WARN if w.food < eat else UI.TEXT_DIM, "regular", true))
-	if night and not watch:
+	if w.safe_camp:
+		p.add_child(UI.space(6))
+		p.add_child(UI.label("Укрытая стоянка: здесь на лагерь не нападут, а сон крепче (мораль +2).", 13.5, UI.GOOD, "medium", true))
+	elif night and not watch:
 		p.add_child(UI.space(6))
 		p.add_child(UI.label("Ночь, а дозорного нет — банды могут напасть на спящий лагерь.", 13.5, UI.DANGER, "medium", true))
 	if w.well_fed > 0:

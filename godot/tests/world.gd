@@ -58,6 +58,20 @@ func _run() -> void:
 	print("skirmish: screen ", game.screen, " win ", game.b.result.win if game.b.result else "?")
 	game.b.result_primary()
 	print("after: screen ", game.screen, " note ", w.log_note, " beaten ", w.beaten.keys())
+	# The land's other sights.
+	print("outskirts size ", w.size(), " places ", w.layout().places.size(), " bands ", w.region_bands().size())
+	w.food = 10; game.gold = 300
+	w.farm_buy("farm"); print("farm: ", w.log_note, " food ", w.food)
+	w.tower_look("tower"); print("tower: ", w.log_note, " scouted ", w.scouted())
+	w.fish("lake"); print("lake: ", w.log_note)
+	w.search_ruins("ruins"); print("ruins: ", w.log_note)
+	w.pray("shrine"); print("shrine: ", w.log_note, " fatigue ", w.fatigue)
+	w.hours = 12.0
+	var ghosts = w.search_graves("graveyard")
+	print("graveyard: ", w.log_note, " fight ", ghosts != null)
+	w.safe_camp = true
+	var night_raid = w.make_camp()
+	print("safe camp: ", w.log_note, " ambush ", night_raid != null)
 	# A dungeon from the map, played through on auto.
 	var d = w.region_dungeons()[0]
 	game.enter_dungeon(d.id)

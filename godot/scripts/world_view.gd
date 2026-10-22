@@ -23,6 +23,7 @@ var band_units = {}     # band id -> [Unit]
 var band_labels = {}
 var place_nodes = {}    # place id -> Node3D (chests and herbs change look)
 var marker: MeshInstance3D
+var _blades: Array[Node3D] = []
 var band_top = 0.0
 var band_bottom = 0.0
 
@@ -115,7 +116,7 @@ func _build_env(th: Dictionary) -> void:
 ## A flat field with patches of two tints, rising into hills past the edge.
 func _build_ground(th: Dictionary) -> void:
 	var n = 64
-	var half = World.SIZE + 30.0
+	var half = Game.w.size() + 30.0
 	var noise = FastNoiseLite.new()
 	noise.seed = hash(Game.w.region)
 	noise.frequency = 0.035
@@ -126,7 +127,7 @@ func _build_ground(th: Dictionary) -> void:
 		for i in n + 1:
 			var x = -half + 2.0 * half * i / n
 			var z = -half + 2.0 * half * j / n
-			var edge = maxf(absf(x), absf(z)) - World.SIZE
+			var edge = maxf(absf(x), absf(z)) - Game.w.size()
 			var y = 0.0
 			if edge > 0: y = edge * 0.35 + noise.get_noise_2d(x * 2, z * 2) * edge * 0.25
 			var t = clampf(noise.get_noise_2d(x, z) * 0.9 + 0.5, 0, 1)
@@ -190,10 +191,10 @@ func _build_woods(th: Dictionary) -> void:
 	var places: Array = Game.w.layout().places
 	var spots = []
 	for _i in 1100:
-		var p = Vector2(rng.randf_range(-World.SIZE - 20, World.SIZE + 20), rng.randf_range(-World.SIZE - 20, World.SIZE + 20))
-		var inside = absf(p.x) < World.SIZE and absf(p.y) < World.SIZE
+		var p = Vector2(rng.randf_range(-Game.w.size() - 20, Game.w.size() + 20), rng.randf_range(-Game.w.size() - 20, Game.w.size() + 20))
+		var inside = absf(p.x) < Game.w.size() and absf(p.y) < Game.w.size()
 		if inside and rng.randf() < 0.3: continue
-		if _near_road(p, 4.0) or places.any(func(q): return q.pos.distance_to(p) < 7.0): continue
+		if _near_road(p, 4.0) or places.any(func(q): return q.pos.distance_to(p) < _clear_of(q.kind)): continue
 		spots.append(p)
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	var rocks = spots.slice(int(spots.size() * 0.8))
@@ -201,9 +202,14 @@ func _build_woods(th: Dictionary) -> void:
 	_scatter(_rock_mesh(th), rocks, rng, 0.6, 1.6)
 	var tufts = []
 	for _i in 1600:
-		var p = Vector2(rng.randf_range(-World.SIZE, World.SIZE), rng.randf_range(-World.SIZE, World.SIZE))
-		if not _near_road(p, 2.0): tufts.append(p)
+		var p = Vector2(rng.randf_range(-Game.w.size(), Game.w.size()), rng.randf_range(-Game.w.size(), Game.w.size()))
+		if not _near_road(p, 2.0) and not places.any(func(q): return q.kind in ["lake", "farm", "town"] and (q.pos + (Vector2(0, -10) if q.kind == "lake" else Vector2.ZERO)).distance_to(p) < _clear_of(q.kind) * (0.6 if q.kind == "lake" else 1.0)): tufts.append(p)
 	_scatter(_tuft_mesh(th), tufts, rng, 0.6, 1.3)
+
+
+## How much room a place takes, kept clear of trees.
+func _clear_of(kind: String) -> float:
+	return {"farm": 19.0, "lake": 24.0, "town": 11.0, "graveyard": 11.0, "ruins": 10.0, "tower": 9.0}.get(kind, 7.0)
 
 
 func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: float) -> void:
@@ -213,7 +219,7 @@ func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: 
 	mm.instance_count = at.size()
 	for i in at.size():
 		var p: Vector2 = at[i]
-		var edge = maxf(absf(p.x), absf(p.y)) - World.SIZE
+		var edge = maxf(absf(p.x), absf(p.y)) - Game.w.size()
 		var y = maxf(0.0, edge) * 0.35
 		var t = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(lo, hi)), Vector3(p.x, y, p.y))
 		mm.set_instance_transform(i, t)
@@ -310,6 +316,15 @@ func _build_places(th: Dictionary) -> void:
 			"chest": _chest(root)
 			"herb": _herb(root, th)
 			"road": _signpost(root, p)
+			"farm": _farm(root, th)
+			"tower": _tower(root, th)
+			"lake": _lake(root, th)
+			"graveyard": _graveyard(root, th)
+			"camp": _campsite(root)
+			"ruins": _ruins(root, th)
+			"shrine": _shrine(root, th)
+		if World.SIGHTS.has(p.kind): _label(root, World.SIGHTS[p.kind].name, _sight_height(p.kind), Color(0.88, 0.82, 0.66), 46)
+	_roadside(th)
 	refresh_places()
 
 
@@ -502,6 +517,242 @@ func _signpost(root: Node3D, p: Dictionary) -> void:
 	root.set_meta("label", l)
 
 
+# ── the lands' other sights ────────────────────────────────────────────────
+func _sight_height(kind: String) -> float:
+	return {"farm": 7.5, "tower": 9.5, "lake": 2.5, "graveyard": 3.5, "camp": 3.2, "ruins": 4.5, "shrine": 4.2}.get(kind, 3.5)
+
+
+func _box(root: Node3D, size: Vector3, at: Vector3, col: Color, turn := 0.0, rough := 0.9) -> MeshInstance3D:
+	var mi = MeshInstance3D.new()
+	var b = BoxMesh.new(); b.size = size
+	mi.mesh = b
+	mi.material_override = _solid(col, rough)
+	mi.position = at
+	mi.rotation.y = turn
+	root.add_child(mi)
+	return mi
+
+
+func _cyl(root: Node3D, r_top: float, r_bot: float, h: float, at: Vector3, col: Color, segs := 10) -> MeshInstance3D:
+	var mi = MeshInstance3D.new()
+	var c = CylinderMesh.new(); c.top_radius = r_top; c.bottom_radius = r_bot; c.height = h; c.radial_segments = segs
+	mi.mesh = c
+	mi.material_override = _solid(col)
+	mi.position = at
+	root.add_child(mi)
+	return mi
+
+
+func _model(root: Node3D, file: String, scale: float, at: Vector3, turn := 0.0) -> Node3D:
+	var n: Node3D = load("res://assets/models/%s.glb" % file).instantiate()
+	n.scale = Vector3.ONE * scale
+	n.position = at
+	n.rotation.y = turn
+	root.add_child(n)
+	return n
+
+
+func _fence(root: Node3D, a: Vector3, b: Vector3, wood: Color) -> void:
+	var n = int(a.distance_to(b) / 1.5)
+	for i in n + 1:
+		var p = a.lerp(b, float(i) / maxf(1, n))
+		_box(root, Vector3(0.12, 0.9, 0.12), p + Vector3(0, 0.45, 0), wood)
+	var mid = (a + b) * 0.5
+	var turn = atan2(b.x - a.x, b.z - a.z) + PI * 0.5
+	for y in [0.35, 0.7]:
+		_box(root, Vector3(a.distance_to(b), 0.08, 0.06), mid + Vector3(0, y, 0), wood, turn)
+
+
+## A hamlet: two houses, fields in rows, haystacks, a fence and a windmill.
+func _farm(root: Node3D, th: Dictionary) -> void:
+	var wood = Color(0.4, 0.28, 0.16)
+	_house(root, Vector3(-3, 0, -2), 2.8, 2.2, 0.4, Color(0.66, 0.58, 0.46), Color(0.48, 0.33, 0.18))
+	_house(root, Vector3(1.5, 0, -4), 2.2, 2.0, -0.3, Color(0.6, 0.53, 0.42), Color(0.48, 0.33, 0.18))
+	# Fields: rows of furrows and crop.
+	for f in 2:
+		var base = Vector3(3 + f * 6.5, 0, 3)
+		for row in 6:
+			var crop = Color(0.62, 0.55, 0.22) if f == 0 else Color(0.32, 0.42, 0.18)
+			_box(root, Vector3(5.5, 0.25, 0.45), base + Vector3(0, 0.12, row * 0.9), crop if row % 2 == 0 else Color(0.33, 0.25, 0.16))
+	_fence(root, Vector3(-1, 0, 2.2), Vector3(16, 0, 2.2), wood)
+	_fence(root, Vector3(-1, 0, 8.4), Vector3(16, 0, 8.4), wood)
+	for h in [Vector3(-4, 0, 4), Vector3(-2.6, 0, 6)]:
+		_cyl(root, 0.6, 1.0, 1.4, h + Vector3(0, 0.7, 0), Color(0.78, 0.66, 0.32), 9)
+		_cyl(root, 0.0, 0.62, 0.6, h + Vector3(0, 1.7, 0), Color(0.74, 0.62, 0.3), 9)
+	# The windmill: a stone tower, a cap, four sails that turn.
+	var mill = Node3D.new()
+	mill.position = Vector3(-7, 0, -6)
+	root.add_child(mill)
+	_cyl(mill, 1.1, 1.6, 6.0, Vector3(0, 3.0, 0), Color(0.62, 0.58, 0.52), 8)
+	var cap = MeshInstance3D.new()
+	var cm = CylinderMesh.new(); cm.top_radius = 0.0; cm.bottom_radius = 1.4; cm.height = 1.6; cm.radial_segments = 8
+	cap.mesh = cm; cap.material_override = _solid(Color(0.4, 0.25, 0.15))
+	cap.position.y = 6.8
+	mill.add_child(cap)
+	var hub = Node3D.new()
+	hub.position = Vector3(0, 5.4, 1.4)
+	mill.add_child(hub)
+	for k in 4:
+		var arm = Node3D.new()
+		arm.rotation.z = k * PI * 0.5
+		hub.add_child(arm)
+		_box(arm, Vector3(0.18, 4.2, 0.1), Vector3(0, 2.1, 0), wood)
+		_box(arm, Vector3(0.9, 3.0, 0.04), Vector3(0.5, 2.4, 0.06), Color(0.85, 0.8, 0.68))
+	_blades.append(hub)
+
+
+func _tower(root: Node3D, th: Dictionary) -> void:
+	var stone = th.rock.lerp(Color(0.55, 0.52, 0.48), 0.5).darkened(0.25)
+	_cyl(root, 1.9, 2.3, 7.5, Vector3(0, 3.75, 0), stone, 10)
+	for k in 8:
+		if k == 5: continue
+		var a = k * TAU / 8.0
+		_box(root, Vector3(0.7, 0.8, 0.5), Vector3(cos(a) * 1.9, 7.9, sin(a) * 1.9), stone, -a)
+	_box(root, Vector3(0.9, 1.6, 0.1), Vector3(0, 0.8, 2.25), Color(0.18, 0.12, 0.08))
+	_box(root, Vector3(0.35, 0.6, 0.1), Vector3(0, 5.0, 2.0), Color(0.05, 0.04, 0.03))
+	_model(root, "decor-banner", 1.0, Vector3(1.4, 8.0, 0), 0.5)
+	var l = OmniLight3D.new()
+	l.light_color = Color(1.0, 0.6, 0.3); l.light_energy = 1.0; l.omni_range = 6.0
+	l.position = Vector3(0, 8.5, 0)
+	root.add_child(l)
+
+
+func _lake(root: Node3D, th: Dictionary) -> void:
+	var water = MeshInstance3D.new()
+	var c = CylinderMesh.new(); c.top_radius = 7.5; c.bottom_radius = 7.5; c.height = 0.06; c.radial_segments = 28
+	water.mesh = c
+	var m = StandardMaterial3D.new()
+	m.albedo_color = Color(0.16, 0.3, 0.38)
+	m.roughness = 0.08
+	m.metallic = 0.35
+	water.material_override = m
+	water.scale = Vector3(1.4, 1, 1.0)
+	water.position = Vector3(0, 0.04, -10)
+	root.add_child(water)
+	var shore = MeshInstance3D.new()
+	var sc = CylinderMesh.new(); sc.top_radius = 8.3; sc.bottom_radius = 8.3; sc.height = 0.03; sc.radial_segments = 28
+	shore.mesh = sc
+	shore.material_override = _solid(th.road.darkened(0.15))
+	shore.scale = Vector3(1.4, 1, 1.0)
+	shore.position = Vector3(0, 0.02, -10)
+	root.add_child(shore)
+	var rng = RandomNumberGenerator.new(); rng.seed = 11
+	for k in 26:
+		var a = rng.randf() * TAU
+		var r = rng.randf_range(7.2, 8.4)
+		_cyl(root, 0.0, 0.05, rng.randf_range(0.8, 1.5), Vector3(cos(a) * r * 1.4, 0.5, -10 + sin(a) * r), th.leaf.lightened(0.15), 4)
+	# A little jetty out from the shore, and a boat tied to it.
+	_box(root, Vector3(1.2, 0.12, 4.5), Vector3(0, 0.18, -3.4), Color(0.42, 0.3, 0.18))
+	_box(root, Vector3(1.0, 0.35, 2.4), Vector3(1.4, 0.15, -5.2), Color(0.36, 0.24, 0.14), 0.3)
+
+
+func _graveyard(root: Node3D, th: Dictionary) -> void:
+	var stone = Color(0.45, 0.44, 0.42)
+	for i in 8:
+		var at = Vector3(-4.5 + (i % 4) * 3.0, 0, -2 + (i / 4) * 3.5)
+		_model(root, "decor-grave", 0.42, at + Vector3(0, 0.38, 0), randf() * 0.4 - 0.2)
+	_model(root, "decor-bones", 0.5, Vector3(3.5, 0.22, 3.5), 0.8)
+	_box(root, Vector3(3.0, 2.6, 3.0), Vector3(0, 1.3, -6.5), stone)
+	var roof = MeshInstance3D.new()
+	var pr = PrismMesh.new(); pr.size = Vector3(3.4, 1.4, 3.4)
+	roof.mesh = pr; roof.material_override = _solid(stone.darkened(0.2))
+	roof.position = Vector3(0, 3.3, -6.5)
+	root.add_child(roof)
+	_box(root, Vector3(1.0, 1.7, 0.1), Vector3(0, 0.85, -4.98), Color(0.06, 0.05, 0.05))
+	var wood = Color(0.25, 0.2, 0.16)
+	_fence(root, Vector3(-7, 0, -8.5), Vector3(7, 0, -8.5), wood)
+	_fence(root, Vector3(-7, 0, 6), Vector3(7, 0, 6), wood)
+	var glow = OmniLight3D.new()
+	glow.light_color = Color(0.5, 0.8, 0.6); glow.light_energy = 0.8; glow.omni_range = 7.0
+	glow.position = Vector3(0, 1.0, 0)
+	root.add_child(glow)
+
+
+func _campsite(root: Node3D) -> void:
+	var tent = MeshInstance3D.new()
+	var pr = PrismMesh.new(); pr.size = Vector3(2.6, 1.8, 2.8)
+	tent.mesh = pr; tent.material_override = _solid(Color(0.55, 0.47, 0.34))
+	tent.position = Vector3(-2.2, 0.9, -1.5)
+	tent.rotation.y = 0.4
+	root.add_child(tent)
+	for k in 6:
+		var a = k * TAU / 6.0
+		_box(root, Vector3(0.5, 0.25, 0.35), Vector3(cos(a) * 0.8, 0.12, sin(a) * 0.8), Color(0.4, 0.38, 0.36), -a)
+	_box(root, Vector3(0.25, 0.25, 1.6), Vector3(0.2, 0.15, 0), Color(0.35, 0.22, 0.12), 0.8)
+	_box(root, Vector3(0.25, 0.25, 1.6), Vector3(-0.1, 0.15, 0), Color(0.35, 0.22, 0.12), -0.7)
+	_fire(root, Vector3(0, 0.4, 0))
+	for s in [Vector3(1.8, 0.25, 1.2), Vector3(1.6, 0.25, -1.6)]:
+		_box(root, Vector3(1.6, 0.4, 0.4), s, Color(0.38, 0.26, 0.15), 0.5)
+
+
+func _ruins(root: Node3D, th: Dictionary) -> void:
+	var stone = th.rock.lerp(Color(0.5, 0.48, 0.44), 0.5).darkened(0.25)
+	var walls = [[Vector3(-4, 1.2, -3), Vector3(7.0, 2.4, 0.8), 0.0], [Vector3(-7.2, 0.9, 0), Vector3(0.8, 1.8, 6.0), 0.0],
+		[Vector3(3.5, 0.6, -3.2), Vector3(3.0, 1.2, 0.8), 0.1], [Vector3(5.8, 1.4, 1.0), Vector3(0.8, 2.8, 4.5), 0.0]]
+	for wdef in walls: _box(root, wdef[1], wdef[0], stone, wdef[2])
+	for k in 9:
+		_box(root, Vector3(0.7, 0.5, 0.6), Vector3(randf_range(-5, 5), 0.25, randf_range(-2, 4)), stone.darkened(0.1), randf() * TAU)
+	_model(root, "decor-pillar", 0.8, Vector3(-2, 0.65, 2.5), 0.3)
+	_model(root, "decor-pillar", 0.8, Vector3(2.8, 0.65, 2.0), 1.6)
+	_model(root, "decor-weapons", 0.5, Vector3(0.5, 0.25, 0.5), 0.4)
+	_model(root, "decor-bones", 0.45, Vector3(-3.0, 0.2, 0.8), 2.0)
+
+
+func _shrine(root: Node3D, th: Dictionary) -> void:
+	var stone = Color(0.48, 0.46, 0.42)
+	_box(root, Vector3(4.0, 0.3, 3.0), Vector3(0, 0.15, 0), stone.darkened(0.15))
+	_box(root, Vector3(1.4, 1.0, 0.9), Vector3(0, 0.8, 0), stone)
+	for x in [-1.5, 1.5]:
+		_box(root, Vector3(0.5, 3.0, 0.5), Vector3(x, 1.8, -0.8), stone)
+	_box(root, Vector3(3.8, 0.4, 0.8), Vector3(0, 3.4, -0.8), stone)
+	var orb = MeshInstance3D.new()
+	var sm = SphereMesh.new(); sm.radius = 0.25; sm.height = 0.5
+	orb.mesh = sm
+	orb.material_override = _solid(Color(1.0, 0.9, 0.6), 0.3, Color(1.0, 0.8, 0.45))
+	orb.position = Vector3(0, 1.6, 0)
+	root.add_child(orb)
+	var l = OmniLight3D.new()
+	l.light_color = Color(1.0, 0.85, 0.55); l.light_energy = 1.4; l.omni_range = 6.0
+	l.position = Vector3(0, 1.8, 0)
+	root.add_child(l)
+
+
+## Milestones along the road; barrels, crates and a cart by the town.
+func _roadside(th: Dictionary) -> void:
+	var road: Array = Game.w.layout().road
+	var stone = th.rock.lerp(Color(0.55, 0.52, 0.48), 0.4)
+	var walked = 0.0
+	for i in road.size() - 1:
+		var a: Vector2 = road[i]
+		var b: Vector2 = road[i + 1]
+		var seg = a.distance_to(b)
+		var side = (b - a).orthogonal().normalized() * 2.6
+		var t = 20.0 - fmod(walked, 20.0)
+		while t < seg:
+			var p = a.lerp(b, t / seg) + side
+			var n = Node3D.new()
+			add_child(n)
+			_box(n, Vector3(0.4, 0.9, 0.3), Vector3(p.x, 0.45, p.y), stone)
+			t += 20.0
+		walked += seg
+	var town: Vector2 = Game.w.layout().town
+	var by = Node3D.new()
+	by.position = Vector3(town.x, 0, town.y)
+	add_child(by)
+	for k in 5:
+		_cyl(by, 0.32, 0.32, 0.8, Vector3(6.5 + (k % 2) * 0.7, 0.4, -1 + k * 0.6), Color(0.42, 0.28, 0.15), 8)
+	for k in 3:
+		_box(by, Vector3(0.7, 0.7, 0.7), Vector3(-6.5, 0.35 + (k / 2) * 0.7, 1 + (k % 2) * 0.75), Color(0.5, 0.36, 0.2), 0.2 * k)
+	var cart = Node3D.new()
+	cart.position = Vector3(5.5, 0, 5.5)
+	cart.rotation.y = 0.6
+	by.add_child(cart)
+	_box(cart, Vector3(1.4, 0.5, 2.4), Vector3(0, 0.75, 0), Color(0.45, 0.3, 0.17))
+	for w in [Vector3(-0.8, 0.45, 0.7), Vector3(0.8, 0.45, 0.7), Vector3(-0.8, 0.45, -0.7), Vector3(0.8, 0.45, -0.7)]:
+		var wheel = _cyl(cart, 0.45, 0.45, 0.12, w, Color(0.3, 0.2, 0.12), 10)
+		wheel.rotation.z = PI * 0.5
+
+
 ## Chests opened, spots picked, dungeons locked or cleared: the look of each place.
 func refresh_places() -> void:
 	var w = Game.w
@@ -671,6 +922,7 @@ func _sync_sky() -> void:
 # ── frame, camera, touch ───────────────────────────────────────────────────
 func _process(delta: float) -> void:
 	if Game.w == null: return
+	for h in _blades: h.rotation.z += delta * 0.6
 	_sync_party(delta)
 	_sync_bands()
 	_sync_sky()
