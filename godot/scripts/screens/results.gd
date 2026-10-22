@@ -15,6 +15,11 @@ func build() -> void:
 	if arena: text = "Соперник повержен. Гильдия забирает свою долю и расходится." if res.win else "Не в этот раз — отряд отступает зализывать раны. Рейтинг слегка просел."
 	elif res.win: text = "Босс повержен. Раздели добычу, пока гильдия не разошлась." if res.isBoss else "Отряд идёт дальше. Раны остаются с вами до конца похода."
 	else: text = "Рейд не пережил этот пул. Чиним броню и пробуем снова." if res.isBoss else "Отряд полёг ещё до трона. Придётся начать путь заново."
+	var band = Game.b.skirmish
+	if band != null:
+		kicker = DB.locations[Game.w.location_index()].name
+		title = "Отбились" if res.win else "Отступление"
+		text = ("%s разбиты. Можно идти дальше." % band.name) if res.win else "Отряд не выстоял и отходит к городу, бросив часть припасов."
 	var p = make_page(0, 32, 20, false, NARROW_W)
 	var mark = ColorRect.new(); mark.color = accent; mark.custom_minimum_size = Vector2(UI.px(34), UI.px(3))
 	mark.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -133,7 +138,9 @@ func build() -> void:
 			p.add_child(UI.space(8))
 	p.add_child(UI.space(20))
 	var primary: String = "Вернуться на арену" if arena else (("Вернуться в лагерь" if res.isBoss else "Дальше") if res.win else "Начать поход заново")
+	if band != null: primary = "Вернуться на карту"
+	elif Game.from_world and (res.isBoss or not res.win): primary = "Вернуться на карту"
 	p.add_child(UI.primary_button(primary, Game.b.result_primary))
-	if not res.win:
+	if not res.win and band == null:
 		p.add_child(UI.space(8))
 		p.add_child(UI.secondary_button("Сменить отряд", Game.b.result_secondary))

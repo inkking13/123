@@ -33,6 +33,7 @@ jobs:
           godot --headless --path godot -s res://tests/loadall.gd
           timeout 600 godot --headless --path godot -s res://tests/smoke.gd
           timeout 600 godot --headless --path godot -s res://tests/spells.gd
+          timeout 600 godot --headless --path godot -s res://tests/world.gd
 
       - name: Export APK
         env:

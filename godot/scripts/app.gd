@@ -14,7 +14,7 @@ const SCREENS := {
 	"analytics": "res://scripts/screens/analytics.gd", "personnel": "res://scripts/screens/personnel.gd", "levelmap": "res://scripts/screens/levelmap.gd",
 	"hire": "res://scripts/screens/hire.gd", "arena": "res://scripts/screens/arena.gd", "profession": "res://scripts/screens/profession.gd",
 	"achievements": "res://scripts/screens/achievements.gd", "weekly": "res://scripts/screens/weekly.gd",
-	"talents": "res://scripts/screens/talents.gd",
+	"talents": "res://scripts/screens/talents.gd", "world": "res://scripts/screens/world.gd", "town": "res://scripts/screens/town.gd",
 }
 
 static var _insets = Vector2.ZERO
@@ -134,7 +134,7 @@ func _update() -> void:
 			current.queue_free()
 		current_name = Game.screen
 		# The fight shows its 3D field through the screen, under the panels.
-		_bg.visible = current_name != "combat"
+		_bg.visible = not (current_name in ["combat", "world"])
 		current = load(SCREENS[current_name]).new()
 		add_child(current)
 	current.refresh()

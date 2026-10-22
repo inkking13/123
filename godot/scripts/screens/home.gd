@@ -210,9 +210,7 @@ func _next_card() -> Control:
 	UI.tap(sheet, func():
 		if contract: Game.go_contract()
 		else:
-			Game.select_dungeon(next.id)
-			if Game.squad_ready(): Game.go_dungeon()
-			else: Game.go("roster"))
+			Game.head_for(next.id))
 	return sheet
 
 
