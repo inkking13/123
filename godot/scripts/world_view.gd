@@ -10,6 +10,7 @@ extends Node3D
 const FONT := preload("res://fonts/AlegreyaSC_700Bold.ttf")
 const BODY_FONT := preload("res://fonts/Alegreya_500Medium.ttf")
 const FILE_GAP := 1.5
+const GRADE := preload("res://shaders/grade.gdshader")
 
 signal place_tapped(id: String)
 
@@ -98,6 +99,21 @@ func _build_env(th: Dictionary) -> void:
 	env.ambient_light_energy = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_exposure = 0.95
+	# A land's colour grade: the first land is muted and earthy, like an old painting.
+	var grade: Dictionary = th.get("grade", {})
+	# Done on screen under the interface, so it works on every renderer.
+	if not grade.is_empty():
+		var layer = CanvasLayer.new()
+		layer.layer = -1
+		add_child(layer)
+		var rect = ColorRect.new()
+		rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var m = ShaderMaterial.new()
+		m.shader = GRADE
+		for k in grade: m.set_shader_parameter(k, grade[k])
+		rect.material = m
+		layer.add_child(rect)
 	env.adjustment_enabled = true
 	env.adjustment_contrast = 1.08
 	env.adjustment_saturation = 0.95
@@ -213,14 +229,25 @@ func _build_woods(th: Dictionary) -> void:
 		spots.append(p)
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	var rocks = spots.slice(int(spots.size() * 0.8))
-	var tree_model = _model_mesh({"pine": "world-pine", "round": "world-tree"}.get(th.tree, ""), 4.4) if th.get("textured", false) else null
-	if tree_model:
-		# Meshy's greens are brighter than the land's: shade them a little.
-		var leaves: BaseMaterial3D = tree_model.surface_get_material(0).duplicate()
-		leaves.albedo_color = Color(0.78, 0.82, 0.76)
-		_scatter(tree_model, trees, rng, 0.8, 1.5, leaves)
+	# A textured land mixes Meshy trees: mostly its own kind, some oaks,
+	# birches and dead ones; rocks become mossy boulders, and bushes grow
+	# among the grass.
+	var main_tree = _model_mesh({"pine": "world-pine", "round": "world-tree"}.get(th.tree, ""), 4.4) if th.get("textured", false) else null
+	if main_tree:
+		var mix = [[main_tree, []], [_model_mesh("world-oak", 5.0), []], [_model_mesh("world-birch", 4.5), []], [_model_mesh("world-deadtree", 4.0), []]]
+		for p in trees:
+			var roll = rng.randf()
+			var k = 0 if roll < 0.6 else (1 if roll < 0.78 else (2 if roll < 0.94 else 3))
+			if mix[k][0] == null: k = 0
+			mix[k][1].append(p)
+		for m in mix:
+			if m[0] and not m[1].is_empty(): _scatter(m[0], m[1], rng, 0.8, 1.4, m[0].surface_get_material(0))
 	else: _scatter(_tree_mesh(th), trees, rng, 0.8, 1.5)
-	_scatter(_rock_mesh(th), rocks, rng, 0.6, 1.6, _tex_material("rock", 0.9, 0.7, Color.WHITE, true) if _tex.has("rock") else null)
+	var boulder = _model_mesh("world-boulder", 1.2) if main_tree else null
+	if boulder: _scatter(boulder, rocks, rng, 0.6, 1.6, boulder.surface_get_material(0))
+	else: _scatter(_rock_mesh(th), rocks, rng, 0.6, 1.6, _tex_material("rock", 0.9, 0.7, Color.WHITE, true) if _tex.has("rock") else null)
+	var bush = _model_mesh("world-bush", 1.0) if main_tree else null
+	if bush: _scatter(bush, spots.filter(func(q): return rng.randf() < 0.5).map(func(q): return q + Vector2(1.6, -1.1)), rng, 0.7, 1.4, bush.surface_get_material(0))
 	var tufts = []
 	for _i in 1600:
 		var p = Vector2(rng.randf_range(-Game.w.size(), Game.w.size()), rng.randf_range(-Game.w.size(), Game.w.size()))
@@ -687,6 +714,20 @@ func _model(root: Node3D, file: String, scale: float, at: Vector3, turn := 0.0) 
 	return n
 
 
+## A Meshy prop on a textured land, `size` metres tall (or wide); false
+## when there is none, so the caller builds its own shapes.
+func _prop(root: Node3D, file: String, size: float, at: Vector3, turn := 0.0, by_width := false) -> bool:
+	if _tex.is_empty(): return false
+	var mesh = _model_mesh(file, size, by_width)
+	if mesh == null: return false
+	var mi = MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.position = at
+	mi.rotation.y = turn
+	root.add_child(mi)
+	return true
+
+
 func _fence(root: Node3D, a: Vector3, b: Vector3, wood: Color) -> void:
 	var n = int(a.distance_to(b) / 1.5)
 	for i in n + 1:
@@ -713,6 +754,7 @@ func _farm(root: Node3D, th: Dictionary) -> void:
 	_fence(root, Vector3(-1, 0, 2.2), Vector3(16, 0, 2.2), wood)
 	_fence(root, Vector3(-1, 0, 8.4), Vector3(16, 0, 8.4), wood)
 	for h in [Vector3(-4, 0, 4), Vector3(-2.6, 0, 6)]:
+		if _prop(root, "world-haystack", 2.0, h, h.x): continue
 		_cyl(root, 0.6, 1.0, 1.4, h + Vector3(0, 0.7, 0), Color(0.78, 0.66, 0.32), 9, "hay")
 		_cyl(root, 0.0, 0.62, 0.6, h + Vector3(0, 1.7, 0), Color(0.74, 0.62, 0.3), 9, "hay")
 	# The windmill: a stone tower, a cap, four sails that turn.
@@ -811,12 +853,22 @@ func _graveyard(root: Node3D, th: Dictionary) -> void:
 
 
 func _campsite(root: Node3D) -> void:
+	if _prop(root, "world-tent", 2.8, Vector3(-2.4, 0, -1.8), 0.4, true):
+		_prop(root, "world-barrels", 1.3, Vector3(2.4, 0, -1.4), 1.1)
+	else: _tent(root)
+	_campfire_ring(root)
+
+
+func _tent(root: Node3D) -> void:
 	var tent = MeshInstance3D.new()
 	var pr = PrismMesh.new(); pr.size = Vector3(2.6, 1.8, 2.8)
 	tent.mesh = pr; tent.material_override = _solid(Color(0.55, 0.47, 0.34), 0.9, Color.BLACK, "canvas")
 	tent.position = Vector3(-2.2, 0.9, -1.5)
 	tent.rotation.y = 0.4
 	root.add_child(tent)
+
+
+func _campfire_ring(root: Node3D) -> void:
 	for k in 6:
 		var a = k * TAU / 6.0
 		_box(root, Vector3(0.5, 0.25, 0.35), Vector3(cos(a) * 0.8, 0.12, sin(a) * 0.8), Color(0.4, 0.38, 0.36), -a)
@@ -831,7 +883,11 @@ func _ruins(root: Node3D, th: Dictionary) -> void:
 	var stone = th.rock.lerp(Color(0.5, 0.48, 0.44), 0.5).darkened(0.25)
 	var walls = [[Vector3(-4, 1.2, -3), Vector3(7.0, 2.4, 0.8), 0.0], [Vector3(-7.2, 0.9, 0), Vector3(0.8, 1.8, 6.0), 0.0],
 		[Vector3(3.5, 0.6, -3.2), Vector3(3.0, 1.2, 0.8), 0.1], [Vector3(5.8, 1.4, 1.0), Vector3(0.8, 2.8, 4.5), 0.0]]
-	for wdef in walls: _box(root, wdef[1], wdef[0], stone, wdef[2])
+	for wdef in walls:
+		var long_x: bool = wdef[1].x > wdef[1].z
+		var span: float = maxf(wdef[1].x, wdef[1].z)
+		if _prop(root, "world-ruin-wall", span, Vector3(wdef[0].x, 0, wdef[0].z), wdef[2] + (0.0 if long_x else PI * 0.5), true): continue
+		_box(root, wdef[1], wdef[0], stone, wdef[2])
 	for k in 9:
 		_box(root, Vector3(0.7, 0.5, 0.6), Vector3(randf_range(-5, 5), 0.25, randf_range(-2, 4)), stone.darkened(0.1), randf() * TAU)
 	_model(root, "decor-pillar", 0.8, Vector3(-2, 0.65, 2.5), 0.3)
@@ -902,6 +958,7 @@ func _walled_town(th: Dictionary) -> void:
 		var at = dir * r
 		for s in [-1.0, 1.0]:
 			var p = at + side * 2.6 * s
+			if _prop(root, "world-watchtower", 6.2, Vector3(p.x, 0, p.y), -gang + PI * 0.5): continue
 			_box(root, Vector3(1.6, 5.0, 1.6), Vector3(p.x, 2.5, p.y), wood)
 			var top = MeshInstance3D.new()
 			var pr = PrismMesh.new(); pr.size = Vector3(2.0, 1.2, 2.0)
@@ -918,14 +975,15 @@ func _walled_town(th: Dictionary) -> void:
 	sq.material_override = _tex_material("cobblestone", 1.0, 0.35, Color(0.85, 0.85, 0.85), true) if _tex.has("cobblestone") else _solid(th.road.darkened(0.1))
 	sq.position.y = 0.035
 	root.add_child(sq)
-	_cyl(root, 0.8, 0.9, 0.8, Vector3(0, 0.4, 0), th.rock.darkened(0.1), 10)
-	_box(root, Vector3(0.1, 1.6, 0.1), Vector3(-0.7, 1.3, 0), wood)
-	_box(root, Vector3(0.1, 1.6, 0.1), Vector3(0.7, 1.3, 0), wood)
-	var well_roof = MeshInstance3D.new()
-	var wpr = PrismMesh.new(); wpr.size = Vector3(2.0, 0.6, 1.4)
-	well_roof.mesh = wpr; well_roof.material_override = _solid(Color(0.42, 0.2, 0.14), 0.9, Color.BLACK, "roof")
-	well_roof.position.y = 2.3
-	root.add_child(well_roof)
+	if not _prop(root, "world-well", 2.6, Vector3.ZERO):
+		_cyl(root, 0.8, 0.9, 0.8, Vector3(0, 0.4, 0), th.rock.darkened(0.1), 10)
+		_box(root, Vector3(0.1, 1.6, 0.1), Vector3(-0.7, 1.3, 0), wood)
+		_box(root, Vector3(0.1, 1.6, 0.1), Vector3(0.7, 1.3, 0), wood)
+		var well_roof = MeshInstance3D.new()
+		var wpr = PrismMesh.new(); wpr.size = Vector3(2.0, 0.6, 1.4)
+		well_roof.mesh = wpr; well_roof.material_override = _solid(Color(0.42, 0.2, 0.14), 0.9, Color.BLACK, "roof")
+		well_roof.position.y = 2.3
+		root.add_child(well_roof)
 	var lamp = OmniLight3D.new()
 	lamp.light_color = Color(1.0, 0.65, 0.3); lamp.light_energy = 1.2; lamp.omni_range = 12.0
 	lamp.position = Vector3(0, 3.0, 0)
@@ -1013,6 +1071,9 @@ func _market(root: Node3D) -> void:
 	_stall(root, Vector3(-3, 0, 0), Color(0.62, 0.18, 0.14))
 	_stall(root, Vector3(0, 0, -1.5), Color(0.22, 0.4, 0.25))
 	_stall(root, Vector3(3, 0, 0), Color(0.2, 0.3, 0.55))
+	if _prop(root, "world-barrels", 1.3, Vector3(-1.0, 0, 2.4), 0.3):
+		_prop(root, "world-cart", 2.4, Vector3(2.2, 0, 2.6), -0.5, true)
+		return
 	for k in 4:
 		_box(root, Vector3(0.6, 0.6, 0.6), Vector3(-1.5 + k * 0.9, 0.3, 2.2), Color(0.5, 0.36, 0.2), k * 0.3)
 
