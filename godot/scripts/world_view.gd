@@ -26,6 +26,7 @@ var marker: MeshInstance3D
 var _blades: Array[Node3D] = []
 var _folk = []           # townsfolk: {unit, to, wait}
 var band_top = 0.0
+var _tex = {}            # Meshy-painted surface textures, for lands that have them
 var band_bottom = 0.0
 
 var yaw = 0.6
@@ -47,6 +48,10 @@ var _zoom0 = 1.0
 func _ready() -> void:
 	var w = Game.w
 	var th: Dictionary = w.theme()
+	if th.get("textured", false):
+		for k in ["grass", "road", "rock", "wall", "roof", "water"]:
+			var path = "res://assets/textures/world/%s.jpg" % k
+			if ResourceLoader.exists(path): _tex[k] = load(path)
 	_build_env(th)
 	_build_ground(th)
 	_build_road(th)
@@ -132,7 +137,10 @@ func _build_ground(th: Dictionary) -> void:
 			var y = 0.0
 			if edge > 0: y = edge * 0.35 + noise.get_noise_2d(x * 2, z * 2) * edge * 0.25
 			var t = clampf(noise.get_noise_2d(x, z) * 0.9 + 0.5, 0, 1)
-			pts.append([Vector3(x, y, z), th.ground.lerp(th.ground2, t).darkened(clampf(edge * 0.01, 0, 0.3))])
+			var col: Color = th.ground.lerp(th.ground2, t)
+			# On grass the tint only shades the painted texture: patches and darker hills.
+			if _tex.has("grass"): col = Color.WHITE.lerp(Color(th.ground2.r / th.ground.r, th.ground2.g / th.ground.g, th.ground2.b / th.ground.b), t)
+			pts.append([Vector3(x, y, z), col.darkened(clampf(edge * 0.01, 0, 0.3))])
 	for j in n:
 		for i in n:
 			var a = j * (n + 1) + i
@@ -142,7 +150,7 @@ func _build_ground(th: Dictionary) -> void:
 	st.generate_normals()
 	var mi = MeshInstance3D.new()
 	mi.mesh = st.commit()
-	mi.material_override = _vc_material(0.95)
+	mi.material_override = _tex_material("grass", 0.95, 0.125, Color(0.77, 0.67, 0.71), true) if _tex.has("grass") else _vc_material(0.95)
 	add_child(mi)
 
 
@@ -159,11 +167,11 @@ func _build_road(th: Dictionary) -> void:
 		for s in range(1, 13):
 			var t = s / 12.0
 			var p = a.lerp(mid, t).lerp(mid.lerp(b, t), t)
-			_road_piece(st, prev, p, th.road)
+			_road_piece(st, prev, p, Color.WHITE if _tex.has("road") else th.road)
 			prev = p
 	var mi = MeshInstance3D.new()
 	mi.mesh = st.commit()
-	mi.material_override = _vc_material(1.0)
+	mi.material_override = _tex_material("road", 1.0, 0.25, Color(0.82, 0.85, 0.86), true) if _tex.has("road") else _vc_material(1.0)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 
@@ -201,7 +209,7 @@ func _build_woods(th: Dictionary) -> void:
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	var rocks = spots.slice(int(spots.size() * 0.8))
 	_scatter(_tree_mesh(th), trees, rng, 0.8, 1.5)
-	_scatter(_rock_mesh(th), rocks, rng, 0.6, 1.6)
+	_scatter(_rock_mesh(th), rocks, rng, 0.6, 1.6, _tex_material("rock", 0.9, 0.7, Color.WHITE, true) if _tex.has("rock") else null)
 	var tufts = []
 	for _i in 1600:
 		var p = Vector2(rng.randf_range(-Game.w.size(), Game.w.size()), rng.randf_range(-Game.w.size(), Game.w.size()))
@@ -215,7 +223,7 @@ func _clear_of(kind: String) -> float:
 	return {"farm": 19.0, "lake": 24.0, "town": 11.0, "graveyard": 11.0, "ruins": 10.0, "tower": 9.0}.get(kind, 7.0)
 
 
-func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: float) -> void:
+func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: float, mat: Material = null) -> void:
 	var mm = MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = mesh
@@ -228,7 +236,7 @@ func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: 
 		mm.set_instance_transform(i, t)
 	var mmi = MultiMeshInstance3D.new()
 	mmi.multimesh = mm
-	mmi.material_override = _vc_material(0.9)
+	mmi.material_override = mat if mat else _vc_material(0.9)
 	add_child(mmi)
 
 
@@ -272,10 +280,11 @@ func _tuft_mesh(th: Dictionary) -> Mesh:
 func _rock_mesh(th: Dictionary) -> Mesh:
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var col: Color = Color.WHITE if _tex.has("rock") else th.rock
 	var s = SphereMesh.new(); s.radius = 0.7; s.height = 0.9; s.radial_segments = 6; s.rings = 3
-	_append(st, s, Transform3D(Basis().scaled(Vector3(1.2, 0.8, 1.0)), Vector3(0, 0.25, 0)), th.rock)
+	_append(st, s, Transform3D(Basis().scaled(Vector3(1.2, 0.8, 1.0)), Vector3(0, 0.25, 0)), col)
 	var s2 = SphereMesh.new(); s2.radius = 0.45; s2.height = 0.6; s2.radial_segments = 5; s2.rings = 3
-	_append(st, s2, Transform3D(Basis(), Vector3(0.6, 0.15, 0.3)), th.rock.darkened(0.1))
+	_append(st, s2, Transform3D(Basis(), Vector3(0.6, 0.15, 0.3)), col.darkened(0.1))
 	st.generate_normals()
 	return st.commit()
 
@@ -292,6 +301,21 @@ func _append(st: SurfaceTool, m: PrimitiveMesh, t: Transform3D, col: Color) -> v
 func _vc_material(rough: float) -> StandardMaterial3D:
 	var m = StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.roughness = rough
+	return m
+
+
+## A painted texture laid on by position (triplanar), `scale` repeats per
+## metre, so the land's meshes need no UVs. In world space it runs on across
+## pieces (ground, road); otherwise it turns with the object (a house).
+func _tex_material(name: String, rough: float, scale: float, tint := Color.WHITE, world := false) -> StandardMaterial3D:
+	var m = StandardMaterial3D.new()
+	m.albedo_texture = _tex[name]
+	m.albedo_color = tint
+	m.vertex_color_use_as_albedo = world
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = world
+	m.uv1_scale = Vector3.ONE * scale
 	m.roughness = rough
 	return m
 
@@ -363,13 +387,13 @@ func _house(root: Node3D, at: Vector3, w: float, d: float, turn: float, wall: Co
 	var body = MeshInstance3D.new()
 	var b = BoxMesh.new(); b.size = Vector3(w, 1.8, d)
 	body.mesh = b
-	body.material_override = _solid(wall)
+	body.material_override = _tex_material("wall", 0.9, 0.5, Color.WHITE.lerp(wall, 0.3)) if _tex.has("wall") else _solid(wall)
 	body.position.y = 0.9
 	h.add_child(body)
 	var top = MeshInstance3D.new()
 	var pr = PrismMesh.new(); pr.size = Vector3(w + 0.4, 1.3, d + 0.3)
 	top.mesh = pr
-	top.material_override = _solid(roof)
+	top.material_override = _tex_material("roof", 0.85, 0.6, Color.WHITE.lerp(roof, 0.2)) if _tex.has("roof") else _solid(roof)
 	top.position.y = 2.45
 	h.add_child(top)
 	var door = MeshInstance3D.new()
@@ -395,7 +419,7 @@ func _town(root: Node3D, th: Dictionary) -> void:
 	var well = MeshInstance3D.new()
 	var c = CylinderMesh.new(); c.top_radius = 0.7; c.bottom_radius = 0.75; c.height = 0.7
 	well.mesh = c
-	well.material_override = _solid(th.rock)
+	well.material_override = _tex_material("rock", 0.9, 0.8) if _tex.has("rock") else _solid(th.rock)
 	well.position.y = 0.35
 	root.add_child(well)
 	var lamp = OmniLight3D.new()
@@ -638,6 +662,12 @@ func _lake(root: Node3D, th: Dictionary) -> void:
 	water.mesh = c
 	var m = StandardMaterial3D.new()
 	m.albedo_color = Color(0.16, 0.3, 0.38)
+	if _tex.has("water"):
+		m.albedo_texture = _tex.water
+		m.albedo_color = Color(0.85, 0.9, 0.95)
+		m.uv1_triplanar = true
+		m.uv1_world_triplanar = true
+		m.uv1_scale = Vector3.ONE * 0.12
 	m.roughness = 0.08
 	m.metallic = 0.35
 	water.material_override = m
@@ -647,7 +677,7 @@ func _lake(root: Node3D, th: Dictionary) -> void:
 	var shore = MeshInstance3D.new()
 	var sc = CylinderMesh.new(); sc.top_radius = 8.3; sc.bottom_radius = 8.3; sc.height = 0.03; sc.radial_segments = 28
 	shore.mesh = sc
-	shore.material_override = _solid(th.road.darkened(0.15))
+	shore.material_override = _tex_material("road", 1.0, 0.25, Color(0.85, 0.85, 0.85)) if _tex.has("road") else _solid(th.road.darkened(0.15))
 	shore.scale = Vector3(1.4, 1, 1.0)
 	shore.position = Vector3(0, 0.02, -10)
 	root.add_child(shore)
@@ -788,7 +818,7 @@ func _walled_town(th: Dictionary) -> void:
 	var sq = MeshInstance3D.new()
 	var sqm = CylinderMesh.new(); sqm.top_radius = 7.0; sqm.bottom_radius = 7.0; sqm.height = 0.04; sqm.radial_segments = 24
 	sq.mesh = sqm
-	sq.material_override = _solid(th.road.darkened(0.1))
+	sq.material_override = _tex_material("road", 1.0, 0.25, Color(0.74, 0.76, 0.77), true) if _tex.has("road") else _solid(th.road.darkened(0.1))
 	sq.position.y = 0.035
 	root.add_child(sq)
 	_cyl(root, 0.8, 0.9, 0.8, Vector3(0, 0.4, 0), th.rock.darkened(0.1), 10)
