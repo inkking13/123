@@ -5,3 +5,6 @@
 # Textures the importer pulls out of the .glb models
 /assets/models/**/*.jpg
 /assets/models/**/*.png
+# Except the map textures: these need mipmaps, set by hand
+!/assets/textures/world/*.import
+!/assets/textures/trees/*.import
