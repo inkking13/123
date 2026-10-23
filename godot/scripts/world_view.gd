@@ -27,6 +27,9 @@ var _blades: Array[Node3D] = []
 var _folk = []           # townsfolk: {unit, to, wait}
 var band_top = 0.0
 var _tex = {}            # Meshy-painted surface textures, for lands that have them
+var _tex_mean = {}       # each texture's average colour, to tint it to a given one
+var _mats = {}           # textured materials, shared between props of one look
+var _models = {}         # Meshy models baked to one mesh, by file and height
 var band_bottom = 0.0
 
 var yaw = 0.6
@@ -49,9 +52,11 @@ func _ready() -> void:
 	var w = Game.w
 	var th: Dictionary = w.theme()
 	if th.get("textured", false):
-		for k in ["grass", "road", "rock", "wall", "roof", "water"]:
+		for k in ["grass", "road", "rock", "wall", "roof", "water", "wood", "masonry", "soil", "hay", "canvas", "foliage", "cobblestone", "sand"]:
 			var path = "res://assets/textures/world/%s.jpg" % k
-			if ResourceLoader.exists(path): _tex[k] = load(path)
+			if ResourceLoader.exists(path):
+				_tex[k] = load(path)
+				_tex_mean[k] = _mean_colour(_tex[k])
 	_build_env(th)
 	_build_ground(th)
 	_build_road(th)
@@ -208,7 +213,9 @@ func _build_woods(th: Dictionary) -> void:
 		spots.append(p)
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	var rocks = spots.slice(int(spots.size() * 0.8))
-	_scatter(_tree_mesh(th), trees, rng, 0.8, 1.5)
+	var tree_model = _model_mesh({"pine": "world-pine", "round": "world-tree"}.get(th.tree, ""), 4.4) if th.get("textured", false) else null
+	if tree_model: _scatter(tree_model, trees, rng, 0.8, 1.5, tree_model.surface_get_material(0))
+	else: _scatter(_tree_mesh(th), trees, rng, 0.8, 1.5)
 	_scatter(_rock_mesh(th), rocks, rng, 0.6, 1.6, _tex_material("rock", 0.9, 0.7, Color.WHITE, true) if _tex.has("rock") else null)
 	var tufts = []
 	for _i in 1600:
@@ -238,6 +245,40 @@ func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: 
 	mmi.multimesh = mm
 	mmi.material_override = mat if mat else _vc_material(0.9)
 	add_child(mmi)
+
+
+## A Meshy model as one mesh, standing on its base at the origin and scaled
+## to `height` metres, or null when the land has none. Cached per file.
+func _model_mesh(file: String, height: float) -> Mesh:
+	var key = "%s %s" % [file, height]
+	if _models.has(key): return _models[key]
+	var path = "res://assets/models/%s.glb" % file
+	if file == "" or not ResourceLoader.exists(path): return null
+	var scene: Node3D = load(path).instantiate()
+	var st = SurfaceTool.new()
+	var mat: Material = null
+	var todo: Array = [[scene, Transform3D()]]
+	while not todo.is_empty():
+		var it = todo.pop_back()
+		var xf: Transform3D = it[1] * it[0].transform if it[0] != scene else Transform3D()
+		if it[0] is MeshInstance3D and it[0].mesh:
+			for k in it[0].mesh.get_surface_count():
+				st.append_from(it[0].mesh, k, xf)
+				if mat == null: mat = it[0].get_active_material(k)
+		for c in it[0].get_children():
+			if c is Node3D: todo.append([c, xf])
+	scene.free()
+	var raw = st.commit()
+	if raw == null or raw.get_surface_count() == 0: return null
+	var box = raw.get_aabb()
+	var f = height / maxf(box.size.y, 0.01)
+	var mid = box.get_center()
+	st = SurfaceTool.new()
+	st.append_from(raw, 0, Transform3D(Basis().scaled(Vector3.ONE * f), Vector3(-mid.x * f, -box.position.y * f, -mid.z * f)))
+	var mesh = st.commit()
+	mesh.surface_set_material(0, mat)
+	_models[key] = mesh
+	return mesh
 
 
 func _tree_mesh(th: Dictionary) -> Mesh:
@@ -320,7 +361,49 @@ func _tex_material(name: String, rough: float, scale: float, tint := Color.WHITE
 	return m
 
 
-func _solid(col: Color, rough := 0.9, emit := Color.BLACK) -> StandardMaterial3D:
+## The average colour of a texture, from a sparse grid of its pixels.
+func _mean_colour(t: Texture2D) -> Color:
+	var img = t.get_image()
+	if img == null: return Color(0.5, 0.5, 0.5)
+	if img.is_compressed() and img.decompress() != OK: return Color(0.5, 0.5, 0.5)
+	var sum = Color(0, 0, 0, 0)
+	var n = 0
+	var step = maxi(1, img.get_width() / 48)
+	for y in range(0, img.get_height(), step):
+		for x in range(0, img.get_width(), step):
+			sum += img.get_pixel(x, y)
+			n += 1
+	return Color(sum.r / n, sum.g / n, sum.b / n)
+
+
+## Which painted surface a plain colour stands for: browns are wood, greys
+## stone. Bright, dark and bold colours stay plain.
+func _kind_of(col: Color) -> String:
+	var hi = maxf(col.r, maxf(col.g, col.b))
+	var lo = minf(col.r, minf(col.g, col.b))
+	if hi < 0.12: return ""
+	if hi - lo < 0.07 and hi < 0.7: return "masonry"
+	if col.r > col.g and col.g >= col.b and col.r - col.b > 0.1 and hi < 0.6: return "wood"
+	return ""
+
+
+## How many times a texture repeats per metre on a prop.
+const TEX_SCALE := {"wood": 0.8, "masonry": 0.6, "rock": 0.8, "wall": 0.5, "roof": 0.6, "soil": 0.5, "hay": 0.8, "canvas": 0.8, "foliage": 0.8}
+
+
+## A plain colour, or on a textured land the painted surface it stands for
+## (`kind`: "auto" guesses from the colour, "" keeps it plain), tinted so the
+## prop keeps its own colour.
+func _solid(col: Color, rough := 0.9, emit := Color.BLACK, kind := "auto") -> StandardMaterial3D:
+	if emit == Color.BLACK and not _tex.is_empty():
+		var k = _kind_of(col) if kind == "auto" else kind
+		if _tex.has(k):
+			var key = "%s %s %s" % [k, col.to_html(false), rough]
+			if not _mats.has(key):
+				var mean: Color = _tex_mean[k]
+				var tint = Color(col.r / maxf(mean.r, 0.05), col.g / maxf(mean.g, 0.05), col.b / maxf(mean.b, 0.05))
+				_mats[key] = _tex_material(k, rough, TEX_SCALE.get(k, 0.6), tint)
+			return _mats[key]
 	var m = StandardMaterial3D.new()
 	m.albedo_color = col
 	m.roughness = rough
@@ -384,6 +467,14 @@ func _house(root: Node3D, at: Vector3, w: float, d: float, turn: float, wall: Co
 	h.position = at
 	h.rotation.y = turn
 	root.add_child(h)
+	# On a land with house models, a Meshy cottage of about the same size.
+	if _tex.has("wall"):
+		var model = _model_mesh("world-house-a" if hash(at) % 2 == 0 else "world-house-b", 3.3 * w / 2.6)
+		if model:
+			var mi = MeshInstance3D.new()
+			mi.mesh = model
+			h.add_child(mi)
+			return
 	var body = MeshInstance3D.new()
 	var b = BoxMesh.new(); b.size = Vector3(w, 1.8, d)
 	body.mesh = b
@@ -561,22 +652,22 @@ func _sight_height(kind: String) -> float:
 	return {"farm": 7.5, "tower": 9.5, "lake": 2.5, "graveyard": 3.5, "camp": 3.2, "ruins": 4.5, "shrine": 4.2}.get(kind, 3.5)
 
 
-func _box(root: Node3D, size: Vector3, at: Vector3, col: Color, turn := 0.0, rough := 0.9) -> MeshInstance3D:
+func _box(root: Node3D, size: Vector3, at: Vector3, col: Color, turn := 0.0, rough := 0.9, kind := "auto") -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
 	var b = BoxMesh.new(); b.size = size
 	mi.mesh = b
-	mi.material_override = _solid(col, rough)
+	mi.material_override = _solid(col, rough, Color.BLACK, kind)
 	mi.position = at
 	mi.rotation.y = turn
 	root.add_child(mi)
 	return mi
 
 
-func _cyl(root: Node3D, r_top: float, r_bot: float, h: float, at: Vector3, col: Color, segs := 10) -> MeshInstance3D:
+func _cyl(root: Node3D, r_top: float, r_bot: float, h: float, at: Vector3, col: Color, segs := 10, kind := "auto") -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
 	var c = CylinderMesh.new(); c.top_radius = r_top; c.bottom_radius = r_bot; c.height = h; c.radial_segments = segs
 	mi.mesh = c
-	mi.material_override = _solid(col)
+	mi.material_override = _solid(col, 0.9, Color.BLACK, kind)
 	mi.position = at
 	root.add_child(mi)
 	return mi
@@ -612,17 +703,18 @@ func _farm(root: Node3D, th: Dictionary) -> void:
 		var base = Vector3(3 + f * 6.5, 0, 3)
 		for row in 6:
 			var crop = Color(0.62, 0.55, 0.22) if f == 0 else Color(0.32, 0.42, 0.18)
-			_box(root, Vector3(5.5, 0.25, 0.45), base + Vector3(0, 0.12, row * 0.9), crop if row % 2 == 0 else Color(0.33, 0.25, 0.16))
+			if row % 2 == 0: _box(root, Vector3(5.5, 0.25, 0.45), base + Vector3(0, 0.12, row * 0.9), crop, 0.0, 0.9, "hay" if f == 0 else "foliage")
+			else: _box(root, Vector3(5.5, 0.25, 0.45), base + Vector3(0, 0.12, row * 0.9), Color(0.33, 0.25, 0.16), 0.0, 0.9, "soil")
 	_fence(root, Vector3(-1, 0, 2.2), Vector3(16, 0, 2.2), wood)
 	_fence(root, Vector3(-1, 0, 8.4), Vector3(16, 0, 8.4), wood)
 	for h in [Vector3(-4, 0, 4), Vector3(-2.6, 0, 6)]:
-		_cyl(root, 0.6, 1.0, 1.4, h + Vector3(0, 0.7, 0), Color(0.78, 0.66, 0.32), 9)
-		_cyl(root, 0.0, 0.62, 0.6, h + Vector3(0, 1.7, 0), Color(0.74, 0.62, 0.3), 9)
+		_cyl(root, 0.6, 1.0, 1.4, h + Vector3(0, 0.7, 0), Color(0.78, 0.66, 0.32), 9, "hay")
+		_cyl(root, 0.0, 0.62, 0.6, h + Vector3(0, 1.7, 0), Color(0.74, 0.62, 0.3), 9, "hay")
 	# The windmill: a stone tower, a cap, four sails that turn.
 	var mill = Node3D.new()
 	mill.position = Vector3(-7, 0, -6)
 	root.add_child(mill)
-	_cyl(mill, 1.1, 1.6, 6.0, Vector3(0, 3.0, 0), Color(0.62, 0.58, 0.52), 8)
+	_cyl(mill, 1.1, 1.6, 6.0, Vector3(0, 3.0, 0), Color(0.62, 0.58, 0.52), 8, "masonry")
 	var cap = MeshInstance3D.new()
 	var cm = CylinderMesh.new(); cm.top_radius = 0.0; cm.bottom_radius = 1.4; cm.height = 1.6; cm.radial_segments = 8
 	cap.mesh = cm; cap.material_override = _solid(Color(0.4, 0.25, 0.15))
@@ -636,7 +728,7 @@ func _farm(root: Node3D, th: Dictionary) -> void:
 		arm.rotation.z = k * PI * 0.5
 		hub.add_child(arm)
 		_box(arm, Vector3(0.18, 4.2, 0.1), Vector3(0, 2.1, 0), wood)
-		_box(arm, Vector3(0.9, 3.0, 0.04), Vector3(0.5, 2.4, 0.06), Color(0.85, 0.8, 0.68))
+		_box(arm, Vector3(0.9, 3.0, 0.04), Vector3(0.5, 2.4, 0.06), Color(0.85, 0.8, 0.68), 0.0, 0.9, "canvas")
 	_blades.append(hub)
 
 
@@ -677,7 +769,7 @@ func _lake(root: Node3D, th: Dictionary) -> void:
 	var shore = MeshInstance3D.new()
 	var sc = CylinderMesh.new(); sc.top_radius = 8.3; sc.bottom_radius = 8.3; sc.height = 0.03; sc.radial_segments = 28
 	shore.mesh = sc
-	shore.material_override = _tex_material("road", 1.0, 0.25, Color(0.85, 0.85, 0.85)) if _tex.has("road") else _solid(th.road.darkened(0.15))
+	shore.material_override = _tex_material("sand", 1.0, 0.3, Color(0.85, 0.85, 0.85)) if _tex.has("sand") else _solid(th.road.darkened(0.15))
 	shore.scale = Vector3(1.4, 1, 1.0)
 	shore.position = Vector3(0, 0.02, -10)
 	root.add_child(shore)
@@ -716,7 +808,7 @@ func _graveyard(root: Node3D, th: Dictionary) -> void:
 func _campsite(root: Node3D) -> void:
 	var tent = MeshInstance3D.new()
 	var pr = PrismMesh.new(); pr.size = Vector3(2.6, 1.8, 2.8)
-	tent.mesh = pr; tent.material_override = _solid(Color(0.55, 0.47, 0.34))
+	tent.mesh = pr; tent.material_override = _solid(Color(0.55, 0.47, 0.34), 0.9, Color.BLACK, "canvas")
 	tent.position = Vector3(-2.2, 0.9, -1.5)
 	tent.rotation.y = 0.4
 	root.add_child(tent)
@@ -808,7 +900,7 @@ func _walled_town(th: Dictionary) -> void:
 			_box(root, Vector3(1.6, 5.0, 1.6), Vector3(p.x, 2.5, p.y), wood)
 			var top = MeshInstance3D.new()
 			var pr = PrismMesh.new(); pr.size = Vector3(2.0, 1.2, 2.0)
-			top.mesh = pr; top.material_override = _solid(Color(0.42, 0.2, 0.14))
+			top.mesh = pr; top.material_override = _solid(Color(0.42, 0.2, 0.14), 0.9, Color.BLACK, "roof")
 			top.position = Vector3(p.x, 5.6, p.y)
 			root.add_child(top)
 		var beam = _box(root, Vector3(5.6, 0.5, 0.5), Vector3(at.x, 4.6, at.y), wood)
@@ -818,7 +910,7 @@ func _walled_town(th: Dictionary) -> void:
 	var sq = MeshInstance3D.new()
 	var sqm = CylinderMesh.new(); sqm.top_radius = 7.0; sqm.bottom_radius = 7.0; sqm.height = 0.04; sqm.radial_segments = 24
 	sq.mesh = sqm
-	sq.material_override = _tex_material("road", 1.0, 0.25, Color(0.74, 0.76, 0.77), true) if _tex.has("road") else _solid(th.road.darkened(0.1))
+	sq.material_override = _tex_material("cobblestone", 1.0, 0.35, Color(0.85, 0.85, 0.85), true) if _tex.has("cobblestone") else _solid(th.road.darkened(0.1))
 	sq.position.y = 0.035
 	root.add_child(sq)
 	_cyl(root, 0.8, 0.9, 0.8, Vector3(0, 0.4, 0), th.rock.darkened(0.1), 10)
@@ -826,7 +918,7 @@ func _walled_town(th: Dictionary) -> void:
 	_box(root, Vector3(0.1, 1.6, 0.1), Vector3(0.7, 1.3, 0), wood)
 	var well_roof = MeshInstance3D.new()
 	var wpr = PrismMesh.new(); wpr.size = Vector3(2.0, 0.6, 1.4)
-	well_roof.mesh = wpr; well_roof.material_override = _solid(Color(0.42, 0.2, 0.14))
+	well_roof.mesh = wpr; well_roof.material_override = _solid(Color(0.42, 0.2, 0.14), 0.9, Color.BLACK, "roof")
 	well_roof.position.y = 2.3
 	root.add_child(well_roof)
 	var lamp = OmniLight3D.new()
@@ -872,12 +964,12 @@ func _sync_folk(dt: float) -> void:
 func _tavern(root: Node3D) -> void:
 	var plaster = Color(0.72, 0.64, 0.5)
 	var beam = Color(0.28, 0.18, 0.1)
-	_box(root, Vector3(6.0, 3.8, 4.4), Vector3(0, 1.9, 0), plaster)
+	_box(root, Vector3(6.0, 3.8, 4.4), Vector3(0, 1.9, 0), plaster, 0.0, 0.9, "wall")
 	for x in [-2.9, -1.0, 1.0, 2.9]: _box(root, Vector3(0.18, 3.8, 4.5), Vector3(x, 1.9, 0), beam)
 	_box(root, Vector3(6.1, 0.2, 4.5), Vector3(0, 1.9, 0), beam)
 	var roof = MeshInstance3D.new()
 	var pr = PrismMesh.new(); pr.size = Vector3(6.8, 2.2, 5.0)
-	roof.mesh = pr; roof.material_override = _solid(Color(0.4, 0.2, 0.13))
+	roof.mesh = pr; roof.material_override = _solid(Color(0.4, 0.2, 0.13), 0.9, Color.BLACK, "roof")
 	roof.position.y = 4.9
 	root.add_child(roof)
 	_box(root, Vector3(1.0, 1.6, 0.1), Vector3(0, 0.8, 2.25), Color(0.2, 0.12, 0.07))
@@ -900,7 +992,7 @@ func _stall(root: Node3D, at: Vector3, awning: Color) -> void:
 	var wood = Color(0.38, 0.26, 0.15)
 	for p in [Vector3(-1.2, 0, -0.8), Vector3(1.2, 0, -0.8), Vector3(-1.2, 0, 0.8), Vector3(1.2, 0, 0.8)]:
 		_box(root, Vector3(0.12, 2.2, 0.12), at + p + Vector3(0, 1.1, 0), wood)
-	var top = _box(root, Vector3(2.8, 0.08, 2.2), at + Vector3(0, 2.25, 0), awning)
+	var top = _box(root, Vector3(2.8, 0.08, 2.2), at + Vector3(0, 2.25, 0), awning, 0.0, 0.9, "canvas")
 	top.rotation.x = 0.2
 	_box(root, Vector3(2.4, 0.8, 0.6), at + Vector3(0, 0.4, 0.5), wood)
 	for k in 3:
@@ -944,7 +1036,7 @@ func _board(root: Node3D) -> void:
 	_box(root, Vector3(2.4, 1.4, 0.12), Vector3(0, 1.6, 0), Color(0.45, 0.32, 0.18))
 	var top = MeshInstance3D.new()
 	var pr = PrismMesh.new(); pr.size = Vector3(2.8, 0.5, 0.6)
-	top.mesh = pr; top.material_override = _solid(Color(0.4, 0.2, 0.13))
+	top.mesh = pr; top.material_override = _solid(Color(0.4, 0.2, 0.13), 0.9, Color.BLACK, "roof")
 	top.position.y = 2.75
 	root.add_child(top)
 	var rng = RandomNumberGenerator.new(); rng.seed = 5
@@ -954,10 +1046,10 @@ func _board(root: Node3D) -> void:
 
 
 func _barracks(root: Node3D) -> void:
-	_box(root, Vector3(8.0, 2.6, 3.6), Vector3(0, 1.3, -1.6), Color(0.5, 0.42, 0.33))
+	_box(root, Vector3(8.0, 2.6, 3.6), Vector3(0, 1.3, -1.6), Color(0.5, 0.42, 0.33), 0.0, 0.9, "wall")
 	var roof = MeshInstance3D.new()
 	var pr = PrismMesh.new(); pr.size = Vector3(8.6, 1.4, 4.2)
-	roof.mesh = pr; roof.material_override = _solid(Color(0.36, 0.2, 0.14))
+	roof.mesh = pr; roof.material_override = _solid(Color(0.36, 0.2, 0.14), 0.9, Color.BLACK, "roof")
 	roof.position = Vector3(0, 3.3, -1.6)
 	root.add_child(roof)
 	_box(root, Vector3(1.0, 1.7, 0.1), Vector3(0, 0.85, 0.22), Color(0.2, 0.12, 0.07))
