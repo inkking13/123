@@ -325,14 +325,14 @@ func _build_woods(th: Dictionary) -> void:
 	_tree_spots = trees
 	var rocks = spots.slice(int(spots.size() * 0.8))
 	# A textured land mixes Meshy trees, mostly its own kind, with oaks,
-	# lindens, birches and saplings among them; rocks become mossy
+	# lindens, an old mossy oak now and then, and birches; rocks become mossy
 	# boulders, and bushes grow among the grass.
 	var main_tree = _model_mesh({"pine": "world-pine", "round": "world-tree"}.get(th.tree, ""), 4.4) if th.get("textured", false) else null
 	if main_tree:
 		# [mesh, share, trees, tint]; a kind without a model falls back to the main one.
-		var mix = [[main_tree, 0.5, [], Color(1.05, 1.2, 0.95)], [_model_mesh("world-pine2", 5.5), 0.2, [], Color(1.05, 1.2, 0.95)],
-			[_model_mesh("world-oak", 5.0), 0.12, [], Color(0.8, 0.95, 0.68)], [_model_mesh("world-linden", 4.8), 0.08, [], Color.WHITE],
-			[_model_mesh("world-birch", 4.5), 0.05, [], Color.WHITE], [_model_mesh("world-sapling", 2.0), 0.05, [], Color.WHITE]]
+		var mix = [[main_tree, 0.5, [], Color(1.05, 1.2, 0.95)], [_model_mesh("world-pine2", 5.5), 0.18, [], Color(1.05, 1.2, 0.95)],
+			[_model_mesh("world-oak", 5.0), 0.1, [], Color(0.8, 0.95, 0.68)], [_model_mesh("world-linden", 3.8), 0.1, [], Color.WHITE],
+			[_model_mesh("world-tree-oldoak", 6.0), 0.04, [], Color.WHITE], [_model_mesh("world-birch", 4.5), 0.04, [], Color.WHITE]]
 		for p in trees:
 			var roll = rng.randf()
 			var k = 0
@@ -832,6 +832,31 @@ func _prop(root: Node3D, file: String, size: float, at: Vector3, turn := 0.0, by
 	return true
 
 
+## The owner's cursed trees (`part`: "" the big tree, "-trunk", "-snag" or
+## "-twigs"): dark bark split by cracks that glow like embers.
+func _cursed_tree(root: Node3D, part: String, at: Vector3, turn: float) -> void:
+	var height = {"": 5.5, "-trunk": 4.0, "-snag": 2.5, "-twigs": 2.2}[part]
+	var mesh = _model_mesh("world-cursedtree" + part, height) if not _tex.is_empty() else null
+	if mesh == null: return
+	var key = "cursed tree" + part
+	if not _mats.has(key):
+		var m: BaseMaterial3D = mesh.surface_get_material(0).duplicate()
+		var glow_path = "res://assets/textures/trees/cursedtree-glow.jpg"
+		if ResourceLoader.exists(glow_path):
+			m.emission_enabled = true
+			m.emission = Color(1.0, 0.45, 0.12)
+			m.emission_texture = load(glow_path)
+			m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY  # only the cracks glow
+			m.emission_energy_multiplier = 2.2
+		_mats[key] = m
+	var mi = MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = _mats[key]
+	mi.position = at
+	mi.rotation.y = turn
+	root.add_child(mi)
+
+
 func _fence(root: Node3D, a: Vector3, b: Vector3, wood: Color) -> void:
 	var n = int(a.distance_to(b) / 1.5)
 	for i in n + 1:
@@ -937,6 +962,8 @@ func _lake(root: Node3D, th: Dictionary) -> void:
 
 func _graveyard(root: Node3D, th: Dictionary) -> void:
 	var stone = Color(0.45, 0.44, 0.42)
+	for t in [["", Vector3(-6.5, 0, -4.8), 0.4], ["-snag", Vector3(6.6, 0, -3.8), 2.1], ["-trunk", Vector3(6.2, 0, 3.6), 4.0], ["-twigs", Vector3(-6.0, 0, 3.8), 1.3]]:
+		_cursed_tree(root, t[0], t[1], t[2])
 	for i in 8:
 		var at = Vector3(-4.5 + (i % 4) * 3.0, 0, -2 + (i / 4) * 3.5)
 		_model(root, "decor-grave", 0.42, at + Vector3(0, 0.38, 0), randf() * 0.4 - 0.2)
@@ -999,6 +1026,8 @@ func _ruins(root: Node3D, th: Dictionary) -> void:
 	_model(root, "decor-pillar", 0.8, Vector3(2.8, 0.65, 2.0), 1.6)
 	_model(root, "decor-weapons", 0.5, Vector3(0.5, 0.25, 0.5), 0.4)
 	_model(root, "decor-bones", 0.45, Vector3(-3.0, 0.2, 0.8), 2.0)
+	for t in [["", Vector3(-5.0, 0, 5.2), 1.0], ["-twigs", Vector3(8.4, 0, -3.6), 3.3], ["-snag", Vector3(1.5, 0, 5.5), 0.2]]:
+		_cursed_tree(root, t[0], t[1], t[2])
 
 
 func _shrine(root: Node3D, th: Dictionary) -> void:
