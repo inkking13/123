@@ -11,6 +11,7 @@ const FONT := preload("res://fonts/AlegreyaSC_700Bold.ttf")
 const BODY_FONT := preload("res://fonts/Alegreya_500Medium.ttf")
 const FILE_GAP := 1.5
 const GRADE := preload("res://shaders/grade.gdshader")
+const GROUND := preload("res://shaders/ground.gdshader")
 
 signal place_tapped(id: String)
 
@@ -31,6 +32,8 @@ var _tex = {}            # Meshy-painted surface textures, for lands that have t
 var _tex_mean = {}       # each texture's average colour, to tint it to a given one
 var _mats = {}           # textured materials, shared between props of one look
 var _models = {}         # Meshy models baked to one mesh, by file and height
+var _ground: ShaderMaterial  # the blended ground, on a land with textures for it
+var _tree_spots = []
 var band_bottom = 0.0
 
 var yaw = 0.6
@@ -53,15 +56,17 @@ func _ready() -> void:
 	var w = Game.w
 	var th: Dictionary = w.theme()
 	if th.get("textured", false):
-		for k in ["grass", "road", "rock", "wall", "roof", "water", "wood", "masonry", "soil", "hay", "canvas", "foliage", "cobblestone", "sand"]:
+		for k in ["grass", "road", "rock", "wall", "roof", "water", "wood", "masonry", "soil", "hay", "canvas", "foliage", "cobblestone", "sand", "forest_floor", "dry_grass"]:
 			var path = "res://assets/textures/world/%s.jpg" % k
-			if ResourceLoader.exists(path):
-				_tex[k] = load(path)
-				_tex_mean[k] = _mean_colour(_tex[k])
+			var t: Texture2D = load(path) if ResourceLoader.exists(path) else null
+			if t:
+				_tex[k] = t
+				_tex_mean[k] = _mean_colour(t)
 	_build_env(th)
 	_build_ground(th)
 	_build_road(th)
 	_build_woods(th)
+	if _ground: _paint_ground_mask()
 	_build_places(th)
 	_build_party()
 	marker = _ring_mesh(0.7, Color(1, 0.85, 0.5, 0.8))
@@ -171,25 +176,75 @@ func _build_ground(th: Dictionary) -> void:
 	st.generate_normals()
 	var mi = MeshInstance3D.new()
 	mi.mesh = st.commit()
-	mi.material_override = _tex_material("grass", 0.95, 0.125, Color(0.8, 0.95, 0.62), true) if _tex.has("grass") else _vc_material(0.95)
+	if _tex.has("grass") and _tex.has("road") and _tex.has("forest_floor"):
+		_ground = ShaderMaterial.new()
+		_ground.shader = GROUND
+		_ground.set_shader_parameter("grass", _tex.grass)
+		_ground.set_shader_parameter("floor_tex", _tex.forest_floor)
+		_ground.set_shader_parameter("road", _tex.road)
+		if _tex.has("dry_grass"):
+			_ground.set_shader_parameter("dry_tex", _tex.dry_grass)
+			_ground.set_shader_parameter("has_dry", true)
+		_ground.set_shader_parameter("half_size", half)
+		_ground.set_shader_parameter("grass_tint", Vector3(0.8, 0.95, 0.62))
+		_ground.set_shader_parameter("road_tint", Vector3(0.82, 0.85, 0.86))
+		var grain = FastNoiseLite.new()
+		grain.seed = hash(Game.w.region) + 7
+		grain.frequency = 0.02
+		_ground.set_shader_parameter("noise", ImageTexture.create_from_image(grain.get_seamless_image(256, 256)))
+		mi.material_override = _ground
+	elif _tex.has("grass"): mi.material_override = _tex_material("grass", 0.95, 0.125, Color(0.8, 0.95, 0.62), true)
+	else: mi.material_override = _vc_material(0.95)
 	add_child(mi)
 
 
-func _build_road(th: Dictionary) -> void:
+## The blended ground's mask, a texel a metre: the road in red, the woods in
+## green, each stamped as soft discs along the road and around the trees.
+func _paint_ground_mask() -> void:
+	var half: float = _ground.get_shader_parameter("half_size")
+	var w = 256
+	var px = w / (2.0 * half)
+	var data = PackedByteArray()
+	data.resize(w * w * 2)
+	var stamp = func(at: Vector2, radius: float, ch: int) -> void:
+		var cx = (at.x + half) * px
+		var cy = (at.y + half) * px
+		var r = radius * px
+		for y in range(maxi(0, int(cy - r)), mini(w, int(cy + r) + 2)):
+			for x in range(maxi(0, int(cx - r)), mini(w, int(cx + r) + 2)):
+				var d = Vector2(x + 0.5 - cx, y + 0.5 - cy).length() / r
+				if d >= 1.0: continue
+				var i = (y * w + x) * 2 + ch
+				data[i] = maxi(data[i], int((1.0 - d * d) * 255))
+	var road = _road_points()
+	for i in road.size() - 1:
+		var steps = maxi(1, int(road[i].distance_to(road[i + 1]) / 0.7))
+		for k in steps: stamp.call(road[i].lerp(road[i + 1], float(k) / steps), 2.4, 0)
+	for t in _tree_spots: stamp.call(t, 3.2, 1)
+	_ground.set_shader_parameter("mask", ImageTexture.create_from_image(Image.create_from_data(w, w, false, Image.FORMAT_RG8, data)))
+
+
+## The road as drawn: each leg bends gently through its midpoint, in short pieces.
+func _road_points() -> Array:
 	var road: Array = Game.w.layout().road
-	var st = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var out = [road[0]]
 	for i in road.size() - 1:
 		var a: Vector2 = road[i]
 		var b: Vector2 = road[i + 1]
-		# A gentle bend through a midpoint, in short pieces.
 		var mid = (a + b) * 0.5 + (b - a).orthogonal().normalized() * (a.distance_to(b) * 0.12 * (1 if i % 2 == 0 else -1))
-		var prev = a
 		for s in range(1, 13):
 			var t = s / 12.0
-			var p = a.lerp(mid, t).lerp(mid.lerp(b, t), t)
-			_road_piece(st, prev, p, Color.WHITE if _tex.has("road") else th.road)
-			prev = p
+			out.append(a.lerp(mid, t).lerp(mid.lerp(b, t), t))
+	return out
+
+
+func _build_road(th: Dictionary) -> void:
+	if _ground: return  # worn into the blended ground instead
+	var pts = _road_points()
+	var st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in pts.size() - 1:
+		_road_piece(st, pts[i], pts[i + 1], Color.WHITE if _tex.has("road") else th.road)
 	var mi = MeshInstance3D.new()
 	mi.mesh = st.commit()
 	mi.material_override = _tex_material("road", 1.0, 0.25, Color(0.82, 0.85, 0.86), true) if _tex.has("road") else _vc_material(1.0)
@@ -228,6 +283,7 @@ func _build_woods(th: Dictionary) -> void:
 		if Game.w.has_big_town() and Game.w.layout().town.distance_to(p) < World.TOWN_RADIUS + 5.0: continue
 		spots.append(p)
 	var trees = spots.slice(0, int(spots.size() * 0.8))
+	_tree_spots = trees
 	var rocks = spots.slice(int(spots.size() * 0.8))
 	# A textured land mixes Meshy trees, mostly its own kind and some oaks;
 	# rocks become mossy boulders, and bushes grow among the grass.
