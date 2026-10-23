@@ -171,7 +171,7 @@ func _build_ground(th: Dictionary) -> void:
 	st.generate_normals()
 	var mi = MeshInstance3D.new()
 	mi.mesh = st.commit()
-	mi.material_override = _tex_material("grass", 0.95, 0.125, Color(0.77, 0.67, 0.71), true) if _tex.has("grass") else _vc_material(0.95)
+	mi.material_override = _tex_material("grass", 0.95, 0.125, Color(0.8, 0.95, 0.62), true) if _tex.has("grass") else _vc_material(0.95)
 	add_child(mi)
 
 
@@ -229,19 +229,20 @@ func _build_woods(th: Dictionary) -> void:
 		spots.append(p)
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	var rocks = spots.slice(int(spots.size() * 0.8))
-	# A textured land mixes Meshy trees: mostly its own kind, some oaks,
-	# birches and dead ones; rocks become mossy boulders, and bushes grow
-	# among the grass.
+	# A textured land mixes Meshy trees, mostly its own kind and some oaks;
+	# rocks become mossy boulders, and bushes grow among the grass.
 	var main_tree = _model_mesh({"pine": "world-pine", "round": "world-tree"}.get(th.tree, ""), 4.4) if th.get("textured", false) else null
 	if main_tree:
-		var mix = [[main_tree, []], [_model_mesh("world-oak", 5.0), []], [_model_mesh("world-birch", 4.5), []], [_model_mesh("world-deadtree", 4.0), []]]
+		var mix = [[main_tree, []], [_model_mesh("world-oak", 5.0), []]]
 		for p in trees:
-			var roll = rng.randf()
-			var k = 0 if roll < 0.6 else (1 if roll < 0.78 else (2 if roll < 0.94 else 3))
-			if mix[k][0] == null: k = 0
+			var k = 1 if rng.randf() < 0.15 and mix[1][0] else 0
 			mix[k][1].append(p)
 		for m in mix:
-			if m[0] and not m[1].is_empty(): _scatter(m[0], m[1], rng, 0.8, 1.4, m[0].surface_get_material(0))
+			if m[0] == null or m[1].is_empty(): continue
+			# Meshy painted the muted trees nearly grey: tint their needles back to the land's green.
+			var leaves: BaseMaterial3D = m[0].surface_get_material(0).duplicate()
+			leaves.albedo_color = Color(0.62, 0.82, 0.5)
+			_scatter(m[0], m[1], rng, 0.8, 1.4, leaves)
 	else: _scatter(_tree_mesh(th), trees, rng, 0.8, 1.5)
 	var boulder = _model_mesh("world-boulder", 1.2) if main_tree else null
 	if boulder: _scatter(boulder, rocks, rng, 0.6, 1.6, boulder.surface_get_material(0))
@@ -742,7 +743,8 @@ func _fence(root: Node3D, a: Vector3, b: Vector3, wood: Color) -> void:
 ## A hamlet: two houses, fields in rows, haystacks, a fence and a windmill.
 func _farm(root: Node3D, th: Dictionary) -> void:
 	var wood = Color(0.4, 0.28, 0.16)
-	_house(root, Vector3(-3, 0, -2), 2.8, 2.2, 0.4, Color(0.66, 0.58, 0.46), Color(0.48, 0.33, 0.18))
+	if not _prop(root, "world-barn", 5.0, Vector3(-3.5, 0, -2.5), 0.4, true):
+		_house(root, Vector3(-3, 0, -2), 2.8, 2.2, 0.4, Color(0.66, 0.58, 0.46), Color(0.48, 0.33, 0.18))
 	_house(root, Vector3(1.5, 0, -4), 2.2, 2.0, -0.3, Color(0.6, 0.53, 0.42), Color(0.48, 0.33, 0.18))
 	# Fields: rows of furrows and crop.
 	for f in 2:
