@@ -214,7 +214,11 @@ func _build_woods(th: Dictionary) -> void:
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	var rocks = spots.slice(int(spots.size() * 0.8))
 	var tree_model = _model_mesh({"pine": "world-pine", "round": "world-tree"}.get(th.tree, ""), 4.4) if th.get("textured", false) else null
-	if tree_model: _scatter(tree_model, trees, rng, 0.8, 1.5, tree_model.surface_get_material(0))
+	if tree_model:
+		# Meshy's greens are brighter than the land's: shade them a little.
+		var leaves: BaseMaterial3D = tree_model.surface_get_material(0).duplicate()
+		leaves.albedo_color = Color(0.78, 0.82, 0.76)
+		_scatter(tree_model, trees, rng, 0.8, 1.5, leaves)
 	else: _scatter(_tree_mesh(th), trees, rng, 0.8, 1.5)
 	_scatter(_rock_mesh(th), rocks, rng, 0.6, 1.6, _tex_material("rock", 0.9, 0.7, Color.WHITE, true) if _tex.has("rock") else null)
 	var tufts = []
@@ -248,9 +252,10 @@ func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: 
 
 
 ## A Meshy model as one mesh, standing on its base at the origin and scaled
-## to `height` metres, or null when the land has none. Cached per file.
-func _model_mesh(file: String, height: float) -> Mesh:
-	var key = "%s %s" % [file, height]
+## to `size` metres tall (or wide, `by_width`), or null when the land has
+## none. Cached per file and size.
+func _model_mesh(file: String, size: float, by_width := false) -> Mesh:
+	var key = "%s %s %s" % [file, size, by_width]
 	if _models.has(key): return _models[key]
 	var path = "res://assets/models/%s.glb" % file
 	if file == "" or not ResourceLoader.exists(path): return null
@@ -271,7 +276,7 @@ func _model_mesh(file: String, height: float) -> Mesh:
 	var raw = st.commit()
 	if raw == null or raw.get_surface_count() == 0: return null
 	var box = raw.get_aabb()
-	var f = height / maxf(box.size.y, 0.01)
+	var f = size / maxf(box.size.x if by_width else box.size.y, 0.01)
 	var mid = box.get_center()
 	st = SurfaceTool.new()
 	st.append_from(raw, 0, Transform3D(Basis().scaled(Vector3.ONE * f), Vector3(-mid.x * f, -box.position.y * f, -mid.z * f)))
@@ -469,7 +474,7 @@ func _house(root: Node3D, at: Vector3, w: float, d: float, turn: float, wall: Co
 	root.add_child(h)
 	# On a land with house models, a Meshy cottage of about the same size.
 	if _tex.has("wall"):
-		var model = _model_mesh("world-house-a" if hash(at) % 2 == 0 else "world-house-b", 3.3 * w / 2.6)
+		var model = _model_mesh("world-house-a" if hash(at) % 2 == 0 else "world-house-b", w + 0.3, true)
 		if model:
 			var mi = MeshInstance3D.new()
 			mi.mesh = model
