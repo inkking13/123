@@ -66,7 +66,9 @@ func _ready() -> void:
 	_build_ground(th)
 	_build_road(th)
 	_build_woods(th)
-	if _ground: _paint_ground_mask()
+	if _ground:
+		_paint_ground_mask()
+		_dress_road()
 	_build_places(th)
 	_build_party()
 	marker = _ring_mesh(0.7, Color(1, 0.85, 0.5, 0.8))
@@ -224,6 +226,43 @@ func _paint_ground_mask() -> void:
 	_ground.set_shader_parameter("mask", ImageTexture.create_from_image(Image.create_from_data(w, w, false, Image.FORMAT_RG8, data)))
 
 
+## Meshy road pieces laid end to end along the worn road, with stones and
+## grass tufts at its verges. The shader's soft road underneath hides seams.
+func _dress_road() -> void:
+	var piece = _model_mesh("world-road", 3.4, true)
+	var stones = _model_mesh("world-roadstones", 0.8, true)
+	if piece == null and stones == null: return
+	var road = _road_points()
+	var rng = RandomNumberGenerator.new(); rng.seed = hash(Game.w.region) + 11
+	var at = []
+	var verge = []
+	var left = 0.0
+	for i in road.size() - 1:
+		var a: Vector2 = road[i]
+		var b: Vector2 = road[i + 1]
+		var dir = (b - a).normalized()
+		var seg = a.distance_to(b)
+		var t = left
+		while t < seg:
+			var p = a + dir * t
+			if not (Game.w.has_big_town() and p.distance_to(Game.w.layout().town) < World.TOWN_RADIUS):
+				at.append(Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.y)), Vector3(p.x, 0.01, p.y)))
+				if rng.randf() < 0.3: verge.append(p + dir.orthogonal() * (2.1 if rng.randf() < 0.5 else -2.1))
+			t += 3.6
+		left = t - seg
+	for job in [[piece, at], [stones, verge.map(func(v): return Transform3D(Basis(Vector3.UP, rng.randf() * TAU), Vector3(v.x, 0, v.y)))]]:
+		if job[0] == null or job[1].is_empty(): continue
+		var mm = MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = job[0]
+		mm.instance_count = job[1].size()
+		for i in job[1].size(): mm.set_instance_transform(i, job[1][i])
+		var mmi = MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		if job[0] == piece: mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mmi)
+
+
 ## The road as drawn: each leg bends gently through its midpoint, in short pieces.
 func _road_points() -> Array:
 	var road: Array = Game.w.layout().road
@@ -285,20 +324,28 @@ func _build_woods(th: Dictionary) -> void:
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	_tree_spots = trees
 	var rocks = spots.slice(int(spots.size() * 0.8))
-	# A textured land mixes Meshy trees, mostly its own kind and some oaks;
-	# rocks become mossy boulders, and bushes grow among the grass.
+	# A textured land mixes Meshy trees, mostly its own kind, with oaks,
+	# lindens, birches and saplings among them; rocks become mossy
+	# boulders, and bushes grow among the grass.
 	var main_tree = _model_mesh({"pine": "world-pine", "round": "world-tree"}.get(th.tree, ""), 4.4) if th.get("textured", false) else null
 	if main_tree:
-		var mix = [[main_tree, []], [_model_mesh("world-oak", 5.0), []]]
+		# [mesh, share, trees, tint]; a kind without a model falls back to the main one.
+		var mix = [[main_tree, 0.5, [], Color(1.05, 1.2, 0.95)], [_model_mesh("world-pine2", 5.5), 0.2, [], Color(1.05, 1.2, 0.95)],
+			[_model_mesh("world-oak", 5.0), 0.12, [], Color(0.8, 0.95, 0.68)], [_model_mesh("world-linden", 4.8), 0.08, [], Color.WHITE],
+			[_model_mesh("world-birch", 4.5), 0.05, [], Color.WHITE], [_model_mesh("world-sapling", 2.0), 0.05, [], Color.WHITE]]
 		for p in trees:
-			var k = 1 if rng.randf() < 0.15 and mix[1][0] else 0
-			mix[k][1].append(p)
+			var roll = rng.randf()
+			var k = 0
+			while k < mix.size() - 1 and roll >= mix[k][1]:
+				roll -= mix[k][1]
+				k += 1
+			mix[k if mix[k][0] else 0][2].append(p)
 		for m in mix:
-			if m[0] == null or m[1].is_empty(): continue
-			# Meshy painted the muted trees nearly grey: tint their needles back to the land's green.
+			if m[0] == null or m[2].is_empty(): continue
+			# Shade each kind toward the land's green; Meshy's come out grey or pale.
 			var leaves: BaseMaterial3D = m[0].surface_get_material(0).duplicate()
-			leaves.albedo_color = Color(0.62, 0.82, 0.5)
-			_scatter(m[0], m[1], rng, 0.8, 1.4, leaves)
+			leaves.albedo_color = m[3]
+			_scatter(m[0], m[2], rng, 0.8, 1.3, leaves)
 	else: _scatter(_tree_mesh(th), trees, rng, 0.8, 1.5)
 	var boulder = _model_mesh("world-boulder", 1.2) if main_tree else null
 	if boulder: _scatter(boulder, rocks, rng, 0.6, 1.6, boulder.surface_get_material(0))
@@ -1202,7 +1249,8 @@ func _roadside(th: Dictionary) -> void:
 				continue
 			var n = Node3D.new()
 			add_child(n)
-			_box(n, Vector3(0.4, 0.9, 0.3), Vector3(p.x, 0.45, p.y), stone)
+			if not _prop(n, "world-milestone", 1.0, Vector3(p.x, 0, p.y), atan2(b.x - a.x, b.y - a.y)):
+				_box(n, Vector3(0.4, 0.9, 0.3), Vector3(p.x, 0.45, p.y), stone)
 			t += 20.0
 		walked += seg
 	if Game.w.has_big_town(): return
