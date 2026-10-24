@@ -55,6 +55,7 @@ def rot_between(a, b):
 HEAD_BOX = "--head-box" in sys.argv
 HEAD_SCALE = next((float(a.split("=")[1]) for a in sys.argv if a.startswith("--head-scale=")), 1.1)
 HEAD_UPRIGHT = "--head-upright" in sys.argv
+LAYERED = "--layered" in sys.argv
 HEAD_LIFT = next((float(a.split("=")[1]) for a in sys.argv if a.startswith("--head-lift=")), 0.0)
 
 
@@ -152,7 +153,7 @@ def fit(outfit_path, body_path, out_path, debug=False):
         rO = rad(opos_all, oown_all, ojoint[oi[h]], dO, group)
         rB = rad(bpos, bown, bjoint[bi[h]], dB, group)
         r = float(np.clip(rB / rO * 1.12, 0.7, 1.5)) if rO and rB else a
-        if src == "Head":
+        if src == "Head" and np.isin(oown_all, HEADS).sum() > 20:
             # Head gear is sized by width: the outfit's head a little wider than the body's.
             wO = np.ptp(opos_all[np.isin(oown_all, HEADS)][:, 0]); wB = np.ptp(bpos[np.isin(bown, HEADS)][:, 0])
             a = r = float(np.clip(wB * HEAD_SCALE / wO, 0.75, 1.3))
@@ -191,6 +192,9 @@ def fit(outfit_path, body_path, out_path, debug=False):
             m = 0.006
             push = np.clip(m - depth, 0, 0.08)
             push[d > 0.12] = 0
+            if LAYERED:  # layers lying on each other move out together, so none shows through another
+                near = cKDTree(pos).query_ball_point(pos, 0.06)
+                push = np.array([push[n].max() for n in near])
             pos += push[:, None] * bnor[k]
         p["fpos"] = pos; p["fnor"] = nor; p["head_y"] = ojoint[oi["Head"]][1]; p["head_z"] = ojoint[oi["Head"]][2]
         d, k = tree.query(pos)
@@ -351,7 +355,7 @@ def paint_shirt(textures, uv, tris):
     textures["base"] = Image.fromarray(np.where(m, linen, a).astype(np.uint8))
 
 
-def main(outfit, body, outp, debug=False, keep_skin=("gloves",), drop_head=False, bare_hands=False):
+def main(outfit, body, outp, debug=False, keep_skin=("gloves",), drop_head=False, bare_hands=False, open_sleeves=False):
     og, bg, oprims, onames, bnames, braw, bi = fit(outfit, body, outp, debug)
     textures = tex_of(og, oprims[0]["mat"] or 0)
     pieces = {}
@@ -379,6 +383,8 @@ def main(outfit, body, outp, debug=False, keep_skin=("gloves",), drop_head=False
             hand = np.char.endswith(p["obone"].astype(str), "Hand")
             drop |= (skin_any & hand)[tri].sum(1) >= 2
             tpiece = np.where(tpiece == "gloves", "sleeves", tpiece)
+        if open_sleeves:  # short sleeves: the body's forearms show below them
+            tpiece = np.where(np.isin(tpiece, ["sleeves", "gloves"]), "shoulders", tpiece)
         drop = smooth_cut(p["pos"], tri, drop)
         Jb = np.array([bi.get(n, bi.get(BORROW.get(n, ""), 0)) for n in onames])
         # Bare chest under the collar becomes a linen shirt.
@@ -401,4 +407,5 @@ def main(outfit, body, outp, debug=False, keep_skin=("gloves",), drop_head=False
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2], sys.argv[3], "--debug" in sys.argv, drop_head="--drop-head" in sys.argv, bare_hands="--bare-hands" in sys.argv)
+    main(sys.argv[1], sys.argv[2], sys.argv[3], "--debug" in sys.argv, drop_head="--drop-head" in sys.argv, bare_hands="--bare-hands" in sys.argv,
+         open_sleeves="--open-sleeves" in sys.argv)

@@ -241,6 +241,13 @@
     "mult": 1.02,
     "desc": "+2% к урону/лечению.",
     "icon": "a-wanderer-hood"
+   },
+   {
+    "id": "set-ranger-hood",
+    "name": "Капюшон следопыта",
+    "mult": 1.03,
+    "desc": "+3% к урону/лечению.",
+    "icon": "a-ranger-hood"
    }
   ],
   "gloves": [
@@ -336,6 +343,13 @@
     "mult": 1.03,
     "desc": "+3% к урону/лечению.",
     "icon": "a-wanderer-gloves"
+   },
+   {
+    "id": "set-ranger-gloves",
+    "name": "Наручи следопыта",
+    "mult": 1.03,
+    "desc": "+3% к урону/лечению.",
+    "icon": "a-ranger-gloves"
    }
   ],
   "boots": [
@@ -577,6 +591,21 @@
     "cdMult": 0.96,
     "desc": "+5% к урону/лечению, −4% к перезарядке способности.",
     "icon": "a-wanderer-jacket"
+   },
+   {
+    "id": "set-peasant-jacket",
+    "name": "Рубаха крестьянина",
+    "hpMult": 1.04,
+    "desc": "+4% к HP.",
+    "icon": "a-peasant-jacket"
+   },
+   {
+    "id": "set-ranger-jacket",
+    "name": "Куртка следопыта",
+    "mult": 1.05,
+    "cdMult": 0.97,
+    "desc": "+5% к урону/лечению, −3% к перезарядке способности.",
+    "icon": "a-ranger-jacket"
    }
   ],
   "necklace": [
@@ -801,6 +830,21 @@
     "cdMult": 0.97,
     "desc": "−3% к перезарядке способности.",
     "icon": "a-wanderer-pants"
+   },
+   {
+    "id": "set-peasant-pants",
+    "name": "Штаны и сапоги крестьянина",
+    "cdMult": 0.98,
+    "desc": "−2% к перезарядке способности.",
+    "icon": "a-peasant-pants"
+   },
+   {
+    "id": "set-ranger-pants",
+    "name": "Штаны и сапоги следопыта",
+    "hpMult": 1.02,
+    "cdMult": 0.97,
+    "desc": "+2% к HP, −3% к перезарядке способности.",
+    "icon": "a-ranger-pants"
    }
   ],
   "accessory": [
@@ -1091,7 +1135,13 @@
   "set-wanderer-hood": 1,
   "set-wanderer-jacket": 1,
   "set-wanderer-gloves": 1,
-  "set-wanderer-pants": 1
+  "set-wanderer-pants": 1,
+  "set-peasant-jacket": 1,
+  "set-peasant-pants": 1,
+  "set-ranger-hood": 1,
+  "set-ranger-jacket": 1,
+  "set-ranger-gloves": 1,
+  "set-ranger-pants": 1
  },
  "BOSS_LOOT_TABLE": [
   {
