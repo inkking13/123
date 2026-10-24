@@ -196,7 +196,7 @@ func fresh_sim(enc: Dictionary, keep, room_idx := 0) -> Dictionary:
 		"boss": {"name": enc.enemyName, "maxHp": int(total) if enemies.size() > 0 else enc_hp, "hp": total if enemies.size() > 0 else float(enc_hp)},
 		"bossPos": null if enemies.size() > 0 else {"row": BOSS_START.x, "col": BOSS_START.y},
 		"enemies": enemies, "minions": [], "focusId": enemies[0].id if enemies.size() > 0 else null,
-		"fx": {"seq": 0, "actor": null, "kind": null, "crit": false, "targetEnemy": null, "targetRaider": null},
+		"fx": {"seq": 0, "actor": null, "kind": null, "spell": null, "crit": false, "targetEnemy": null, "targetRaider": null},
 		"impact": {"seq": 0, "cells": [], "kind": null}, "shakeSeq": 0, "dodge": {"seq": 0, "ids": []}, "victory": false, "windup": false, "moveFx": null,
 		"signature": sig, "sigTimer": 2, "iceShell": false, "debt": null, "execution": null, "quota": null, "lava": [],
 		"name": enc.name, "raiders": raiders, "encounterType": enc.type, "dmgMult": dmg_mult,
@@ -1193,7 +1193,7 @@ func raider_action(key: String, target_id = null) -> void:
 		if t and t.id != s.focusId: s.focusId = t.id
 		elif t == null and s.enemies.is_empty(): s.focusId = null
 	var fe = focus_enemy()
-	s.fx = {"seq": s.fx.seq + 1, "actor": r.id if fx_kind else null, "kind": fx_kind, "crit": false,
+	s.fx = {"seq": s.fx.seq + 1, "actor": r.id if fx_kind else null, "kind": fx_kind, "spell": sd.get("id"), "crit": false,
 		"targetEnemy": (fe.id if fe else -1) if aims else null, "targetRaider": null}
 	match key:
 		"attack": _do_attack(r)
@@ -1629,7 +1629,7 @@ func _boss_turn() -> void:
 		log_line(("Враги оглушены и пропускают ход" if not s.enemies.is_empty() else s.boss.name + " оглушён и пропускает ход") + (" — заготовленная атака сорвана." if interrupted else "."), "ok")
 		return
 	if s.vulnerableRounds == 0: s.stagger = maxf(0, s.stagger - STAGGER_DECAY)
-	s.fx = {"seq": s.fx.seq + 1, "actor": "enemy", "kind": "enemy", "crit": false, "targetEnemy": null, "targetRaider": null}
+	s.fx = {"seq": s.fx.seq + 1, "actor": "enemy", "kind": "enemy", "spell": null, "crit": false, "targetEnemy": null, "targetRaider": null}
 	if s.enemies.is_empty():
 		_leader_turn()
 		_minion_turn()

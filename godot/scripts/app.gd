@@ -66,6 +66,7 @@ func _ready() -> void:
 ## For checking screens without a phone:
 ## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y]`
 ## (on the open map also `[--hour=22] [--weather=rain] [--pos=x,y] [--zoom=1.8] [--yaw=90]`) sets up, renders, saves and quits.
+## `--squad=0,1,13` picks the heroes; `--cast=judgement --after=0.8` casts a spell and shoots that long after.
 func _maybe_shot() -> void:
 	var path = ""
 	var go = ""
@@ -78,6 +79,7 @@ func _maybe_shot() -> void:
 		if a.begins_with("--wait="): wait = float(a.substr(7))
 		if a == "--demo": Demo.setup()
 		if a == "--auto": Game.settings.auto = true
+		if a.begins_with("--squad="): Demo.squad(Array(a.substr(8).split(",")).map(func(x): return int(x)))
 	if path == "": return
 	if go != "": Demo.open(go)
 	for a in OS.get_cmdline_user_args():
@@ -109,6 +111,13 @@ func _maybe_shot() -> void:
 				await get_tree().process_frame
 			await get_tree().create_timer(1.0).timeout
 			print("clicked: squad at ", Game.w.pos, " walking to ", Game.w.target)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--cast="):
+			Demo.cast(a.substr(7))
+			var after = 0.8
+			for b in OS.get_cmdline_user_args():
+				if b.begins_with("--after="): after = float(b.substr(8))
+			await get_tree().create_timer(after).timeout
 	if down > 0 and current and current.scroll:
 		current.scroll.scroll_vertical = down
 		await get_tree().process_frame
