@@ -35,6 +35,16 @@ const ACTION_S := 2.2
 ## No clip runs faster than this: beyond it motion looks wound up.
 const MAX_SPEED := 1.6
 
+# ── moving in a fight ───────────────────────────────────────────────────────
+## Ground speed (m/s) a fighter picks up and sheds, and how fast it turns (rad/s).
+const ACCEL := 9.0
+const DECEL := 7.0
+const TURN_RATE := 9.0
+## The run clip is played as fast as the feet travel over the ground, no slower or faster than this.
+const RUN_ANIM := Vector2(0.55, 1.5)
+## How fast the run clip moves its planted foot, in model units a second, by body file.
+static var _pace_cache := {}
+
 # ── held props ──────────────────────────────────────────────────────────────
 # Baked in metres, grip at the origin, head or blade up +Y; shields face -X.
 const PROPS := {
@@ -88,6 +98,12 @@ var _idle_w = 1.0
 var _bar_fill: MeshInstance3D
 var _ring: MeshInstance3D
 var _ring_mat: StandardMaterial3D
+## Metres a second the run clip covers at speed 1 at this unit's size.
+var run_pace = 2.8
+var _speed = 0.0
+var _goal_yaw = 0.0
+var _turning = false
+var _act_seq = 0
 
 
 func setup(spec: Dictionary) -> void:
@@ -112,6 +128,7 @@ func setup(spec: Dictionary) -> void:
 	_anim = model.find_child("AnimationPlayer", true, false)
 	_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	_hips = _skel.find_bone("mixamorig_Hips")
+	if _hips < 0: _hips = _skel.find_bone("Hips")
 	var body_mesh: MeshInstance3D = null
 	for c in _skel.get_children():
 		if c is MeshInstance3D:
@@ -124,6 +141,7 @@ func setup(spec: Dictionary) -> void:
 
 	if spec.has("set"):
 		_dress(body_mesh, spec.set)
+	run_pace = _measure_pace(model) * k
 
 	# The hands' turn at rest and in the first frame of idle aim what they hold.
 	_anim.play(_body.idle)
@@ -335,6 +353,55 @@ func _steady_props() -> void:
 		s.holder.transform = Transform3D(hand_pose.basis, hand_pose.origin) * Transform3D(Basis(local), s.pos)
 
 
+## How fast the planted foot slides back in the run clip: the speed the body
+## would cover the ground at. Taken once per model from the clip itself.
+func _measure_pace(model: Node3D) -> float:
+	if _pace_cache.has(_body.file): return _pace_cache[_body.file]
+	var a = _anim.get_animation(_body.run)
+	var bone = func(tail: String) -> int:
+		for i in _skel.get_bone_count():
+			if _skel.get_bone_name(i).ends_with(tail): return i
+		return -1
+	var feet = [bone.call("LeftFoot"), bone.call("RightFoot")]
+	var hips: int = bone.call("Hips")
+	if a == null or feet.has(-1) or hips < 0: return 4.2
+	# Skeleton to model: Meshy's orc sits under a centimetre-scaled armature.
+	var up = 1.0
+	var n: Node = _skel
+	while n != model and n is Node3D:
+		up *= (n as Node3D).scale.x
+		n = n.get_parent()
+	var at = func(b: int) -> Vector3:
+		var t = Transform3D()
+		while b >= 0:
+			t = _skel.get_bone_pose(b) * t
+			b = _skel.get_bone_parent(b)
+		return t.origin
+	_anim.play(_body.run)
+	var steps = 48
+	var dt = a.length / steps
+	var samples = []
+	var last = []
+	var lowest = INF
+	for i in steps + 1:
+		_anim.seek(i * dt, true)
+		var h: Vector3 = at.call(hips)
+		var now = feet.map(func(f): var p: Vector3 = at.call(f); return Vector3(p.x - h.x, p.y, p.z - h.z))
+		if not last.is_empty():
+			var j = 0 if now[0].y < now[1].y else 1
+			var d: Vector3 = now[j] - last[j]
+			samples.append(Vector2(Vector2(d.x, d.z).length() / dt, now[j].y))
+			lowest = minf(lowest, now[j].y)
+		last = now
+	# Only the frames the foot is on the ground; the median of those.
+	var head = at.call(bone.call("Head")).y if bone.call("Head") >= 0 else 1.5 / up
+	var planted = samples.filter(func(v): return v.y < lowest + absf(head) * 0.03).map(func(v): return v.x)
+	planted.sort()
+	var pace = planted[planted.size() / 2] * up if planted.size() > 3 else 4.2
+	_pace_cache[_body.file] = pace
+	return pace
+
+
 # ── per frame ───────────────────────────────────────────────────────────────
 func _process(delta: float) -> void:
 	_anim.advance(delta)
@@ -345,6 +412,9 @@ func _process(delta: float) -> void:
 	var idle_now: bool = alive and _anim.current_animation == _body.idle
 	_idle_w = move_toward(_idle_w, 1.0 if idle_now else 0.0, delta * 5.0)
 	_steady_props()
+	if _turning:
+		rotation.y = _toward_yaw(rotation.y, _goal_yaw, delta)
+		if absf(angle_difference(rotation.y, _goal_yaw)) < 0.01: _turning = false
 	if _ring.visible:
 		var t = Time.get_ticks_msec() / 1000.0
 		_ring_mat.albedo_color.a = 0.55 + 0.35 * sin(t * 5.0)
@@ -366,21 +436,90 @@ func play_action(kind: String) -> float:
 		clip = _body.acts.values()[0]
 		if not _anim.has_animation(clip): return 0.5
 	var sp = _speed_of(clip)
-	_anim.play(clip, 0.15, sp)
+	_act_seq += 1
+	_play(clip, 0.2, sp)
 	return _anim.get_animation(clip).length / sp
 
 
+## Which action is playing now: a later one makes an earlier one's "back to idle" moot.
+func action_seq() -> int:
+	return _act_seq
+
+
 func play_idle() -> void:
-	if alive: _anim.play(_body.idle, 0.25)
+	if alive: _play(_body.idle, 0.3, 1.0)
 
 
-func play_run() -> void:
-	_anim.play(_body.run, 0.15, 1.2)
+func play_run(sp := 1.2) -> void:
+	_play(_body.run, 0.2, sp)
+
+
+## Every clip but a fight's run plays at the player's own rate.
+func _play(clip: String, blend: float, sp: float) -> void:
+	_anim.speed_scale = 1.0
+	_anim.play(clip, blend, sp)
+
+
+func moving() -> bool:
+	return _speed > 0.0
+
+
+## Turns smoothly to face this yaw (or this point) instead of snapping to it.
+func turn_to(yaw: float) -> void:
+	_goal_yaw = yaw
+	_turning = true
+
+
+func turn_toward(target: Vector3) -> void:
+	var d = target - global_position
+	if Vector2(d.x, d.z).length() > 0.01: turn_to(atan2(d.x, d.z))
+
+
+func _toward_yaw(from: float, to: float, delta: float) -> float:
+	var diff = angle_difference(from, to)
+	# Eases into the last few degrees, never faster than TURN_RATE.
+	var step = clampf(diff * (1.0 - exp(-delta * 12.0)), -TURN_RATE * delta, TURN_RATE * delta)
+	return from + step
+
+
+## One frame of running to a spot on the board: turns first, picks up speed,
+## slows into the stop and plays the run clip as fast as the feet really move,
+## so they don't slide. True once it stands on the spot.
+func run_to(target: Vector3, delta: float) -> bool:
+	var d = target - position
+	d.y = 0.0
+	var dist = d.length()
+	if dist < 0.02:
+		position = Vector3(target.x, position.y, target.z)
+		if _speed > 0.0 or _anim.current_animation == _body.run: play_idle()
+		_speed = 0.0
+		_anim.speed_scale = 1.0
+		return true
+	var yaw = atan2(d.x, d.z)
+	_turning = false
+	rotation.y = _toward_yaw(rotation.y, yaw, delta)
+	# Off the line it means to run: slow right down and turn on the spot first.
+	var off = absf(angle_difference(rotation.y, yaw))
+	var lined_up = clampf(1.0 - (off - 0.35) / 0.9, 0.0, 1.0)
+	var cruise = clampf(run_pace * 1.1, 2.6, 4.5)
+	var want = minf(cruise * lined_up, sqrt(2.0 * DECEL * dist))
+	_speed = move_toward(_speed, want, (ACCEL if want > _speed else DECEL * 1.5) * delta)
+	if _speed < 0.05 and lined_up < 0.2:
+		# Turning on the spot: a short start of the run reads as a step round.
+		_speed = 0.0
+	position += d / dist * minf(dist, _speed * delta)
+	if alive:
+		if _anim.current_animation != _body.run and _speed > 0.0 and dist >= 0.1: play_run(1.0)
+		if _anim.current_animation == _body.run:
+			_anim.speed_scale = clampf(_speed / run_pace, RUN_ANIM.x, RUN_ANIM.y)
+	# The last few centimetres glide into the idle as the run fades out.
+	if dist < 0.1 and _anim.current_animation == _body.run: play_idle()
+	return false
 
 
 func play_hit() -> void:
 	var sp = _speed_of(_body.hit)
-	_anim.play(_body.hit, 0.1, sp)
+	_play(_body.hit, 0.1, sp)
 	await get_tree().create_timer(_anim.get_animation(_body.hit).length / sp * 0.9).timeout
 	if _anim.current_animation == _body.hit: play_idle()
 
@@ -388,7 +527,7 @@ func play_hit() -> void:
 ## A cheer (or the body's rallying act): when a hero joins the squad.
 func cheer() -> float:
 	if _anim.has_animation("Victory_Cheer"):
-		_anim.play("Victory_Cheer", 0.2, 1.0)
+		_play("Victory_Cheer", 0.2, 1.0)
 		return _anim.get_animation("Victory_Cheer").length
 	return play_action("rally")
 
@@ -398,12 +537,13 @@ func cheer() -> float:
 func lie_down() -> void:
 	var a = _anim.get_animation(_body.death)
 	if a: a.loop_mode = Animation.LOOP_NONE
-	_anim.play(_body.death, 0.3, _speed_of(_body.death))
+	_play(_body.death, 0.3, _speed_of(_body.death))
 
 
 func play_death() -> void:
 	alive = false
-	_anim.play(_body.death, 0.15, _speed_of(_body.death))
+	_speed = 0.0
+	_play(_body.death, 0.2, _speed_of(_body.death))
 	set_bar_visible(false)
 	set_ring(false)
 

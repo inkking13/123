@@ -365,25 +365,22 @@ func _sync(delta: float, snap := false) -> void:
 			u.play_death()
 			continue
 		if not u.alive: continue
-		# Walk to the cell.
+		# Run to the cell: turn, speed up, slow into the stop.
 		var d: Vector3 = w.pos - u.position
 		d.y = 0
-		if snap or d.length() < 0.03:
+		if snap:
 			u.position = w.pos
-			if _moving.has(key):
-				_moving.erase(key)
-				u.play_idle()
+			_moving.erase(key)
+		elif d.length() >= 0.02 or _moving.has(key):
+			_moving[key] = true
+			if u.run_to(w.pos, delta): _moving.erase(key)
+		if not _moving.has(key):
 			# Standing: square up to the nearest foe still on the field.
 			if _busy.get(key, 0) <= Time.get_ticks_msec():
 				var foe = _nearest_foe(key, u)
 				var look = u.face_yaw if foe == null else atan2(foe.x - u.position.x, foe.z - u.position.z)
-				u.rotation.y = look if snap else lerp_angle(u.rotation.y, look, 1.0 - exp(-delta * 7.0))
-		else:
-			if not _moving.has(key):
-				_moving[key] = true
-				u.play_run()
-			u.face(w.pos)
-			u.position += d.normalized() * minf(d.length(), delta * 3.2)
+				if snap: u.rotation.y = look
+				elif absf(angle_difference(u.rotation.y, look)) > 0.02: u.turn_to(look)
 		var ring = false
 		var ring_col = GOLD
 		if cur and key == "r%d" % cur.id:
@@ -446,7 +443,7 @@ func _play_fx(s: Dictionary) -> void:
 	var u: Unit = units[key]
 	var tk = _target_key(s, fx.targetEnemy)
 	var target: Unit = units.get(tk)
-	if target and target.alive: u.face(target.global_position)
+	if target and target.alive: u.turn_toward(target.global_position)
 	var kind: String = fx.kind
 	var clip = {"melee": "melee", "ranged": "ranged", "heal": "heal", "ability": "ability", "rally": "rally"}.get(kind, "melee")
 	var dur = u.play_action(clip)
@@ -474,9 +471,11 @@ func _alive_of(prefixes: Array) -> Array:
 	return out
 
 
+## Back to idle once the action ends, unless it has since struck again or set off running.
 func _back_to_idle(u: Unit, after: float) -> void:
+	var seq = u.action_seq()
 	get_tree().create_timer(maxf(after, 0.3)).timeout.connect(func():
-		if is_instance_valid(u) and u.alive: u.play_idle())
+		if is_instance_valid(u) and u.alive and u.action_seq() == seq and not u.moving(): u.play_idle())
 
 
 # ── effects ─────────────────────────────────────────────────────────────────
