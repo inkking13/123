@@ -510,6 +510,12 @@ func _add_picker() -> void:
 			picked.emit(self))
 
 
+## Where a spell leaves from: the first thing held, else the chest.
+func hand() -> Vector3:
+	if _steady.is_empty(): return chest()
+	return _steady[0].holder.global_position
+
+
 ## Where a blow or spell lands: chest height.
 func chest() -> Vector3:
 	return global_position + Vector3(0, _body.height * 0.62, 0)
