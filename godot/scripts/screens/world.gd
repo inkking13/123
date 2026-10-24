@@ -197,32 +197,23 @@ func _bottom_bar(w) -> Control:
 ## A meeting on the road: what happened and the answers.
 func _event_card(w) -> Control:
 	var e: Dictionary = w.event
-	var shade = ColorRect.new()
-	shade.color = Color(0.03, 0.02, 0.02, 0.55)
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	var shade = UI.veil()
 	var c = CenterContainer.new()
 	c.set_anchors_preset(Control.PRESET_FULL_RECT)
 	shade.add_child(c)
-	var sheet = UI.parchment(Vector4(20, 16, 20, 16))
+	var sheet = UI.grim_sheet(Vector4(20, 18, 20, 18))
 	sheet.custom_minimum_size.x = UI.px(minf(480.0, get_viewport_rect().size.x / UI.K - 30.0))
 	c.add_child(sheet)
-	var v = UI.vbox(8)
+	var v = UI.vbox(10)
 	sheet.add_child(v)
-	var top = UI.hbox(10)
-	top.add_child(UI.wax_seal(40, e.icon))
-	var tv = UI.vbox(0)
-	tv.add_child(UI.label("В пути", 12, UI.INK_RED, "caps"))
-	tv.add_child(UI.label(e.title, 21, UI.INK, "title", true))
-	top.add_child(UI.expand(tv))
-	v.add_child(top)
-	v.add_child(UI.label(e.text, 15, UI.INK_MUTED, "regular", true))
-	v.add_child(UI.rule())
+	v.add_child(UI.grim_head(e.icon, "В пути", e.title))
+	v.add_child(UI.label(e.text, 15, UI.TEXT_MUTED, "regular", true))
+	v.add_child(UI.grim_rule())
 	for i in e.options.size():
 		var o: Dictionary = e.options[i]
 		var idx = i
 		var can: bool = w.can_take(o)
-		v.add_child(UI.ink_action(o.label + ("" if can else " — не хватает"), func():
+		v.add_child(UI.grim_action(o.label + ("" if can else " — не хватает"), func():
 			var band = w.answer(idx)
 			if band != null: Game.start_skirmish(band)
 			else: refresh(), i == 0, not can))
@@ -264,8 +255,8 @@ func _place_card(w):
 		id = near.id
 	var p = w.place(id)
 	if p == null: return null
-	var sheet = UI.parchment(Vector4(16, 12, 16, 12))
-	var v = UI.vbox(6)
+	var sheet = UI.grim_sheet(Vector4(16, 14, 16, 14))
+	var v = UI.vbox(8)
 	sheet.add_child(v)
 	var title = ""
 	var desc = ""
@@ -362,16 +353,18 @@ func _place_card(w):
 			else:
 				desc = "Закрыто: одолейте хозяина последнего подземелья этих земель."
 	var top = UI.hbox(8)
-	top.add_child(UI.expand(UI.label(title, 19, UI.INK, "title")))
-	top.add_child(UI.ink_action("×", func():
+	top.add_child(UI.expand(UI.shadowed(UI.label(title, 19, UI.GRIM_TITLE, "title", true))))
+	var close = UI.center(UI.icon("x", 17, UI.GRIM_GOLD))
+	close.custom_minimum_size = Vector2(UI.px(34), UI.px(34))
+	top.add_child(UI.tap(close, func():
 		_place = ""
 		w.goal = ""
 		refresh()))
 	v.add_child(top)
-	v.add_child(UI.label(desc, 13.5, UI.INK_MUTED, "italic", true))
+	v.add_child(UI.label(desc, 13.5, UI.TEXT_MUTED, "italic", true))
 	if not acts.is_empty():
-		v.add_child(UI.rule())
-		var row = UI.hbox(10)
-		for a in acts: row.add_child(UI.expand(UI.ink_action(a[0], a[1], true, a.size() > 2 and a[2])))
+		v.add_child(UI.grim_rule())
+		var row = UI.hbox(8)
+		for a in acts: row.add_child(UI.grim_action(a[0], a[1], a == acts[0], a.size() > 2 and a[2], 40))
 		v.add_child(row)
 	return sheet

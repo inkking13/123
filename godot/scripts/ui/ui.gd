@@ -319,6 +319,133 @@ static func parchment(pad := Vector4(16, 14, 16, 14)) -> PanelContainer:
 	return p
 
 
+# ── popups: blackened iron and old gold ────────────────────────────────────
+const GRIM_FILL := Color(0.055, 0.04, 0.032, 0.97)
+const GRIM_RIM := Color("#2b2019")
+const GRIM_GOLD := Color("#a8834f")
+const GRIM_GOLD_BRIGHT := Color("#e3bb74")
+const GRIM_TITLE := Color("#f0dfb8")
+const GRIM_KICKER := Color("#d9694f")
+const EMBER := Color("#a8261a")
+
+
+static func grim_style(pad := Vector4(18, 16, 18, 16)) -> StyleBoxFlat:
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = GRIM_FILL
+	sb.border_color = GRIM_RIM
+	sb.set_border_width_all(px(2.5))
+	sb.set_corner_radius_all(px(3))
+	sb.shadow_color = Color(0, 0, 0, 0.55)
+	sb.shadow_size = px(10)
+	sb.shadow_offset = Vector2(0, px(3))
+	sb.content_margin_left = px(pad.x)
+	sb.content_margin_top = px(pad.y)
+	sb.content_margin_right = px(pad.z)
+	sb.content_margin_bottom = px(pad.w)
+	return sb
+
+
+## A popup's plate: blackened iron in a dark rim, a gold hairline inside,
+## gilded corner brackets with studs, a clasp at the top and bottom and the
+## glow of embers under the top edge. All drawn in one pass, no textures.
+static func grim_sheet(pad := Vector4(18, 16, 18, 16), glow: Color = EMBER) -> PanelContainer:
+	var p = PanelContainer.new()
+	p.add_theme_stylebox_override("panel", grim_style(pad))
+	p.mouse_filter = Control.MOUSE_FILTER_STOP
+	p.draw.connect(func():
+		var r = Rect2(Vector2.ZERO, p.size)
+		var w = r.size.x
+		# Embers under the top edge, fading downwards.
+		var gh = minf(px(70), r.size.y * 0.45)
+		var b = px(2.5)
+		p.draw_polygon(PackedVector2Array([Vector2(b, b), Vector2(w - b, b), Vector2(w - b, gh), Vector2(b, gh)]),
+			PackedColorArray([Color(glow, 0.26), Color(glow, 0.26), Color(glow, 0), Color(glow, 0)]))
+		p.draw_rect(r.grow(-px(5)), Color(GRIM_GOLD, 0.5), false, 1.0)
+		p.draw_rect(r.grow(-px(8)), Color(GRIM_GOLD, 0.14), false, 1.0)
+		_grim_corners(p, r.grow(-px(3)))
+		_clasp(p, Vector2(w * 0.5, px(1.5)))
+		_clasp(p, Vector2(w * 0.5, r.size.y - px(1.5))))
+	return p
+
+
+static func _grim_corners(c: CanvasItem, r: Rect2) -> void:
+	var s = px(16); var t = px(5)
+	var tl = r.position; var br = r.end
+	for q in [[tl, Vector2(1, 1)], [Vector2(br.x, tl.y), Vector2(-1, 1)], [Vector2(tl.x, br.y), Vector2(1, -1)], [br, Vector2(-1, -1)]]:
+		var o: Vector2 = q[0]; var d: Vector2 = q[1]
+		c.draw_polyline(PackedVector2Array([o + Vector2(0, d.y * s), o, o + Vector2(d.x * s, 0)]), GRIM_GOLD, 3.0)
+		c.draw_polyline(PackedVector2Array([o + Vector2(d.x * t, d.y * (s - px(4))), o + Vector2(d.x * t, d.y * t), o + Vector2(d.x * (s - px(4)), d.y * t)]), Color(GRIM_GOLD, 0.55), 1.0)
+		var m = o + d * px(1.5)
+		var k = px(3)
+		c.draw_colored_polygon(PackedVector2Array([m + Vector2(0, -k), m + Vector2(k, 0), m + Vector2(0, k), m + Vector2(-k, 0)]), GRIM_GOLD_BRIGHT)
+
+
+## A gilt clasp on the rim: a diamond with short wings.
+static func _clasp(c: CanvasItem, at: Vector2) -> void:
+	var k = px(5); var wing = px(22)
+	c.draw_line(at - Vector2(wing, 0), at + Vector2(wing, 0), GRIM_GOLD, 2.0)
+	var pts = PackedVector2Array([at + Vector2(0, -k), at + Vector2(k, 0), at + Vector2(0, k), at + Vector2(-k, 0)])
+	c.draw_colored_polygon(pts, Color("#3a2a1c"))
+	pts.append(pts[0])
+	c.draw_polyline(pts, GRIM_GOLD_BRIGHT, 1.5)
+
+
+## A popup's head: a wax seal, a red kicker and the title in gilt capitals.
+static func grim_head(icon_name: String, kicker_text: String, title: String, seal := 40.0) -> HBoxContainer:
+	var top = hbox(12)
+	if icon_name != "": top.add_child(center(wax_seal(seal, icon_name)))
+	var tv = vbox(0)
+	if kicker_text != "": tv.add_child(label(kicker_text.to_upper(), 11.5, GRIM_KICKER, "caps"))
+	tv.add_child(shadowed(label(title, 21, GRIM_TITLE, "title", true)))
+	top.add_child(expand(tv))
+	return top
+
+
+## A rule across a popup: gold fading out from a diamond.
+static func grim_rule() -> Control:
+	var o = ornament(100, GRIM_GOLD)
+	o.size_flags_horizontal = Control.SIZE_FILL
+	return o
+
+
+## A popup's answer: the chosen way is a blood-red plate in a gold rim, the
+## others dark plates in bronze.
+static func grim_action(text: String, fn: Callable, main := false, disabled := false, height := 44.0) -> PanelContainer:
+	var p = PanelContainer.new()
+	var sb = StyleBoxFlat.new()
+	sb.set_corner_radius_all(px(3))
+	sb.set_border_width_all(2 if main else 1)
+	sb.content_margin_left = px(12); sb.content_margin_right = px(12)
+	sb.bg_color = Color("#4a1410") if main else Color(1, 0.9, 0.7, 0.035)
+	sb.border_color = GRIM_GOLD if main else Color("#5a4632")
+	p.add_theme_stylebox_override("panel", sb)
+	p.custom_minimum_size = Vector2(0, px(height))
+	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if main: p.draw.connect(func():
+		var r = Rect2(Vector2.ZERO, p.size).grow(-px(3))
+		p.draw_rect(r, Color(GRIM_GOLD_BRIGHT, 0.22), false, 1.0)
+		p.draw_rect(Rect2(r.position, Vector2(r.size.x, r.size.y * 0.45)), Color(1, 0.55, 0.35, 0.06)))
+	var row = hbox(6, BoxContainer.ALIGNMENT_CENTER)
+	var l = label(text, 15.5 if main else 15, GRIM_TITLE if main else TEXT_MUTED, "title" if main else "caps", true)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(l)
+	if main: row.add_child(icon("arrow-right", 15, GRIM_GOLD_BRIGHT))
+	p.add_child(row)
+	if disabled: p.modulate = Color(1, 1, 1, 0.4)
+	else: tap(p, fn)
+	return p
+
+
+## The dark veil behind a popup, deeper at the edges, that swallows taps.
+static func veil() -> ColorRect:
+	var shade = ColorRect.new()
+	shade.color = Color(0.02, 0.012, 0.01, 0.62)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	return shade
+
+
 ## A red wax seal with an icon pressed into it.
 static func wax_seal(size: float, icon_name: String, rotation := -8.0) -> Control:
 	var c = Control.new()
