@@ -64,7 +64,8 @@ func _ready() -> void:
 
 
 ## For checking screens without a phone:
-## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y]` sets up, renders, saves and quits.
+## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y]`
+## (on the open map also `[--hour=22] [--pos=x,y] [--zoom=1.8] [--yaw=90]`) sets up, renders, saves and quits.
 func _maybe_shot() -> void:
 	var path = ""
 	var go = ""
@@ -79,8 +80,21 @@ func _maybe_shot() -> void:
 		if a == "--auto": Game.settings.auto = true
 	if path == "": return
 	if go != "": Demo.open(go)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--hour=") and Game.w: Game.w.hours = float(a.substr(7))
+		if a.begins_with("--pos=") and Game.w:
+			var xy = a.substr(6).split(",")
+			Game.w.pos = Vector2(float(xy[0]), float(xy[1]))
+			Game.w._grace = 9999.0
 	await get_tree().create_timer(wait).timeout
 	for a in OS.get_cmdline_user_args():
+		# The open map's camera: `--zoom=1.8` out, `--yaw=90` turned, in degrees.
+		if a.begins_with("--zoom=") or a.begins_with("--yaw="):
+			for v in get_tree().root.find_children("*", "Node3D", true, false):
+				if not v is WorldView: continue
+				if a.begins_with("--zoom="): v.zoom = float(a.substr(7)); v._zoom_target = v.zoom
+				else: v.yaw += deg_to_rad(float(a.substr(6))); v._yaw_target = v.yaw
+			await get_tree().process_frame
 		if a.begins_with("--click="):
 			var xy = a.substr(8).split(",")
 			var at = Vector2(float(xy[0]), float(xy[1]))

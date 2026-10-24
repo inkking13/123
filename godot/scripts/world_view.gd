@@ -36,6 +36,7 @@ var _mats = {}           # textured materials, shared between props of one look
 var _models = {}         # Meshy models baked to one mesh, by file and height
 var _ground: ShaderMaterial  # the blended ground, on a land with textures for it
 var _tree_spots = []
+var _life: WorldLife     # farm beasts, birds, smoke and folk, on a lively land
 var band_bottom = 0.0
 
 var yaw = 0.6
@@ -67,11 +68,17 @@ func _ready() -> void:
 	_build_env(th)
 	_build_ground(th)
 	_build_road(th)
+	if th.get("lively", false):
+		_life = WorldLife.new()
+		_life.view = self
+		add_child(_life)
+		_life.plan()
 	_build_woods(th)
 	if _ground:
 		_paint_ground_mask()
 		_dress_road()
 	_build_places(th)
+	if _life: _life.build()
 	_build_party()
 	marker = _ring_mesh(0.7, Color(1, 0.85, 0.5, 0.8))
 	marker.visible = false
@@ -322,6 +329,7 @@ func _build_woods(th: Dictionary) -> void:
 		if inside and rng.randf() < 0.3: continue
 		if _near_road(p, 4.0) or places.any(func(q): return q.pos.distance_to(p) < _clear_of(q.kind)): continue
 		if Game.w.has_big_town() and Game.w.layout().town.distance_to(p) < World.TOWN_RADIUS + 5.0: continue
+		if _life and _life.stops().any(func(s): return s.distance_to(p) < 4.5): continue
 		spots.append(p)
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	_tree_spots = trees
@@ -720,6 +728,7 @@ func _fire(root: Node3D, at: Vector3) -> void:
 	var q = QuadMesh.new(); q.size = Vector2(0.25, 0.25)
 	var m = StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA  # else each flame is a square
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.vertex_color_use_as_albedo = true
