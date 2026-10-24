@@ -5,7 +5,6 @@ extends Screen
 
 
 var view: CampView
-var _panel: Control
 
 
 func _enter_tree() -> void:
@@ -21,7 +20,7 @@ func build() -> void:
 	var w = Game.w
 	var squad: Array = Game.squad()
 	if is_instance_valid(view) and view.is_inside_tree(): view.sync()
-	# The camp shows above (on a wide window, left of) a dark panel with the plans.
+	# The camp shows above (on a wide window, left of) a dark sheet with the plans.
 	var p = UI.vbox(0)
 	p.add_child(UI.back_link())
 	p.add_child(UI.space(6))
@@ -52,45 +51,8 @@ func build() -> void:
 	p.add_child(UI.space(8))
 	p.add_child(UI.secondary_button("Идти дальше", func(): Game.go_tab("world")))
 	p.add_child(UI.space(6))
-	_panel = _sheet(p)
-	add_child(_panel)
+	scene_sheet(p)
 	add_child(Tabs.make())
-	_measure.call_deferred()
-
-
-## The dark sheet the plans sit on: the lower part of a phone's screen, or a
-## column on the right of a wide window.
-func _sheet(content: Control) -> Control:
-	var pn = PanelContainer.new()
-	var sb = StyleBoxFlat.new()
-	sb.bg_color = Color(0.063, 0.047, 0.035, 0.9)
-	sb.border_color = Color(0.79, 0.64, 0.42, 0.45)
-	sb.set_border_width_all(2); sb.set_corner_radius_all(UI.px(12))
-	sb.content_margin_left = UI.px(16); sb.content_margin_right = UI.px(16)
-	sb.content_margin_top = UI.px(12); sb.content_margin_bottom = UI.px(4)
-	pn.add_theme_stylebox_override("panel", sb)
-	pn.mouse_filter = Control.MOUSE_FILTER_STOP
-	scroll = UI.scroll(content)
-	pn.add_child(scroll)
-	var vp = get_viewport_rect().size
-	if App.wide:
-		pn.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-		pn.offset_left = -UI.px(470); pn.offset_right = -UI.px(14)
-		pn.offset_top = UI.px(14); pn.offset_bottom = -UI.px(14)
-	else:
-		pn.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-		pn.offset_left = UI.px(8); pn.offset_right = -UI.px(8)
-		pn.offset_bottom = -UI.px(Tabs.HEIGHT + 6) - App.inset_bottom()
-		pn.offset_top = -vp.y * 0.56
-	return pn
-
-
-func _measure() -> void:
-	if not is_instance_valid(view) or not is_instance_valid(_panel): return
-	var vp = get_viewport_rect().size
-	var r = _panel.get_global_rect()
-	view.band_bottom = 0.0 if App.wide else vp.y - r.position.y
-	view.band_right = vp.x - r.position.x if App.wide else 0.0
 
 
 func _hero(c: Dictionary) -> Control:

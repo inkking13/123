@@ -385,6 +385,14 @@ func play_hit() -> void:
 	if _anim.current_animation == _body.hit: play_idle()
 
 
+## A cheer (or the body's rallying act): when a hero joins the squad.
+func cheer() -> float:
+	if _anim.has_animation("Victory_Cheer"):
+		_anim.play("Victory_Cheer", 0.2, 1.0)
+		return _anim.get_animation("Victory_Cheer").length
+	return play_action("rally")
+
+
 ## Asleep at camp: the fall of the death clip, held on its last frame, but
 ## still alive and able to get up with play_idle.
 func lie_down() -> void:

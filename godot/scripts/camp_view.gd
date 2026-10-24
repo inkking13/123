@@ -6,6 +6,10 @@ extends Node3D
 ## at the training dummy, at the workbench, off at the treeline to hunt or on
 ## watch by a torch. The view turns slowly round the fire; drag turns it,
 ## pinch or wheel zooms.
+##
+## With `muster` set it is the guild's camp by day as the squad is picked:
+## the five stand in a row before the fire, a ring marks each empty place,
+## and whoever joins gives a cheer.
 
 ## Where each task is done; a second hero at the same task stands beside the first.
 const SPOTS := {
@@ -28,9 +32,10 @@ var fire_light: OmniLight3D
 var heroes = {}         # hero id -> {unit, label, act, next, bedroll}
 var band_bottom = 0.0   # the screen's panel under the view (px), on a phone
 var band_right = 0.0    # the panel on the right, on a wide window
+var band_left = 0.0     # and the rail of tabs on its left
 
-var yaw = 0.35
-var _yaw_target = 0.35
+var yaw = 0.0
+var _yaw_target = 0.0
 var zoom = 1.0
 var _zoom_target = 1.0
 var _dragged = false
@@ -41,6 +46,9 @@ var _zoom0 = 1.0
 var _time = 0.0
 var _flames: Array[MeshInstance3D] = []
 var _night = false
+var muster = false
+var _rings: Array[MeshInstance3D] = []
+var _ring_labels: Array[Label3D] = []
 
 
 func _ready() -> void:
@@ -51,11 +59,14 @@ func _ready() -> void:
 	life.view = kit
 	add_child(life)
 	var h: float = Game.w.hours
-	_night = h >= 18.0 or h < 6.0
+	_night = (h >= 18.0 or h < 6.0) and not muster
 	_build_env(th)
 	_build_ground(th)
 	_build_woods(th)
 	_build_camp()
+	if muster: _build_muster()
+	else:
+		yaw = 0.35; _yaw_target = yaw
 	cam = Camera3D.new()
 	cam.fov = 48.0
 	cam.far = 120.0
@@ -146,7 +157,7 @@ func _build_woods(th: Dictionary) -> void:
 	var bushes = []
 	for k in 70:
 		var a = rng.randf() * TAU
-		var r = rng.randf_range(10.5, 30.0)
+		var r = rng.randf_range(12.5, 32.0)
 		var p = Vector2(cos(a), sin(a)) * r
 		var roll = rng.randf()
 		kinds[0 if roll < 0.6 else (1 if roll < 0.9 else 2)][2].append(p)
@@ -165,7 +176,9 @@ func _build_woods(th: Dictionary) -> void:
 	var tufts = []
 	for k in 260:
 		var a = rng.randf() * TAU
-		tufts.append(Vector2(cos(a), sin(a)) * rng.randf_range(3.5, 14.0))
+		var t = Vector2(cos(a), sin(a)) * rng.randf_range(3.5, 14.0)
+		if muster and t.y > 3.6: continue  # between the row and the camera
+		tufts.append(t)
 	_multi(kit._tuft_mesh(th), tufts, rng, 0.6, 1.3, kit._vc_material(0.9))
 
 
@@ -252,7 +265,7 @@ func _build_camp() -> void:
 	kit._prop(self, "world-barrels", 1.2, Vector3(-6.4, 0, 1.4), 0.4)
 	for row in 2:
 		for k in 3 - row:
-			var l = kit._cyl(self, 0.14, 0.14, 1.4, Vector3(1.6 + k * 0.3 + row * 0.15, 0.14 + row * 0.26, 3.4), Color(0.42, 0.3, 0.18), 6, "wood")
+			var l = kit._cyl(self, 0.14, 0.14, 1.4, Vector3(5.6 + k * 0.3 + row * 0.15, 0.14 + row * 0.26, -1.8), Color(0.42, 0.3, 0.18), 6, "wood")
 			l.rotation.x = PI * 0.5
 	# The training dummy: a post, a crossbar, a sack for a head.
 	kit._box(self, Vector3(0.14, 1.7, 0.14), DUMMY + Vector3(0, 0.85, 0), wood)
@@ -283,6 +296,9 @@ func _build_camp() -> void:
 # ── the heroes ─────────────────────────────────────────────────────────────
 ## Puts each hero of the squad where their task for the night is.
 func sync() -> void:
+	if muster:
+		_sync_muster()
+		return
 	var w = Game.w
 	var squad: Array = Game.squad()
 	var count = {}
@@ -294,22 +310,7 @@ func sync() -> void:
 		keep[c.id] = true
 		var h = heroes.get(c.id)
 		if h == null:
-			var u = Unit.new()
-			var sp = WorldView.hero_spec(c)
-			sp.scale = HERO_SCALE; sp.team = 0; sp.name = c.name; sp.role = "melee"; sp.hp = 100; sp.atk = Vector2i(1, 1); sp.init = 1
-			add_child(u)
-			u.setup(sp)
-			u.set_bar_visible(false)
-			var l = Label3D.new()
-			l.font = WorldView.BODY_FONT
-			l.font_size = 30
-			l.pixel_size = 0.008
-			l.outline_size = 12
-			l.outline_modulate = Color(0, 0, 0, 0.85)
-			l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			l.no_depth_test = true
-			add_child(l)
-			h = {"unit": u, "label": l, "act": "", "slot": -1, "next": 0.0, "bedroll": null}
+			h = _new_hero(c)
 			heroes[c.id] = h
 		h.label.text = "%s · %s" % [c.name, w.activity(act).name]
 		if h.act != act or h.slot != n: _place(h, act, n)
@@ -318,6 +319,86 @@ func sync() -> void:
 			heroes[id].unit.queue_free(); heroes[id].label.queue_free()
 			if heroes[id].bedroll: heroes[id].bedroll.queue_free()
 			heroes.erase(id)
+
+
+func _new_hero(c: Dictionary) -> Dictionary:
+	var u = Unit.new()
+	var sp = WorldView.hero_spec(c)
+	sp.scale = HERO_SCALE; sp.team = 0; sp.name = c.name; sp.role = "melee"; sp.hp = 100; sp.atk = Vector2i(1, 1); sp.init = 1
+	add_child(u)
+	u.setup(sp)
+	u.set_bar_visible(false)
+	var l = _label3d(30)
+	return {"unit": u, "label": l, "act": "", "slot": -1, "next": 0.0, "bedroll": null}
+
+
+func _label3d(size: int) -> Label3D:
+	var l = Label3D.new()
+	l.font = WorldView.BODY_FONT
+	l.font_size = size
+	l.pixel_size = 0.008
+	l.outline_size = 12
+	l.outline_modulate = Color(0, 0, 0, 0.85)
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = true
+	add_child(l)
+	return l
+
+
+# ── the muster ─────────────────────────────────────────────────────────────
+## Where the n-th of the five stands, in a row before the fire.
+func _muster_spot(n: int) -> Vector3:
+	return Vector3((n - 2) * 1.55, 0, 2.9 - absf(n - 2) * 0.3)
+
+
+func _build_muster() -> void:
+	# The guild's banners either side of the row.
+	for x in [-4.6, 4.6]: kit._model(self, "decor-banner", 1.3, Vector3(x, 1.14, 1.4), 0.0)
+	for n in 5:
+		var r = kit._ring_mesh(0.55, Color(0.95, 0.8, 0.5, 0.75))
+		r.position = _muster_spot(n) + Vector3(0, 0.04, 0)
+		add_child(r)
+		_rings.append(r)
+		var l = _label3d(44)
+		l.text = "+"
+		l.modulate = Color(0.95, 0.85, 0.6, 0.8)
+		l.position = _muster_spot(n) + Vector3(0, 0.6, 0)
+		_ring_labels.append(l)
+
+
+func _sync_muster() -> void:
+	var squad: Array = Game.squad()
+	var keep = {}
+	for n in squad.size():
+		var c: Dictionary = squad[n]
+		keep[c.id] = true
+		var h = heroes.get(c.id)
+		var fresh = h == null
+		if fresh:
+			h = _new_hero(c)
+			heroes[c.id] = h
+		h.label.text = c.name
+		h.label.font_size = 26
+		h.label.modulate = DB.ROLE_COLOR[c.role].lightened(0.35)
+		if h.slot != n:
+			h.slot = n
+			h.act = "muster"
+			var u: Unit = h.unit
+			u.position = _muster_spot(n)
+			u.face(u.position + Vector3(0, 0, 5))
+			h.label.position = u.position + Vector3(0, 2.15, 0)
+			# Whoever joins after the scene is up steps in with a cheer.
+			if fresh and is_inside_tree() and _time > 0.2:
+				var t = u.cheer()
+				get_tree().create_timer(t * 0.95).timeout.connect(func(): if is_instance_valid(u): u.play_idle())
+			else: u.play_idle()
+	for id in heroes.keys():
+		if not keep.has(id):
+			heroes[id].unit.queue_free(); heroes[id].label.queue_free()
+			heroes.erase(id)
+	for n in 5:
+		_rings[n].visible = n >= squad.size()
+		_ring_labels[n].visible = n >= squad.size()
 
 
 func _place(h: Dictionary, act: String, n: int) -> void:
@@ -378,21 +459,26 @@ func _process(dt: float) -> void:
 	for k in _flames.size():
 		var f = _flames[k]
 		f.scale = Vector3(1.0 + 0.12 * sin(_time * 9.0 + k), 0.8 + 0.3 * absf(sin(_time * (6.0 + k * 1.3) + k * 2.0)), 1.0 + 0.12 * cos(_time * 8.0 + k))
-	if not _held: _yaw_target += dt * 0.035
+	if muster:
+		# Facing the row, swaying a little.
+		if not _held: _yaw_target = lerp_angle(_yaw_target, sin(_time * 0.2) * 0.12, minf(1.0, dt))
+	elif not _held: _yaw_target += dt * 0.035
 	zoom = lerpf(zoom, _zoom_target, 1.0 - exp(-dt * 10.0))
 	yaw = lerp_angle(yaw, _yaw_target, 1.0 - exp(-dt * 8.0))
 	var vp = get_viewport().get_visible_rect().size
-	# A phone held upright sees a narrow slice: stand further back.
-	var dist = 12.5 * zoom * (1.55 if vp.x < vp.y else 1.0)
-	var pr = deg_to_rad(34.0)
-	var focus = Vector3(0, 0.6, 0)
+	# A phone held upright sees a narrow slice: it gets a taller view instead
+	# of stepping back into the trees.
+	cam.fov = 68.0 if vp.x < vp.y else 48.0
+	var dist = (9.5 if muster else 11.5) * zoom * (1.15 if muster and vp.x < vp.y else 1.0)
+	var pr = deg_to_rad((24.0 if vp.x < vp.y else 18.0) if muster else 34.0)
+	var focus = Vector3(0, 1.1, 2.4) if muster else Vector3(0, 0.6, 0)
 	cam.position = focus + Vector3(sin(yaw) * cos(pr), sin(pr), cos(yaw) * cos(pr)) * dist
 	cam.look_at(focus)
 	# Keep the fire in the middle of what the screen's panels leave open.
 	if vp.y > 0:
 		var view_h = 2.0 * dist * tan(deg_to_rad(cam.fov) * 0.5)
 		cam.v_offset = -band_bottom * 0.5 / vp.y * view_h
-		cam.h_offset = band_right * 0.5 / vp.y * view_h
+		cam.h_offset = (band_right - band_left) * 0.5 / vp.y * view_h
 
 
 func _unhandled_input(ev: InputEvent) -> void:
