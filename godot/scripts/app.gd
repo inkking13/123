@@ -164,8 +164,8 @@ func _update() -> void:
 		if current:
 			current.queue_free()
 		current_name = Game.screen
-		# The fight shows its 3D field through the screen, under the panels.
-		_bg.visible = not (current_name in ["combat", "world"])
+		# The fight, the map and the camp show their 3D through the screen, under the panels.
+		_bg.visible = not (current_name in ["combat", "world", "bivouac"])
 		current = load(SCREENS[current_name]).new()
 		add_child(current)
 	current.refresh()

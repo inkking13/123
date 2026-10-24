@@ -28,8 +28,13 @@ static func open(what: String) -> void:
 	var g = Game
 	match what:
 		"char": g.open_char(g.squad()[0].id)
-		"bivouac":
+		"bivouac", "bivouac-night":
 			g.go_world()
+			if what == "bivouac-night": g.w.hours = 21.0
+			# Every task of the night taken by someone.
+			var acts = ["rest", "cook", "train", "watch", "rest", "hunt"]
+			var squad: Array = g.squad()
+			for i in squad.size(): g.w.set_plan(squad[i].id, acts[i % acts.size()])
 			g.go("bivouac")
 		"town":
 			g.go_world()

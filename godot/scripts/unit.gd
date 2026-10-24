@@ -385,6 +385,14 @@ func play_hit() -> void:
 	if _anim.current_animation == _body.hit: play_idle()
 
 
+## Asleep at camp: the fall of the death clip, held on its last frame, but
+## still alive and able to get up with play_idle.
+func lie_down() -> void:
+	var a = _anim.get_animation(_body.death)
+	if a: a.loop_mode = Animation.LOOP_NONE
+	_anim.play(_body.death, 0.3, _speed_of(_body.death))
+
+
 func play_death() -> void:
 	alive = false
 	_anim.play(_body.death, 0.15, _speed_of(_body.death))

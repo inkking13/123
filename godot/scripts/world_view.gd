@@ -58,13 +58,7 @@ var _zoom0 = 1.0
 func _ready() -> void:
 	var w = Game.w
 	var th: Dictionary = w.theme()
-	if th.get("textured", false):
-		for k in ["grass", "road", "rock", "wall", "roof", "water", "wood", "masonry", "soil", "hay", "canvas", "foliage", "cobblestone", "sand", "forest_floor", "dry_grass"]:
-			var path = "res://assets/textures/world/%s.jpg" % k
-			var t: Texture2D = load(path) if ResourceLoader.exists(path) else null
-			if t:
-				_tex[k] = t
-				_tex_mean[k] = _mean_colour(t)
+	load_textures(th)
 	_build_env(th)
 	_build_ground(th)
 	_build_road(th)
@@ -91,6 +85,18 @@ func _ready() -> void:
 	_focus = Vector3(w.pos.x, 0, w.pos.y)
 	apply_quality(Game.settings.quality)
 	_process(0.0)
+
+
+## The land's painted surfaces, when it has them. CampView borrows a
+## WorldView this way, out of the tree, for its props and materials.
+func load_textures(th: Dictionary) -> void:
+	if not th.get("textured", false): return
+	for k in ["grass", "road", "rock", "wall", "roof", "water", "wood", "masonry", "soil", "hay", "canvas", "foliage", "cobblestone", "sand", "forest_floor", "dry_grass"]:
+		var path = "res://assets/textures/world/%s.jpg" % k
+		var t: Texture2D = load(path) if ResourceLoader.exists(path) else null
+		if t:
+			_tex[k] = t
+			_tex_mean[k] = _mean_colour(t)
 
 
 func apply_quality(q: String) -> void:
@@ -1363,16 +1369,21 @@ func _unit(spec: Dictionary, team: int, name: String) -> Unit:
 	return u
 
 
+## How a hero looks on the map: body, weapons and the armour they wear.
+static func hero_spec(c: Dictionary) -> Dictionary:
+	var spec: Dictionary = BattleView.HEROES.get(c.id, {"body": "human"}).duplicate()
+	var m = DB.armour_of(c.equipment.get("chest", "none"))
+	var set_id = m.set.id if m else DB.armour.STARTING_OUTFITS.get(str(c.id))
+	if set_id: spec.set = set_id
+	return spec
+
+
 func _build_party() -> void:
 	var w = Game.w
 	var squad: Array = Game.squad()
 	for i in squad.size():
 		var c: Dictionary = squad[i]
-		var spec: Dictionary = BattleView.HEROES.get(c.id, {"body": "human"}).duplicate()
-		var m = DB.armour_of(c.equipment.get("chest", "none"))
-		var set_id = m.set.id if m else DB.armour.STARTING_OUTFITS.get(str(c.id))
-		if set_id: spec.set = set_id
-		var u = _unit(spec, 0, c.name)
+		var u = _unit(hero_spec(c), 0, c.name)
 		u.position = Vector3(w.pos.x - i * FILE_GAP, 0, w.pos.y)
 		u.play_idle()
 		party.append(u)
