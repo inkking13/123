@@ -10,6 +10,8 @@ extends Node3D
 const FONT := preload("res://fonts/AlegreyaSC_700Bold.ttf")
 const BODY_FONT := preload("res://fonts/Alegreya_500Medium.ttf")
 const FILE_GAP := 1.5
+## Side of the patch of land each scattered MultiMesh covers.
+const SCATTER_CELL := 32.0
 const GRADE := preload("res://shaders/grade.gdshader")
 const GROUND := preload("res://shaders/ground.gdshader")
 
@@ -324,15 +326,14 @@ func _build_woods(th: Dictionary) -> void:
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	_tree_spots = trees
 	var rocks = spots.slice(int(spots.size() * 0.8))
-	# A textured land mixes Meshy trees, mostly its own kind, with oaks,
-	# lindens, an old mossy oak now and then, and birches; rocks become mossy
-	# boulders, and bushes grow among the grass.
-	var main_tree = _model_mesh({"pine": "world-pine", "round": "world-tree"}.get(th.tree, ""), 4.4) if th.get("textured", false) else null
+	# A textured land grows the owner's trees: mostly firs, with lindens and
+	# an old mossy oak now and then; rocks become mossy boulders, and bushes
+	# grow among the grass.
+	var main_tree = _model_mesh("world-tree-fir", 4.6) if th.get("textured", false) else null
 	if main_tree:
 		# [mesh, share, trees, tint]; a kind without a model falls back to the main one.
-		var mix = [[main_tree, 0.5, [], Color(1.05, 1.2, 0.95)], [_model_mesh("world-pine2", 5.5), 0.18, [], Color(1.05, 1.2, 0.95)],
-			[_model_mesh("world-oak", 5.0), 0.1, [], Color(0.8, 0.95, 0.68)], [_model_mesh("world-linden", 3.8), 0.1, [], Color.WHITE],
-			[_model_mesh("world-tree-oldoak", 6.0), 0.04, [], Color.WHITE], [_model_mesh("world-birch", 4.5), 0.04, [], Color.WHITE]]
+		var mix = [[main_tree, 0.55, [], Color(0.82, 0.86, 0.74)], [_model_mesh("world-linden", 4.0), 0.35, [], Color(0.86, 0.9, 0.76)],
+			[_model_mesh("world-tree-oldoak", 6.0), 0.1, [], Color(0.86, 0.9, 0.76)]]
 		for p in trees:
 			var roll = rng.randf()
 			var k = 0
@@ -342,7 +343,7 @@ func _build_woods(th: Dictionary) -> void:
 			mix[k if mix[k][0] else 0][2].append(p)
 		for m in mix:
 			if m[0] == null or m[2].is_empty(): continue
-			# Shade each kind toward the land's green; Meshy's come out grey or pale.
+			# Calm each kind's bright green toward the land's muted one.
 			var leaves: BaseMaterial3D = m[0].surface_get_material(0).duplicate()
 			leaves.albedo_color = m[3]
 			_scatter(m[0], m[2], rng, 0.8, 1.3, leaves)
@@ -366,20 +367,27 @@ func _clear_of(kind: String) -> float:
 
 
 func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: float, mat: Material = null) -> void:
-	var mm = MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
-	mm.instance_count = at.size()
-	for i in at.size():
-		var p: Vector2 = at[i]
-		var edge = maxf(absf(p.x), absf(p.y)) - Game.w.size()
-		var y = maxf(0.0, edge) * 0.35
-		var t = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(lo, hi)), Vector3(p.x, y, p.y))
-		mm.set_instance_transform(i, t)
-	var mmi = MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	mmi.material_override = mat if mat else _vc_material(0.9)
-	add_child(mmi)
+	# One MultiMesh per patch of land, so the camera skips patches out of view.
+	var cells = {}
+	for p in at:
+		var key = Vector2i(floori(p.x / SCATTER_CELL), floori(p.y / SCATTER_CELL))
+		if not cells.has(key): cells[key] = []
+		cells[key].append(p)
+	for cell in cells.values():
+		var mm = MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = cell.size()
+		for i in cell.size():
+			var p: Vector2 = cell[i]
+			var edge = maxf(absf(p.x), absf(p.y)) - Game.w.size()
+			var y = maxf(0.0, edge) * 0.35
+			var t = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(lo, hi)), Vector3(p.x, y, p.y))
+			mm.set_instance_transform(i, t)
+		var mmi = MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = mat if mat else _vc_material(0.9)
+		add_child(mmi)
 
 
 ## A Meshy model as one mesh, standing on its base at the origin and scaled
@@ -874,6 +882,7 @@ func _farm(root: Node3D, th: Dictionary) -> void:
 	if not _prop(root, "world-barn", 5.0, Vector3(-3.5, 0, -2.5), 0.4, true):
 		_house(root, Vector3(-3, 0, -2), 2.8, 2.2, 0.4, Color(0.66, 0.58, 0.46), Color(0.48, 0.33, 0.18))
 	_house(root, Vector3(1.5, 0, -4), 2.2, 2.0, -0.3, Color(0.6, 0.53, 0.42), Color(0.48, 0.33, 0.18))
+	_prop(root, "world-stonewell", 2.4, Vector3(-7.2, 0, 1.8), 0.6)
 	# Fields: rows of furrows and crop.
 	for f in 2:
 		var base = Vector3(3 + f * 6.5, 0, 3)
@@ -910,6 +919,12 @@ func _farm(root: Node3D, th: Dictionary) -> void:
 
 
 func _tower(root: Node3D, th: Dictionary) -> void:
+	if _prop(root, "world-stonetower", 8.0, Vector3.ZERO, 0.0):
+		var lamp = OmniLight3D.new()
+		lamp.light_color = Color(1.0, 0.6, 0.3); lamp.light_energy = 1.0; lamp.omni_range = 6.0
+		lamp.position = Vector3(0, 7.0, 1.0)
+		root.add_child(lamp)
+		return
 	var stone = th.rock.lerp(Color(0.55, 0.52, 0.48), 0.5).darkened(0.25)
 	_cyl(root, 1.9, 2.3, 7.5, Vector3(0, 3.75, 0), stone, 10)
 	for k in 8:
@@ -1033,7 +1048,9 @@ func _ruins(root: Node3D, th: Dictionary) -> void:
 func _shrine(root: Node3D, th: Dictionary) -> void:
 	var stone = Color(0.48, 0.46, 0.42)
 	_box(root, Vector3(4.0, 0.3, 3.0), Vector3(0, 0.15, 0), stone.darkened(0.15))
-	_box(root, Vector3(1.4, 1.0, 0.9), Vector3(0, 0.8, 0), stone)
+	# The saint stands between the pillars; without a model, an altar does.
+	var saint = _prop(root, "world-statue", 2.9, Vector3(0, 0.3, -0.8), 0.0)
+	if not saint: _box(root, Vector3(1.4, 1.0, 0.9), Vector3(0, 0.8, 0), stone)
 	for x in [-1.5, 1.5]:
 		_box(root, Vector3(0.5, 3.0, 0.5), Vector3(x, 1.8, -0.8), stone)
 	_box(root, Vector3(3.8, 0.4, 0.8), Vector3(0, 3.4, -0.8), stone)
@@ -1042,7 +1059,8 @@ func _shrine(root: Node3D, th: Dictionary) -> void:
 	orb.mesh = sm
 	orb.material_override = _solid(Color(1.0, 0.9, 0.6), 0.3, Color(1.0, 0.8, 0.45))
 	orb.position = Vector3(0, 1.6, 0)
-	root.add_child(orb)
+	if not saint: root.add_child(orb)
+	else: orb.free()
 	var l = OmniLight3D.new()
 	l.light_color = Color(1.0, 0.85, 0.55); l.light_energy = 1.4; l.omni_range = 6.0
 	l.position = Vector3(0, 1.8, 0)
@@ -1213,6 +1231,9 @@ func _market(root: Node3D) -> void:
 
 
 func _smithy(root: Node3D) -> void:
+	if _prop(root, "world-smithy", 5.0, Vector3(0, 0, -0.4), 0.0, true):
+		_model(root, "decor-weapons", 0.45, Vector3(2.0, 0.25, 2.0), 0.3)
+		return
 	var wood = Color(0.3, 0.2, 0.12)
 	for p in [Vector3(-2.2, 0, -1.6), Vector3(2.2, 0, -1.6), Vector3(-2.2, 0, 1.6), Vector3(2.2, 0, 1.6)]:
 		_box(root, Vector3(0.22, 3.0, 0.22), p + Vector3(0, 1.5, 0), wood)
