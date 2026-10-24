@@ -57,6 +57,10 @@ const PROPS := {
 const TO_FIST := 0.075
 const TO_PALM := 0.025
 const TO_BACK := 0.05
+## How far a held shaft leans from square to the forearm back toward the wrist (tan).
+const GRIP_TIP := 0.25
+## How much of its idle stand a held weapon keeps on the run (the rest follows the fist).
+const RUN_STEADY := 0.6
 
 # ── armour ──────────────────────────────────────────────────────────────────
 const PIECES := ["hood", "jacket", "shoulders", "cloak", "belt", "gloves", "pants", "boots"]
@@ -111,7 +115,7 @@ func setup(spec: Dictionary) -> void:
 	_skel = model.find_child("Skeleton3D", true, false)
 	_anim = model.find_child("AnimationPlayer", true, false)
 	_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
-	_hips = _skel.find_bone("mixamorig_Hips")
+	_hips = _bone("Hips")
 	var body_mesh: MeshInstance3D = null
 	for c in _skel.get_children():
 		if c is MeshInstance3D:
@@ -129,8 +133,8 @@ func setup(spec: Dictionary) -> void:
 	_anim.play(_body.idle)
 	_anim.seek(0.0, true)
 	_hips_xz = Vector2(_skel.get_bone_pose_position(_hips).x, _skel.get_bone_pose_position(_hips).z)
-	var hand_r = _skel.find_bone("mixamorig_RightHand")
-	var hand_l = _skel.find_bone("mixamorig_LeftHand")
+	var hand_r = _bone("RightHand")
+	var hand_l = _bone("LeftHand")
 	var right: String = spec.get("right", "")
 	var left: String = spec.get("left", "")
 	# Bows go in the left hand.
@@ -259,6 +263,12 @@ func _cut_body(mi: MeshInstance3D, hidden: Dictionary, open_hood: bool, hood_bac
 		mi.set_surface_override_material(s, mats[s])
 
 
+## A Mixamo bone by its plain name; the orc's rig has no mixamorig_ prefix.
+func _bone(name: String) -> int:
+	var i = _skel.find_bone("mixamorig_" + name)
+	return i if i >= 0 else _skel.find_bone(name)
+
+
 # ── held props ──────────────────────────────────────────────────────────────
 ## Model-space turn of a bone in the skin's bind pose (arms down, thumbs forward).
 func _rest_q(mesh: MeshInstance3D, bone: int) -> Quaternion:
@@ -294,11 +304,18 @@ static func _grip(rest: Quaternion, pose: Quaternion, left: bool, how: String, t
 		if x.length_squared() < 1e-4: x = y.cross(F)
 		x = x.normalized()
 	var basis = Basis(x, y, x.cross(y))
-	var q = to_bone * basis.get_rotation_quaternion()
+	var stand = to_bone * basis.get_rotation_quaternion()
+	var q = stand
+	if how == "fist":
+		# In a swing or a run the shaft lies the way a closed fist holds it:
+		# out past the thumb, tipped back toward the wrist.
+		var ya = (T - F * GRIP_TIP).normalized()
+		var xa = ya.cross(P).normalized()
+		q = to_bone * Basis(xa, ya, xa.cross(ya)).get_rotation_quaternion()
 	var reach = TO_FIST if how == "shield" else to_fist
 	var side = -TO_BACK if how == "shield" else TO_PALM
 	var pos = Vector3(0, reach, 0) + to_bone * (P * side)
-	return {"q": q, "pos": pos}
+	return {"q": q, "stand": stand, "pos": pos}
 
 
 func _hold(prop: String, hand: int, body_mesh: MeshInstance3D, left: bool, glow: Color) -> void:
@@ -320,11 +337,13 @@ func _hold(prop: String, hand: int, body_mesh: MeshInstance3D, left: bool, glow:
 	var holder = Node3D.new()
 	holder.add_child(model)
 	_skel.add_child(holder)
-	_steady.append({"holder": holder, "hand": hand, "grip": g.q, "pos": g.pos, "idle": pose * g.q, "upright": p.how == "upright"})
+	# Grips are in metres; the orc's skeleton is in centimetres.
+	var m = 1.0 / (_visual.global_transform.affine_inverse() * _skel.global_transform).basis.get_scale().x
+	_steady.append({"holder": holder, "hand": hand, "grip": g.q, "pos": g.pos * m, "m": m, "idle": pose * g.stand, "upright": p.how == "upright"})
 
 
-## Held things keep their idle stand while idle plays, so they follow the hand
-## only in actions; a staff, bow or flask always stays upright.
+## Held things keep their idle stand while idle plays, most of it on the run,
+## and lie in the fist in actions; a staff, bow or flask always stays upright.
 func _steady_props() -> void:
 	for s in _steady:
 		var hand_pose = _skel.get_bone_global_pose(s.hand)
@@ -332,7 +351,7 @@ func _steady_props() -> void:
 		var w = 1.0 if s.upright else _idle_w
 		var target: Quaternion = (hq * s.grip).slerp(s.idle, w)
 		var local = hq.inverse() * target
-		s.holder.transform = Transform3D(hand_pose.basis, hand_pose.origin) * Transform3D(Basis(local), s.pos)
+		s.holder.transform = Transform3D(hand_pose.basis, hand_pose.origin) * Transform3D(Basis(local).scaled(Vector3.ONE * s.m), s.pos)
 
 
 # ── per frame ───────────────────────────────────────────────────────────────
@@ -342,8 +361,9 @@ func _process(delta: float) -> void:
 	if _hips >= 0:
 		var p = _skel.get_bone_pose_position(_hips)
 		_skel.set_bone_pose_position(_hips, Vector3(_hips_xz.x, p.y, _hips_xz.y))
-	var idle_now: bool = alive and _anim.current_animation == _body.idle
-	_idle_w = move_toward(_idle_w, 1.0 if idle_now else 0.0, delta * 5.0)
+	var now: String = _anim.current_animation if alive else ""
+	var steady = 1.0 if now == _body.idle else RUN_STEADY if now == _body.run else 0.0
+	_idle_w = move_toward(_idle_w, steady, delta * 5.0)
 	_steady_props()
 	if _ring.visible:
 		var t = Time.get_ticks_msec() / 1000.0
