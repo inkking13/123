@@ -62,6 +62,48 @@
   },
   "yadovityy-ukus": {
    "asset": "skills/yadovityy-ukus.jpg"
+  },
+  "kostlyavaya-dlan": {
+   "asset": "skills/kostlyavaya-dlan.jpg"
+  },
+  "krovavyy-topor": {
+   "asset": "skills/krovavyy-topor.jpg"
+  },
+  "zelenyy-cherep": {
+   "asset": "skills/zelenyy-cherep.jpg"
+  },
+  "shipastaya-bulava": {
+   "asset": "skills/shipastaya-bulava.jpg"
+  },
+  "yadovityy-klinok": {
+   "asset": "skills/yadovityy-klinok.jpg"
+  },
+  "runnyy-mech": {
+   "asset": "skills/runnyy-mech.jpg"
+  },
+  "svyatoy-grail": {
+   "asset": "skills/svyatoy-grail.jpg"
+  },
+  "shchit-sveta": {
+   "asset": "skills/shchit-sveta.jpg"
+  },
+  "molot-pravosudiya": {
+   "asset": "skills/molot-pravosudiya.jpg"
+  },
+  "osvyashchennaya-zemlya": {
+   "asset": "skills/osvyashchennaya-zemlya.jpg"
+  },
+  "klinok-hramovnika": {
+   "asset": "skills/klinok-hramovnika.jpg"
+  },
+  "krylatyy-dospeh": {
+   "asset": "skills/krylatyy-dospeh.jpg"
+  },
+  "goryashchiy-kodeks": {
+   "asset": "skills/goryashchiy-kodeks.jpg"
+  },
+  "venets-zari": {
+   "asset": "skills/venets-zari.jpg"
   }
  },
  "ABILITY_ART": {
@@ -88,5 +130,21 @@
   "target": "arkannye-svyazi",
   "fire": "adskiy-shtorm",
   "snowflake": "ledyanoy-vzryv"
+ },
+ "SPELL_ART": {
+  "heroic-strike": "shipastaya-bulava",
+  "mortal-strike": "krovavyy-topor",
+  "judgement": "goryashchiy-kodeks",
+  "hammer-of-justice": "molot-pravosudiya",
+  "avengers-shield": "shchit-sveta",
+  "templars-verdict": "klinok-hramovnika",
+  "lay-on-hands": "svyatoy-grail",
+  "consecration": "osvyashchennaya-zemlya",
+  "light-of-dawn": "venets-zari",
+  "avenging-wrath": "krylatyy-dospeh",
+  "death-coil": "zelenyy-cherep",
+  "scourge-strike": "kostlyavaya-dlan",
+  "festering-plague": "yadovityy-klinok",
+  "death-strike": "runnyy-mech"
  }
 }

@@ -1140,7 +1140,7 @@ func turn_actions() -> Array:
 		if sp.cd > 0: sub = "КД: %d" % sp.cd
 		elif not reach: sub = "подойдите вплотную"
 		elif cost > 0: sub = "%d %s" % [cost, res_name.to_lower()]
-		act.call("spell:" + sp.id, sd.name, {"spellIcon": sd.icon, "disabled": sp.cd > 0 or r.res.val < cost or not reach,
+		act.call("spell:" + sp.id, sd.name, {"spellIcon": sd.icon, "spellArt": DB.spell_art_path(sp.id), "disabled": sp.cd > 0 or r.res.val < cost or not reach,
 			"needsTarget": sd.target == "ally", "sub": sub, "cost": cost, "desc": sd.desc, "short": r.res.val < cost and sp.cd == 0})
 	var def = DB.ability(r.candidateId)
 	act.call("ability", def.name, {"abilityIcon": def.icon, "abilityArt": DB.ability_art_path(r.candidateId), "disabled": r.ability.cd > 0,

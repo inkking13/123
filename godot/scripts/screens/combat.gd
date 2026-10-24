@@ -450,7 +450,7 @@ func _action_slot(a: Dictionary) -> Control:
 	var holder = Control.new()
 	holder.custom_minimum_size = Vector2(UI.px(SLOT * 0.62), UI.px(SLOT * 0.62))
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var art: String = a.get("abilityArt", "") if a.get("abilityArt") != null else ""
+	var art: String = a.get("abilityArt", "") if a.get("abilityArt") != null else a.get("spellArt", "")
 	var pic: Control
 	if art != "": pic = UI.picture(art, SLOT * 0.62, SLOT * 0.62, 5)
 	else:

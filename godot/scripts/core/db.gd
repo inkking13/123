@@ -422,6 +422,13 @@ func spell(cls: String, id: String) -> Dictionary:
 	return {}
 
 
+## Where a spell's painted icon lives under assets/, or "" to draw its glyph.
+func spell_art_path(id: String) -> String:
+	var art = skill_art.SPELL_ART.get(id)
+	if art == null or not skill_art.SKILL_ART.has(art): return ""
+	return skill_art.SKILL_ART[art].asset
+
+
 func talent_tree(cls: String, spec_id: String) -> Array:
 	return talent_trees[cls][spec_id]
 
