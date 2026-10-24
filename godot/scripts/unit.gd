@@ -59,11 +59,13 @@ const TO_PALM := 0.025
 const TO_BACK := 0.05
 
 # ── armour ──────────────────────────────────────────────────────────────────
-const PIECES := ["hood", "jacket", "shoulders", "cloak", "belt", "gloves", "pants", "boots"]
-## What of the body each piece covers; the body is cut away under it.
-const COVERS := {"jacket": ["torso"], "shoulders": ["upperArm"], "gloves": ["hand", "forearm"],
+const PIECES := ["hood", "collar", "jacket", "shoulders", "cloak", "belt", "sleeves", "gloves", "pants", "boots"]
+## What of the body each piece covers; the body is cut away under it. A collar
+## (a hood worn down) covers nothing, and sleeves leave the hands bare.
+const COVERS := {"jacket": ["torso"], "shoulders": ["upperArm"], "sleeves": ["forearm"], "gloves": ["hand", "forearm"],
 	"pants": ["pelvis", "thigh"], "boots": ["foot", "shin"]}
-const CLOSED_HELM := {"knight": true, "templar": true, "arcane": false, "leather": false}
+const CLOSED_HELM := {"knight": true, "templar": true, "arcane": false, "leather": false,
+	"gambeson": false, "chainmail": false, "wanderer": false}
 
 # ── state ───────────────────────────────────────────────────────────────────
 var display_name = ""
@@ -173,6 +175,8 @@ func _piece_finish(set_id: String, piece: String) -> String:
 	if set_id == "knight": return "metal"
 	if set_id == "templar": return "cloth" if piece == "jacket" else "metal"
 	if set_id == "arcane": return "leather" if piece == "gloves" or piece == "boots" else "cloth"
+	if set_id == "chainmail": return "metal" if piece in ["hood", "jacket", "shoulders"] else "leather"
+	if set_id == "gambeson" or set_id == "wanderer": return "leather" if piece == "gloves" or piece == "boots" else "cloth"
 	return "leather"
 
 
