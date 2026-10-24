@@ -14,6 +14,8 @@ const FILE_GAP := 1.5
 const SCATTER_CELL := 32.0
 const GRADE := preload("res://shaders/grade.gdshader")
 const GROUND := preload("res://shaders/ground.gdshader")
+const WIND := preload("res://shaders/wind.gdshader")
+const WATER := preload("res://shaders/water.gdshader")
 
 signal place_tapped(id: String)
 
@@ -36,7 +38,10 @@ var _mats = {}           # textured materials, shared between props of one look
 var _models = {}         # Meshy models baked to one mesh, by file and height
 var _ground: ShaderMaterial  # the blended ground, on a land with textures for it
 var _tree_spots = []
+var _winds = {}          # plants' wind materials, by source material and sway
 var _life: WorldLife     # farm beasts, birds, smoke and folk, on a lively land
+var land: Land           # the heights, the road as walked, the river and its bridge
+var _water: ShaderMaterial
 var band_bottom = 0.0
 
 var yaw = 0.6
@@ -58,10 +63,12 @@ var _zoom0 = 1.0
 func _ready() -> void:
 	var w = Game.w
 	var th: Dictionary = w.theme()
+	land = w.land()
 	load_textures(th)
 	_build_env(th)
 	_build_ground(th)
 	_build_road(th)
+	_build_river(th)
 	if th.get("lively", false):
 		_life = WorldLife.new()
 		_life.view = self
@@ -82,7 +89,7 @@ func _ready() -> void:
 	cam.far = 260.0
 	add_child(cam)
 	cam.make_current()
-	_focus = Vector3(w.pos.x, 0, w.pos.y)
+	_focus = _on_ground(w.pos)
 	apply_quality(Game.settings.quality)
 	_process(0.0)
 
@@ -162,10 +169,11 @@ func _build_env(th: Dictionary) -> void:
 	add_child(torch)
 
 
-## A flat field with patches of two tints, rising into hills past the edge.
+## The field with patches of two tints: the land's hills and river bed,
+## rising into hills past the edge.
 func _build_ground(th: Dictionary) -> void:
-	var n = 64
-	var half = Game.w.size() + 30.0
+	var n = land.n - 1
+	var half = land.half
 	var noise = FastNoiseLite.new()
 	noise.seed = hash(Game.w.region)
 	noise.frequency = 0.035
@@ -174,15 +182,16 @@ func _build_ground(th: Dictionary) -> void:
 	var pts = []
 	for j in n + 1:
 		for i in n + 1:
-			var x = -half + 2.0 * half * i / n
-			var z = -half + 2.0 * half * j / n
+			var x = -half + i * land.cell
+			var z = -half + j * land.cell
 			var edge = maxf(absf(x), absf(z)) - Game.w.size()
-			var y = 0.0
-			if edge > 0: y = edge * 0.35 + noise.get_noise_2d(x * 2, z * 2) * edge * 0.25
+			var y = land.heights[j * land.n + i]
 			var t = clampf(noise.get_noise_2d(x, z) * 0.9 + 0.5, 0, 1)
 			var col: Color = th.ground.lerp(th.ground2, t)
 			# On grass the tint only shades the painted texture: patches and darker hills.
 			if _tex.has("grass"): col = Color.WHITE.lerp(Color(th.ground2.r / th.ground.r, th.ground2.g / th.ground.g, th.ground2.b / th.ground.b), t)
+			# Hilltops a touch lighter, hollows and the river bed darker.
+			if edge <= 0: col = col.lightened(clampf(y * 0.025, 0, 0.1)) if y > 0 else col.darkened(clampf(-y * 0.12, 0, 0.15))
 			pts.append([Vector3(x, y, z), col.darkened(clampf(edge * 0.01, 0, 0.3))])
 	for j in n:
 		for i in n:
@@ -202,6 +211,10 @@ func _build_ground(th: Dictionary) -> void:
 		if _tex.has("dry_grass"):
 			_ground.set_shader_parameter("dry_tex", _tex.dry_grass)
 			_ground.set_shader_parameter("has_dry", true)
+		var bank = _tex.get("sand", _tex.get("forest_floor"))
+		if bank:
+			_ground.set_shader_parameter("bank_tex", bank)
+			_ground.set_shader_parameter("has_bank", true)
 		_ground.set_shader_parameter("half_size", half)
 		_ground.set_shader_parameter("grass_tint", Vector3(0.8, 0.95, 0.62))
 		_ground.set_shader_parameter("road_tint", Vector3(0.82, 0.85, 0.86))
@@ -222,7 +235,7 @@ func _paint_ground_mask() -> void:
 	var w = 256
 	var px = w / (2.0 * half)
 	var data = PackedByteArray()
-	data.resize(w * w * 2)
+	data.resize(w * w * 3)
 	var stamp = func(at: Vector2, radius: float, ch: int) -> void:
 		var cx = (at.x + half) * px
 		var cy = (at.y + half) * px
@@ -231,14 +244,15 @@ func _paint_ground_mask() -> void:
 			for x in range(maxi(0, int(cx - r)), mini(w, int(cx + r) + 2)):
 				var d = Vector2(x + 0.5 - cx, y + 0.5 - cy).length() / r
 				if d >= 1.0: continue
-				var i = (y * w + x) * 2 + ch
+				var i = (y * w + x) * 3 + ch
 				data[i] = maxi(data[i], int((1.0 - d * d) * 255))
 	var road = _road_points()
 	for i in road.size() - 1:
 		var steps = maxi(1, int(road[i].distance_to(road[i + 1]) / 0.7))
 		for k in steps: stamp.call(road[i].lerp(road[i + 1], float(k) / steps), 2.4, 0)
 	for t in _tree_spots: stamp.call(t, 3.2, 1)
-	_ground.set_shader_parameter("mask", ImageTexture.create_from_image(Image.create_from_data(w, w, false, Image.FORMAT_RG8, data)))
+	for p in _dense(land.river, 0.7): stamp.call(p, Land.RIVER_HALF + 2.2, 2)
+	_ground.set_shader_parameter("mask", ImageTexture.create_from_image(Image.create_from_data(w, w, false, Image.FORMAT_RGB8, data)))
 
 
 ## Meshy road pieces laid end to end along the worn road, with stones and
@@ -260,12 +274,14 @@ func _dress_road() -> void:
 		var t = left
 		while t < seg:
 			var p = a + dir * t
-			if not (Game.w.has_big_town() and p.distance_to(Game.w.layout().town) < World.TOWN_RADIUS):
-				at.append(Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.y)), Vector3(p.x, 0.01, p.y)))
+			var town = Game.w.has_big_town() and p.distance_to(Game.w.layout().town) < World.TOWN_RADIUS
+			# The bridge carries the road over the river.
+			if not town and land.river_gap(p) > Land.RIVER_HALF + 2.0:
+				at.append(Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.y)), Vector3(p.x, land.ground(p) + 0.01, p.y)))
 				if rng.randf() < 0.3: verge.append(p + dir.orthogonal() * (2.1 if rng.randf() < 0.5 else -2.1))
 			t += 3.6
 		left = t - seg
-	for job in [[piece, at], [stones, verge.map(func(v): return Transform3D(Basis(Vector3.UP, rng.randf() * TAU), Vector3(v.x, 0, v.y)))]]:
+	for job in [[piece, at], [stones, verge.map(func(v): return Transform3D(Basis(Vector3.UP, rng.randf() * TAU), Vector3(v.x, land.ground(v), v.y)))]]:
 		if job[0] == null or job[1].is_empty(): continue
 		var mm = MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -278,18 +294,28 @@ func _dress_road() -> void:
 		add_child(mmi)
 
 
-## The road as drawn: each leg bends gently through its midpoint, in short pieces.
+## The road as walked: each leg bends gently through its midpoint, in short pieces.
 func _road_points() -> Array:
-	var road: Array = Game.w.layout().road
-	var out = [road[0]]
-	for i in road.size() - 1:
-		var a: Vector2 = road[i]
-		var b: Vector2 = road[i + 1]
-		var mid = (a + b) * 0.5 + (b - a).orthogonal().normalized() * (a.distance_to(b) * 0.12 * (1 if i % 2 == 0 else -1))
-		for s in range(1, 13):
-			var t = s / 12.0
-			out.append(a.lerp(mid, t).lerp(mid.lerp(b, t), t))
+	return Game.w.road_path()
+
+
+## Points `step` metres apart along a line.
+func _dense(pts: Array, step: float) -> Array:
+	var out = []
+	for i in pts.size() - 1:
+		var steps = maxi(1, int(pts[i].distance_to(pts[i + 1]) / step))
+		for k in steps: out.append(pts[i].lerp(pts[i + 1], float(k) / steps))
+	if not pts.is_empty(): out.append(pts.back())
 	return out
+
+
+## Where a foot comes down at a point: the ground, or the bridge's planks.
+func ground_y(p: Vector2) -> float:
+	return land.walk_y(p) if land else 0.0
+
+
+func _on_ground(p: Vector2, lift := 0.0) -> Vector3:
+	return Vector3(p.x, ground_y(p) + lift, p.y)
 
 
 func _build_road(th: Dictionary) -> void:
@@ -304,6 +330,66 @@ func _build_road(th: Dictionary) -> void:
 	mi.material_override = _tex_material("road", 1.0, 0.25, Color(0.82, 0.85, 0.86), true) if _tex.has("road") else _vc_material(1.0)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
+
+
+## The river: a strip of drifting water along its bed, and the bridge where
+## the road crosses it.
+func _build_river(th: Dictionary) -> void:
+	if land.river.is_empty(): return
+	var pts = _dense(land.river, 1.5)
+	var st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var walked = 0.0
+	var half_w = Land.RIVER_HALF + 1.6
+	var rows = []
+	for i in pts.size():
+		var a: Vector2 = pts[maxi(0, i - 1)]
+		var b: Vector2 = pts[mini(pts.size() - 1, i + 1)]
+		var side = (b - a).orthogonal().normalized() * half_w
+		if i > 0: walked += pts[i].distance_to(pts[i - 1])
+		rows.append([pts[i] + side, pts[i] - side, walked])
+	for i in rows.size() - 1:
+		var q = [[rows[i][0], 0.0, rows[i][2]], [rows[i][1], 1.0, rows[i][2]], [rows[i + 1][1], 1.0, rows[i + 1][2]], [rows[i + 1][0], 0.0, rows[i + 1][2]]]
+		for k in [0, 1, 2, 0, 2, 3]:
+			st.set_uv(Vector2(q[k][1], q[k][2]))
+			st.set_normal(Vector3.UP)
+			st.add_vertex(Vector3(q[k][0].x, Land.WATER_Y, q[k][0].y))
+	var mi = MeshInstance3D.new()
+	mi.mesh = st.commit()
+	_water = ShaderMaterial.new()
+	_water.shader = WATER
+	if _tex.has("water"):
+		_water.set_shader_parameter("water_tex", _tex.water)
+		_water.set_shader_parameter("use_tex", true)
+	mi.material_override = _water
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	for b in land.bridges: _bridge(b)
+
+
+## A plank bridge on posts, with a rail each side.
+func _bridge(b: Dictionary) -> void:
+	var root = Node3D.new()
+	root.position = Vector3(b.at.x, 0, b.at.y)
+	root.rotation.y = atan2(b.dir.x, b.dir.y)
+	add_child(root)
+	var wood = Color(0.42, 0.3, 0.19)
+	var dark = Color(0.3, 0.21, 0.13)
+	var span: float = b.span
+	# Planks across, a little uneven.
+	var n = int(span / 0.45)
+	for k in n:
+		var z = -span * 0.5 + (k + 0.5) * span / n
+		_box(root, Vector3(3.6, 0.12, span / n - 0.05), Vector3(0, Land.DECK_Y - 0.06 + (k % 3) * 0.01, z), wood if k % 2 == 0 else wood.darkened(0.08), 0.0, 0.9, "wood")
+	for s in [-1.0, 1.0]:
+		_box(root, Vector3(0.22, 0.2, span), Vector3(s * 1.55, Land.DECK_Y - 0.18, 0), dark, 0.0, 0.9, "wood")
+		_box(root, Vector3(0.12, 0.12, span), Vector3(s * 1.75, Land.DECK_Y + 0.85, 0), wood, 0.0, 0.9, "wood")
+		var posts = int(span / 2.2) + 1
+		for k in posts + 1:
+			var z = -span * 0.5 + k * span / posts
+			_box(root, Vector3(0.16, 1.0, 0.16), Vector3(s * 1.75, Land.DECK_Y + 0.4, z), dark, 0.0, 0.9, "wood")
+			# Piles down into the river bed.
+			if absf(z) < span * 0.42: _cyl(root, 0.14, 0.16, 1.8, Vector3(s * 1.5, Land.DECK_Y - 1.0, z), dark, 8, "wood")
 
 
 func _road_piece(st: SurfaceTool, a: Vector2, b: Vector2, col: Color) -> void:
@@ -336,6 +422,7 @@ func _build_woods(th: Dictionary) -> void:
 		if _near_road(p, 4.0) or places.any(func(q): return q.pos.distance_to(p) < _clear_of(q.kind)): continue
 		if Game.w.has_big_town() and Game.w.layout().town.distance_to(p) < World.TOWN_RADIUS + 5.0: continue
 		if _life and _life.stops().any(func(s): return s.distance_to(p) < 4.5): continue
+		if land.river_gap(p) < Land.RIVER_HALF + 2.5: continue
 		spots.append(p)
 	var trees = spots.slice(0, int(spots.size() * 0.8))
 	_tree_spots = trees
@@ -360,19 +447,20 @@ func _build_woods(th: Dictionary) -> void:
 			# Calm each kind's bright green toward the land's muted one.
 			var leaves: BaseMaterial3D = m[0].surface_get_material(0).duplicate()
 			leaves.albedo_color = m[3]
-			_scatter(m[0], m[2], rng, 0.8, 1.3, leaves)
+			_scatter(m[0], m[2], rng, 0.8, 1.3, wind_material(leaves, 5.0, 0.025))
 	else: _scatter(_tree_mesh(th), trees, rng, 0.8, 1.5)
 	var boulder = _model_mesh("world-boulder", 1.2) if main_tree else null
 	if boulder: _scatter(boulder, rocks, rng, 0.6, 1.6, boulder.surface_get_material(0))
 	else: _scatter(_rock_mesh(th), rocks, rng, 0.6, 1.6, _tex_material("rock", 0.9, 0.7, Color.WHITE, true) if _tex.has("rock") else null)
 	var bush = _model_mesh("world-bush", 1.0) if main_tree else null
-	if bush: _scatter(bush, spots.filter(func(q): return rng.randf() < 0.5).map(func(q): return q + Vector2(1.6, -1.1)), rng, 0.7, 1.4, bush.surface_get_material(0))
+	if bush: _scatter(bush, spots.filter(func(q): return rng.randf() < 0.5).map(func(q): return q + Vector2(1.6, -1.1)), rng, 0.7, 1.4, wind_material(bush.surface_get_material(0), 1.0, 0.05))
 	var tufts = []
 	for _i in 1600:
 		var p = Vector2(rng.randf_range(-Game.w.size(), Game.w.size()), rng.randf_range(-Game.w.size(), Game.w.size()))
 		if Game.w.has_big_town() and Game.w.layout().town.distance_to(p) < World.TOWN_RADIUS: continue
+		if land.river_gap(p) < Land.RIVER_HALF + 0.3: continue
 		if not _near_road(p, 2.0) and not places.any(func(q): return q.kind in ["lake", "farm", "town"] and (q.pos + (Vector2(0, -10) if q.kind == "lake" else Vector2.ZERO)).distance_to(p) < _clear_of(q.kind) * (0.6 if q.kind == "lake" else 1.0)): tufts.append(p)
-	_scatter(_tuft_mesh(th), tufts, rng, 0.6, 1.3)
+	_scatter(_tuft_mesh(th), tufts, rng, 0.6, 1.3, wind_material(_vc_material(0.9), 0.45, 0.18))
 
 
 ## How much room a place takes, kept clear of trees.
@@ -394,8 +482,7 @@ func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: 
 		mm.instance_count = cell.size()
 		for i in cell.size():
 			var p: Vector2 = cell[i]
-			var edge = maxf(absf(p.x), absf(p.y)) - Game.w.size()
-			var y = maxf(0.0, edge) * 0.35
+			var y = land.ground(p) if land else 0.0
 			var t = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(lo, hi)), Vector3(p.x, y, p.y))
 			mm.set_instance_transform(i, t)
 		var mmi = MultiMeshInstance3D.new()
@@ -497,6 +584,32 @@ func _append(st: SurfaceTool, m: PrimitiveMesh, t: Transform3D, col: Color) -> v
 		st.add_vertex(t * verts[i])
 
 
+## A plant's material made to sway in the wind (see wind.gdshader): the
+## same look as `src`, a texture, a tint or vertex colours. `height` is where
+## the sway is full, `sway` how far the top goes as a share of it.
+func wind_material(src: Material, height: float, sway: float) -> Material:
+	if not (src is BaseMaterial3D): return src
+	var key = "%d %s %s" % [src.get_instance_id(), height, sway]
+	if _winds.has(key): return _winds[key]
+	var b: BaseMaterial3D = src
+	var m = ShaderMaterial.new()
+	m.shader = WIND
+	m.set_shader_parameter("use_tex", b.albedo_texture != null)
+	if b.albedo_texture: m.set_shader_parameter("albedo_tex", b.albedo_texture)
+	m.set_shader_parameter("use_vertex_color", b.vertex_color_use_as_albedo)
+	m.set_shader_parameter("tint", b.albedo_color)
+	m.set_shader_parameter("roughness", b.roughness)
+	m.set_shader_parameter("height", height)
+	m.set_shader_parameter("sway", sway)
+	_winds[key] = m
+	return m
+
+
+## The weather's wind on every plant: 1 calm, up to 2.5 in a storm.
+func set_gust(g: float) -> void:
+	for m in _winds.values(): m.set_shader_parameter("gust", g)
+
+
 func _vc_material(rough: float) -> StandardMaterial3D:
 	var m = StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
@@ -575,7 +688,7 @@ func _solid(col: Color, rough := 0.9, emit := Color.BLACK, kind := "auto") -> St
 func _build_places(th: Dictionary) -> void:
 	for p in Game.w.layout().places:
 		var root = Node3D.new()
-		root.position = Vector3(p.pos.x, 0, p.pos.y)
+		root.position = _on_ground(p.pos)
 		add_child(root)
 		place_nodes[p.id] = root
 		match p.kind:
@@ -1309,7 +1422,7 @@ func _roadside(th: Dictionary) -> void:
 		var t = 20.0 - fmod(walked, 20.0)
 		while t < seg:
 			var p = a.lerp(b, t / seg) + side
-			if Game.w.has_big_town() and p.distance_to(Game.w.layout().town) < World.TOWN_RADIUS + 2.0:
+			if (Game.w.has_big_town() and p.distance_to(Game.w.layout().town) < World.TOWN_RADIUS + 2.0) or land.river_gap(p) < Land.RIVER_HALF + 2.0:
 				t += 20.0
 				continue
 			var n = Node3D.new()
@@ -1384,11 +1497,11 @@ func _build_party() -> void:
 	for i in squad.size():
 		var c: Dictionary = squad[i]
 		var u = _unit(hero_spec(c), 0, c.name)
-		u.position = Vector3(w.pos.x - i * FILE_GAP, 0, w.pos.y)
+		u.position = _on_ground(w.pos - Vector2(i * FILE_GAP, 0))
 		u.play_idle()
 		party.append(u)
 	# The file starts strung out behind the leader.
-	for i in 40: _trail.append(Vector3(w.pos.x - i * 0.5, 0, w.pos.y))
+	for i in 40: _trail.append(_on_ground(w.pos - Vector2(i * 0.5, 0)))
 	for i in party.size(): party[i].position = _along_trail(i * FILE_GAP)
 
 
@@ -1421,12 +1534,13 @@ func _sync_bands() -> void:
 	for b in w.region_bands():
 		live[b.id] = true
 		var us = _band_units(b)
-		var center = Vector3(b.pos.x, 0, b.pos.y)
+		var center = _on_ground(b.pos)
 		var moving: bool = b.chasing or b.pos.distance_to(b.to) > 0.2
 		for k in us.size():
 			var u: Unit = us[k]
 			u.visible = true
 			var want = center + Vector3(cos(k * 2.3) * 1.1, 0, sin(k * 2.3) * 1.1) * (0.0 if k == 0 else 1.0)
+			want.y = ground_y(Vector2(want.x, want.z))
 			var d = want - u.position
 			if d.length() > 0.05:
 				u.position += d * minf(1.0, get_process_delta_time() * 6.0)
@@ -1449,7 +1563,7 @@ func _sync_bands() -> void:
 
 func _sync_party(dt: float) -> void:
 	var w = Game.w
-	var lead = Vector3(w.pos.x, 0, w.pos.y)
+	var lead = _on_ground(w.pos)
 	if _trail[0].distance_to(lead) > 0.25: _trail.push_front(lead)
 	while _trail.size() > 60: _trail.pop_back()
 	var moving = w.target != null
@@ -1466,7 +1580,7 @@ func _sync_party(dt: float) -> void:
 			if moving: u.play_run()
 			else: u.play_idle()
 	marker.visible = moving
-	if moving: marker.position = Vector3(w.target.x, 0.05, w.target.y)
+	if moving: marker.position = _on_ground(w.target, 0.05)
 
 
 func _along_trail(dist: float) -> Vector3:
@@ -1516,7 +1630,7 @@ func _process(delta: float) -> void:
 	_sync_party(delta)
 	_sync_bands()
 	_sync_sky()
-	var lead = Vector3(Game.w.pos.x, 0, Game.w.pos.y)
+	var lead = _on_ground(Game.w.pos)
 	_focus = _focus.lerp(lead, 1.0 - exp(-delta * 5.0))
 	torch.position = lead + Vector3(0, 2.2, 0)
 	zoom = lerpf(zoom, _zoom_target, 1.0 - exp(-delta * 10.0))
@@ -1603,18 +1717,20 @@ func _tap(at: Vector2) -> void:
 	var vp = get_viewport().get_visible_rect().size
 	var reach = 60.0 * minf(vp.x, vp.y) / 720.0
 	for b in w.region_bands():
-		var c = Vector3(b.pos.x, 1.0, b.pos.y)
+		var c = _on_ground(b.pos, 1.0)
 		if not cam.is_position_behind(c) and cam.unproject_position(c).distance_to(at) < reach:
 			w.walk_to(b.pos)
 			return
 	var from = cam.project_ray_origin(at)
 	var dir = cam.project_ray_normal(at)
 	if dir.y > -1e-3: return
+	# Onto the hills: from the flat, step along the ray to where it meets the ground.
 	var hit = from + dir * (-from.y / dir.y)
+	for _k in 5: hit = from + dir * ((ground_y(Vector2(hit.x, hit.z)) - from.y) / dir.y)
 	var ground = Vector2(hit.x, hit.z)
 	var best = null
 	for p in w.layout().places:
-		var screen_p = cam.unproject_position(Vector3(p.pos.x, 1.2, p.pos.y))
+		var screen_p = cam.unproject_position(_on_ground(p.pos, 1.2))
 		if (p.pos.distance_to(ground) < 4.0 or screen_p.distance_to(at) < reach) and (best == null or p.pos.distance_to(ground) < best.pos.distance_to(ground)): best = p
 	if best != null:
 		var to: Vector2 = best.pos + (w.pos - best.pos).normalized() * (World.REACH * 0.7)

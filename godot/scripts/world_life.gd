@@ -39,6 +39,7 @@ func plan() -> Array:
 			var p = a.lerp(b, (next - walked) / seg) + dir.orthogonal() * STOP_GAP * side
 			var clear = not places.any(func(q): return q.pos.distance_to(p) < 13.0)
 			if Game.w.has_big_town() and p.distance_to(Game.w.layout().town) < World.TOWN_RADIUS + 7.0: clear = false
+			if view.land.river_gap(p) < Land.RIVER_HALF + 5.0: clear = false
 			if clear:
 				_stops.append([p, dir * side, kinds[_stops.size()]])
 				side = -side
@@ -78,7 +79,7 @@ func build() -> void:
 
 
 func _v3(p: Vector2, y := 0.0) -> Vector3:
-	return Vector3(p.x, y, p.y)
+	return Vector3(p.x, view.ground_y(p) + y, p.y)
 
 
 # ── by the road ────────────────────────────────────────────────────────────
@@ -203,7 +204,7 @@ func _wildflowers(rng: RandomNumberGenerator) -> void:
 		if view._near_road(c, 2.5) or places.any(func(q): return q.pos.distance_to(c) < 8.0): continue
 		if Game.w.has_big_town() and Game.w.layout().town.distance_to(c) < World.TOWN_RADIUS + 1.0: continue
 		for k in rng.randi_range(3, 6): at.append(c + Vector2(rng.randf_range(-1.6, 1.6), rng.randf_range(-1.6, 1.6)))
-	view._scatter(_flower_mesh(), at, rng, 1.2, 1.7)
+	view._scatter(_flower_mesh(), at, rng, 1.2, 1.7, view.wind_material(view._vc_material(0.9), 0.3, 0.2))
 
 
 func _flower_mesh() -> Mesh:
@@ -233,25 +234,68 @@ func _beast(kind: String, at: Vector3, home: Vector3, radius: float, rng: Random
 	node.position = at
 	node.rotation.y = rng.randf() * TAU
 	add_child(node)
-	var parts = _beast_meshes(kind)
-	var body = MeshInstance3D.new()
-	body.mesh = parts[0]
-	body.material_override = _beast_mat()
-	node.add_child(body)
-	var head = Node3D.new()
-	head.position = parts[2]
-	node.add_child(head)
-	var hm = MeshInstance3D.new()
-	hm.mesh = parts[1]
-	hm.material_override = body.material_override
-	hm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	head.add_child(hm)
-	var speed = {"sheep": 0.5, "cow": 0.4, "hen": 0.7, "dog": 1.6}[kind]
+	# The owner's Meshy beast when there is one: the whole body dips to graze.
+	var head = animal(kind)
+	if head:
+		node.add_child(head)
+	else:
+		var parts = _beast_meshes(kind)
+		var body = MeshInstance3D.new()
+		body.mesh = parts[0]
+		body.material_override = _beast_mat()
+		node.add_child(body)
+		head = Node3D.new()
+		head.position = parts[2]
+		node.add_child(head)
+		var hm = MeshInstance3D.new()
+		hm.mesh = parts[1]
+		hm.material_override = body.material_override
+		hm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		head.add_child(hm)
+		head.set_meta("parts", true)
+	var speed = {"sheep": 0.5, "cow": 0.4, "hen": 0.7, "dog": 1.6, "wolf": 2.2, "horse": 1.2}[kind]
 	_beasts.append({"node": node, "head": head, "home": home, "radius": radius, "to": at, "wait": rng.randf() * 4.0, "speed": speed, "kind": kind, "phase": rng.randf() * TAU})
 
 
 var _beast_cache = {}
 var _beast_material: StandardMaterial3D
+var _animals = {}       # kind -> [mesh, scale, lift], from the Meshy models
+
+## How tall each beast stands, in metres, and how low a duck sits in the water.
+const ANIMAL_HEIGHT := {"sheep": 0.95, "cow": 1.45, "dog": 0.62, "hen": 0.42, "duck": 0.36, "wolf": 0.85, "horse": 1.75}
+
+
+## A beast from the owner's Meshy models, facing +Z and standing at the
+## origin, or null when there is no model for it. The mesh keeps the
+## imported levels of detail, so a far flock costs little.
+static func animal_mesh(kind: String) -> Array:
+	var path = "res://assets/models/world-%s.glb" % kind
+	if not ResourceLoader.exists(path): return []
+	var scene: Node3D = load(path).instantiate()
+	var found: MeshInstance3D = null
+	for c in scene.find_children("*", "MeshInstance3D", true, false):
+		found = c
+		break
+	if found == null:
+		scene.free()
+		return []
+	var mesh: Mesh = found.mesh
+	var box = mesh.get_aabb()
+	var k = ANIMAL_HEIGHT.get(kind, 1.0) / maxf(0.01, box.size.y)
+	scene.free()
+	return [mesh, k, -box.position.y * k]
+
+
+func animal(kind: String) -> Node3D:
+	if not _animals.has(kind): _animals[kind] = animal_mesh(kind)
+	var a: Array = _animals[kind]
+	if a.is_empty(): return null
+	var mi = MeshInstance3D.new()
+	mi.mesh = a[0]
+	mi.scale = Vector3.ONE * a[1]
+	mi.position.y = a[2]
+	if kind in ["hen", "duck"]: mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
 
 
 func _beast_mat() -> StandardMaterial3D:
@@ -338,8 +382,10 @@ func _sync_beasts(dt: float) -> void:
 			var down = 0.6 if sin(_time * 0.4 + b.phase) > -0.3 else 0.0
 			if b.kind == "hen": down = 0.9 if fmod(_time * 1.7 + b.phase, 1.6) < 0.25 else 0.0
 			if b.kind == "dog": down = 0.0
+			# A whole Meshy beast only dips a little; a built one lowers its head.
+			if not head.has_meta("parts"): down *= 0.22
 			head.rotation.x = lerpf(head.rotation.x, down, minf(1.0, dt * 3.0))
-			n.position.y = 0.0
+			n.position.y = view.ground_y(Vector2(n.position.x, n.position.z))
 			if b.wait <= 0:
 				var a = randf() * TAU
 				b.to = b.home + Vector3(cos(a), 0, sin(a)) * sqrt(randf()) * b.radius
@@ -350,7 +396,7 @@ func _sync_beasts(dt: float) -> void:
 			var want = atan2(d.x, d.z)
 			n.rotation.y = lerp_angle(n.rotation.y, want, minf(1.0, dt * 4.0))
 			# A little bob in the stride.
-			n.position.y = absf(sin(_time * (14.0 if b.kind == "hen" else 7.0) + b.phase)) * (0.03 if b.kind != "cow" else 0.02)
+			n.position.y = view.ground_y(Vector2(n.position.x, n.position.z)) + absf(sin(_time * (14.0 if b.kind == "hen" else 7.0) + b.phase)) * (0.03 if b.kind != "cow" else 0.02)
 
 
 func _farm_life(farm: Dictionary, rng: RandomNumberGenerator) -> void:
@@ -379,11 +425,15 @@ func _lake_life(lake: Dictionary, rng: RandomNumberGenerator) -> void:
 	# Ducks paddling round, a fisherman at the end of the jetty.
 	for k in 4:
 		var n = Node3D.new()
-		var parts = _duck_mesh()
-		var mi = MeshInstance3D.new()
-		mi.mesh = parts
-		mi.material_override = _beast_mat()
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var mi = animal("duck")
+		if mi:
+			# Sat low in the water, its feet under.
+			mi.position.y -= ANIMAL_HEIGHT.duck * 0.35
+		else:
+			mi = MeshInstance3D.new()
+			mi.mesh = _duck_mesh()
+			mi.material_override = _beast_mat()
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		n.add_child(mi)
 		add_child(n)
 		_ducks.append({"node": n, "center": water + Vector3(rng.randf_range(-3, 3), 0, rng.randf_range(-2, 2)), "radius": rng.randf_range(1.5, 3.5), "angle": rng.randf() * TAU, "speed": rng.randf_range(0.12, 0.22) * (1 if k % 2 == 0 else -1)})
@@ -417,7 +467,7 @@ func _lake_life(lake: Dictionary, rng: RandomNumberGenerator) -> void:
 		var c = Vector2(lake.pos.x + cos(a) * 10.6, lake.pos.y - 10 + sin(a) * 7.6)
 		if c.distance_to(lake.pos + Vector2(0, -3)) < 3.0: continue  # the jetty
 		for j in 4: cattails.append(c + Vector2(rng.randf_range(-0.5, 0.5), rng.randf_range(-0.5, 0.5)))
-	view._scatter(_cattail_mesh(), cattails, rng, 0.8, 1.3)
+	view._scatter(_cattail_mesh(), cattails, rng, 0.8, 1.3, view.wind_material(view._vc_material(0.9), 1.3, 0.08))
 	# Fireflies over the reeds at night.
 	_fireflies.append(_fireflies_at(at + Vector3(0, 0.7, -5), Vector3(26, 1.2, 14)))
 
@@ -549,6 +599,7 @@ func _sync_walkers(dt: float) -> void:
 		if not w.moving:
 			u.play_run(); w.moving = true
 		u.position += d.normalized() * minf(d.length(), dt * 1.8)
+		u.position.y = view.ground_y(Vector2(u.position.x, u.position.z))
 		u.face(u.position + d)
 
 

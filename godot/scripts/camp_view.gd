@@ -168,9 +168,9 @@ func _build_woods(th: Dictionary) -> void:
 			continue
 		var leaves: BaseMaterial3D = k[0].surface_get_material(0).duplicate()
 		leaves.albedo_color = k[1]
-		_multi(k[0], k[2], rng, 0.85, 1.35, leaves)
+		_multi(k[0], k[2], rng, 0.85, 1.35, kit.wind_material(leaves, 5.0, 0.025))
 	var bush = kit._model_mesh("world-bush", 1.0)
-	if bush: _multi(bush, bushes, rng, 0.8, 1.4, bush.surface_get_material(0))
+	if bush: _multi(bush, bushes, rng, 0.8, 1.4, kit.wind_material(bush.surface_get_material(0), 1.0, 0.05))
 	var boulder = kit._model_mesh("world-boulder", 1.1)
 	if boulder: _multi(boulder, rocks, rng, 0.6, 1.4, boulder.surface_get_material(0))
 	var tufts = []
@@ -179,7 +179,7 @@ func _build_woods(th: Dictionary) -> void:
 		var t = Vector2(cos(a), sin(a)) * rng.randf_range(3.5, 14.0)
 		if muster and t.y > 3.6: continue  # between the row and the camera
 		tufts.append(t)
-	_multi(kit._tuft_mesh(th), tufts, rng, 0.6, 1.3, kit._vc_material(0.9))
+	_multi(kit._tuft_mesh(th), tufts, rng, 0.6, 1.3, kit.wind_material(kit._vc_material(0.9), 0.45, 0.18))
 
 
 func _multi(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: float, mat: Material) -> void:
