@@ -1,7 +1,19 @@
 extends Screen
 ## The squad: who goes on the next trip, filters by role, each hero's file.
+## Behind it the five stand in the guild's camp (CampView in muster mode).
 
 var role_filter = null
+var view: CampView
+
+
+func _enter_tree() -> void:
+	view = CampView.new()
+	view.muster = true
+	get_tree().root.add_child.call_deferred(view)
+
+
+func _exit_tree() -> void:
+	if is_instance_valid(view): view.queue_free()
 
 
 func build() -> void:
@@ -9,7 +21,8 @@ func build() -> void:
 	var tanks = chosen.filter(func(c): return c.role == "tank").size()
 	var heals = chosen.filter(func(c): return c.role == "heal").size()
 	var ready = Game.squad_ready()
-	var p = make_page(0, 24, 16)
+	if is_instance_valid(view) and view.is_inside_tree(): view.sync()
+	var p = UI.vbox(0)
 	p.add_child(UI.kicker("Личные дела · %d в штате" % Game.pool.size()))
 	p.add_child(UI.screen_title("Отряд"))
 	p.add_child(UI.space(4))
@@ -50,20 +63,14 @@ func build() -> void:
 			refresh()))
 	p.add_child(filters)
 	p.add_child(UI.space(12))
-	var list = UI.cards(8)
+	var list = UI.cards(8, 1)
 	p.add_child(list)
 	for c in Game.pool:
 		if role_filter != null and c.role != role_filter: continue
 		list.add_child(_card(c))
-	p.add_child(UI.space(120))
-	# The tally and the way on.
+	p.add_child(UI.space(8))
+	# The tally and the way on, at the foot of the sheet.
 	var dock = UI.vbox(10)
-	var dm = UI.margin(dock, 16, 10, 16, 14)
-	var bg = PanelContainer.new()
-	var bsb = StyleBoxFlat.new(); bsb.bg_color = Color(0.063, 0.047, 0.035, 0.97)
-	bg.add_theme_stylebox_override("panel", bsb)
-	bg.add_child(dm)
-	pin_bottom(bg)
 	var tally = UI.hbox(6)
 	tally.add_child(UI.expand(UI.label("%d/5 · Танк %d · Хилер %d · ДПС %d" % [chosen.size(), tanks, heals, chosen.size() - tanks - heals], 13, UI.TEXT_MUTED)))
 	var warn = "" if not ready else ("Нет танка" if tanks == 0 else ("Нет хилера" if heals == 0 else "Состав готов"))
@@ -71,6 +78,8 @@ func build() -> void:
 	dock.add_child(tally)
 	if Game.is_unlocked("gear"): dock.add_child(UI.primary_button("К снаряжению", func(): Game.go("gear"), "shield-chevron", "", 50, not ready))
 	else: dock.add_child(UI.primary_button("В поход", Game.go_dungeon, "path", "", 50, not ready))
+	scene_sheet(p, dock, 0.6)
+	add_child(Tabs.make())
 
 
 func _card(c: Dictionary) -> Control:
