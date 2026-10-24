@@ -65,7 +65,7 @@ func _ready() -> void:
 
 ## For checking screens without a phone:
 ## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y]`
-## (on the open map also `[--hour=22] [--weather=rain] [--pos=x,y] [--zoom=1.8] [--yaw=90]`) sets up, renders, saves and quits.
+## (on the open map also `[--hour=22] [--weather=rain] [--pos=x,y] [--zoom=1.8] [--yaw=90] [--pitch=30]`) sets up, renders, saves and quits.
 ## `--squad=0,1,13` picks the heroes; `--cast=judgement --after=0.8` casts a spell and shoots that long after.
 func _maybe_shot() -> void:
 	var path = ""
@@ -91,11 +91,12 @@ func _maybe_shot() -> void:
 			Game.w._grace = 9999.0
 	await get_tree().create_timer(wait).timeout
 	for a in OS.get_cmdline_user_args():
-		# The open map's camera: `--zoom=1.8` out, `--yaw=90` turned, in degrees.
-		if a.begins_with("--zoom=") or a.begins_with("--yaw="):
+		# The open map's camera: `--zoom=1.8` out, `--yaw=90` turned, `--pitch=30` tilted, in degrees.
+		if a.begins_with("--zoom=") or a.begins_with("--yaw=") or a.begins_with("--pitch="):
 			for v in get_tree().root.find_children("*", "Node3D", true, false):
 				if not v is WorldView: continue
 				if a.begins_with("--zoom="): v.zoom = float(a.substr(7)); v._zoom_target = v.zoom
+				elif a.begins_with("--pitch="): v.pitch = float(a.substr(8)); v._pitch_target = v.pitch
 				else: v.yaw += deg_to_rad(float(a.substr(6))); v._yaw_target = v.yaw
 			await get_tree().process_frame
 		if a.begins_with("--click="):
