@@ -320,7 +320,7 @@ func region_roamers() -> Array:
 	if not roamers.has(region):
 		var path = road_path()
 		roamers[region] = [
-			{"kind": "caravan", "at": path.size() * 0.3, "dir": 1, "speed": 1.6, "wait": 0.0, "met": -99.0, "pos": path[int(path.size() * 0.3)]},
+			{"kind": "caravan", "at": path.size() * 0.12, "dir": 1, "speed": 1.6, "wait": 0.0, "met": -99.0, "pos": path[int(path.size() * 0.12)]},
 			{"kind": "patrol", "at": path.size() * 0.75, "dir": -1, "speed": 1.9, "wait": 0.0, "met": -99.0, "pos": path[int(path.size() * 0.75)]},
 			{"kind": "wolves", "home": _wolf_den(), "pos": Vector2.ZERO, "to": Vector2.ZERO, "wait": 0.0, "gone": -99.0, "chasing": false},
 		]

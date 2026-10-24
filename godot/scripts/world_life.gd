@@ -20,6 +20,7 @@ var _flocks = []        # {mm, center, radius, height, speed, angle, birds}
 var _ducks = []         # {node, center, radius, angle, speed}
 var _fireflies: Array[CPUParticles3D] = []
 var _time = 0.0
+var _roamers = {}       # kind -> {root, units, last, moving}: the caravan, the patrol, the wolves
 
 
 ## Where the road's stops go; the woods keep clear of them.
@@ -708,6 +709,7 @@ func _process(dt: float) -> void:
 	_sync_beasts(dt)
 	_sync_walkers(dt)
 	_sync_flocks(dt)
+	_sync_roamers(dt)
 	for d in _ducks:
 		d.angle += dt * d.speed
 		var n: Node3D = d.node
@@ -716,3 +718,90 @@ func _process(dt: float) -> void:
 	var h: float = Game.w.hours
 	var night = h > 20.5 or h < 5.0
 	for f in _fireflies: f.visible = night
+
+
+# ── the caravan, the patrol, the wolves ─────────────────────────────────────
+## How each one looks, made on first sight: a horse drawing a cart with its
+## trader walking beside it; three guards in a file; a pack of three wolves.
+func _roamer_look(kind: String) -> Dictionary:
+	var root = Node3D.new()
+	add_child(root)
+	var look = {"root": root, "units": [], "last": Vector2.INF, "moving": false, "beasts": []}
+	match kind:
+		"caravan":
+			var horse = animal("horse")
+			if horse:
+				var holder = Node3D.new()
+				holder.position.z = 1.6
+				holder.add_child(horse)
+				root.add_child(holder)
+				look.beasts.append(holder)
+			if not view._prop(root, "world-cart", 2.4, Vector3(0, 0, -1.1), 0.0, true):
+				view._box(root, Vector3(1.4, 0.6, 2.2), Vector3(0, 0.7, -1.1), Color(0.45, 0.3, 0.17))
+			var u = view._unit({"body": "human", "set": "leather", "right": "staff"}, 0, "")
+			u.play_idle()
+			look.units.append(u)
+		"patrol":
+			for k in 3:
+				var u = view._unit({"body": "human", "right": "longsword", "left": "roundShield", "set": "knight"}, 0, "")
+				u.play_idle()
+				look.units.append(u)
+		"wolves":
+			for k in 3:
+				var wolf = animal("wolf")
+				if wolf == null: break
+				var holder = Node3D.new()
+				holder.position = Vector3(cos(k * 2.1) * 1.3, 0, sin(k * 2.1) * 1.3) * (0.0 if k == 0 else 1.0)
+				holder.add_child(wolf)
+				# Eyes that catch the light in the dark.
+				for side in [-1.0, 1.0]:
+					var eye = MeshInstance3D.new()
+					var ball = SphereMesh.new(); ball.radius = 0.05; ball.height = 0.1; ball.radial_segments = 6; ball.rings = 3
+					eye.mesh = ball
+					var glow = StandardMaterial3D.new()
+					glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+					glow.albedo_color = Color(1.0, 0.85, 0.35)
+					eye.material_override = glow
+					eye.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					eye.position = Vector3(side * 0.07, ANIMAL_HEIGHT.wolf * 0.74, 0.5)
+					holder.add_child(eye)
+				root.add_child(holder)
+				look.beasts.append(holder)
+	_roamers[kind] = look
+	return look
+
+
+func _sync_roamers(dt: float) -> void:
+	var w = Game.w
+	for r in w.region_roamers():
+		var look: Dictionary = _roamers[r.kind] if _roamers.has(r.kind) else _roamer_look(r.kind)
+		var root: Node3D = look.root
+		var shown = view.seen(r.pos) and (r.kind != "wolves" or w.wolves_out())
+		root.visible = shown
+		for u in look.units: u.visible = shown
+		if not shown:
+			look.last = r.pos
+			continue
+		var step: Vector2 = r.pos - look.last if look.last != Vector2.INF else Vector2.ZERO
+		look.last = r.pos
+		var moving = step.length() > 0.001
+		root.position = _v3(r.pos)
+		if moving: root.rotation.y = lerp_angle(root.rotation.y, atan2(step.x, step.y), minf(1.0, dt * 5.0))
+		var ahead = Vector2(sin(root.rotation.y), cos(root.rotation.y))
+		for k in look.beasts.size():
+			var b: Node3D = look.beasts[k]
+			# A stride's bob; the wolves lope.
+			var bob = absf(sin(_time * (9.0 if r.kind == "wolves" else 5.0) + k * 1.7)) * (0.06 if r.kind == "wolves" else 0.03)
+			b.position.y = (bob if moving else 0.0) + (view.ground_y(r.pos + ahead * b.position.z) - root.position.y if r.kind == "caravan" else 0.0)
+		for k in look.units.size():
+			var u: Unit = look.units[k]
+			# The trader walks at the horse's side; the guards keep a file.
+			var at: Vector2 = r.pos + ahead.orthogonal() * 1.3 + ahead * 0.8 if r.kind == "caravan" else r.pos - ahead * (k * 1.5)
+			u.position = _v3(at)
+			u.face(u.position + Vector3(ahead.x, 0, ahead.y))
+		if moving != look.moving:
+			look.moving = moving
+			for u in look.units:
+				if moving: u.play_run()
+				else: u.play_idle()
+

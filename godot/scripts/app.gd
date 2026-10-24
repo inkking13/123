@@ -65,7 +65,7 @@ func _ready() -> void:
 
 ## For checking screens without a phone:
 ## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y]`
-## (on the open map also `[--hour=22] [--pos=x,y] [--zoom=1.8] [--yaw=90]`) sets up, renders, saves and quits.
+## (on the open map also `[--hour=22] [--weather=rain] [--pos=x,y] [--zoom=1.8] [--yaw=90]`) sets up, renders, saves and quits.
 func _maybe_shot() -> void:
 	var path = ""
 	var go = ""
@@ -82,6 +82,7 @@ func _maybe_shot() -> void:
 	if go != "": Demo.open(go)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--hour=") and Game.w: Game.w.hours = float(a.substr(7))
+		if a.begins_with("--weather=") and Game.w: Game.w.weather_override = a.substr(10)
 		if a.begins_with("--pos=") and Game.w:
 			var xy = a.substr(6).split(",")
 			Game.w.pos = Vector2(float(xy[0]), float(xy[1]))

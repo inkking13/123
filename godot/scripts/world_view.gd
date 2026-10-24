@@ -16,6 +16,7 @@ const GRADE := preload("res://shaders/grade.gdshader")
 const GROUND := preload("res://shaders/ground.gdshader")
 const WIND := preload("res://shaders/wind.gdshader")
 const WATER := preload("res://shaders/water.gdshader")
+const FOG_OF_WAR := preload("res://shaders/fog_of_war.gdshader")
 
 signal place_tapped(id: String)
 
@@ -42,6 +43,14 @@ var _winds = {}          # plants' wind materials, by source material and sway
 var _life: WorldLife     # farm beasts, birds, smoke and folk, on a lively land
 var land: Land           # the heights, the road as walked, the river and its bridge
 var _water: ShaderMaterial
+var _sky_mat: ProceduralSkyMaterial
+var _rain: CPUParticles3D
+var _wet = 0.0           # 0 dry .. 1 soaked, eases toward the weather
+var _mist = 0.0          # 0 clear .. 1 thick morning fog
+var _fog_war: ShaderMaterial  # the haze over what the squad has not seen, on a lively land
+var _fog_img: Image
+var _fog_tex: ImageTexture
+var _fog_seq = -1
 var band_bottom = 0.0
 
 var yaw = 0.6
@@ -80,6 +89,7 @@ func _ready() -> void:
 		_dress_road()
 	_build_places(th)
 	if _life: _life.build()
+	if th.get("lively", false): _build_fog_of_war()
 	_build_party()
 	marker = _ring_mesh(0.7, Color(1, 0.85, 0.5, 0.8))
 	marker.visible = false
@@ -114,6 +124,7 @@ func apply_quality(q: String) -> void:
 # ── the land ───────────────────────────────────────────────────────────────
 func _build_env(th: Dictionary) -> void:
 	var sky_mat = ProceduralSkyMaterial.new()
+	_sky_mat = sky_mat
 	sky_mat.sky_top_color = th.sky.darkened(0.25)
 	sky_mat.sky_horizon_color = th.fog
 	sky_mat.ground_horizon_color = th.fog.darkened(0.2)
@@ -167,6 +178,33 @@ func _build_env(th: Dictionary) -> void:
 	torch.omni_range = 9.0
 	torch.light_energy = 0.0
 	add_child(torch)
+	if th.get("lively", false): _build_rain()
+
+
+## Rain: streaks falling round the camera's focus, only while it rains.
+func _build_rain() -> void:
+	_rain = CPUParticles3D.new()
+	var streak = BoxMesh.new()
+	streak.size = Vector3(0.025, 0.55, 0.025)
+	var m = StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.75, 0.8, 0.88, 0.35)
+	streak.material = m
+	_rain.mesh = streak
+	_rain.amount = 420
+	_rain.lifetime = 0.9
+	_rain.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	_rain.emission_box_extents = Vector3(16, 0.5, 16)
+	_rain.direction = Vector3(0.12, -1, 0.05)
+	_rain.spread = 2.0
+	_rain.initial_velocity_min = 17.0
+	_rain.initial_velocity_max = 21.0
+	_rain.gravity = Vector3.ZERO
+	_rain.local_coords = false
+	_rain.emitting = false
+	_rain.visibility_aabb = AABB(Vector3(-20, -25, -20), Vector3(40, 30, 40))
+	add_child(_rain)
 
 
 ## The field with patches of two tints: the land's hills and river bed,
@@ -365,6 +403,53 @@ func _build_river(th: Dictionary) -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 	for b in land.bridges: _bridge(b)
+
+
+## The haze over the land the squad has not seen: one plane over the land,
+## cleared through a texel a cell as the squad goes. The town and where the
+## squad comes in are known from the start.
+func _build_fog_of_war() -> void:
+	var w = Game.w
+	w.explore(w.pos)
+	if w.has_big_town(): w.explore(w.layout().town, World.TOWN_RADIUS + 10.0)
+	var n = w.fog_cells()
+	_fog_img = Image.create(n, n, false, Image.FORMAT_R8)
+	_fog_tex = ImageTexture.create_from_image(_fog_img)
+	_fog_war = ShaderMaterial.new()
+	_fog_war.shader = FOG_OF_WAR
+	_fog_war.set_shader_parameter("seen", _fog_tex)
+	var grain = FastNoiseLite.new()
+	grain.seed = hash(w.region) + 9
+	grain.frequency = 0.03
+	_fog_war.set_shader_parameter("noise", ImageTexture.create_from_image(grain.get_seamless_image(128, 128)))
+	var plane = PlaneMesh.new()
+	plane.size = Vector2.ONE * n * World.FOG_CELL
+	var mi = MeshInstance3D.new()
+	mi.mesh = plane
+	mi.material_override = _fog_war
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = Vector3(-w.size() + n * World.FOG_CELL * 0.5, 4.2, -w.size() + n * World.FOG_CELL * 0.5)
+	add_child(mi)
+	_sync_fog_of_war()
+
+
+func _sync_fog_of_war() -> void:
+	var w = Game.w
+	if _fog_war == null or w.explore_seq == _fog_seq: return
+	_fog_seq = w.explore_seq
+	var cells: PackedByteArray = w.explored_cells()
+	var n = w.fog_cells()
+	var data = PackedByteArray()
+	data.resize(n * n)
+	for k in n * n: data[k] = 255 if cells[k] != 0 else 0
+	_fog_img.set_data(n, n, false, Image.FORMAT_R8, data)
+	_fog_tex.update(_fog_img)
+	refresh_places()
+
+
+## Whether a point on the land shows: seen, or a land without the haze.
+func seen(p: Vector2) -> bool:
+	return _fog_war == null or Game.w.is_explored(p)
 
 
 ## A plank bridge on posts, with a rail each side.
@@ -1455,10 +1540,14 @@ func refresh_places() -> void:
 	var w = Game.w
 	for p in w.layout().places:
 		var root: Node3D = place_nodes[p.id]
+		# Finds lie hidden in the haze; the names of places show once seen.
+		var shown = seen(p.pos)
+		for l in root.find_children("*", "Label3D", false, false): l.visible = shown
 		match p.kind:
 			"chest":
-				root.visible = not w.opened.has(p.id)
+				root.visible = shown and not w.opened.has(p.id)
 			"herb":
+				root.visible = shown
 				(root.get_meta("bloom") as Node3D).visible = w.herb_ready(p.id)
 			"dungeon":
 				var l: Label3D = root.get_meta("label")
@@ -1536,9 +1625,10 @@ func _sync_bands() -> void:
 		var us = _band_units(b)
 		var center = _on_ground(b.pos)
 		var moving: bool = b.chasing or b.pos.distance_to(b.to) > 0.2
+		var shown = seen(b.pos) or b.chasing
 		for k in us.size():
 			var u: Unit = us[k]
-			u.visible = true
+			u.visible = shown
 			var want = center + Vector3(cos(k * 2.3) * 1.1, 0, sin(k * 2.3) * 1.1) * (0.0 if k == 0 else 1.0)
 			want.y = ground_y(Vector2(want.x, want.z))
 			var d = want - u.position
@@ -1552,7 +1642,7 @@ func _sync_bands() -> void:
 				u.set_meta("moving", moving)
 			u.set_ring(b.chasing, Color(1, 0.3, 0.25))
 		var l: Label3D = band_labels[b.id]
-		l.visible = true
+		l.visible = shown
 		l.position = center + Vector3(0, 2.9, 0)
 		l.modulate = Color(1, 0.45, 0.4) if b.chasing else Color(0.9, 0.8, 0.7)
 	for id in band_units:
@@ -1611,15 +1701,42 @@ func _sync_sky() -> void:
 	var h: float = w.hours
 	var up = sin((h - 6.0) / 12.0 * PI)          # 1 at noon, below 0 at night
 	var day = clampf(up * 1.6 + 0.25, 0.0, 1.0)
+	var dt = get_process_delta_time()
+	var weather: String = w.weather()
+	_wet = move_toward(_wet, 1.0 if weather == "rain" else 0.0, dt * 0.15)
+	_mist = move_toward(_mist, 1.0 if weather == "fog" else 0.0, dt * 0.2)
+	if Engine.get_process_frames() < 3:
+		_wet = 1.0 if weather == "rain" else 0.0
+		_mist = 1.0 if weather == "fog" else 0.0
+	var gloom = _wet * 0.5 + _mist * 0.25
+	# Low sun: a warm red-gold at dawn and dusk, white at noon.
+	var low = 1.0 - clampf(up / 0.45, 0.0, 1.0)
+	var warm = Color(1.0, 0.5, 0.26).lerp(Color(1.0, 0.72, 0.5), clampf(up * 4.0, 0, 1))
 	sun.rotation_degrees = Vector3(-10 - 60 * maxf(up, 0.0), (h - 12.0) * 12.0, 0)
-	sun.light_energy = 1.05 * day
-	sun.light_color = Color(1.0, 0.72, 0.5).lerp(Color(1.0, 0.95, 0.85), clampf(up, 0, 1))
+	sun.light_energy = 1.05 * day * (1.0 - gloom * 0.75)
+	sun.light_color = warm.lerp(Color(1.0, 0.95, 0.85), 1.0 - low)
 	moon.light_energy = 0.35 * (1.0 - day)
-	env.ambient_light_energy = lerpf(0.18, 0.45, day)
-	env.background_energy_multiplier = lerpf(0.18, 1.0, day)
+	env.ambient_light_energy = lerpf(0.18, 0.45, day) * (1.0 - gloom * 0.2)
+	env.background_energy_multiplier = lerpf(0.18, 1.0, day) * (1.0 - gloom * 0.35)
 	var th: Dictionary = w.theme()
-	env.fog_light_color = Color(0.12, 0.14, 0.22).lerp(th.fog, day)
+	var fog: Color = Color(0.12, 0.14, 0.22).lerp(th.fog, day)
+	# The horizon glows at sunrise and sunset, then greys under rain.
+	var glow = low * day
+	fog = fog.lerp(Color(0.86, 0.55, 0.36), glow * 0.55)
+	fog = fog.lerp(Color(0.45, 0.48, 0.52) * maxf(day, 0.3), _wet * 0.6)
+	fog = fog.lerp(Color(0.78, 0.8, 0.8) * maxf(day, 0.25), _mist * 0.7)
+	env.fog_light_color = fog
+	env.fog_density = 0.008 + _wet * 0.012 + _mist * 0.035
+	if _sky_mat:
+		_sky_mat.sky_horizon_color = th.fog.lerp(Color(0.95, 0.6, 0.38), glow * 0.7).lerp(fog, maxf(_wet, _mist) * 0.8)
+		_sky_mat.sky_top_color = th.sky.darkened(0.25).lerp(Color(0.4, 0.42, 0.46), _wet * 0.7)
 	torch.light_energy = 2.4 * (1.0 - day)
+	if _ground: _ground.set_shader_parameter("wet", _wet)
+	if _water: _water.set_shader_parameter("rain", _wet)
+	set_gust(1.0 + _wet * 1.2 - _mist * 0.6)
+	if _rain:
+		_rain.emitting = _wet > 0.3
+		_rain.position = _focus + Vector3(0, 14, 0)
 
 
 # ── frame, camera, touch ───────────────────────────────────────────────────
@@ -1630,6 +1747,8 @@ func _process(delta: float) -> void:
 	_sync_party(delta)
 	_sync_bands()
 	_sync_sky()
+	_sync_fog_of_war()
+	if _fog_war: _fog_war.set_shader_parameter("night", 1.0 - clampf(sin((Game.w.hours - 6.0) / 12.0 * PI) * 1.6 + 0.25, 0.0, 1.0))
 	var lead = _on_ground(Game.w.pos)
 	_focus = _focus.lerp(lead, 1.0 - exp(-delta * 5.0))
 	torch.position = lead + Vector3(0, 2.2, 0)

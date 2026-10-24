@@ -11,6 +11,7 @@ var _stamp = []
 var _note_at = 0.0
 var _top: Control
 var _bottom: Control
+var _mini: Minimap
 
 
 func _enter_tree() -> void:
@@ -34,6 +35,15 @@ func build() -> void:
 	if w.region != _view_region: _make_view()
 	_top = _top_bar(w)
 	add_child(_top)
+	_mini = Minimap.new()
+	_mini.view = view
+	var side = UI.px(180 if App.wide else 112)
+	_mini.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_mini.offset_left = -side - UI.px(14 if App.wide else 10)
+	_mini.offset_right = -UI.px(14 if App.wide else 10)
+	_mini.offset_top = UI.px(14)
+	_mini.offset_bottom = _mini.offset_top + side
+	add_child(_mini)
 	_bottom = _bottom_bar(w)
 	add_child(_bottom)
 	add_child(Tabs.make())
@@ -44,6 +54,11 @@ func build() -> void:
 func _measure() -> void:
 	if not is_instance_valid(view) or not is_instance_valid(_top): return
 	view.band_top = _top.get_global_rect().end.y
+	# On a phone the map hangs under the top bar, at the right.
+	if is_instance_valid(_mini) and not App.wide:
+		var side = _mini.offset_bottom - _mini.offset_top
+		_mini.offset_top = _top.get_global_rect().end.y + UI.px(8)
+		_mini.offset_bottom = _mini.offset_top + side
 	view.band_bottom = get_viewport_rect().size.y - _bottom.get_global_rect().position.y
 
 
@@ -65,7 +80,7 @@ func _process(dt: float) -> void:
 		w.log_note = ""
 		_note_at = 0.0
 	var chasing = w.region_bands().filter(func(b): return b.chasing).size()
-	var stamp = [int(w.hours), w.day, w.food, int(w.fatigue / 10), w.hungry, _place, w.log_note, w.region, chasing, Game.gold, w.event != null, w.tasks.size()]
+	var stamp = [int(w.hours), w.day, w.food, int(w.fatigue / 10), w.hungry, _place, w.log_note, w.region, chasing, Game.gold, w.event != null, w.tasks.size(), w.weather()]
 	if stamp != _stamp:
 		var hour_changed = _stamp.is_empty() or stamp[0] != _stamp[0]
 		_stamp = stamp
@@ -104,6 +119,7 @@ func _top_bar(w) -> Control:
 	var hv = UI.vbox(0)
 	hv.add_child(UI.label(DB.locations[w.location_index()].name, 17, Color("#f1e4c6"), "title"))
 	hv.add_child(UI.label("День %d · %02d:00%s" % [w.day, int(w.hours), " · ночь: враги опаснее" if night else ""], 12, UI.TEXT_DIM))
+	if w.weather_word() != "": hv.add_child(UI.label(w.weather_word()[0].to_upper() + w.weather_word().substr(1), 12, Color(0.72, 0.8, 0.88), "medium"))
 	head.add_child(UI.expand(hv))
 	var gold = UI.hbox(4)
 	gold.add_child(UI.center(UI.icon("coins", 14, UI.GOLD, "fill")))
