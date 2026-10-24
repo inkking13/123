@@ -59,7 +59,8 @@ const TO_PALM := 0.025
 const TO_BACK := 0.05
 
 # ── armour ──────────────────────────────────────────────────────────────────
-const PIECES := ["hood", "jacket", "shoulders", "cloak", "belt", "gloves", "pants", "boots"]
+## Plain kit: the long cloak of each set stays off.
+const PIECES := ["hood", "jacket", "shoulders", "belt", "gloves", "pants", "boots"]
 ## What of the body each piece covers; the body is cut away under it.
 const COVERS := {"jacket": ["torso"], "shoulders": ["upperArm"], "gloves": ["hand", "forearm"],
 	"pants": ["pelvis", "thigh"], "boots": ["foot", "shin"]}
