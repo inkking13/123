@@ -31,9 +31,9 @@ const BODIES := {
 }
 const MODEL_H := 1.7
 ## Actions play their whole clip, sped up only as far as it takes to fit this long.
-const ACTION_S := 2.2
+const ACTION_S := 2.4
 ## No clip runs faster than this: beyond it motion looks wound up.
-const MAX_SPEED := 1.6
+const MAX_SPEED := 1.4
 
 # ── moving in a fight ───────────────────────────────────────────────────────
 ## Ground speed (m/s) a fighter picks up and sheds, and how fast it turns (rad/s).
@@ -93,6 +93,11 @@ var _skel: Skeleton3D
 var _anim: AnimationPlayer
 var _hips = -1
 var _hips_xz = Vector2.ZERO
+## Clips whose hips end where they began: those keep their lunges and sways.
+var _comes_back = {}
+var _fallen = false
+## Each figure breathes at its own pace, so a line of them doesn't sway in step.
+var _idle_rate = randf_range(0.88, 1.12)
 var _steady: Array = [] # {holder, hand, local, idle, upright}
 var _idle_w = 1.0
 var _bar_fill: MeshInstance3D
@@ -144,9 +149,10 @@ func setup(spec: Dictionary) -> void:
 	run_pace = _measure_pace(model) * k
 
 	# The hands' turn at rest and in the first frame of idle aim what they hold.
-	_anim.play(_body.idle)
+	_anim.play(_body.idle, -1, _idle_rate)
 	_anim.seek(0.0, true)
 	_hips_xz = Vector2(_skel.get_bone_pose_position(_hips).x, _skel.get_bone_pose_position(_hips).z)
+	_comes_back = _returning_clips()
 	var hand_r = _skel.find_bone("mixamorig_RightHand")
 	var hand_l = _skel.find_bone("mixamorig_LeftHand")
 	var right: String = spec.get("right", "")
@@ -402,11 +408,28 @@ func _measure_pace(model: Node3D) -> float:
 	return pace
 
 
+## The one-off clips whose hips come back to where they began by the end.
+func _returning_clips() -> Dictionary:
+	var out = {}
+	var hips_name = _skel.get_bone_name(_hips)
+	var tall = absf(_skel.get_bone_pose_position(_hips).y)
+	for clip in _anim.get_animation_list():
+		if clip == _body.idle or clip == _body.run: continue
+		var a = _anim.get_animation(clip)
+		for i in a.get_track_count():
+			if a.track_get_type(i) != Animation.TYPE_POSITION_3D or not str(a.track_get_path(i)).ends_with(":" + hips_name): continue
+			var d = a.position_track_interpolate(i, a.length) - a.position_track_interpolate(i, 0.0)
+			if Vector2(d.x, d.z).length() < tall * 0.08: out[clip] = true
+	return out
+
+
 # ── per frame ───────────────────────────────────────────────────────────────
 func _process(delta: float) -> void:
 	_anim.advance(delta)
-	# Meshy clips drift the hips; keep the body on its spot.
-	if _hips >= 0:
+	# Meshy clips drift the hips; keep the body on its spot in the loops and in
+	# clips that would leave it off it. A strike's lunge that comes back, and
+	# the fall of a death in battle, move the body as the feet do.
+	if _hips >= 0 and not _fallen and not _comes_back.has(_anim.current_animation):
 		var p = _skel.get_bone_pose_position(_hips)
 		_skel.set_bone_pose_position(_hips, Vector3(_hips_xz.x, p.y, _hips_xz.y))
 	var idle_now: bool = alive and _anim.current_animation == _body.idle
@@ -447,7 +470,7 @@ func action_seq() -> int:
 
 
 func play_idle() -> void:
-	if alive: _play(_body.idle, 0.3, 1.0)
+	if alive: _play(_body.idle, 0.3, _idle_rate)
 
 
 func play_run(sp := 1.2) -> void:
@@ -543,6 +566,7 @@ func lie_down() -> void:
 func play_death() -> void:
 	alive = false
 	_speed = 0.0
+	_fallen = true
 	_play(_body.death, 0.2, _speed_of(_body.death))
 	set_bar_visible(false)
 	set_ring(false)
