@@ -53,6 +53,8 @@ def rot_between(a, b):
 
 
 HEAD_BOX = "--head-box" in sys.argv
+HEAD_SCALE = next((float(a.split("=")[1]) for a in sys.argv if a.startswith("--head-scale=")), 1.1)
+HEAD_UPRIGHT = "--head-upright" in sys.argv
 HEAD_LIFT = next((float(a.split("=")[1]) for a in sys.argv if a.startswith("--head-lift=")), 0.0)
 
 
@@ -153,7 +155,8 @@ def fit(outfit_path, body_path, out_path, debug=False):
         if src == "Head":
             # Head gear is sized by width: the outfit's head a little wider than the body's.
             wO = np.ptp(opos_all[np.isin(oown_all, HEADS)][:, 0]); wB = np.ptp(bpos[np.isin(bown, HEADS)][:, 0])
-            a = r = float(np.clip(wB * 1.1 / wO, 0.75, 1.3))
+            a = r = float(np.clip(wB * HEAD_SCALE / wO, 0.75, 1.3))
+            if HEAD_UPRIGHT: R = np.eye(3)  # the outfit's head is already upright
         if src == "Neck":
             r = float(np.clip(r, 0.8, 1.3)); a = float(np.clip(a, 0.6, 1.6))
         dn = dO / np.linalg.norm(dO)
@@ -307,6 +310,26 @@ def write(out_path, bg, braw, bi, pieces, textures):
         f.write(struct.pack("<II", len(bin_), 0x004E4942)); f.write(bin_)
 
 
+def smooth_cut(pos, tri, drop, rounds=3):
+    """Evens out the edge of a cut: a triangle goes with most of its neighbours,
+    so no spikes or slivers are left along it."""
+    key = np.unique(np.round(pos, 4), axis=0, return_inverse=True)[1].reshape(-1)
+    t = key[tri]
+    nv = key.max() + 1
+    rows = np.repeat(np.arange(len(t)), 3)
+    import scipy.sparse as sp
+    VT = sp.csr_matrix((np.ones(len(rows)), (t.reshape(-1), rows)), shape=(nv, len(t)))
+    TT = (VT.T @ VT).tocsr()
+    TT.setdiag(0); TT.eliminate_zeros()
+    TT.data[:] = 1
+    deg = np.asarray(TT.sum(1)).reshape(-1) + 1e-9
+    d = drop.astype(float)
+    for _ in range(rounds):
+        f = (TT @ d) / deg
+        d = np.where(f > 0.6, 1.0, np.where(f < 0.25, 0.0, d))
+    return d > 0.5
+
+
 def skin_any_of(c):
     mx = c.max(1); sat = (mx - c.min(1)) / (mx + 1e-6)
     return (c[:, 0] - c[:, 1] > 0.1) & (c[:, 1] > c[:, 2]) & (sat > 0.25) & (mx > 0.3)
@@ -356,6 +379,7 @@ def main(outfit, body, outp, debug=False, keep_skin=("gloves",), drop_head=False
             hand = np.char.endswith(p["obone"].astype(str), "Hand")
             drop |= (skin_any & hand)[tri].sum(1) >= 2
             tpiece = np.where(tpiece == "gloves", "sleeves", tpiece)
+        drop = smooth_cut(p["pos"], tri, drop)
         Jb = np.array([bi.get(n, bi.get(BORROW.get(n, ""), 0)) for n in onames])
         # Bare chest under the collar becomes a linen shirt.
         chest = skin_any_of(c) & np.isin(p["obone"], ["Spine", "Spine1", "Spine2", "Neck"])

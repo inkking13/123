@@ -24,7 +24,7 @@ Bodies: `human`, `elf`, `elf-male`, `dwarf`, `orc`. Flags used so far:
 
 | Set | Flags |
 |---|---|
-| chainmail | `--head-lift=0.03` (the helmet's brim sat on the eyes) |
+| chainmail | `--head-lift=0.02 --head-scale=1.0 --head-upright` (the helmet sat big and low, tipped forward) |
 | wanderer | `--drop-head --bare-hands` (hood worn down, no gloves) |
 | gambeson | `--head-box` (the coif is centred on the head's box) |
 
