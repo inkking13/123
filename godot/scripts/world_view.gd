@@ -108,7 +108,7 @@ func _ready() -> void:
 ## WorldView this way, out of the tree, for its props and materials.
 func load_textures(th: Dictionary) -> void:
 	if not th.get("textured", false): return
-	for k in ["grass", "road", "rock", "wall", "roof", "water", "wood", "masonry", "soil", "hay", "canvas", "foliage", "cobblestone", "sand", "forest_floor", "dry_grass"]:
+	for k in ["grass", "road", "rock", "wall", "roof", "water", "wood", "masonry", "soil", "hay", "canvas", "foliage", "cobblestone", "sand", "forest_floor", "dry_grass", "earth"]:
 		var path = "res://assets/textures/world/%s.jpg" % k
 		var t: Texture2D = load(path) if ResourceLoader.exists(path) else null
 		if t:
@@ -249,6 +249,9 @@ func _build_ground(th: Dictionary) -> void:
 		if _tex.has("dry_grass"):
 			_ground.set_shader_parameter("dry_tex", _tex.dry_grass)
 			_ground.set_shader_parameter("has_dry", true)
+		if _tex.has("earth"):
+			_ground.set_shader_parameter("earth_tex", _tex.earth)
+			_ground.set_shader_parameter("has_earth", true)
 		var bank = _tex.get("sand", _tex.get("forest_floor"))
 		if bank:
 			_ground.set_shader_parameter("bank_tex", bank)
