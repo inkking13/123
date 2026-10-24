@@ -10,7 +10,10 @@ signal picked(unit: Unit)
 # ── bodies ──────────────────────────────────────────────────────────────────
 # Meshy's combat set runs 2–4 s a clip; sped up so the blow lands inside a turn.
 const COMBAT_SPEED := {"Attack": 2.0, "Double_Combo_Attack": 2.1, "Charged_Slash": 1.6, "Charged_Spell_Cast": 1.8,
-	"Hit_Reaction": 1.4, "Dead": 1.3, "Thrust_Slash": 1.4, "Archery_Shot": 1.3}
+	"Hit_Reaction": 1.4, "Dead": 1.3, "Thrust_Slash": 1.4, "Archery_Shot": 1.3,
+	"Hit_Light": 1.2, "Hit_Waist": 1.3, "Hit_Head": 1.6, "Death_Back": 1.3, "Stand_Dodge": 1.3, "Parry": 1.3}
+## Flinches on a hit, by weight: mostly the light one, now and then to the side or the head.
+const HITS := [["Hit_Light", 6], ["Hit_Waist", 3], ["Hit_Head", 2]]
 
 const BODIES := {
 	"human": {"file": "human", "height": 1.12, "fist": 0.11, "idle": "Idle", "run": "run", "hit": "Hit_Reaction", "death": "Dead",
@@ -109,6 +112,8 @@ var _speed = 0.0
 var _goal_yaw = 0.0
 var _turning = false
 var _act_seq = 0
+## What it stands in between actions: the calm idle, or a fighter's ready stance.
+var _stand = ""
 
 
 func setup(spec: Dictionary) -> void:
@@ -140,7 +145,10 @@ func setup(spec: Dictionary) -> void:
 			body_mesh = c
 	_finish(body_mesh, "skin")
 
-	for clip in [_body.idle, _body.run]:
+	_stand = _body.idle
+	# In a fight, those who hold a blade or a shield stand ready instead.
+	if spec.get("ready", false) and _anim.has_animation("Ready_Idle"): _stand = "Ready_Idle"
+	for clip in [_body.idle, _body.run, _stand]:
 		var a = _anim.get_animation(clip)
 		if a: a.loop_mode = Animation.LOOP_LINEAR
 
@@ -165,7 +173,8 @@ func setup(spec: Dictionary) -> void:
 	if left != "": _hold(left, hand_l, body_mesh, true, spec.get("glow", Color.WHITE))
 
 	# Out of step with each other: each idle starts at its own point.
-	var idle = _anim.get_animation(_body.idle)
+	if _stand != _body.idle: _anim.play(_stand, 0.0, _idle_rate)
+	var idle = _anim.get_animation(_stand)
 	_anim.seek(randf() * idle.length, true)
 	_anim.speed_scale = 1.0
 
@@ -414,7 +423,7 @@ func _returning_clips() -> Dictionary:
 	var hips_name = _skel.get_bone_name(_hips)
 	var tall = absf(_skel.get_bone_pose_position(_hips).y)
 	for clip in _anim.get_animation_list():
-		if clip == _body.idle or clip == _body.run: continue
+		if clip == _body.idle or clip == _body.run or clip == _stand: continue
 		var a = _anim.get_animation(clip)
 		for i in a.get_track_count():
 			if a.track_get_type(i) != Animation.TYPE_POSITION_3D or not str(a.track_get_path(i)).ends_with(":" + hips_name): continue
@@ -470,7 +479,7 @@ func action_seq() -> int:
 
 
 func play_idle() -> void:
-	if alive: _play(_body.idle, 0.3, _idle_rate)
+	if alive: _play(_stand, 0.3, _idle_rate)
 
 
 func play_run(sp := 1.2) -> void:
@@ -541,10 +550,33 @@ func run_to(target: Vector3, delta: float) -> bool:
 
 
 func play_hit() -> void:
-	var sp = _speed_of(_body.hit)
-	_play(_body.hit, 0.1, sp)
-	await get_tree().create_timer(_anim.get_animation(_body.hit).length / sp * 0.9).timeout
-	if _anim.current_animation == _body.hit: play_idle()
+	var clip = _pick_hit()
+	var sp = _speed_of(clip)
+	_play(clip, 0.1, sp)
+	await get_tree().create_timer(_anim.get_animation(clip).length / sp * 0.9).timeout
+	if _anim.current_animation == clip: play_idle()
+
+
+func _pick_hit() -> String:
+	var have = HITS.filter(func(h): return _anim.has_animation(h[0]))
+	if have.is_empty(): return _body.hit
+	var roll = randi() % have.reduce(func(sum, h): return sum + h[1], 0)
+	for h in have:
+		roll -= h[1]
+		if roll < 0: return h[0]
+	return have[0][0]
+
+
+## Side-steps a blow that lands next to it.
+func dodge() -> void:
+	var clip = "Stand_Dodge" if _anim.has_animation("Stand_Dodge") else "Parry"
+	if not alive or not _anim.has_animation(clip) or moving(): return
+	var sp = _speed_of(clip)
+	_act_seq += 1
+	var seq = _act_seq
+	_play(clip, 0.15, sp)
+	await get_tree().create_timer(_anim.get_animation(clip).length / sp * 0.9).timeout
+	if _act_seq == seq and _anim.current_animation == clip: play_idle()
 
 
 ## A cheer (or the body's rallying act): when a hero joins the squad.
@@ -567,7 +599,9 @@ func play_death() -> void:
 	alive = false
 	_speed = 0.0
 	_fallen = true
-	_play(_body.death, 0.2, _speed_of(_body.death))
+	# Some fall forward, some are thrown back.
+	var clip = "Death_Back" if _anim.has_animation("Death_Back") and randf() < 0.5 else _body.death
+	_play(clip, 0.2, _speed_of(clip))
 	set_bar_visible(false)
 	set_ring(false)
 

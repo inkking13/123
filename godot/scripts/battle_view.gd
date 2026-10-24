@@ -42,6 +42,7 @@ var _moving = {}
 var _fx_seq = -1
 var _impact_seq = 0
 var _shake_seq = 0
+var _dodge_seq = -1
 var _shake = 0.0
 
 var env: Environment
@@ -293,6 +294,9 @@ func _spawn(key: String, spec: Dictionary, team: int, name: String) -> Unit:
 	sp.hp = 100
 	sp.atk = Vector2i(1, 1)
 	sp.init = 1
+	# A blade or a shield in hand: it stands ready between blows.
+	var held = [spec.get("right", ""), spec.get("left", "")]
+	sp.ready = held.any(func(p): return Unit.PROPS.has(p) and Unit.PROPS[p].how in ["fist", "shield"])
 	add_child(u)
 	u.setup(sp)
 	u.face_yaw = PI if team == 0 else 0.0
@@ -393,6 +397,12 @@ func _sync(delta: float, snap := false) -> void:
 			ring_col = Color(1, 0.35, 0.28)
 		u.set_ring(ring, ring_col)
 	if not snap: _play_fx(s)
+	if s.dodge.seq != _dodge_seq:
+		if not snap and _dodge_seq >= 0:
+			for id in s.dodge.ids:
+				var du: Unit = units.get("r%d" % id)
+				if du: du.dodge()
+		_dodge_seq = s.dodge.seq
 	_color_tiles(s)
 	if s.shakeSeq != _shake_seq:
 		_shake_seq = s.shakeSeq
