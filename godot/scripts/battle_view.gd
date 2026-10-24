@@ -82,6 +82,7 @@ func _ready() -> void:
 	cam.make_current()
 	apply_quality(Game.settings.quality)
 	_sync(0.0, true)
+	SpellFx.warm(self, _target)
 
 
 func apply_quality(q: String) -> void:
@@ -453,6 +454,10 @@ func _play_fx(s: Dictionary) -> void:
 	_busy[key] = Time.get_ticks_msec() + int(dur * 1000)
 	_back_to_idle(u, dur)
 	if fx.crit: _shake = maxf(_shake, 0.25)
+	var spell = fx.get("spell")
+	if spell != null:
+		var healed: Unit = units.get("r%d" % fx.targetRaider) if fx.targetRaider != null else null
+		if SpellFx.play(self, spell, u, target, healed, _alive_of(["e", "m", "boss"]), _alive_of(["r"]), dur): return
 	if (kind == "ranged" or kind == "ability") and target:
 		var col = Color(1.0, 0.85, 0.5) if kind == "ranged" else Color(0.75, 0.45, 1.0)
 		_projectile(u.chest(), target.chest(), col, dur * 0.45)
@@ -460,6 +465,13 @@ func _play_fx(s: Dictionary) -> void:
 		var hu: Unit = units.get("r%d" % fx.targetRaider)
 		if hu: _burst(hu.chest(), Color(0.45, 1.0, 0.55), dur * 0.5)
 	if kind == "rally": _burst(u.chest() + Vector3(0, 0.4, 0), GOLD, 0.2)
+
+
+func _alive_of(prefixes: Array) -> Array:
+	var out = []
+	for k in units:
+		if units[k].alive and prefixes.any(func(p): return k.begins_with(p)): out.append(units[k])
+	return out
 
 
 func _back_to_idle(u: Unit, after: float) -> void:
@@ -687,6 +699,7 @@ func _hover(at: Vector2) -> void:
 
 func _exit_tree() -> void:
 	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
+	SpellFx.forget()
 
 
 ## The foe a tap at this point means ("boss", "m<i>"), or "".

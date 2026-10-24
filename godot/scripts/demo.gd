@@ -24,12 +24,46 @@ static func setup() -> void:
 	g.notify()
 
 
+## Puts these heroes in the squad, hiring any not in the guild yet.
+static func squad(ids: Array) -> void:
+	var g = Game
+	for c in DB.all_candidates:
+		if c.id in ids and g.find_hero(c.id) == null: g.pool.append(g._new_hero(c))
+	g.selected = {}
+	for id in ids: g.selected[id] = true
+	for c in g.squad(): c.level = 16
+
+
+## The first hero who knows this spell casts it on the field, for shots of how it looks.
+static func cast(id: String) -> void:
+	var s = Game.b.sim
+	for r in s.raiders:
+		var sd = DB.spell(r.heroClass, id)
+		if sd.is_empty() or not r.alive: continue
+		var e: Dictionary = sd.eff
+		var kind = "rally"
+		if e.has("dmg"): kind = "melee" if r.attackRange == "melee" and not e.get("ranged", false) else "ranged"
+		elif e.has("aoe"): kind = "ability"
+		elif e.has("heal") or e.has("healPct") or e.has("partyHeal"): kind = "heal"
+		var other = s.raiders.filter(func(x): return x.alive and x.id != r.id)
+		var fe = Game.b.focus_enemy()
+		s.fx = {"seq": s.fx.seq + 1, "actor": r.id, "kind": kind, "spell": id, "crit": false,
+			"targetEnemy": fe.id if fe else -1, "targetRaider": other[0].id if sd.target == "ally" and not other.is_empty() else r.id}
+		return
+	print("nobody in the squad knows ", id)
+
+
 static func open(what: String) -> void:
 	var g = Game
 	match what:
 		"char": g.open_char(g.squad()[0].id)
-		"bivouac":
+		"bivouac", "bivouac-night":
 			g.go_world()
+			if what == "bivouac-night": g.w.hours = 21.0
+			# Every task of the night taken by someone.
+			var acts = ["rest", "cook", "train", "watch", "rest", "hunt"]
+			var squad: Array = g.squad()
+			for i in squad.size(): g.w.set_plan(squad[i].id, acts[i % acts.size()])
 			g.go("bivouac")
 		"town":
 			g.go_world()

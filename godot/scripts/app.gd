@@ -64,7 +64,9 @@ func _ready() -> void:
 
 
 ## For checking screens without a phone:
-## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y]` sets up, renders, saves and quits.
+## `-- --shot=out.png [--demo] [--go=home] [--wait=2] [--auto] [--scroll=px] [--click=x,y]`
+## (on the open map also `[--hour=22] [--weather=rain] [--pos=x,y] [--zoom=1.8] [--yaw=90]`) sets up, renders, saves and quits.
+## `--squad=0,1,13` picks the heroes; `--cast=judgement --after=0.8` casts a spell and shoots that long after.
 func _maybe_shot() -> void:
 	var path = ""
 	var go = ""
@@ -77,10 +79,25 @@ func _maybe_shot() -> void:
 		if a.begins_with("--wait="): wait = float(a.substr(7))
 		if a == "--demo": Demo.setup()
 		if a == "--auto": Game.settings.auto = true
+		if a.begins_with("--squad="): Demo.squad(Array(a.substr(8).split(",")).map(func(x): return int(x)))
 	if path == "": return
 	if go != "": Demo.open(go)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--hour=") and Game.w: Game.w.hours = float(a.substr(7))
+		if a.begins_with("--weather=") and Game.w: Game.w.weather_override = a.substr(10)
+		if a.begins_with("--pos=") and Game.w:
+			var xy = a.substr(6).split(",")
+			Game.w.pos = Vector2(float(xy[0]), float(xy[1]))
+			Game.w._grace = 9999.0
 	await get_tree().create_timer(wait).timeout
 	for a in OS.get_cmdline_user_args():
+		# The open map's camera: `--zoom=1.8` out, `--yaw=90` turned, in degrees.
+		if a.begins_with("--zoom=") or a.begins_with("--yaw="):
+			for v in get_tree().root.find_children("*", "Node3D", true, false):
+				if not v is WorldView: continue
+				if a.begins_with("--zoom="): v.zoom = float(a.substr(7)); v._zoom_target = v.zoom
+				else: v.yaw += deg_to_rad(float(a.substr(6))); v._yaw_target = v.yaw
+			await get_tree().process_frame
 		if a.begins_with("--click="):
 			var xy = a.substr(8).split(",")
 			var at = Vector2(float(xy[0]), float(xy[1]))
@@ -94,6 +111,13 @@ func _maybe_shot() -> void:
 				await get_tree().process_frame
 			await get_tree().create_timer(1.0).timeout
 			print("clicked: squad at ", Game.w.pos, " walking to ", Game.w.target)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--cast="):
+			Demo.cast(a.substr(7))
+			var after = 0.8
+			for b in OS.get_cmdline_user_args():
+				if b.begins_with("--after="): after = float(b.substr(8))
+			await get_tree().create_timer(after).timeout
 	if down > 0 and current and current.scroll:
 		current.scroll.scroll_vertical = down
 		await get_tree().process_frame
@@ -150,8 +174,8 @@ func _update() -> void:
 		if current:
 			current.queue_free()
 		current_name = Game.screen
-		# The fight shows its 3D field through the screen, under the panels.
-		_bg.visible = not (current_name in ["combat", "world"])
+		# The fight, the map, the camp and the muster show their 3D through the screen, under the panels.
+		_bg.visible = not (current_name in ["combat", "world", "bivouac", "roster"])
 		current = load(SCREENS[current_name]).new()
 		add_child(current)
 	current.refresh()

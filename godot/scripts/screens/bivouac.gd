@@ -4,15 +4,29 @@ extends Screen
 ## camp is struck: eight hours, a meal, and what the tasks bring.
 
 
+var view: CampView
+
+
+func _enter_tree() -> void:
+	view = CampView.new()
+	get_tree().root.add_child.call_deferred(view)
+
+
+func _exit_tree() -> void:
+	if is_instance_valid(view): view.queue_free()
+
+
 func build() -> void:
 	var w = Game.w
 	var squad: Array = Game.squad()
-	var p = make_page(0, 24, 20, true, Screen.WIDE_W)
+	if is_instance_valid(view) and view.is_inside_tree(): view.sync()
+	# The camp shows above (on a wide window, left of) a dark sheet with the plans.
+	var p = UI.vbox(0)
 	p.add_child(UI.back_link())
-	p.add_child(UI.space(10))
+	p.add_child(UI.space(6))
 	p.add_child(UI.kicker(DB.locations[w.location_index()].name))
 	p.add_child(UI.screen_title("Привал"))
-	p.add_child(UI.space(6))
+	p.add_child(UI.space(4))
 	var cooks = squad.filter(func(c): return w.plan_of(c) == "cook").size() > 0
 	var watch = squad.filter(func(c): return w.plan_of(c) == "watch").size() > 0
 	var night: bool = w.is_night() or w.hours + 8.0 > 20.0
@@ -28,14 +42,17 @@ func build() -> void:
 	if w.well_fed > 0:
 		p.add_child(UI.space(6))
 		p.add_child(UI.label("Отряд ещё сыт после прошлого ужина: +10%% к урону на %d бой(я)." % w.well_fed, 13, UI.GOOD, "regular", true))
-	p.add_child(UI.space(14))
+	p.add_child(UI.space(12))
 	var list = UI.cards(10, 1)
 	for c in squad: list.add_child(_hero(c))
 	p.add_child(list)
-	p.add_child(UI.space(16))
+	p.add_child(UI.space(14))
 	p.add_child(UI.primary_button("Разбить лагерь", _strike, "campfire"))
 	p.add_child(UI.space(8))
 	p.add_child(UI.secondary_button("Идти дальше", func(): Game.go_tab("world")))
+	p.add_child(UI.space(6))
+	scene_sheet(p)
+	add_child(Tabs.make())
 
 
 func _hero(c: Dictionary) -> Control:

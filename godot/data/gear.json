@@ -116,7 +116,7 @@
     "name": "Демонический Тесак",
     "mult": 2.15,
     "desc": "+115% к урону/лечению. Скован из демонического сплава.",
-    "icon": "topor-bezumnogo-vozhdya"
+    "icon": "krovavyy-topor"
    },
    {
     "id": "rw-enchant1",
@@ -124,7 +124,7 @@
     "mult": 1.1,
     "cdMult": 0.85,
     "desc": "+10% к урону/лечению и -15% к перезарядке способности.",
-    "icon": "oskolki-posoha-haosa"
+    "icon": "yadovityy-klinok"
    },
    {
     "id": "rw-enchant2",
@@ -132,7 +132,7 @@
     "mult": 1.2,
     "cdMult": 0.75,
     "desc": "+20% к урону/лечению и -25% к перезарядке способности.",
-    "icon": "grimuar-teney"
+    "icon": "runnyy-mech"
    }
   ],
   "helm": [
@@ -415,7 +415,7 @@
     "hpMult": 1.32,
     "mult": 0.9,
     "desc": "+32% к HP, но -10% к урону/лечению.",
-    "icon": "goticheskiy-schit",
+    "icon": "krylatyy-dospeh",
     "price": 160
    },
    {

@@ -249,13 +249,16 @@ func _spellbook(body: VBoxContainer, cc: Dictionary) -> void:
 			else: need = "С уровня %d" % sd.level
 		var fr = UI.frame("plain" if has else "muted", Vector4(10, 10, 10, 10))
 		var row = UI.hbox(10)
-		var ic = PanelContainer.new()
-		var sb = StyleBoxFlat.new(); sb.bg_color = Color(0.07, 0.05, 0.035); sb.border_color = UI.ACCENT if has else UI.BORDER
-		sb.set_border_width_all(2); sb.set_corner_radius_all(UI.px(6))
-		ic.add_theme_stylebox_override("panel", sb)
-		ic.custom_minimum_size = Vector2(UI.px(38), UI.px(38))
-		ic.add_child(UI.center(UI.icon(sd.icon, 19, UI.ACCENT_SOFT if has else UI.TEXT_FAINT)))
-		row.add_child(UI.center(ic))
+		var art := DB.spell_art_path(sd.id)
+		if art != "": row.add_child(UI.center(UI.picture(art, 38, 38, 6, not has)))
+		else:
+			var ic = PanelContainer.new()
+			var sb = StyleBoxFlat.new(); sb.bg_color = Color(0.07, 0.05, 0.035); sb.border_color = UI.ACCENT if has else UI.BORDER
+			sb.set_border_width_all(2); sb.set_corner_radius_all(UI.px(6))
+			ic.add_theme_stylebox_override("panel", sb)
+			ic.custom_minimum_size = Vector2(UI.px(38), UI.px(38))
+			ic.add_child(UI.center(UI.icon(sd.icon, 19, UI.ACCENT_SOFT if has else UI.TEXT_FAINT)))
+			row.add_child(UI.center(ic))
 		var v = UI.vbox(2)
 		var top = UI.hbox(6)
 		top.add_child(UI.expand(UI.label(sd.name, 14, UI.TEXT if has else UI.TEXT_FAINT, "medium")))

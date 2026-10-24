@@ -296,6 +296,18 @@
   },
   "ledyanoe-koltso": {
    "asset": "items/ledyanoe-koltso.jpg"
+  },
+  "krovavyy-topor": {
+   "asset": "skills/krovavyy-topor.jpg"
+  },
+  "yadovityy-klinok": {
+   "asset": "skills/yadovityy-klinok.jpg"
+  },
+  "runnyy-mech": {
+   "asset": "skills/runnyy-mech.jpg"
+  },
+  "krylatyy-dospeh": {
+   "asset": "skills/krylatyy-dospeh.jpg"
   }
  },
  "ITEM_ICON_NAMES": {
@@ -397,6 +409,10 @@
   "kolchuzhnye-sapogi": "Кольчужные Сапоги",
   "koltso-pustoty": "Кольцо Пустоты",
   "serebryanoe-koltso": "Серебряный Перстень",
-  "ledyanoe-koltso": "Ледяное Кольцо"
+  "ledyanoe-koltso": "Ледяное Кольцо",
+  "krovavyy-topor": "Кровавый топор",
+  "yadovityy-klinok": "Ядовитый клинок",
+  "runnyy-mech": "Рунный меч",
+  "krylatyy-dospeh": "Крылатый доспех"
  }
 }
