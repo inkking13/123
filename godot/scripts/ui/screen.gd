@@ -56,6 +56,55 @@ func make_page(sep := 0.0, top := 24.0, side := 20.0, tab_bar := true, wide_w :=
 	return page
 
 
+## A dark sheet over a 3D scene (the camp, the muster): the lower `share`
+## of a phone's screen above the tab bar, or a column on the right of a wide
+## window. `content` scrolls; `dock`, if any, stays at the sheet's foot.
+func scene_sheet(content: Control, dock: Control = null, share := 0.56) -> PanelContainer:
+	var pn = PanelContainer.new()
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = Color(0.063, 0.047, 0.035, 0.9)
+	sb.border_color = Color(0.79, 0.64, 0.42, 0.45)
+	sb.set_border_width_all(2); sb.set_corner_radius_all(UI.px(12))
+	sb.content_margin_left = UI.px(16); sb.content_margin_right = UI.px(16)
+	sb.content_margin_top = UI.px(12); sb.content_margin_bottom = UI.px(10 if dock else 4)
+	pn.add_theme_stylebox_override("panel", sb)
+	pn.mouse_filter = Control.MOUSE_FILTER_STOP
+	scroll = UI.scroll(content)
+	if dock:
+		var v = UI.vbox(10)
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		v.add_child(scroll)
+		v.add_child(dock)
+		pn.add_child(v)
+	else: pn.add_child(scroll)
+	var vp = get_viewport_rect().size
+	if App.wide:
+		pn.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+		pn.offset_left = -UI.px(470); pn.offset_right = -UI.px(14)
+		pn.offset_top = UI.px(14); pn.offset_bottom = -UI.px(14)
+	else:
+		pn.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		pn.offset_left = UI.px(8); pn.offset_right = -UI.px(8)
+		pn.offset_bottom = -UI.px(Tabs.HEIGHT + 6) - App.inset_bottom()
+		pn.offset_top = -vp.y * share
+	add_child(pn)
+	_fit_scene.call_deferred(pn)
+	return pn
+
+
+## Tells the 3D view behind which part of the screen the sheet covers, so it
+## keeps its subject in what is left open.
+func _fit_scene(pn: Control) -> void:
+	if not is_instance_valid(pn): return
+	var vp = get_viewport_rect().size
+	var r = pn.get_global_rect()
+	for v in get_tree().root.get_children():
+		if v is CampView:
+			v.band_bottom = 0.0 if App.wide else vp.y - r.position.y
+			v.band_right = vp.x - r.position.x if App.wide else 0.0
+			v.band_left = UI.px(Tabs.RAIL) if App.wide else 0.0
+
+
 ## Pins a bar (the way on, a tally) to the bottom: above the tab bar on a
 ## phone, under the page's column on a wide window.
 func pin_bottom(bar: Control) -> void:

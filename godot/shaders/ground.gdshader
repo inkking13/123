@@ -9,7 +9,11 @@ uniform sampler2D floor_tex: source_color, filter_linear_mipmap_anisotropic, rep
 uniform sampler2D road: source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D dry_tex: source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform bool has_dry = false;
-// r: road, g: woods, painted from the layout; covers the ground square.
+uniform sampler2D bank_tex: source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform bool has_bank = false;
+// How wet the ground is after rain: darker and a little glossy.
+uniform float wet = 0.0;
+// r: road, g: woods, b: river bank, painted from the layout; covers the ground square.
 uniform sampler2D mask: filter_linear;
 uniform sampler2D noise: filter_linear, repeat_enable;
 uniform float half_size = 130.0;
@@ -34,13 +38,17 @@ void fragment() {
 	float dry = smoothstep(0.55, 0.75, n);
 	vec3 d = has_dry ? texture(dry_tex, p * 0.11).rgb * grass_tint : g * vec3(1.18, 1.02, 0.68);
 	g = mix(g, d, dry);
-	vec2 m = texture(mask, p / (2.0 * half_size) + 0.5).rg;
+	vec3 m = texture(mask, p / (2.0 * half_size) + 0.5).rgb;
 	// Forest floor under the trees, ragged at the edge.
 	float woods = smoothstep(0.25, 0.65, m.g + (fine - 0.5) * 0.5);
 	vec3 c = mix(g, texture(floor_tex, p * 0.2).rgb * 0.75, woods);
 	// The road, worn in: its edge wanders with the noise.
 	float r = smoothstep(0.35, 0.7, m.r + (fine - 0.5) * 0.45);
 	c = mix(c, texture(road, p * 0.25).rgb * road_tint, r);
-	ALBEDO = c * COLOR.rgb * mix(0.88, 1.08, n);
-	ROUGHNESS = 0.95;
+	// The river's bank: bare wet earth down to the water.
+	float bank = smoothstep(0.2, 0.6, m.b + (fine - 0.5) * 0.4);
+	vec3 bk = has_bank ? texture(bank_tex, p * 0.2).rgb * vec3(0.6, 0.56, 0.48) : c * vec3(0.7, 0.62, 0.5);
+	c = mix(c, bk, bank);
+	ALBEDO = c * COLOR.rgb * mix(0.88, 1.08, n) * (1.0 - wet * 0.28);
+	ROUGHNESS = 0.95 - wet * 0.4;
 }

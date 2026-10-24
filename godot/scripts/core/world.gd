@@ -53,6 +53,23 @@ const ROAD_EVENTS := [
 		"options": [{"label": "Нанять проводниками (20 золота)", "gold": 20, "sneak": 90.0}, {"label": "Прогнать"}]},
 ]
 
+## Who the squad meets on a lively land: the caravan and the patrol keep to
+## the road, the wolves come out of the woods at night.
+const MEETINGS := {
+	"caravan": {"id": "caravan", "title": "Торговый караван", "icon": "storefront", "text": "Тяжёлая телега, лошадь в мыле, двое купцов с охраной. «Свежий хлеб и сыр с ярмарки, наёмники! Отдадим дешевле городского».",
+		"options": [{"label": "8 пайков за 15 золота", "gold": 15, "food_gain": 8}, {"label": "Сырьё за 25 золота", "gold": 25, "reagent": 2}, {"label": "Пожелать доброй дороги"}]},
+	"patrol": {"id": "patrol", "title": "Патруль стражи", "icon": "shield", "text": "Трое стражников с заставы обходят тракт. Старший кивает: «Мы видели, где засели банды. Можем рассказать».",
+		"options": [{"label": "Расспросить (полчаса): банды до утра замечают отряд хуже", "scout": 10.0, "hours": 0.5}, {"label": "Пройти мимо"}]},
+	"wolves": {"id": "wolves", "title": "Волчья стая", "icon": "paw-print", "text": "Из темноты загораются глаза — волки окружают отряд, голодные и злые.",
+		"options": [{"label": "Отбиться (усталость +15, шкуры)", "tire": 15, "morale": 1, "reagent": 1}, {"label": "Бросить им мясо (2 пайка)", "food": 2}, {"label": "Бежать (усталость +25)", "tire": 25}]},
+}
+const MEET_REACH := 3.2
+const WOLF_SIGHT := 13.0
+const WOLF_SPEED := 4.4
+## The map is uncovered in cells this wide, as the squad walks.
+const FOG_CELL := 8.0
+const SIGHT_RADIUS := 18.0
+
 ## The lands' other sights: what they are called and what can be done there.
 const SIGHTS := {
 	"farm": {"name": "Хутор у мельницы", "icon": "plant", "desc": "Крестьяне продают снедь дешевле городского: %d пайков за %d золота, раз в день."},
@@ -91,7 +108,7 @@ const ACTIVITIES := [
 
 ## How each land looks: ground, grass and rock tints, trees, sky and fog.
 const THEMES := {
-	"outskirts": {"size": 100.0, "textured": true, "grade": {"saturation": 0.8, "contrast": 1.08, "brightness": 0.93, "tint": Vector3(1.04, 1.0, 0.92)}, "bigTown": true, "extras": ["farm", "tower", "lake", "graveyard", "camp", "ruins", "shrine"], "ground": Color(0.27, 0.28, 0.17), "ground2": Color(0.22, 0.26, 0.14), "road": Color(0.42, 0.36, 0.27), "tree": "pine", "leaf": Color(0.2, 0.32, 0.17), "rock": Color(0.45, 0.43, 0.4), "sky": Color(0.55, 0.62, 0.72), "fog": Color(0.55, 0.58, 0.6), "town": "Пограничная Застава"},
+	"outskirts": {"size": 100.0, "textured": true, "lively": true, "hills": true, "river": true, "grade": {"saturation": 0.8, "contrast": 1.08, "brightness": 0.93, "tint": Vector3(1.04, 1.0, 0.92)}, "bigTown": true, "extras": ["farm", "tower", "lake", "graveyard", "camp", "ruins", "shrine"], "ground": Color(0.27, 0.28, 0.17), "ground2": Color(0.22, 0.26, 0.14), "road": Color(0.42, 0.36, 0.27), "tree": "pine", "leaf": Color(0.2, 0.32, 0.17), "rock": Color(0.45, 0.43, 0.4), "sky": Color(0.55, 0.62, 0.72), "fog": Color(0.55, 0.58, 0.6), "town": "Пограничная Застава"},
 	"icefrontier": {"extras": ["tower", "camp", "shrine"], "ground": Color(0.78, 0.82, 0.86), "ground2": Color(0.62, 0.68, 0.74), "road": Color(0.5, 0.5, 0.52), "tree": "pine", "leaf": Color(0.25, 0.36, 0.33), "rock": Color(0.55, 0.6, 0.68), "sky": Color(0.7, 0.78, 0.88), "fog": Color(0.8, 0.85, 0.9), "town": "Зимовье Волчьей Тропы"},
 	"ashlands": {"extras": ["ruins", "graveyard", "camp"], "ground": Color(0.24, 0.22, 0.21), "ground2": Color(0.32, 0.25, 0.2), "road": Color(0.4, 0.33, 0.28), "tree": "dead", "leaf": Color(0.15, 0.13, 0.12), "rock": Color(0.3, 0.27, 0.26), "sky": Color(0.55, 0.42, 0.35), "fog": Color(0.45, 0.36, 0.32), "town": "Пепельный Приход"},
 	"debtprovince": {"extras": ["farm", "camp", "shrine"], "ground": Color(0.42, 0.4, 0.24), "ground2": Color(0.36, 0.38, 0.22), "road": Color(0.47, 0.4, 0.3), "tree": "round", "leaf": Color(0.33, 0.38, 0.17), "rock": Color(0.5, 0.47, 0.42), "sky": Color(0.65, 0.66, 0.6), "fog": Color(0.62, 0.62, 0.55), "town": "Долговой Посад"},
@@ -138,6 +155,11 @@ var sharpened = 0                  # fights left on the smith's edge
 var task_seq = 0
 var well_fed = 0                   # fights left on the cook's supper                   # seconds the bands leave the squad alone after a fight
 var _layouts = {}
+var _lands = {}                    # region -> Land
+var explored = {}                  # region -> PackedByteArray, one byte a fog cell
+var explore_seq = 0                # grows whenever a cell is uncovered
+var roamers = {}                   # region -> [{kind, pos, ...}], not saved
+var weather_override = ""          # for screenshots: "rain", "fog" or "clear"
 var log_note = ""                  # one line for the HUD: what just happened
 
 
@@ -149,7 +171,8 @@ func _init(game) -> void:
 func to_dict() -> Dictionary:
 	return {"region": region, "x": pos.x, "z": pos.y, "hours": hours, "day": day, "food": food, "mealClock": meal_clock,
 		"hungry": hungry, "fatigue": fatigue, "opened": opened.keys(), "gathered": gathered, "beaten": beaten,
-		"wellFed": well_fed, "campPlan": camp_plan, "tasks": tasks, "taskSeq": task_seq, "used": used, "scouted": scouted_until, "sharpened": sharpened}
+		"wellFed": well_fed, "campPlan": camp_plan, "tasks": tasks, "taskSeq": task_seq, "used": used, "scouted": scouted_until, "sharpened": sharpened,
+		"explored": _explored_dict()}
 
 
 func from_dict(d) -> void:
@@ -170,6 +193,9 @@ func from_dict(d) -> void:
 	used = d.get("used", {}) if d.get("used") is Dictionary else {}
 	scouted_until = float(d.get("scouted", 0.0))
 	sharpened = int(d.get("sharpened", 0))
+	explored = {}
+	if d.get("explored") is Dictionary:
+		for k in d.explored: explored[k] = Marshalls.base64_to_raw(str(d.explored[k]))
 	camp_plan = {}
 	if d.get("campPlan") is Dictionary:
 		for k in d.campPlan: camp_plan[int(k)] = d.campPlan[k]
@@ -181,6 +207,7 @@ func reset() -> void:
 	hours = 9.0; day = 1; food = START_FOOD; meal_clock = 0.0; hungry = false; fatigue = 0.0
 	opened = {}; gathered = {}; bands = {}; beaten = {}; camp_plan = {}; well_fed = 0
 	event = null; _event_clock = 0.0; tasks = []; task_seq = 0; used = {}; scouted_until = 0.0; safe_camp = false; sharpened = 0
+	explored = {}; roamers = {}
 
 
 # ── the region's layout (fixed per land) ───────────────────────────────────
@@ -204,6 +231,169 @@ func region_open(loc: String) -> bool:
 
 func theme() -> Dictionary:
 	return THEMES[region]
+
+
+## The lie of a land: its road as walked, hills, river and bridge.
+func land(loc := "") -> Land:
+	var id = loc if loc != "" else region
+	if not _lands.has(id): _lands[id] = Land.new(self, id)
+	return _lands[id]
+
+
+## The road as walked, leg by leg.
+func road_path() -> Array:
+	return land().road
+
+
+# ── the weather ────────────────────────────────────────────────────────────
+## Mostly clear; rain now and then; mist in the early morning. It changes
+## every four hours and is the same for everyone on that day and hour.
+func weather() -> String:
+	if weather_override != "": return weather_override
+	if not THEMES[region].get("lively", false): return "clear"
+	var r = float(absi(hash("%s %d %d" % [region, day, int(hours / 4.0)])) % 1000) / 1000.0
+	if hours >= 4.5 and hours < 9.0 and r < 0.55: return "fog"
+	if r > 0.8: return "rain"
+	return "clear"
+
+
+func weather_word() -> String:
+	return {"rain": "дождь: банды видят хуже", "fog": "туман: банды видят хуже"}.get(weather(), "")
+
+
+func _weather_sight() -> float:
+	return {"rain": 0.75, "fog": 0.6}.get(weather(), 1.0)
+
+
+# ── the fog over the map ───────────────────────────────────────────────────
+func fog_cells() -> int:
+	return int(ceil(2.0 * size() / FOG_CELL))
+
+
+func _explored_dict() -> Dictionary:
+	var out = {}
+	for k in explored: out[k] = Marshalls.raw_to_base64(explored[k])
+	return out
+
+
+## Which cells of the land the squad has seen, a byte a cell, row by row.
+func explored_cells() -> PackedByteArray:
+	var n = fog_cells()
+	if not explored.has(region) or explored[region].size() != n * n:
+		var b = PackedByteArray(); b.resize(n * n)
+		explored[region] = b
+	return explored[region]
+
+
+## Uncovers the land round a point.
+func explore(at: Vector2, radius := SIGHT_RADIUS) -> void:
+	var cells = explored_cells()
+	var n = fog_cells()
+	var half = size()
+	var r = int(ceil(radius / FOG_CELL))
+	var ci = int((at.x + half) / FOG_CELL)
+	var cj = int((at.y + half) / FOG_CELL)
+	var fresh = false
+	for j in range(maxi(0, cj - r), mini(n, cj + r + 1)):
+		for i in range(maxi(0, ci - r), mini(n, ci + r + 1)):
+			var mid = Vector2(-half + (i + 0.5) * FOG_CELL, -half + (j + 0.5) * FOG_CELL)
+			if mid.distance_to(at) > radius + FOG_CELL * 0.5: continue
+			if cells[j * n + i] == 0:
+				cells[j * n + i] = 1
+				fresh = true
+	if fresh: explore_seq += 1
+
+
+func is_explored(p: Vector2) -> bool:
+	var n = fog_cells()
+	var half = size()
+	var i = int((p.x + half) / FOG_CELL)
+	var j = int((p.y + half) / FOG_CELL)
+	if i < 0 or j < 0 or i >= n or j >= n: return false
+	return explored_cells()[j * n + i] != 0
+
+
+# ── who else is on the road ────────────────────────────────────────────────
+## The caravan and the patrol on the road, and at night the wolves.
+func region_roamers() -> Array:
+	if not THEMES[region].get("lively", false): return []
+	if not roamers.has(region):
+		var path = road_path()
+		roamers[region] = [
+			{"kind": "caravan", "at": path.size() * 0.12, "dir": 1, "speed": 1.6, "wait": 0.0, "met": -99.0, "pos": path[int(path.size() * 0.12)]},
+			{"kind": "patrol", "at": path.size() * 0.75, "dir": -1, "speed": 1.9, "wait": 0.0, "met": -99.0, "pos": path[int(path.size() * 0.75)]},
+			{"kind": "wolves", "home": _wolf_den(), "pos": Vector2.ZERO, "to": Vector2.ZERO, "wait": 0.0, "gone": -99.0, "chasing": false},
+		]
+		var wolves = roamers[region][2]
+		wolves.pos = wolves.home; wolves.to = wolves.home
+	return roamers[region]
+
+
+## The wolves' den: deep in the land, well away from the road and the places.
+func _wolf_den() -> Vector2:
+	var rng = RandomNumberGenerator.new()
+	rng.seed = hash(region) + 77
+	var lay = layout()
+	var half = size()
+	for _try in 80:
+		var p = Vector2(rng.randf_range(-half + 12, half - 12), rng.randf_range(-half + 12, half - 12))
+		if lay.places.any(func(q): return q.pos.distance_to(p) < 22.0): continue
+		var path = road_path()
+		var near = false
+		for i in path.size() - 1:
+			if Geometry2D.get_closest_point_to_segment(p, path[i], path[i + 1]).distance_to(p) < 20.0:
+				near = true
+				break
+		if not near and land().river_gap(p) > 8.0: return p
+	return Vector2(0, half * 0.6)
+
+
+func wolves_out() -> bool:
+	for r in region_roamers():
+		if r.kind == "wolves": return is_night() and clock() > r.gone
+	return false
+
+
+## One frame for the caravan, the patrol and the wolves. Returns a meeting
+## (an event to answer) when one reaches the squad.
+func _step_roamers(dt: float):
+	var path = road_path()
+	for r in region_roamers():
+		if r.kind == "wolves":
+			if not wolves_out():
+				r.pos = r.home; r.to = r.home; r.chasing = false
+				continue
+			var to_squad: Vector2 = pos - r.pos
+			r.chasing = _grace <= 0 and to_squad.length() < WOLF_SIGHT * _weather_sight()
+			if r.chasing:
+				r.pos += to_squad.normalized() * minf(to_squad.length(), WOLF_SPEED * dt)
+				if r.pos.distance_to(pos) < BAND_CATCH: return r
+			else:
+				r.wait -= dt
+				if r.wait <= 0:
+					r.to = r.home + Vector2(randf_range(-12, 12), randf_range(-12, 12))
+					r.wait = 2.0 + randf() * 3.0
+				var w: Vector2 = r.to - r.pos
+				if w.length() > 0.1: r.pos += w.normalized() * minf(w.length(), 3.0 * dt)
+			continue
+		if r.wait > 0:
+			r.wait -= dt
+		else:
+			# Along the road at a walking pace; a rest at either end, then back.
+			var i = int(r.at)
+			var j = clampi(i + 1, 0, path.size() - 1)
+			var seg = maxf(0.01, path[i].distance_to(path[j]))
+			r.at += r.dir * r.speed * dt / seg
+			if r.at <= 0.0 or r.at >= path.size() - 1.001:
+				r.at = clampf(r.at, 0.0, path.size() - 1.001)
+				r.dir = -r.dir
+				r.wait = 6.0
+			var k = int(r.at)
+			r.pos = path[k].lerp(path[mini(k + 1, path.size() - 1)], r.at - k)
+		if r.pos.distance_to(pos) < MEET_REACH and clock() - r.met > 12.0:
+			r.met = clock()
+			return r
+	return null
 
 
 ## Places, roads and band camps of a land, the same every time.
@@ -321,12 +511,15 @@ func step(dt: float):
 	var moved = 0.0
 	if target != null:
 		var d: Vector2 = target - pos
-		var stepd = minf(d.length(), WALK_SPEED * dt)
+		# Wading the river off the bridge is slow going.
+		var wade = 0.45 if land().walk_y(pos) < -0.4 else 1.0
+		var stepd = minf(d.length(), WALK_SPEED * wade * dt)
 		if d.length() > 0.01: pos += d.normalized() * stepd
 		moved = stepd
 		if pos.distance_to(target) < 0.05:
 			target = null
 	if moved > 0:
+		explore(pos)
 		_pass_hours(moved / METRES_PER_HOUR)
 		_event_clock += moved / METRES_PER_HOUR
 		if _event_clock >= EVENT_EVERY_HOURS:
@@ -335,7 +528,12 @@ func step(dt: float):
 				event = ROAD_EVENTS.pick_random()
 				target = null; goal = ""
 				return null
-	var sight = BAND_SIGHT * (1.5 if is_night() else 1.0) * (0.5 if scouted() else 1.0)
+	var met = _step_roamers(dt)
+	if met != null:
+		event = MEETINGS[met.kind]
+		target = null; goal = ""
+		return null
+	var sight = BAND_SIGHT * (1.5 if is_night() else 1.0) * (0.5 if scouted() else 1.0) * _weather_sight()
 	for b in region_bands():
 		var to_squad: Vector2 = pos - b.pos
 		b.chasing = _grace <= 0 and to_squad.length() < sight
@@ -644,6 +842,15 @@ func answer(i: int):
 		var rdef = DB.reagents.REAGENT_BY_LOCATION.get(region)
 		if rdef:
 			g.reagent_counts[rdef.id] = g.reagent_owned(rdef.id) + int(o.reagent); notes.append("%s ×%d" % [rdef.name, int(o.reagent)])
+	if o.has("tire"):
+		fatigue = minf(100.0, fatigue + float(o.tire)); notes.append("усталость +%d%%" % int(o.tire))
+	if o.has("scout"):
+		scouted_until = maxf(scouted_until, clock() + float(o.scout)); notes.append("стража рассказала, где банды")
+	if event.id == "wolves":
+		# The pack is driven off, fed or left behind: it is gone till the next night.
+		for r in region_roamers():
+			if r.kind == "wolves": r.gone = clock() + 12.0
+		_grace = 4.0
 	if o.has("sneak"):
 		_grace = float(o.sneak); notes.append("банды какое-то время не заметят отряд")
 	if o.get("gamble", false):
