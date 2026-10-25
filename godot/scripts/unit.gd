@@ -34,7 +34,7 @@ const BODIES := {
 		"death": "Death01", "dodge": "Roll", "hits": [["Hit_Chest", 3], ["Hit_Head", 1]],
 		"acts": {"melee": "Punch_Cross", "ability": "Melee_Hook", "ranged": "Spell_Simple_Shoot", "magic": "Spell_Simple_Shoot",
 			"heal": "Spell_Simple_Shoot", "rally": "Jump"}, "speed": {"Punch_Cross": 1.2, "Melee_Hook": 1.2}},
-	"puglin": {"monster": true, "file": "monsters/puglin", "height": 0.62, "model_h": 0.93, "idle": "Idle", "run": "Jog_Fwd", "hit": "Hit_Chest",
+	"puglin": {"monster": true, "file": "monsters/puglin", "height": 0.78, "model_h": 0.93, "idle": "Idle", "run": "Jog_Fwd", "hit": "Hit_Chest",
 		"death": "Death01", "dodge": "Roll", "hits": [["Hit_Chest", 3], ["Hit_Head", 1]],
 		"acts": {"melee": "Sword_Attack", "ability": "Sword_Regular_Combo", "ranged": "OverhandThrow", "magic": "Spell_Simple_Shoot",
 			"heal": "Spell_Simple_Shoot", "rally": "Jump"}, "speed": {"Sword_Regular_Combo": 1.3}},
@@ -469,7 +469,9 @@ func _hold_q(prop: String, hand: int, _body_mesh: MeshInstance3D, left: bool, gl
 	var at = func(b): return _skel.get_bone_global_rest(_skel.find_bone(b + side)).origin
 	var wrist: Vector3 = at.call("hand")
 	var along: Vector3 = (at.call("middle_01") - wrist).normalized()
-	var across: Vector3 = (at.call("index_01") - at.call("pinky_01")).normalized()
+	# The Bestiary's four-fingered hands have no pinky; the ring finger stands in.
+	var outer = "pinky_01" if _skel.find_bone("pinky_01" + side) >= 0 else "ring_01"
+	var across: Vector3 = (at.call("index_01") - at.call(outer)).normalized()
 	var palm: Vector3 = along.cross(across).normalized()
 	if palm.dot(at.call("thumb_01") - wrist) < 0: palm = -palm
 	var b: Basis

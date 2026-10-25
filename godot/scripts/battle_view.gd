@@ -44,12 +44,13 @@ const FOES := {
 }
 ## Dungeons whose rooms are kept by Bestiary monsters instead of the skeletons.
 const DUNGEON_FOES := {
-	# The rotten mill: puglins with cudgels and stones, an imp egging them on.
+	# The rotten mill: puglins with their cudgels and stones, an imp egging them on.
+	# The Bestiary's monsters carry their own clubs.
 	"ratmill": {
-		"brute": {"body": "puglin", "right": "mace", "scale": 1.25},
+		"brute": {"body": "puglin", "scale": 1.3},
 		"archer": {"body": "puglin", "acts": {"melee": "OverhandThrow"}},
 		"shaman": {"body": "imp", "acts": {"melee": "Spell_Simple_Shoot"}, "glow": Color(1.0, 0.5, 0.2)},
-		"minion": {"body": "puglin", "right": "mace", "scale": 0.9},
+		"minion": {"body": "puglin", "scale": 0.9},
 	},
 	# The nameless crypt: imps serve whoever holds the night mass.
 	"cultcrypt": {
