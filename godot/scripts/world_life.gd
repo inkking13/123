@@ -538,27 +538,33 @@ func _fireflies_at(at: Vector3, box: Vector3) -> CPUParticles3D:
 # ── the town ───────────────────────────────────────────────────────────────
 func _town_life(rng: RandomNumberGenerator) -> void:
 	var town = _v3(Game.w.layout().town)
+	var plan: Dictionary = Game.w.layout().town_plan
+	var yard: Vector3 = town + Vector3(plan.yard.x, 0, plan.yard.y)
 	for k in 2: _beast("dog", town + Vector3(rng.randf_range(-5, 5), 0, rng.randf_range(-5, 5)), town, 9.0, rng)
-	for k in 3: _beast("hen", town + Vector3(-12 + rng.randf_range(-1, 1), 0, 3 + rng.randf_range(-1, 1)), town + Vector3(-12, 0, 3), 1.8, rng)
+	for k in 3: _beast("hen", yard + Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)), yard, 1.8, rng)
 	# Chimney smoke over the houses, the tavern and the forge.
-	for h in [Vector2(0, -12), Vector2(12, 0), Vector2(-13, -1), Vector2(4, 12), Vector2(-5, 13)]:
-		_smoke(self, town + Vector3(h.x, 3.6, h.y), 0.7)
+	for k in plan.houses.size():
+		if k % 2 == 0: _smoke(self, town + Vector3(plan.houses[k].at.x, 3.6, plan.houses[k].at.y), 0.7)
 	for p in Game.w.layout().places:
+		# Spots about a building are on its own footing, turned as it is.
+		var on = func(v: Vector3) -> Vector3: return _v3(p.pos) + v.rotated(Vector3.UP, p.get("turn", 0.0))
 		match p.kind:
-			"tavern": _smoke(self, _v3(p.pos, 6.2) + Vector3(1.8, 0, -0.8), 0.9)
-			"smith": _smoke(self, _v3(p.pos, 4.6) + Vector3(-1.2, 0, -1.2), 1.1)
+			"tavern":
+				_smoke(self, on.call(Vector3(1.8, 6.2, -0.8)), 0.9)
+				view._prop(self, "world-barrels", 1.2, on.call(Vector3(4.4, 0, 1.2)), p.turn + 0.8)
+			"smith": _smoke(self, on.call(Vector3(-1.2, 4.6, -1.2)), 1.1)
 			"market":
 				# Buyers at the counters (the awnings would hide the stallholders).
 				var spots = [Vector3(-3.3, 0, 1.5), Vector3(0.3, 0, 0.1), Vector3(2.7, 0, 1.5)]
 				for k in 3:
 					var u = view._villager({"outfit": Villager.OUTFITS[(k + 1) % 4], "idle": ["Idle_Talking", "Idle", "Yes"][k]})
-					u.position = _v3(p.pos) + spots[k]
-					u.face(u.position + Vector3(0, 0, -1))
-	# Crates and barrels about the square.
-	view._prop(self, "world-barrels", 1.2, town + Vector3(-4.5, 0, -10.5), 0.8)
-	view._prop(self, "world-barrels", 1.1, town + Vector3(10.5, 0, 3.5), 2.0)
-	for k in 3:
-		view._box(self, Vector3(0.7, 0.7, 0.7), town + Vector3(-2.6 + (k % 2) * 0.75, 0.35 + (k / 2) * 0.7, -9.8), Color(0.5, 0.36, 0.2), 0.2 * k)
+					u.position = on.call(spots[k])
+					u.face(u.position + Vector3(0, 0, -1).rotated(Vector3.UP, p.turn))
+				# Crates stacked beside the stalls.
+				for k in 3:
+					var at: Vector3 = on.call(Vector3(-5.4 + (k % 2) * 0.75, 0.35 + (k / 2) * 0.7, -0.6))
+					view._box(self, Vector3(0.7, 0.7, 0.7), at, Color(0.5, 0.36, 0.2), p.turn + 0.2 * k)
+			"barracks": view._prop(self, "world-barrels", 1.1, on.call(Vector3(4.2, 0, 0.6)), p.turn + 2.0)
 
 
 # ── folk on the road ───────────────────────────────────────────────────────

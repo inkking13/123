@@ -291,9 +291,19 @@ func _paint_ground_mask() -> void:
 				var i = (y * w + x) * 3 + ch
 				data[i] = maxi(data[i], int((1.0 - d * d) * 255))
 	var road = _road_points()
+	var lay = Game.w.layout()
+	var walled = Game.w.has_big_town()
 	for i in road.size() - 1:
 		var steps = maxi(1, int(road[i].distance_to(road[i + 1]) / 0.7))
-		for k in steps: stamp.call(road[i].lerp(road[i + 1], float(k) / steps), 2.4, 0)
+		for k in steps:
+			var p = road[i].lerp(road[i + 1], float(k) / steps)
+			# Inside the wall the road is the town's paved streets, worn at their edges.
+			if walled and p.distance_to(lay.town) < World.TOWN_RADIUS: continue
+			stamp.call(p, 2.4, 0)
+	if walled:
+		for g in lay.town_plan.gates:
+			for d in range(int(World.TOWN_SQUARE), int(World.TOWN_RADIUS) + 3): stamp.call(lay.town + Vector2.from_angle(g) * d, World.TOWN_STREET + 1.4, 0)
+		for k in 48: stamp.call(lay.town + Vector2.from_angle(k * TAU / 48) * World.TOWN_SQUARE, 2.0, 0)
 	for t in _tree_spots: stamp.call(t, 3.2, 1)
 	for p in _dense(land.river, 0.7): stamp.call(p, Land.RIVER_HALF + 2.2, 2)
 	_ground.set_shader_parameter("mask", ImageTexture.create_from_image(Image.create_from_data(w, w, false, Image.FORMAT_RGB8, data)))
@@ -886,6 +896,7 @@ func _build_places(th: Dictionary) -> void:
 	for p in Game.w.layout().places:
 		var root = Node3D.new()
 		root.position = _on_ground(p.pos)
+		root.rotation.y = p.get("turn", 0.0)
 		add_child(root)
 		place_nodes[p.id] = root
 		match p.kind:
@@ -1421,13 +1432,8 @@ func _walled_town(th: Dictionary) -> void:
 	var root = Node3D.new()
 	root.position = Vector3(town.x, 0, town.y)
 	add_child(root)
-	# Where the road meets the wall.
-	var road: Array = lay.road
-	var gates = []
-	for i in road.size():
-		if road[i] == town:
-			if i > 0: gates.append((road[i - 1] - town).angle())
-			if i < road.size() - 1: gates.append((road[i + 1] - town).angle())
+	var plan: Dictionary = lay.town_plan
+	var gates: Array = plan.gates
 	var logs = []
 	var r = World.TOWN_RADIUS
 	var n = int(TAU * r / 0.55)
@@ -1464,13 +1470,24 @@ func _walled_town(th: Dictionary) -> void:
 		var beam = _box(root, Vector3(5.6, 0.5, 0.5), Vector3(at.x, 4.6, at.y), wood)
 		beam.rotation.y = -gang + PI * 0.5
 		_folk_unit(root, {"body": "man", "right": "longsword", "left": "roundShield", "set": "ranger", "look": {"hair": ["buzzed", "beard"], "colouring": 2}}, at + side * 1.4 - dir * 1.2, gang, true)
-	# The square and its well.
+	# The square and its well, and a paved street from it to each gate.
+	var paving = _tex_material("cobblestone", 1.0, 0.35, Color(0.85, 0.85, 0.85), true) if _tex.has("cobblestone") else _solid(th.road.darkened(0.1))
 	var sq = MeshInstance3D.new()
-	var sqm = CylinderMesh.new(); sqm.top_radius = 7.0; sqm.bottom_radius = 7.0; sqm.height = 0.04; sqm.radial_segments = 24
+	var sqm = CylinderMesh.new(); sqm.top_radius = World.TOWN_SQUARE; sqm.bottom_radius = World.TOWN_SQUARE; sqm.height = 0.04; sqm.radial_segments = 32
 	sq.mesh = sqm
-	sq.material_override = _tex_material("cobblestone", 1.0, 0.35, Color(0.85, 0.85, 0.85), true) if _tex.has("cobblestone") else _solid(th.road.darkened(0.1))
+	sq.material_override = paving
 	sq.position.y = 0.035
 	root.add_child(sq)
+	for gang in gates:
+		var length = r - World.TOWN_SQUARE + 1.0
+		var mid = Vector2.from_angle(gang) * (World.TOWN_SQUARE - 0.5 + length * 0.5)
+		var street = MeshInstance3D.new()
+		var stm = BoxMesh.new(); stm.size = Vector3(World.TOWN_STREET * 2.0, 0.04, length)
+		street.mesh = stm
+		street.material_override = paving
+		street.position = Vector3(mid.x, 0.03, mid.y)
+		street.rotation.y = atan2(cos(gang), sin(gang))
+		root.add_child(street)
 	if not _prop(root, "world-well", 2.6, Vector3.ZERO):
 		_cyl(root, 0.8, 0.9, 0.8, Vector3(0, 0.4, 0), th.rock.darkened(0.1), 10)
 		_box(root, Vector3(0.1, 1.6, 0.1), Vector3(-0.7, 1.3, 0), wood)
@@ -1484,12 +1501,14 @@ func _walled_town(th: Dictionary) -> void:
 	lamp.light_color = Color(1.0, 0.65, 0.3); lamp.light_energy = 1.2; lamp.omni_range = 12.0
 	lamp.position = Vector3(0, 3.0, 0)
 	root.add_child(lamp)
-	# Houses between the buildings.
-	for h in [[Vector2(0, -12), 0.0], [Vector2(12, 0), 1.57], [Vector2(-13, -1), -1.57], [Vector2(4, 12), 3.14], [Vector2(-5, 13), 3.0]]:
-		_house(root, Vector3(h[0].x, 0, h[0].y), 2.6, 2.2, h[1], Color(0.64, 0.56, 0.45), Color(0.45, 0.22, 0.15))
+	# Houses in a ring behind the buildings, each facing the square.
+	for h in plan.houses:
+		_house(root, Vector3(h.at.x, 0, h.at.y), 2.8, 2.4, h.turn, Color(0.64, 0.56, 0.45), Color(0.45, 0.22, 0.15))
+	for t in plan.trees:
+		_prop(root, "nature-commontree-%d" % (3 + absi(hash(t)) % 3), 5.5, Vector3(t.x, 0, t.y), hash(t) % 6)
 	# Townsfolk walk between the buildings.
-	for k in 5:
-		var start: Vector2 = w.TOWN_BUILDINGS[k % w.TOWN_BUILDINGS.size()].at * 0.6
+	for k in 7:
+		var start: Vector2 = plan.buildings[k % plan.buildings.size()].at * 0.6
 		var v = _villager({"outfit": Villager.OUTFITS[k % 4]})
 		v.position = root.position + Vector3(start.x, 0, start.y)
 		_folk.append({"unit": v, "to": v.position, "wait": randf() * 3.0, "center": root.position})
@@ -1512,8 +1531,10 @@ func _sync_folk(dt: float) -> void:
 			if u.get_meta("moving", false):
 				u.play_idle(); u.set_meta("moving", false)
 			if f.wait <= 0:
-				var b: Dictionary = World.TOWN_BUILDINGS.pick_random()
-				f.to = f.center + Vector3(b.at.x * 0.75 + randf_range(-1.5, 1.5), 0, b.at.y * 0.75 + randf_range(-1.5, 1.5))
+				# To the door of one of the town's buildings, or across the square.
+				var b: Dictionary = Game.w.layout().town_plan.buildings.pick_random()
+				var to: Vector2 = b.at.normalized() * randf_range(2.0, b.at.length() - 3.0)
+				f.to = f.center + Vector3(to.x + randf_range(-1.0, 1.0), 0, to.y + randf_range(-1.0, 1.0))
 				f.wait = 2.0 + randf() * 5.0
 		else:
 			if not u.get_meta("moving", false):
