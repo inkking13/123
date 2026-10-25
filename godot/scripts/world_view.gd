@@ -556,7 +556,8 @@ func _build_woods(th: Dictionary) -> void:
 	var bush = _model_mesh("world-bush", 1.0) if main_tree else null
 	if bush:
 		var at = spots.filter(func(q): return rng.randf() < 0.5).map(func(q): return q + Vector2(1.6, -1.1))
-		var kit = [_plant("nature-bush-common", 1.3, 0.05), _plant("nature-bush-common-flowers", 1.3, 0.05)]
+		# The kit's plain bush is bright red; its flowering one comes in two sizes.
+		var kit = [_plant("nature-bush-common-flowers", 1.0, 0.05), _plant("nature-bush-common-flowers", 1.4, 0.05)]
 		var mine = [[], [], []]
 		for p in at: mine[(1 + rng.randi() % 2) if rng.randf() < 0.25 and kit[0] else 0].append(p)
 		_scatter(bush, mine[0], rng, 0.7, 1.4, wind_material(bush.surface_get_material(0), 1.0, 0.05))
