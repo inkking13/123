@@ -160,11 +160,8 @@ static func _stash_cell(it: Dictionary, active: bool, fn: Callable) -> Control:
 
 static func _tooltip(c: Dictionary, slot: Dictionary, it: Dictionary) -> Control:
 	var tint = DB.rarity_color(it.rarity)
-	var p = PanelContainer.new()
-	var sb = StyleBoxFlat.new()
-	sb.bg_color = Color("#0d0c0a"); sb.border_color = Color(tint, 0.6); sb.set_border_width_all(1); sb.border_width_top = 5; sb.set_corner_radius_all(UI.px(4))
-	sb.content_margin_left = UI.px(12); sb.content_margin_right = UI.px(12); sb.content_margin_top = UI.px(12); sb.content_margin_bottom = UI.px(12)
-	p.add_theme_stylebox_override("panel", sb)
+	# A dark plate glowing in the piece's rarity.
+	var p = UI.grim_sheet(Vector4(14, 16, 14, 14), tint)
 	var v = UI.vbox(4)
 	p.add_child(v)
 	var top = UI.hbox(12)

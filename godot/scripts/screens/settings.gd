@@ -74,18 +74,18 @@ func build() -> void:
 		(b.get_child(0) as Label).add_theme_color_override("font_color", UI.DANGER)
 		p.add_child(b)
 	else:
-		var w = UI.frame("plain", Vector4(14, 14, 14, 14))
-		var wv = UI.vbox(12)
+		var w = UI.grim_sheet(Vector4(18, 18, 18, 16), UI.DANGER)
+		var wv = UI.vbox(10)
+		wv.add_child(UI.grim_head("warning", "Сброс прогресса", "Сжечь архив гильдии?", 34))
 		wv.add_child(UI.label("Все герои, золото, снаряжение и пройденные подземелья пропадут. Это нельзя отменить.", 13.5, UI.TEXT_MUTED, "regular", true))
+		wv.add_child(UI.grim_rule())
 		var br = UI.hbox(8)
-		br.add_child(UI.expand(UI.secondary_button("Отмена", func():
+		br.add_child(UI.grim_action("Отмена", func():
 			confirm_reset = false
-			refresh(), 42)))
-		var go = UI.secondary_button("Точно сбросить", func():
+			refresh()))
+		br.add_child(UI.grim_action("Точно сбросить", func():
 			confirm_reset = false
-			Game.reset_progress(), 42)
-		(go.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = UI.DANGER
-		br.add_child(UI.expand(go))
+			Game.reset_progress(), true))
 		wv.add_child(br)
 		w.add_child(wv)
 		p.add_child(w)

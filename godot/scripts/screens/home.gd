@@ -122,25 +122,17 @@ func _notice(icon: String, color: Color, text: String, key: String) -> Control:
 ## A newly opened system arrives as a sealed letter from the guild.
 func _unlock_letter(f: String) -> Control:
 	var d: Dictionary = DB.features.FEATURES[f]
-	var sheet = UI.parchment()
-	var v = UI.vbox(6)
+	var sheet = UI.grim_sheet()
+	var v = UI.vbox(10)
 	sheet.add_child(v)
-	var top = UI.hbox(12)
-	top.add_child(UI.wax_seal(38, d.icon))
-	var tv = UI.vbox(0)
-	tv.add_child(UI.label("Открыто новое", 12.5, UI.INK_RED, "caps"))
-	tv.add_child(UI.label(d.title, 20, UI.INK, "title"))
-	top.add_child(UI.expand(tv))
-	v.add_child(top)
-	v.add_child(UI.label(d.intro, 15, UI.INK_MUTED, "regular", true))
-	v.add_child(UI.rule())
+	v.add_child(UI.grim_head(d.icon, "Открыто новое", d.title, 38))
+	v.add_child(UI.label(d.intro, 15, UI.TEXT_MUTED, "regular", true))
+	v.add_child(UI.grim_rule())
 	var acts = UI.hbox(10)
-	acts.add_child(UI.ink_action("Посмотреть", func():
+	acts.add_child(UI.grim_action("Посмотреть", func():
 		Game.mark_unlock_seen(f)
 		_open_feature(f), true))
-	var sep = ColorRect.new(); sep.color = UI.INK_RULE; sep.custom_minimum_size = Vector2(1, UI.px(24))
-	acts.add_child(UI.center(sep))
-	acts.add_child(UI.ink_action("Понятно", func(): Game.mark_unlock_seen(f)))
+	acts.add_child(UI.grim_action("Понятно", func(): Game.mark_unlock_seen(f)))
 	v.add_child(acts)
 	return sheet
 

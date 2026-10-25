@@ -48,17 +48,21 @@ func build() -> void:
 	col.add_child(UI.space(10))
 	var saved = Game.has_save and not Game.needs_draft()
 	if confirm_new:
-		var w = UI.label("Весь прогресс, герои и золото пропадут. Начать заново?", 14, UI.DANGER, "regular", true)
-		w.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(w)
+		var sheet = UI.grim_sheet(Vector4(18, 18, 18, 16), UI.DANGER)
+		var v = UI.vbox(10)
+		v.add_child(UI.grim_head("warning", "Начать заново", "Сжечь все дела?", 34))
+		v.add_child(UI.label("Весь прогресс, герои и золото пропадут. Это нельзя отменить.", 14, UI.TEXT_MUTED, "regular", true))
+		v.add_child(UI.grim_rule())
 		var row = UI.hbox(10)
-		row.add_child(UI.expand(UI.secondary_button("Отмена", func():
+		row.add_child(UI.grim_action("Отмена", func():
 			confirm_new = false
-			refresh())))
-		row.add_child(UI.expand(UI.secondary_button("Начать заново", func():
+			refresh()))
+		row.add_child(UI.grim_action("Начать заново", func():
 			confirm_new = false
-			Game.reset_progress())))
-		col.add_child(row)
+			Game.reset_progress(), true))
+		v.add_child(row)
+		sheet.add_child(v)
+		col.add_child(sheet)
 	else:
 		col.add_child(UI.primary_button("Продолжить" if saved else "Приступить к обязанностям", Game.start, "", "arrow-right", 54))
 		if saved:

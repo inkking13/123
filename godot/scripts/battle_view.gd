@@ -42,6 +42,7 @@ var _moving = {}
 var _fx_seq = -1
 var _impact_seq = 0
 var _shake_seq = 0
+var _dodge_seq = -1
 var _shake = 0.0
 
 var env: Environment
@@ -293,6 +294,9 @@ func _spawn(key: String, spec: Dictionary, team: int, name: String) -> Unit:
 	sp.hp = 100
 	sp.atk = Vector2i(1, 1)
 	sp.init = 1
+	# A blade or a shield in hand: it stands ready between blows.
+	var held = [spec.get("right", ""), spec.get("left", "")]
+	sp.ready = held.any(func(p): return Unit.PROPS.has(p) and Unit.PROPS[p].how in ["fist", "shield"])
 	add_child(u)
 	u.setup(sp)
 	u.face_yaw = PI if team == 0 else 0.0
@@ -365,25 +369,22 @@ func _sync(delta: float, snap := false) -> void:
 			u.play_death()
 			continue
 		if not u.alive: continue
-		# Walk to the cell.
+		# Run to the cell: turn, speed up, slow into the stop.
 		var d: Vector3 = w.pos - u.position
 		d.y = 0
-		if snap or d.length() < 0.03:
+		if snap:
 			u.position = w.pos
-			if _moving.has(key):
-				_moving.erase(key)
-				u.play_idle()
+			_moving.erase(key)
+		elif d.length() >= 0.02 or _moving.has(key):
+			_moving[key] = true
+			if u.run_to(w.pos, delta): _moving.erase(key)
+		if not _moving.has(key):
 			# Standing: square up to the nearest foe still on the field.
 			if _busy.get(key, 0) <= Time.get_ticks_msec():
 				var foe = _nearest_foe(key, u)
 				var look = u.face_yaw if foe == null else atan2(foe.x - u.position.x, foe.z - u.position.z)
-				u.rotation.y = look if snap else lerp_angle(u.rotation.y, look, 1.0 - exp(-delta * 7.0))
-		else:
-			if not _moving.has(key):
-				_moving[key] = true
-				u.play_run()
-			u.face(w.pos)
-			u.position += d.normalized() * minf(d.length(), delta * 3.2)
+				if snap: u.rotation.y = look
+				elif absf(angle_difference(u.rotation.y, look)) > 0.02: u.turn_to(look)
 		var ring = false
 		var ring_col = GOLD
 		if cur and key == "r%d" % cur.id:
@@ -396,6 +397,12 @@ func _sync(delta: float, snap := false) -> void:
 			ring_col = Color(1, 0.35, 0.28)
 		u.set_ring(ring, ring_col)
 	if not snap: _play_fx(s)
+	if s.dodge.seq != _dodge_seq:
+		if not snap and _dodge_seq >= 0:
+			for id in s.dodge.ids:
+				var du: Unit = units.get("r%d" % id)
+				if du: du.dodge()
+		_dodge_seq = s.dodge.seq
 	_color_tiles(s)
 	if s.shakeSeq != _shake_seq:
 		_shake_seq = s.shakeSeq
@@ -446,7 +453,7 @@ func _play_fx(s: Dictionary) -> void:
 	var u: Unit = units[key]
 	var tk = _target_key(s, fx.targetEnemy)
 	var target: Unit = units.get(tk)
-	if target and target.alive: u.face(target.global_position)
+	if target and target.alive: u.turn_toward(target.global_position)
 	var kind: String = fx.kind
 	var clip = {"melee": "melee", "ranged": "ranged", "heal": "heal", "ability": "ability", "rally": "rally"}.get(kind, "melee")
 	var dur = u.play_action(clip)
@@ -474,9 +481,11 @@ func _alive_of(prefixes: Array) -> Array:
 	return out
 
 
+## Back to idle once the action ends, unless it has since struck again or set off running.
 func _back_to_idle(u: Unit, after: float) -> void:
+	var seq = u.action_seq()
 	get_tree().create_timer(maxf(after, 0.3)).timeout.connect(func():
-		if is_instance_valid(u) and u.alive: u.play_idle())
+		if is_instance_valid(u) and u.alive and u.action_seq() == seq and not u.moving(): u.play_idle())
 
 
 # ── effects ─────────────────────────────────────────────────────────────────
