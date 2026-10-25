@@ -72,7 +72,9 @@ func _measure() -> void:
 		var y = (vp.y - ch) * 0.5 if App.wide else _bottom.get_global_rect().position.y - ch
 		_cam.position = Vector2(vp.x - _cam.size.x - UI.px(12), y)
 	if App.wide:
-		view.band_top = 0.0; view.band_bottom = 0.0
+		# The skill bar sits low and narrow; only the top plate needs the board nudged down.
+		view.band_top = 0.0
+		view.band_bottom = _top.get_global_rect().end.y * 0.7
 		return
 	view.band_top = _top.get_global_rect().end.y
 	view.band_bottom = get_viewport_rect().size.y - _bottom.get_global_rect().position.y
@@ -120,21 +122,23 @@ func _top_block(s: Dictionary) -> Control:
 	else:
 		m.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	root.add_child(m)
-	# Name and health of what we fight.
+	# Us against them, after Battlesmiths: the squad's health on a green
+	# ribbon, the foe's on a red one, crossed swords between; the name above.
 	var name_row = UI.hbox(8, BoxContainer.ALIGNMENT_CENTER)
 	if s.encounterType == "boss" and not Game.in_arena:
 		var art = DB.boss_art_path(Game.dungeon_id)
-		if art != "": name_row.add_child(UI.picture(art, 30, 30, 15))
-	var title = UI.shadowed(UI.label(s.name + (" · фаза %d" % s.phase if s.encounterType == "boss" else ""), 18, UI.GRIM_TITLE, "title"))
+		if art != "": name_row.add_child(UI.picture(art, 26, 26, 13))
+	var title = UI.shadowed(UI.label((s.name + (" · фаза %d" % s.phase if s.encounterType == "boss" else "")).to_upper(), 13, UI.GRIM_TITLE, "title"))
 	name_row.add_child(title)
-	for d in s.dots.filter(func(x): return x.enemyId == null):
-		name_row.add_child(UI.center(_status_badge("drop", str(int(d.rounds)), UI.WARN, "%s: %d урона в ход, ещё %d." % [d.name, int(d.dmg), int(d.rounds)])))
 	col.add_child(name_row)
-	var pct: float = maxf(0, 100.0 * s.boss.hp / s.boss.maxHp)
-	var bar_row = UI.hbox(8)
-	bar_row.add_child(UI.progress(pct, UI.DANGER, 10))
-	bar_row.add_child(UI.shadowed(UI.label("%d%%" % round(pct), 12.5, UI.TEXT_MUTED, "semibold")))
-	col.add_child(bar_row)
+	var ours = 0.0; var ours_max = 0.0
+	for r in s.raiders:
+		ours += maxf(0, r.hp); ours_max += r.maxHp
+	var vs = UI.hbox(0, BoxContainer.ALIGNMENT_CENTER)
+	vs.add_child(UI.expand(_ribbon(ours, ours_max, Color("#6aa22a"), Color("#3d5f17"), false)))
+	vs.add_child(_crossed_swords())
+	vs.add_child(UI.expand(_ribbon(maxf(0, s.boss.hp), s.boss.maxHp, Color("#c0302f"), Color("#6d1416"), true)))
+	col.add_child(vs)
 	var meters = UI.hbox(14)
 	var stunned: bool = s.stunned or s.vulnerableRounds > 0
 	meters.add_child(_meter("Оглушён" if stunned else "Натиск", 100.0 if stunned else s.stagger, UI.WARN if stunned else UI.ACCENT, ""))
@@ -156,12 +160,75 @@ func _top_block(s: Dictionary) -> Control:
 	return root
 
 
+## One side's ribbon: a swallow-tailed banner filled as far as that side's
+## health goes, the number on it in white; `right` mirrors it.
+func _ribbon(hp: float, max_hp: float, fill: Color, rim: Color, right: bool) -> Control:
+	var h = 30.0 if App.wide else 26.0
+	var c = Control.new()
+	c.custom_minimum_size = Vector2(UI.px(120), UI.px(h))
+	c.mouse_filter = Control.MOUSE_FILTER_PASS
+	c.tooltip_text = ("Враги" if right else "Отряд") + ": %d из %d" % [int(hp), int(max_hp)]
+	var share = clampf(hp / maxf(1.0, max_hp), 0.0, 1.0)
+	c.draw.connect(func():
+		var w = c.size.x; var hh = c.size.y; var cut = hh * 0.45
+		var shape = func(x0: float, x1: float) -> PackedVector2Array:
+			# Swallow tail on the outer end, square on the inner one.
+			var pts = PackedVector2Array([Vector2(x0, 0), Vector2(x1, 0), Vector2(x1, hh), Vector2(x0, hh), Vector2(x0 + cut, hh * 0.5)])
+			if right:
+				for i in pts.size(): pts[i] = Vector2(w - pts[i].x, pts[i].y)
+			return pts
+		c.draw_colored_polygon(shape.call(0.0, w), Color(rim, 0.95))
+		var inner = shape.call(UI.px(2), w - UI.px(2))
+		for i in inner.size(): inner[i].y = clampf(inner[i].y, UI.px(2), hh - UI.px(2))
+		c.draw_colored_polygon(inner, Color(0.08, 0.06, 0.05, 0.92))
+		# The fill runs from the inner end outwards.
+		var fw = (w - UI.px(4) - cut) * share
+		var x1 = w - UI.px(2); var x0 = x1 - fw
+		var fp = PackedVector2Array([Vector2(x0, UI.px(3)), Vector2(x1, UI.px(3)), Vector2(x1, hh - UI.px(3)), Vector2(x0, hh - UI.px(3))])
+		if right:
+			for i in fp.size(): fp[i] = Vector2(w - fp[i].x, fp[i].y)
+		c.draw_colored_polygon(fp, fill)
+		c.draw_rect(Rect2(Vector2(minf(fp[0].x, fp[1].x), UI.px(3)), Vector2(fw, (hh - UI.px(6)) * 0.4)), Color(1, 1, 1, 0.12)))
+	var row = UI.hbox(5, BoxContainer.ALIGNMENT_END if not right else BoxContainer.ALIGNMENT_BEGIN)
+	row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon = UI.icon("users-three" if not right else "skull", 13, Color.WHITE)
+	var num = UI.shadowed(UI.label(str(int(hp)), 14 if App.wide else 12.5, Color.WHITE, "title"))
+	if right:
+		row.add_child(UI.space(10, 0)); row.add_child(UI.center(icon)); row.add_child(UI.center(num))
+	else:
+		row.add_child(UI.center(num)); row.add_child(UI.center(icon)); row.add_child(UI.space(10, 0))
+	c.add_child(row)
+	return c
+
+
+## The diamond between the ribbons, with crossed swords on it.
+func _crossed_swords() -> Control:
+	var d = 40.0 if App.wide else 34.0
+	var c = Control.new()
+	c.custom_minimum_size = Vector2(UI.px(d), UI.px(d))
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func():
+		var m = c.size * 0.5; var k = c.size.x * 0.5
+		var pts = PackedVector2Array([m + Vector2(0, -k), m + Vector2(k, 0), m + Vector2(0, k), m + Vector2(-k, 0)])
+		c.draw_colored_polygon(pts, Color("#3a2e26"))
+		pts.append(pts[0])
+		c.draw_polyline(pts, Color("#c9a35a"), 2.0)
+		var inner = PackedVector2Array()
+		for p in pts: inner.append(m + (p - m) * 0.78)
+		c.draw_polyline(inner, Color("#c9a35a", 0.4), 1.0))
+	var sw = UI.center(UI.icon("sword", d * 0.42, Color("#e7c06a")))
+	sw.set_anchors_preset(Control.PRESET_FULL_RECT)
+	c.add_child(sw)
+	return c
+
+
 ## Who acts, in order: faces with their health under them; the one acting now
 ## is larger and framed; the round and the enrage clock close the line.
 func _timeline(s: Dictionary) -> Control:
 	var row = UI.hbox(6, BoxContainer.ALIGNMENT_CENTER)
-	var big = 46.0 if App.wide else 40.0
-	var small = 34.0 if App.wide else 30.0
+	var big = 40.0
+	var small = 30.0
 	for i in s.order.size():
 		var entry: Dictionary = s.order[i]
 		var active: bool = i == s.turnPos

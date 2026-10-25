@@ -121,6 +121,11 @@ var _idle_rate = randf_range(0.88, 1.12)
 var _steady: Array = [] # {holder, hand, local, idle, upright}
 var _idle_w = 1.0
 var _bar_fill: MeshInstance3D
+## What was lost lately, draining after the health (dark red), and the hero's resource line (blue).
+var _bar_trail: MeshInstance3D
+var _bar_res: MeshInstance3D
+var _trail := 1.0
+var _ratio := 1.0
 var _ring: MeshInstance3D
 var _ring_mat: StandardMaterial3D
 ## Metres a second the run clip covers at speed 1 at this unit's size.
@@ -747,15 +752,26 @@ func play_death() -> void:
 ## Health as a share of the maximum, from the battle's state.
 func set_ratio(r: float) -> void:
 	r = clampf(r, 0.0, 1.0)
-	_bar_fill.scale.x = max(r, 0.001)
-	_bar_fill.position.x = -(1.0 - r) * 0.5 * 0.9
+	_ratio = r
+	_fill(_bar_fill, r)
+	if r > _trail: _trail = r
+	_trail = lerpf(_trail, r, 0.04)
+	_fill(_bar_trail, _trail)
+
+
+func set_res(r: float) -> void:
+	_bar_res.visible = true
+	_fill(_bar_res, clampf(r, 0.0, 1.0))
+
+
+func _fill(mi: MeshInstance3D, r: float) -> void:
+	mi.scale.x = max(r, 0.001)
+	mi.position.x = -(1.0 - r) * 0.5 * BAR_W
 
 
 func take(amount: int) -> void:
 	hp = clampi(hp - amount, 0, max_hp)
-	var r = float(hp) / max_hp
-	_bar_fill.scale.x = max(r, 0.001)
-	_bar_fill.position.x = -(1.0 - r) * 0.5 * 0.9
+	set_ratio(float(hp) / max_hp)
 	if hp == 0: play_death()
 
 
@@ -824,26 +840,37 @@ func _add_ring() -> void:
 	_ring.visible = false
 
 
+## A short thin bar over the head, after Battlesmiths: green for the squad,
+## red for the foe, a dark-red trail of what was just lost, and under it a
+## blue line of the hero's resource.
+const BAR_W := 0.7
+
+
 func _add_bar() -> void:
 	var bar = Node3D.new()
-	bar.position.y = _body.height + 0.32
+	bar.position.y = _body.height + 0.3
 	add_child(bar)
-	for i in 2:
+	var quad = func(size: Vector2, y: float, col: Color, prio: int) -> MeshInstance3D:
 		var mi = MeshInstance3D.new()
-		var q = QuadMesh.new()
-		q.size = Vector2(0.9, 0.08) if i == 0 else Vector2(0.86, 0.05)
+		var q = QuadMesh.new(); q.size = size
 		mi.mesh = q
+		mi.position.y = y
 		var m = StandardMaterial3D.new()
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 		m.no_depth_test = true
-		m.render_priority = 1 + i
-		m.albedo_color = Color(0.05, 0.04, 0.04, 0.85) if i == 0 else (Color(0.42, 0.78, 0.36) if team == 0 else Color(0.85, 0.27, 0.22))
+		m.render_priority = prio
+		m.albedo_color = col
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		mi.material_override = m
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		bar.add_child(mi)
-		if i == 1: _bar_fill = mi
+		return mi
+	quad.call(Vector2(BAR_W + 0.05, 0.1), -0.012, Color(0.06, 0.04, 0.035, 0.9), 1)
+	_bar_trail = quad.call(Vector2(BAR_W, 0.055), 0.0, Color("#7a1c16"), 2)
+	_bar_fill = quad.call(Vector2(BAR_W, 0.055), 0.0, Color("#6fbf3a") if team == 0 else Color("#d23a2a"), 3)
+	_bar_res = quad.call(Vector2(BAR_W, 0.022), -0.047, Color("#3b6fd6"), 3)
+	_bar_res.visible = false
 
 
 func _add_picker() -> void:
