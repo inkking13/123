@@ -31,8 +31,10 @@ func _run() -> void:
 	var cam = Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
 	vp.add_child(cam)
+	var ids: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/armourSets.json")).ARMOUR_IDS
 	for set_id in OS.get_environment("SETS").split(","):
 		for item in ITEMS:
+			if not ("set-%s-%s" % [set_id, item]) in ids: continue  # a set without that item
 			if item == "hood" or item == "gloves":
 				await _worn(vp, cam, set_id, item)
 				continue

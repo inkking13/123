@@ -158,7 +158,9 @@ func dress_in_starting_set(id: int, equipment: Dictionary) -> void:
 	if set_id == null: return
 	for item in armour.ARMOUR_ITEMS:
 		var slot: String = armour.ITEM_KIND[item]
-		if not equipment.has(slot) or equipment[slot] == "none": equipment[slot] = "set-%s-%s" % [set_id, item]
+		var gear_id = "set-%s-%s" % [set_id, item]
+		if not gear_id in armour.ARMOUR_IDS: continue  # sets like peasant clothes have no helm
+		if not equipment.has(slot) or equipment[slot] == "none": equipment[slot] = gear_id
 
 
 func starting_equipment(id: int) -> Dictionary:

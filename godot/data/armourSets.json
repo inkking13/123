@@ -212,6 +212,48 @@
      "cdMult": 0.97
     }
    }
+  },
+  {
+   "id": "peasant",
+   "closedHelm": false,
+   "names": {
+    "jacket": "Рубаха крестьянина",
+    "pants": "Штаны и сапоги крестьянина"
+   },
+   "stats": {
+    "jacket": {
+     "hpMult": 1.04
+    },
+    "pants": {
+     "cdMult": 0.98
+    }
+   }
+  },
+  {
+   "id": "ranger",
+   "closedHelm": false,
+   "names": {
+    "hood": "Капюшон следопыта",
+    "jacket": "Куртка следопыта",
+    "gloves": "Наручи следопыта",
+    "pants": "Штаны и сапоги следопыта"
+   },
+   "stats": {
+    "hood": {
+     "mult": 1.03
+    },
+    "jacket": {
+     "mult": 1.05,
+     "cdMult": 0.97
+    },
+    "gloves": {
+     "mult": 1.03
+    },
+    "pants": {
+     "hpMult": 1.02,
+     "cdMult": 0.97
+    }
+   }
   }
  ],
  "armourId": null,
@@ -317,6 +359,24 @@
   },
   "a-wanderer-pants": {
    "asset": "items/armour/a-wanderer-pants.jpg"
+  },
+  "a-peasant-jacket": {
+   "asset": "items/armour/a-peasant-jacket.jpg"
+  },
+  "a-peasant-pants": {
+   "asset": "items/armour/a-peasant-pants.jpg"
+  },
+  "a-ranger-hood": {
+   "asset": "items/armour/a-ranger-hood.jpg"
+  },
+  "a-ranger-jacket": {
+   "asset": "items/armour/a-ranger-jacket.jpg"
+  },
+  "a-ranger-gloves": {
+   "asset": "items/armour/a-ranger-gloves.jpg"
+  },
+  "a-ranger-pants": {
+   "asset": "items/armour/a-ranger-pants.jpg"
   }
  },
  "ARMOUR_GEAR": {
@@ -371,6 +431,13 @@
     "mult": 1.02,
     "desc": "+2% к урону/лечению.",
     "icon": "a-wanderer-hood"
+   },
+   {
+    "id": "set-ranger-hood",
+    "name": "Капюшон следопыта",
+    "mult": 1.03,
+    "desc": "+3% к урону/лечению.",
+    "icon": "a-ranger-hood"
    }
   ],
   "chest": [
@@ -431,6 +498,21 @@
     "cdMult": 0.96,
     "desc": "+5% к урону/лечению, −4% к перезарядке способности.",
     "icon": "a-wanderer-jacket"
+   },
+   {
+    "id": "set-peasant-jacket",
+    "name": "Рубаха крестьянина",
+    "hpMult": 1.04,
+    "desc": "+4% к HP.",
+    "icon": "a-peasant-jacket"
+   },
+   {
+    "id": "set-ranger-jacket",
+    "name": "Куртка следопыта",
+    "mult": 1.05,
+    "cdMult": 0.97,
+    "desc": "+5% к урону/лечению, −3% к перезарядке способности.",
+    "icon": "a-ranger-jacket"
    }
   ],
   "gloves": [
@@ -482,6 +564,13 @@
     "mult": 1.03,
     "desc": "+3% к урону/лечению.",
     "icon": "a-wanderer-gloves"
+   },
+   {
+    "id": "set-ranger-gloves",
+    "name": "Наручи следопыта",
+    "mult": 1.03,
+    "desc": "+3% к урону/лечению.",
+    "icon": "a-ranger-gloves"
    }
   ],
   "pants": [
@@ -537,6 +626,21 @@
     "cdMult": 0.97,
     "desc": "−3% к перезарядке способности.",
     "icon": "a-wanderer-pants"
+   },
+   {
+    "id": "set-peasant-pants",
+    "name": "Штаны и сапоги крестьянина",
+    "cdMult": 0.98,
+    "desc": "−2% к перезарядке способности.",
+    "icon": "a-peasant-pants"
+   },
+   {
+    "id": "set-ranger-pants",
+    "name": "Штаны и сапоги следопыта",
+    "hpMult": 1.02,
+    "cdMult": 0.97,
+    "desc": "+2% к HP, −3% к перезарядке способности.",
+    "icon": "a-ranger-pants"
    }
   ]
  },
@@ -568,7 +672,13 @@
   "set-wanderer-hood",
   "set-wanderer-jacket",
   "set-wanderer-gloves",
-  "set-wanderer-pants"
+  "set-wanderer-pants",
+  "set-peasant-jacket",
+  "set-peasant-pants",
+  "set-ranger-hood",
+  "set-ranger-jacket",
+  "set-ranger-gloves",
+  "set-ranger-pants"
  ],
  "STARTING_OUTFITS": {
   "0": "knight",
@@ -579,7 +689,11 @@
   "5": "templar",
   "6": "leather",
   "7": "arcane",
-  "8": "knight"
+  "8": "knight",
+  "9": "peasant",
+  "10": "peasant",
+  "11": "ranger",
+  "12": "ranger"
  },
  "armourOf": null,
  "dressInStartingSet": null
