@@ -107,19 +107,19 @@
   }
  },
  "ABILITY_ART": {
-  "0": "zaklinatel",
+  "0": "shchit-sveta",
   "1": "posledniy-rubezh",
   "2": "krovavaya-loza",
   "3": "toksichnyy-splesk",
   "4": "yadovityy-ukus",
   "5": "yarost-voina",
   "6": "kostyanoe-kopye",
-  "7": "infernalnyy-prizyv",
+  "7": "adskiy-shtorm",
   "8": "zolotoy-prigovor",
   "9": "istochnik-sily",
-  "10": "krovavyy-ritual",
+  "10": "osvyashchennaya-zemlya",
   "11": "voy-pustoty",
-  "12": "razrushitel",
+  "12": "arkannye-svyazi",
   "13": "prizyv-upyrya"
  },
  "TALENT_ART": {

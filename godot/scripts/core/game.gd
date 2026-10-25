@@ -160,8 +160,10 @@ func _apply_save(data: Dictionary) -> void:
 				DB.dress_in_starting_set(c.id, c.equipment)
 			# Saves from before the talent trees keep their spec default and no points spent.
 			c.spec = saved.get("spec", DB.default_spec(c))
-			if DB.spec_def(c.heroClass, c.spec).is_empty(): c.spec = DB.default_spec(c)
-			c.talentPoints = saved.talentPoints if saved.get("talentPoints") is Dictionary else {}
+			# A hero whose class changed (Гаррет, warrior to mage) starts the new class's talents afresh.
+			var respec = DB.spec_def(c.heroClass, c.spec).is_empty()
+			if respec: c.spec = DB.default_spec(c)
+			c.talentPoints = saved.talentPoints if saved.get("talentPoints") is Dictionary and not respec else {}
 			apply_spec(c)
 			c.professionId = saved.get("professionId")
 			c.professionLevel = saved.get("professionLevel", 1); c.professionXp = saved.get("professionXp", 0); c.morale = saved.morale

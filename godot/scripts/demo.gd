@@ -6,7 +6,7 @@ class_name Demo
 static func setup() -> void:
 	var g = Game
 	g.reset_progress()
-	g.finish_draft([0, 3, 8, 4, 7])
+	g.finish_draft([0, 9, 10, 4, 7])
 	g.stats_room_wins = 40
 	for d in ["wastes", "road", "groblot", "frostpass", "ratmill"]: g.defeated[d] = true
 	for f in DB.features.FEATURE_ORDER: g.seen_unlocks[f] = true
