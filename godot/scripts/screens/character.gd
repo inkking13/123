@@ -188,25 +188,19 @@ func build() -> void:
 			refresh())
 		body.add_child(fb)
 	else:
-		var fr = PanelContainer.new()
-		var sb = UI.frame_style("pill", Vector4(14, 14, 14, 14), 8)
-		sb.border_color = UI.DANGER; sb.bg_color = Color(0.82, 0.41, 0.36, 0.08)
-		fr.add_theme_stylebox_override("panel", sb)
-		var v = UI.vbox(12)
-		var row = UI.hbox(10)
-		row.add_child(UI.icon("warning", 18, UI.DANGER))
-		row.add_child(UI.label("Это необратимо. %s покинет гильдию навсегда, а коллектив расстроится — небольшой удар по морали всех остальных." % cc.name, 13.5, UI.TEXT_MUTED, "regular", true))
-		v.add_child(row)
+		var fr = UI.grim_sheet(Vector4(18, 18, 18, 16), UI.DANGER)
+		var v = UI.vbox(10)
+		v.add_child(UI.grim_head("warning", "Кадровое решение", "Уволить: " + cc.name, 34))
+		v.add_child(UI.label("Это необратимо. %s покинет гильдию навсегда, а коллектив расстроится — небольшой удар по морали всех остальных." % cc.name, 13.5, UI.TEXT_MUTED, "regular", true))
+		v.add_child(UI.grim_rule())
 		var btns = UI.hbox(8)
-		btns.add_child(UI.expand(UI.secondary_button("Отмена", func():
+		btns.add_child(UI.grim_action("Отмена", func():
 			confirm_fire = false
-			refresh(), 42)))
-		var go = UI.secondary_button("Точно уволить", func():
+			refresh()))
+		btns.add_child(UI.grim_action("Точно уволить", func():
 			confirm_fire = false
 			Game.fire(cc.id)
-			Game.go("roster"), 42)
-		(go.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = UI.DANGER
-		btns.add_child(UI.expand(go))
+			Game.go("roster"), true))
 		v.add_child(btns)
 		fr.add_child(v)
 		body.add_child(fr)
