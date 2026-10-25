@@ -25,7 +25,7 @@ const HEROES := {
 	10: {"body": "woman", "right": "staff", "glow": Color(1.0, 0.85, 0.5),
 		"look": {"hair": ["long"], "colour": Color(0.8, 0.65, 0.4), "colouring": 2}, "acts": {"melee": "Spell_Simple_Shoot", "ability": "Spell_Simple_Shoot"}},
 	11: {"body": "man", "right": "bow", "stand": "Idle",
-		"look": {"hair": ["simpleparted", "beard"], "colour": Color(0.32, 0.2, 0.12), "colouring": 2}, "acts": {"melee": "Spell_Simple_Shoot", "ranged": "Spell_Simple_Shoot", "ability": "Spell_Simple_Shoot"}},
+		"look": {"hair": ["simpleparted", "beard"], "colour": Color(0.32, 0.2, 0.12), "colouring": 2}, "acts": {"melee": "Bow_Shot", "ranged": "Bow_Shot", "ability": "Bow_Shot"}},
 	12: {"body": "man", "right": "staff", "glow": Color(0.7, 0.5, 1.0),
 		"look": {"hair": ["simpleparted", "beard"], "colour": Color(0.75, 0.73, 0.7)}, "acts": {"melee": "Spell_Simple_Shoot", "ability": "Spell_Simple_Shoot"}},
 	13: {"body": "man", "right": "staff", "glow": Color(0.5, 1.0, 0.45),

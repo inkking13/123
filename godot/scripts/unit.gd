@@ -119,6 +119,7 @@ var _fallen = false
 ## Each figure breathes at its own pace, so a line of them doesn't sway in step.
 var _idle_rate = randf_range(0.88, 1.12)
 var _steady: Array = [] # {holder, hand, local, idle, upright}
+var _upright_q: Array = [] # props a Quaternius hand holds upright: staffs, bows, flasks
 var _idle_w = 1.0
 var _bar_fill: MeshInstance3D
 ## What was lost lately, draining after the health (dark red), and the hero's resource line (blue).
@@ -494,11 +495,16 @@ func _hold_q(prop: String, hand: int, _body_mesh: MeshInstance3D, left: bool, gl
 	var rest = _skel.get_bone_global_rest(hand)
 	model.transform = rest.affine_inverse() * Transform3D(b.orthonormalized().scaled(Vector3.ONE * p.scale), o)
 	ba.add_child(model)
+	if p.how == "upright": _upright_q.append(model)
 
 
 ## Held things keep their idle stand while idle plays, most of it on the run,
 ## and lie in the fist in actions; a staff, bow or flask always stays upright.
 func _steady_props() -> void:
+	# A staff, bow or flask stands straight up in the fist whatever the arm does.
+	for m in _upright_q:
+		var g: Transform3D = m.global_transform
+		m.global_transform = Transform3D(global_transform.basis.orthonormalized().scaled(g.basis.get_scale()), g.origin)
 	for s in _steady:
 		var hand_pose = _skel.get_bone_global_pose(s.hand)
 		var hq = hand_pose.basis.get_rotation_quaternion()

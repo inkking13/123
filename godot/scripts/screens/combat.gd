@@ -869,6 +869,7 @@ func _tip(s: Dictionary, cur) -> Control:
 	elif cur and not s.movePhase and s.encounterType != "boss" and Game.tip_pending("focus"): tip = "focus"
 	elif cur and not s.movePhase and not picking_heal and Game.tip_pending("act"): tip = "act"
 	elif cur and not s.movePhase and not picking_heal and s.valor >= 2 and Game.tip_pending("valor"): tip = "valor"
+	elif cur and not s.movePhase and Game.tip_pending("status") and s.raiders.any(func(r): return r.alive and (not r.buffs.is_empty() or not r.hots.is_empty() or r.absorb > 0)): tip = "status"
 	if tip == "": return null
 	var warn = tip == "danger" or tip == "windup"
 	var pn = PanelContainer.new()
