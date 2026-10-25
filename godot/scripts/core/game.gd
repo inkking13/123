@@ -155,6 +155,9 @@ func _apply_save(data: Dictionary) -> void:
 			if not DB.candidates.has(saved.id): continue
 			var c: Dictionary = DB.candidates[saved.id].duplicate(true)
 			c.level = saved.level; c.xp = saved.xp; c.equipment = DB.migrate_equipment(saved.equipment)
+			# Armour sets that left the game: the hero puts their starting clothes back on.
+			if saved.equipment is Dictionary and saved.equipment.values().any(func(g): return g in DB.armour.RETIRED_ARMOUR_IDS):
+				DB.dress_in_starting_set(c.id, c.equipment)
 			# Saves from before the talent trees keep their spec default and no points spent.
 			c.spec = saved.get("spec", DB.default_spec(c))
 			if DB.spec_def(c.heroClass, c.spec).is_empty(): c.spec = DB.default_spec(c)
@@ -166,8 +169,11 @@ func _apply_save(data: Dictionary) -> void:
 	selected = {}
 	for id in data.get("selected", []): selected[int(id)] = true
 	if data.get("inventoryCounts") is Dictionary: inventory = data.inventoryCounts
+	# A save from before old sets were retired gets enough of the remaining ones to clothe everyone.
+	var retired = inventory.keys().any(func(k): return k in DB.armour.RETIRED_ARMOUR_IDS)
 	for id in DB.armour.ARMOUR_IDS:
 		if not inventory.has(id): inventory[id] = 1
+		if retired: inventory[id] = maxi(int(inventory[id]), int(DB.gear.STARTING_INVENTORY.get(id, 1)))
 	for id in DB.armour.RETIRED_ARMOUR_IDS: inventory.erase(id)
 	if data.get("reagentCounts") is Dictionary: reagent_counts = data.reagentCounts
 	gold = data.get("gold", gold)

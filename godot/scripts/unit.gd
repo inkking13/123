@@ -81,8 +81,7 @@ const PIECES := ["hood", "collar", "jacket", "shoulders", "cloak", "belt", "slee
 ## (a hood worn down) covers nothing, and sleeves leave the hands bare.
 const COVERS := {"jacket": ["torso"], "shoulders": ["upperArm"], "sleeves": ["forearm"], "gloves": ["hand", "forearm"],
 	"pants": ["pelvis", "thigh"], "boots": ["foot", "shin"]}
-const CLOSED_HELM := {"knight": true, "templar": true, "arcane": false, "leather": false,
-	"gambeson": false, "chainmail": false, "wanderer": false, "peasant": false, "ranger": false}
+const CLOSED_HELM := {"peasant": false, "ranger": false}
 
 # ── state ───────────────────────────────────────────────────────────────────
 var display_name = ""
@@ -208,13 +207,8 @@ func _finish(mesh: MeshInstance3D, finish: String) -> void:
 func _piece_finish(set_id: String, piece: String) -> String:
 	if piece == "cloak": return "cloth"
 	if piece == "belt": return "leather"
-	if set_id == "knight": return "metal"
-	if set_id == "templar": return "cloth" if piece == "jacket" else "metal"
-	if set_id == "arcane": return "leather" if piece == "gloves" or piece == "boots" else "cloth"
-	if set_id == "chainmail": return "metal" if piece in ["hood", "jacket", "shoulders"] else "leather"
 	if set_id == "peasant": return "leather" if piece == "boots" else "cloth"
 	if set_id == "ranger": return "cloth" if piece in ["hood", "pants"] else "leather"
-	if set_id == "gambeson" or set_id == "wanderer": return "leather" if piece == "gloves" or piece == "boots" else "cloth"
 	return "leather"
 
 
