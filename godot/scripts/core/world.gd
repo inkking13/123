@@ -113,7 +113,7 @@ const ACTIVITIES := [
 
 ## How each land looks: ground, grass and rock tints, trees, sky and fog.
 const THEMES := {
-	"outskirts": {"size": 100.0, "textured": true, "lively": true, "hills": true, "river": true, "grade": {"saturation": 0.8, "contrast": 1.08, "brightness": 0.93, "tint": Vector3(1.04, 1.0, 0.92)}, "bigTown": true, "extras": ["farm", "tower", "lake", "graveyard", "camp", "ruins", "shrine"], "ground": Color(0.27, 0.28, 0.17), "ground2": Color(0.22, 0.26, 0.14), "road": Color(0.42, 0.36, 0.27), "tree": "pine", "leaf": Color(0.2, 0.32, 0.17), "rock": Color(0.45, 0.43, 0.4), "sky": Color(0.55, 0.62, 0.72), "fog": Color(0.55, 0.58, 0.6), "town": "Пограничная Застава"},
+	"outskirts": {"size": 140.0, "textured": true, "lively": true, "hills": true, "river": true, "grade": {"saturation": 0.8, "contrast": 1.08, "brightness": 0.93, "tint": Vector3(1.04, 1.0, 0.92)}, "bigTown": true, "extras": ["farm", "tower", "lake", "graveyard", "camp", "ruins", "shrine"], "decor": ["hamlet", "lumber", "stones", "wreck", "watch", "orchard", "hamlet", "wreck", "lumber"], "ground": Color(0.27, 0.28, 0.17), "ground2": Color(0.22, 0.26, 0.14), "road": Color(0.42, 0.36, 0.27), "tree": "pine", "leaf": Color(0.2, 0.32, 0.17), "rock": Color(0.45, 0.43, 0.4), "sky": Color(0.55, 0.62, 0.72), "fog": Color(0.55, 0.58, 0.6), "town": "Пограничная Застава"},
 	"icefrontier": {"extras": ["tower", "camp", "shrine"], "ground": Color(0.78, 0.82, 0.86), "ground2": Color(0.62, 0.68, 0.74), "road": Color(0.5, 0.5, 0.52), "tree": "pine", "leaf": Color(0.25, 0.36, 0.33), "rock": Color(0.55, 0.6, 0.68), "sky": Color(0.7, 0.78, 0.88), "fog": Color(0.8, 0.85, 0.9), "town": "Зимовье Волчьей Тропы"},
 	"ashlands": {"extras": ["ruins", "graveyard", "camp"], "ground": Color(0.24, 0.22, 0.21), "ground2": Color(0.32, 0.25, 0.2), "road": Color(0.4, 0.33, 0.28), "tree": "dead", "leaf": Color(0.15, 0.13, 0.12), "rock": Color(0.3, 0.27, 0.26), "sky": Color(0.55, 0.42, 0.35), "fog": Color(0.45, 0.36, 0.32), "town": "Пепельный Приход"},
 	"debtprovince": {"extras": ["farm", "camp", "shrine"], "ground": Color(0.42, 0.4, 0.24), "ground2": Color(0.36, 0.38, 0.22), "road": Color(0.47, 0.4, 0.3), "tree": "round", "leaf": Color(0.33, 0.38, 0.17), "rock": Color(0.5, 0.47, 0.42), "sky": Color(0.65, 0.66, 0.6), "fog": Color(0.62, 0.62, 0.55), "town": "Долговой Посад"},
@@ -414,20 +414,20 @@ func layout(loc := "") -> Dictionary:
 	var east = Vector2(half - 6, rng.randf_range(-12, 12))
 	if idx > 0: places.append({"id": "west", "kind": "road", "pos": west, "to": DB.locations[idx - 1].id})
 	if idx < DB.locations.size() - 1: places.append({"id": "east", "kind": "road", "pos": east, "to": DB.locations[idx + 1].id})
-	# The road runs west to east through the dungeons and the town.
-	var ds = region_dungeons(id).filter(func(d): return not d.get("side", false))
+	# The road runs west to east through the town; the dungeons lie off it,
+	# out at the land's edges.
 	var stops = [west]
 	var k = half / SIZE
-	var xs = [-38.0 * k, 2.0 * k, 36.0 * k]
-	for i in ds.size():
-		var p = Vector2(xs[i] + rng.randf_range(-5, 5), rng.randf_range(-40, 40) * k)
-		places.append({"id": "d:" + ds[i].id, "kind": "dungeon", "pos": p, "dungeon": ds[i].id})
-		stops.append(p)
 	var town = Vector2(-16 + rng.randf_range(-4, 4), rng.randf_range(-14, 14))
 	var big: bool = THEMES[id].get("bigTown", false)
-	# A walled town is wide: it stands a little further west, midway between its dungeons.
+	# A walled town is wide: it stands a little further west.
 	if big: town.x -= 4.0
 	stops.append(town)
+	# A long road bends on its way: a turn or two between the town and the ends.
+	if k > 1.6:
+		stops.append(Vector2(lerpf(west.x, town.x, 0.5), rng.randf_range(-22, 22)))
+		stops.append(Vector2(lerpf(town.x, east.x, 0.4), rng.randf_range(-30, 30)))
+		stops.append(Vector2(lerpf(town.x, east.x, 0.75), rng.randf_range(-30, 30)))
 	stops.append(east)
 	stops.sort_custom(func(a, b): return a.x < b.x)
 	var plan = {}
@@ -444,23 +444,36 @@ func layout(loc := "") -> Dictionary:
 	# The land's other sights, then chests and gathering spots in what's left.
 	for kind in THEMES[id].get("extras", []):
 		places.append({"id": kind, "kind": kind, "pos": _free_spot(rng, places + guard, 16.0, half)})
-	# Side dungeons lie off the road, out in the wilds.
+	# Every dungeon lies out at the land's edge, far from the road's ends and each other.
+	var edge_off = places + guard + [{"pos": town}, {"pos": west}, {"pos": east}]
 	for d in region_dungeons(id):
-		if d.get("side", false):
-			places.append({"id": "d:" + d.id, "kind": "dungeon", "pos": _free_spot(rng, places + guard + [{"pos": town}], 22.0, half), "dungeon": d.id, "side": true})
+		var p = _edge_spot(rng, edge_off, half)
+		var at = {"id": "d:" + d.id, "kind": "dungeon", "pos": p, "dungeon": d.id}
+		if d.get("side", false): at.side = true
+		places.append(at)
+		edge_off.append(at)
+	# Things to look at between them: hamlets, woodcutters, old stones, wrecks.
+	var decor = []
+	var road_off = []
+	for i in stops.size() - 1:
+		for t in range(0, int(stops[i].distance_to(stops[i + 1]) / 6.0)):
+			road_off.append({"pos": stops[i].move_toward(stops[i + 1], t * 6.0)})
+	for kind in THEMES[id].get("decor", []):
+		var p = _free_spot(rng, places + guard + decor + road_off, 18.0, half)
+		decor.append({"kind": kind, "pos": p, "turn": rng.randf() * TAU})
 	var extra = int(round((k - 1.0) * 6))
 	for i in 5 + extra:
-		places.append({"id": "chest%d" % i, "kind": "chest", "pos": _free_spot(rng, places + guard, 9.0, half)})
+		places.append({"id": "chest%d" % i, "kind": "chest", "pos": _free_spot(rng, places + guard + decor, 9.0, half)})
 	for i in 3 + extra / 2:
-		places.append({"id": "herb%d" % i, "kind": "herb", "pos": _free_spot(rng, places + guard, 9.0, half)})
+		places.append({"id": "herb%d" % i, "kind": "herb", "pos": _free_spot(rng, places + guard + decor, 9.0, half)})
 	# Band camps keep away from the places and from where the squad comes in.
 	var camps = []
-	var keep_off = places + guard + [{"pos": west + Vector2(4, 0)}, {"pos": west + Vector2(14, 0)}]
+	var keep_off = places + guard + decor + [{"pos": west + Vector2(4, 0)}, {"pos": west + Vector2(14, 0)}]
 	for i in 4 + extra / 3:
 		var c = _free_spot(rng, keep_off, 16.0, half)
 		camps.append(c)
 		keep_off.append({"pos": c})
-	var out = {"places": places, "road": stops, "camps": camps, "start": west + Vector2(4, 0), "town": town, "town_plan": plan, "seed": rng.seed}
+	var out = {"places": places, "road": stops, "camps": camps, "start": west + Vector2(4, 0), "town": town, "town_plan": plan, "decor": decor, "seed": rng.seed}
 	_layouts[id] = out
 	return out
 
@@ -521,6 +534,23 @@ func _free_spot(rng: RandomNumberGenerator, places: Array, gap := 9.0, half := S
 		var p = Vector2(rng.randf_range(-half + 10, half - 10), rng.randf_range(-half + 10, half - 10))
 		if places.all(func(q): return q.pos.distance_to(p) > gap): return p
 	return Vector2(rng.randf_range(-half + 10, half - 10), rng.randf_range(-half + 10, half - 10))
+
+
+## A spot near the land's edge, `gap` clear of everything in `places` (or
+## the clearest of eighty tries).
+func _edge_spot(rng: RandomNumberGenerator, places: Array, half: float, gap := 40.0) -> Vector2:
+	var inset = 16.0
+	var best = Vector2.ZERO
+	var best_d = -1.0
+	for _try in 80:
+		var along = rng.randf_range(-half + inset, half - inset)
+		var p: Vector2 = [Vector2(along, -half + inset), Vector2(along, half - inset), Vector2(-half + inset, along), Vector2(half - inset, along)][rng.randi() % 4]
+		var d = places.reduce(func(m, q): return minf(m, q.pos.distance_to(p)), 1e9)
+		if d > gap: return p
+		if d > best_d:
+			best = p
+			best_d = d
+	return best
 
 
 ## Half the side of a land, in metres.
