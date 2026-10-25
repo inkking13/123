@@ -11,7 +11,7 @@ const MODEL_H := 1.8
 const OUTFITS := ["peasant1", "peasant2", "ranger1", "ranger2"]
 const HAIR := {"male": [["simpleparted"], ["buzzed", "beard"], ["long"], ["simpleparted", "beard"], ["buzzed"], ["long", "beard"]],
 	"female": [["buns"], ["long"], ["buzzedfemale"]]}
-const BROWS := {"male": "brows-regular", "female": "brows-female"}
+const BROWS := {"male": "brows-regular", "female": "brows-female"}  # hair-<these>.glb
 ## The hair textures are grey; each villager's hair, beard and brows take one of these.
 const HAIR_COLOURS := [Color(0.32, 0.2, 0.12), Color(0.16, 0.11, 0.08), Color(0.55, 0.38, 0.2), Color(0.5, 0.24, 0.12),
 	Color(0.8, 0.65, 0.4), Color(0.75, 0.73, 0.7), Color(0.09, 0.08, 0.07)]
@@ -33,38 +33,44 @@ func setup(look: Dictionary = {}) -> void:
 	var hair: Array = HAIR[sex][look.get("hair", randi() % HAIR[sex].size())]
 	_idle = look.get("idle", "Idle")
 	_tint = HAIR_COLOURS[look.get("colour", randi() % HAIR_COLOURS.size())]
-	var model: Node3D = load(DIR + "head-%s.glb" % sex).instantiate()
+	var model := assemble(sex, [outfit + "-" + sex] + hair, _tint)
 	model.scale = Vector3.ONE * HEIGHT / MODEL_H
 	add_child(model)
 	_skel = model.find_child("Skeleton3D", true, false)
-	for part in [outfit + "-" + sex, "hair-" + BROWS[sex]] + hair.map(func(h): return "hair-" + h):
-		_wear(part)
-	if _lib == null: _lib = load(DIR + "anims.res")
-	_anim = AnimationPlayer.new()
-	model.add_child(_anim)
-	_anim.root_node = NodePath("..")
-	_anim.add_animation_library("", _lib)
+	_anim = model.get_node("AnimationPlayer")
 	play_idle()
 	_anim.seek(randf() * _anim.current_animation_length, true)
 	_anim.speed_scale = randf_range(0.9, 1.1)
 	set_meta("pace", PACE)
 
 
-## Moves a part's skinned meshes onto this skeleton; they bind by bone name.
-func _wear(part: String) -> void:
-	var src: Node3D = load(DIR + part + ".glb").instantiate()
-	for m in src.find_children("*", "MeshInstance3D", true, false):
-		m.owner = null
-		m.get_parent().remove_child(m)
-		_skel.add_child(m)
-		m.skeleton = NodePath("..")
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		if part.begins_with("hair-"):
-			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			var mat: StandardMaterial3D = m.mesh.surface_get_material(0).duplicate()
-			mat.albedo_color = _tint
-			m.material_override = mat
-	src.free()
+## A Quaternius figure: the bare head of `sex` wearing `parts` (outfit, hair and
+## beard files here), with brows, hair tinted `tint`, and an AnimationPlayer with
+## every clip. Unit dresses its heroes the same way.
+static func assemble(sex: String, parts: Array, tint: Color) -> Node3D:
+	var model: Node3D = load(DIR + "head-%s.glb" % sex).instantiate()
+	var skel: Skeleton3D = model.find_child("Skeleton3D", true, false)
+	for part in parts + [BROWS[sex]]:
+		var file: String = part if part.contains("-") and not part.begins_with("brows") else "hair-" + part
+		var src: Node3D = load(DIR + file + ".glb").instantiate()
+		for m in src.find_children("*", "MeshInstance3D", true, false):
+			m.owner = null
+			m.get_parent().remove_child(m)
+			skel.add_child(m)
+			m.skeleton = NodePath("..")
+			if file.begins_with("hair-"):
+				m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				var mat: StandardMaterial3D = m.mesh.surface_get_material(0).duplicate()
+				mat.albedo_color = tint
+				m.material_override = mat
+		src.free()
+	if _lib == null: _lib = load(DIR + "anims.res")
+	var anim = AnimationPlayer.new()
+	anim.name = "AnimationPlayer"
+	model.add_child(anim)
+	anim.root_node = NodePath("..")
+	anim.add_animation_library("", _lib)
+	return model
 
 
 func play(clip: String) -> void:

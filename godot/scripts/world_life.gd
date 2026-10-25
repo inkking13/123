@@ -738,12 +738,12 @@ func _roamer_look(kind: String) -> Dictionary:
 				look.beasts.append(holder)
 			if not view._prop(root, "world-cart", 2.4, Vector3(0, 0, -1.1), 0.0, true):
 				view._box(root, Vector3(1.4, 0.6, 2.2), Vector3(0, 0.7, -1.1), Color(0.45, 0.3, 0.17))
-			var u = view._unit({"body": "human", "set": "peasant", "right": "staff"}, 0, "")
+			var u = view._unit({"body": "man", "set": "peasant", "right": "staff", "look": {"hair": ["long", "beard"], "colour": Color(0.75, 0.73, 0.7)}}, 0, "")
 			u.play_idle()
 			look.units.append(u)
 		"patrol":
 			for k in 3:
-				var u = view._unit({"body": "human", "right": "longsword", "left": "roundShield", "set": "ranger"}, 0, "")
+				var u = view._unit({"body": "man", "right": "longsword", "left": "roundShield", "set": "ranger", "look": {"hair": [["buzzed"], ["simpleparted", "beard"], ["buzzed", "beard"]][k], "colouring": 2}}, 0, "")
 				u.play_idle()
 				look.units.append(u)
 		"wolves":

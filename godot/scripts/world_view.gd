@@ -1463,7 +1463,7 @@ func _walled_town(th: Dictionary) -> void:
 			root.add_child(top)
 		var beam = _box(root, Vector3(5.6, 0.5, 0.5), Vector3(at.x, 4.6, at.y), wood)
 		beam.rotation.y = -gang + PI * 0.5
-		_folk_unit(root, {"body": "human", "right": "longsword", "left": "roundShield", "set": "ranger"}, at + side * 1.4 - dir * 1.2, gang, true)
+		_folk_unit(root, {"body": "man", "right": "longsword", "left": "roundShield", "set": "ranger", "look": {"hair": ["buzzed", "beard"], "colouring": 2}}, at + side * 1.4 - dir * 1.2, gang, true)
 	# The square and its well.
 	var sq = MeshInstance3D.new()
 	var sqm = CylinderMesh.new(); sqm.top_radius = 7.0; sqm.bottom_radius = 7.0; sqm.height = 0.04; sqm.radial_segments = 24
@@ -1719,7 +1719,7 @@ func _villager(look := {}) -> Villager:
 
 ## How a hero looks on the map: body, weapons and the armour they wear.
 static func hero_spec(c: Dictionary) -> Dictionary:
-	var spec: Dictionary = BattleView.HEROES.get(c.id, {"body": "human"}).duplicate()
+	var spec: Dictionary = BattleView.HEROES.get(c.id, {"body": "man"}).duplicate()
 	var m = DB.armour_of(c.equipment.get("chest", "none"))
 	var set_id = m.set.id if m else DB.armour.STARTING_OUTFITS.get(str(c.id))
 	if set_id: spec.set = set_id

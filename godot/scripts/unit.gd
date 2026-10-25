@@ -16,18 +16,18 @@ const COMBAT_SPEED := {"Attack": 2.0, "Double_Combo_Attack": 2.1, "Charged_Slash
 const HITS := [["Hit_Light", 6], ["Hit_Waist", 3], ["Hit_Head", 2]]
 
 const BODIES := {
-	"human": {"file": "human", "height": 1.12, "fist": 0.11, "idle": "Idle", "run": "run", "hit": "Hit_Reaction", "death": "Dead",
-		"acts": {"melee": "attack", "heal": "cast1", "ranged": "cast6"}, "wardrobe": "human",
-		"speed": {"attack": 1.6, "cast1": 1.8, "cast6": 1.3}},
-	"dwarf": {"file": "dwarf", "height": 1.0, "fist": 0.125, "idle": "idle", "run": "run", "hit": "Hit_Reaction", "death": "Dead",
-		"acts": {"melee": "bash"}, "wardrobe": "dwarf", "speed": {"bash": 1.5}},
-	"elf": {"file": "elf", "height": 1.2, "fist": 0.08, "idle": "Idle", "run": "run", "hit": "Hit_Reaction", "death": "Dead",
-		"acts": {"ranged": "Archery_Shot", "melee": "Attack"}, "wardrobe": "elf", "speed": {}},
 	"skeleton": {"file": "skeleton", "height": 1.2, "fist": 0.075, "idle": "idle", "run": "run", "hit": "Hit_Reaction", "death": "Dead",
 		"acts": {"melee": "Thrust_Slash", "ranged": "Archery_Shot", "magic": "Charged_Spell_Cast"}, "speed": {"attack": 2.0}},
-	"elfMale": {"file": "elf-male", "height": 1.2, "fist": 0.08, "idle": "Long_Breathe_and_Look_Around", "run": "Running", "hit": "Hit_Reaction", "death": "Dead",
-		"acts": {"melee": "mage_soell_cast_3", "ranged": "mage_soell_cast_6", "heal": "mage_soell_cast_4", "ability": "Charged_Spell_Cast", "rally": "mage_soell_cast_7"},
-		"wardrobe": "elf-male", "speed": {"mage_soell_cast_3": 1.6, "mage_soell_cast_4": 1.3, "mage_soell_cast_6": 1.3, "mage_soell_cast_7": 1.4}},
+	# Quaternius bodies (see Villager.assemble): fingers, an Unreal skeleton and the
+	# Universal Animation Library's clips. `look` in the spec picks hair and outfit colouring.
+	"man": {"q": "male", "file": "q-male", "height": 1.12, "model_h": 1.8, "idle": "Idle", "run": "Jog_Fwd", "hit": "Hit_Chest",
+		"death": "Death01", "dodge": "Roll", "hits": [["Hit_Chest", 3], ["Hit_Head", 1]],
+		"acts": {"melee": "Sword_Attack", "ability": "Sword_Regular_Combo", "ranged": "Spell_Simple_Shoot",
+			"heal": "Spell_Simple_Shoot", "rally": "Jump"}, "speed": {"Sword_Regular_Combo": 1.3, "Sword_Heavy_Combo": 1.3}},
+	"woman": {"q": "female", "file": "q-female", "height": 1.08, "model_h": 1.8, "idle": "Idle", "run": "Jog_Fwd", "hit": "Hit_Chest",
+		"death": "Death01", "dodge": "Roll", "hits": [["Hit_Chest", 3], ["Hit_Head", 1]],
+		"acts": {"melee": "Sword_Attack", "ability": "Sword_Regular_Combo", "ranged": "Spell_Simple_Shoot",
+			"heal": "Spell_Simple_Shoot", "rally": "Jump"}, "speed": {"Sword_Regular_Combo": 1.3, "Sword_Heavy_Combo": 1.3}},
 	"orc": {"file": "orc", "height": 1.3, "model_h": 2.0, "fist": 0.11, "idle": "Idle", "run": "RunFast", "hit": "Hit_Reaction", "death": "Dead",
 		"acts": {"melee": "Heavy_Hammer_Swing", "ability": "Triple_Combo_Attack", "rally": "Chest_Pound_Taunt", "heal": "Chest_Pound_Taunt"},
 		"wardrobe": "orc", "speed": {"Heavy_Hammer_Swing": 1.4, "Chest_Pound_Taunt": 1.6}},
@@ -137,7 +137,14 @@ func setup(spec: Dictionary) -> void:
 	_body.height *= spec.get("scale", 1.0)
 	_visual.scale = Vector3.ONE * k
 
-	var model: Node3D = load("res://assets/models/%s.glb" % _body.file).instantiate()
+	var model: Node3D
+	if _body.has("q"):
+		var look: Dictionary = spec.get("look", {})
+		var hair: Array = look.get("hair", Villager.HAIR[_body.q][0])
+		var outfit = "%s%d-%s" % [spec.get("set", "peasant"), look.get("colouring", 1), _body.q]
+		model = Villager.assemble(_body.q, [outfit] + hair, look.get("colour", Villager.HAIR_COLOURS[0]))
+	else:
+		model = load("res://assets/models/%s.glb" % _body.file).instantiate()
 	_visual.add_child(model)
 	_skel = model.find_child("Skeleton3D", true, false)
 	_anim = model.find_child("AnimationPlayer", true, false)
@@ -147,16 +154,22 @@ func setup(spec: Dictionary) -> void:
 	for c in _skel.get_children():
 		if c is MeshInstance3D:
 			body_mesh = c
-	_finish(body_mesh, "skin")
+	if _body.has("q"):
+		for m in _skel.get_children():
+			if m is MeshInstance3D and m.material_override == null:  # tinted hair keeps its own
+				_finish(m, "skin" if ["Superhero", "Regular", "Eye"].any(func(k): return m.name.contains(k)) else "cloth")
+	else:
+		_finish(body_mesh, "skin")
 
 	_stand = _body.idle
 	# In a fight, those who hold a blade or a shield stand ready instead.
 	if spec.get("ready", false) and _anim.has_animation("Ready_Idle"): _stand = "Ready_Idle"
+	if spec.get("ready", false) and spec.has("stand") and _anim.has_animation(spec.stand): _stand = spec.stand
 	for clip in [_body.idle, _body.run, _stand]:
 		var a = _anim.get_animation(clip)
 		if a: a.loop_mode = Animation.LOOP_LINEAR
 
-	if spec.has("set"):
+	if spec.has("set") and not _body.has("q"):  # Quaternius bodies come dressed
 		_dress(body_mesh, spec.set)
 	run_pace = _measure_pace(model) * k
 
@@ -173,8 +186,9 @@ func setup(spec: Dictionary) -> void:
 	if right == "bow":
 		left = "bow"
 		right = ""
-	if right != "": _hold(right, hand_r, body_mesh, false, spec.get("glow", Color.WHITE))
-	if left != "": _hold(left, hand_l, body_mesh, true, spec.get("glow", Color.WHITE))
+	var hold = _hold_q if _body.has("q") else _hold
+	if right != "": hold.call(right, hand_r, body_mesh, false, spec.get("glow", Color.WHITE))
+	if left != "": hold.call(left, hand_l, body_mesh, true, spec.get("glow", Color.WHITE))
 
 	# Out of step with each other: each idle starts at its own point.
 	if _stand != _body.idle: _anim.play(_stand, 0.0, _idle_rate)
@@ -295,8 +309,13 @@ func _cut_body(mi: MeshInstance3D, hidden: Dictionary, open_hood: bool, hood_bac
 		mi.set_surface_override_material(s, mats[s])
 
 
+## The Unreal names of the Mixamo bones Unit asks a Quaternius body for.
+const Q_BONES := {"Hips": "pelvis", "RightHand": "hand_r", "LeftHand": "hand_l", "Head": "Head", "LeftFoot": "foot_l", "RightFoot": "foot_r"}
+
+
 ## A Mixamo bone by its plain name; the orc's rig has no mixamorig_ prefix.
 func _bone(name: String) -> int:
+	if _body.has("q"): return _skel.find_bone(Q_BONES.get(name, name))
 	var i = _skel.find_bone("mixamorig_" + name)
 	return i if i >= 0 else _skel.find_bone(name)
 
@@ -374,6 +393,45 @@ func _hold(prop: String, hand: int, body_mesh: MeshInstance3D, left: bool, glow:
 	_steady.append({"holder": holder, "hand": hand, "grip": g.q, "pos": g.pos * m, "m": m, "idle": pose * g.stand, "upright": p.how == "upright"})
 
 
+## A Quaternius hand has fingers that close on what it holds: the shaft runs
+## across the palm from the little finger to the index finger, a shield sits on
+## the back of the hand, and the hand carries it through every clip.
+func _hold_q(prop: String, hand: int, _body_mesh: MeshInstance3D, left: bool, glow: Color) -> void:
+	var p: Dictionary = PROPS[prop]
+	var model: Node3D = load("res://assets/models/%s.glb" % p.file).instantiate()
+	for m in model.find_children("*", "MeshInstance3D", true, false):
+		_finish(m, "leather" if p.get("wood", false) else "metal")
+		if p.get("shine", false):
+			for s in m.mesh.get_surface_count():
+				var mat: StandardMaterial3D = m.get_active_material(s)
+				mat.emission_enabled = true
+				mat.emission = glow
+				mat.emission_texture = mat.albedo_texture
+				mat.emission_energy_multiplier = 0.7
+	var side = "_l" if left else "_r"
+	var at = func(b): return _skel.get_bone_global_rest(_skel.find_bone(b + side)).origin
+	var wrist: Vector3 = at.call("hand")
+	var along: Vector3 = (at.call("middle_01") - wrist).normalized()
+	var across: Vector3 = (at.call("index_01") - at.call("pinky_01")).normalized()
+	var palm: Vector3 = along.cross(across).normalized()
+	if palm.dot(at.call("thumb_01") - wrist) < 0: palm = -palm
+	var b: Basis
+	var o: Vector3
+	if p.how == "shield":  # props' shields face -X
+		b = Basis(palm, along, palm.cross(along))
+		o = wrist + along * 0.03 - palm * 0.06
+	else:
+		var x = along.cross(across).normalized()
+		b = Basis(x, across, x.cross(across))
+		o = wrist + along * 0.075 + palm * 0.02
+	var ba = BoneAttachment3D.new()
+	ba.bone_idx = hand
+	_skel.add_child(ba)
+	var rest = _skel.get_bone_global_rest(hand)
+	model.transform = rest.affine_inverse() * Transform3D(b.orthonormalized().scaled(Vector3.ONE * p.scale), o)
+	ba.add_child(model)
+
+
 ## Held things keep their idle stand while idle plays, most of it on the run,
 ## and lie in the fist in actions; a staff, bow or flask always stays upright.
 func _steady_props() -> void:
@@ -392,6 +450,7 @@ func _measure_pace(model: Node3D) -> float:
 	if _pace_cache.has(_body.file): return _pace_cache[_body.file]
 	var a = _anim.get_animation(_body.run)
 	var bone = func(tail: String) -> int:
+		if _body.has("q"): return _skel.find_bone(Q_BONES[tail])
 		for i in _skel.get_bone_count():
 			if _skel.get_bone_name(i).ends_with(tail): return i
 		return -1
@@ -577,7 +636,7 @@ func play_hit() -> void:
 
 
 func _pick_hit() -> String:
-	var have = HITS.filter(func(h): return _anim.has_animation(h[0]))
+	var have = _body.get("hits", HITS).filter(func(h): return _anim.has_animation(h[0]))
 	if have.is_empty(): return _body.hit
 	var roll = randi() % have.reduce(func(sum, h): return sum + h[1], 0)
 	for h in have:
@@ -588,7 +647,7 @@ func _pick_hit() -> String:
 
 ## Side-steps a blow that lands next to it.
 func dodge() -> void:
-	var clip = "Stand_Dodge" if _anim.has_animation("Stand_Dodge") else "Parry"
+	var clip = _body.get("dodge", "Stand_Dodge" if _anim.has_animation("Stand_Dodge") else "Parry")
 	if not alive or not _anim.has_animation(clip) or moving(): return
 	var sp = _speed_of(clip)
 	_act_seq += 1

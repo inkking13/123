@@ -1,14 +1,19 @@
 extends SceneTree
-## Picks the villagers' clips out of the Universal Animation Library (Quaternius,
+## Picks the villagers' and heroes' clips out of the Universal Animation Library (Quaternius,
 ## CC0) into one small AnimationLibrary. Copy UAL1_Standard.glb and
 ## UAL2_Standard.glb into godot/tmp_ual/, import, then run:
 ## godot --headless --path godot -s ../tools/villagers/anims.gd
 
-const CLIPS := ["Idle", "Walk", "Idle_Talking", "Idle_FoldArms", "Farm_Harvest",
-	"Farm_Watering", "Sitting_Idle", "TreeChopping", "Walk_Carry", "Yes"]
-## The importer drops the clips' "_Loop" suffix; these all loop on the map.
+const CLIPS := ["Idle", "Walk", "Idle_Talking", "Idle_FoldArms", "Farm_Harvest", "Farm_Watering", "Sitting_Idle",
+	"TreeChopping", "Walk_Carry", "Yes",
+	# The heroes' fight: stances, blows, shield work, spells, throws, hits, a roll, falls.
+	"Sword_Idle", "Idle_Shield", "Spell_Simple_Idle", "Jog_Fwd", "Sword_Attack", "Sword_Regular_A", "Sword_Regular_B",
+	"Sword_Regular_Combo", "Sword_Heavy_Combo", "Sword_Dash", "Shield_OneShot", "Shield_Dash", "Spell_Simple_Shoot",
+	"OverhandThrow", "Punch_Jab", "Punch_Cross", "Melee_Hook", "Consume", "Jump", "Hit_Chest", "Hit_Head", "Roll",
+	"Death01"]
+## The importer drops the clips' "_Loop" suffix; these all loop.
 const LOOPS := ["Idle", "Walk", "Idle_Talking", "Idle_FoldArms", "Farm_Harvest", "Farm_Watering", "Sitting_Idle",
-	"TreeChopping", "Walk_Carry", "Yes"]
+	"TreeChopping", "Walk_Carry", "Yes", "Sword_Idle", "Idle_Shield", "Spell_Simple_Idle", "Jog_Fwd"]
 
 func _initialize() -> void:
 	var lib = AnimationLibrary.new()

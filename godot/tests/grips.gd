@@ -4,7 +4,7 @@ extends Node3D
 ## Needs a window, not --headless:
 ## `godot --path . res://tests/grips.tscn -- --out=grips.png [--yaw=30] [--heroes=0,4,8] [--cell=220]`
 
-var HEROES := [0, 4, 8, 12, 9, 5, 2, 6, 7]
+var HEROES := [0, 4, 8, 12, 9, 3, 7, 10, 11, 13]
 const ROWS := [["idle", 0.2], ["idle", 0.6], ["run", 0.25], ["run", 0.75], ["melee", 0.3], ["melee", 0.5], ["melee", 0.7]]
 const STEP := 1.6
 

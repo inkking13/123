@@ -11,21 +11,29 @@ const GOLD := Color(0.94, 0.82, 0.55)
 const FONT := preload("res://fonts/Alegreya_800ExtraBold.ttf")
 
 ## How each hero is drawn: body, armour set, what they hold, and their clips.
+## The heroes, all people on Quaternius bodies. `look`: hair and beard, their colour
+## (Villager.HAIR_COLOURS), the outfit's colouring; `stand`: the ready stance in a fight.
 const HEROES := {
-	0: {"body": "human", "right": "mace", "left": "roundShield", "acts": {"melee": "Sword_Slash", "ability": "Shield_Push"}},
-	1: {"body": "dwarf", "right": "runeAxe", "acts": {"melee": "Hammer_Swing", "ability": "Shield_Push"}},
-	2: {"body": "elfMale", "right": "staff", "glow": Color(0.55, 1.0, 0.6)},
-	3: {"body": "human", "right": "flask", "left": "flask", "glow": Color(0.42, 1.0, 0.6), "acts": {"ability": "cast2", "melee": "cast3"}},
-	4: {"body": "human", "right": "dagger", "left": "dagger", "acts": {"melee": "Double_Combo_Attack", "ability": "Triple_Combo_Attack"}},
-	5: {"body": "orc", "right": "greatAxe"},
-	6: {"body": "elf", "right": "bow", "acts": {"melee": "Archery_Shot", "ranged": "Archery_Shot", "ability": "Archery_Shot"}},
-	7: {"body": "elf", "right": "orb", "glow": Color(0.5, 1.0, 0.45), "acts": {"ability": "cast2", "heal": "cast1", "ranged": "cast6", "rally": "cast4"}},
-	8: {"body": "human", "right": "longsword", "left": "roundShield", "acts": {"melee": "Thrust_Slash", "ability": "Shield_Push"}},
-	9: {"body": "dwarf", "right": "warhammer", "acts": {"melee": "Hammer_Swing", "ability": "Charged_Slash"}},
-	10: {"body": "elf", "right": "flask", "glow": Color(0.6, 0.9, 1.0), "acts": {"ability": "cast2", "heal": "cast1", "rally": "cast4"}},
-	11: {"body": "dwarf", "right": "flask", "glow": Color(1.0, 0.7, 0.4)},
-	12: {"body": "human", "right": "handAxe", "acts": {"melee": "Sword_Slash", "ability": "Charged_Slash"}},
-	13: {"body": "elf", "right": "orb", "glow": Color(0.7, 0.45, 1.0), "acts": {"ability": "Ground_Slam", "ranged": "cast6", "heal": "cast1", "rally": "cast4"}},
+	0: {"body": "man", "right": "mace", "left": "roundShield", "stand": "Idle_Shield",
+		"look": {"hair": ["buzzed", "beard"], "colour": Color(0.32, 0.2, 0.12)}, "acts": {"melee": "Sword_Attack", "ability": "Shield_OneShot"}},
+	3: {"body": "man", "right": "flask", "left": "flask", "glow": Color(0.42, 1.0, 0.6),
+		"look": {"hair": ["long", "beard"], "colour": Color(0.75, 0.73, 0.7)}, "acts": {"melee": "OverhandThrow", "ability": "OverhandThrow"}},
+	4: {"body": "man", "right": "dagger", "left": "dagger", "stand": "Sword_Idle",
+		"look": {"hair": ["simpleparted"], "colour": Color(0.09, 0.08, 0.07), "colouring": 2}, "acts": {"melee": "Sword_Regular_A", "ability": "Sword_Regular_Combo"}},
+	7: {"body": "woman", "right": "orb", "glow": Color(0.5, 1.0, 0.45),
+		"look": {"hair": ["long"], "colour": Color(0.09, 0.08, 0.07)}, "acts": {"melee": "Spell_Simple_Shoot", "ability": "Spell_Simple_Shoot"}},
+	8: {"body": "man", "right": "longsword", "left": "roundShield", "stand": "Idle_Shield",
+		"look": {"hair": ["simpleparted"], "colour": Color(0.8, 0.65, 0.4)}, "acts": {"melee": "Sword_Regular_B", "ability": "Shield_Dash"}},
+	9: {"body": "man", "right": "warhammer", "left": "roundShield", "stand": "Idle_Shield",
+		"look": {"hair": ["simpleparted", "beard"], "colour": Color(0.5, 0.24, 0.12), "colouring": 2}, "acts": {"melee": "Sword_Attack", "ability": "Shield_OneShot"}},
+	10: {"body": "woman", "right": "flask", "glow": Color(0.6, 0.9, 1.0),
+		"look": {"hair": ["buns"], "colour": Color(0.32, 0.2, 0.12), "colouring": 2}, "acts": {"melee": "Punch_Jab", "ability": "Consume"}},
+	11: {"body": "man", "right": "dagger", "stand": "Sword_Idle",
+		"look": {"hair": ["long"], "colour": Color(0.55, 0.38, 0.2), "colouring": 2}, "acts": {"melee": "OverhandThrow", "ranged": "OverhandThrow", "ability": "OverhandThrow"}},
+	12: {"body": "man", "right": "handAxe", "stand": "Sword_Idle",
+		"look": {"hair": ["buzzed"], "colour": Color(0.16, 0.11, 0.08)}, "acts": {"melee": "Sword_Attack", "ability": "Sword_Heavy_Combo"}},
+	13: {"body": "woman", "right": "orb", "glow": Color(0.7, 0.45, 1.0),
+		"look": {"hair": ["buzzedfemale"], "colour": Color(0.5, 0.24, 0.12), "colouring": 2}, "acts": {"melee": "Spell_Simple_Shoot", "ability": "Spell_Simple_Shoot"}},
 }
 const FOES := {
 	"brute": {"body": "skeleton", "right": "boneSword", "left": "skullShield", "scale": 1.15},
@@ -325,7 +333,7 @@ func _wanted(s: Dictionary) -> Dictionary:
 	for r in s.raiders:
 		var key = "r%d" % r.id
 		if not units.has(key):
-			var spec: Dictionary = HEROES.get(r.candidateId, {"body": "human"}).duplicate()
+			var spec: Dictionary = HEROES.get(r.candidateId, {"body": "man"}).duplicate()
 			var hero = Game.find_hero(r.candidateId)
 			var set_id = _armour_set(hero) if hero else null
 			if set_id: spec.set = set_id
