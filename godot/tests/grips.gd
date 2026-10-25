@@ -3,8 +3,9 @@ extends Node3D
 ## per moment (idle, two steps of the run, three moments of the main blow).
 ## Needs a window, not --headless:
 ## `godot --path . res://tests/grips.tscn -- --out=grips.png [--yaw=30] [--heroes=0,4,8] [--cell=220]`
+## A dungeon's foes go by `dungeon/role`: `--heroes=ratmill/brute,cultcrypt/shaman`.
 
-var HEROES := [0, 4, 8, 12, 9, 5, 2, 6, 7]
+var HEROES := [0, 4, 8, 12, 9, 3, 7, 10, 11, 13]
 const ROWS := [["idle", 0.2], ["idle", 0.6], ["run", 0.25], ["run", 0.75], ["melee", 0.3], ["melee", 0.5], ["melee", 0.7]]
 const STEP := 1.6
 
@@ -19,7 +20,7 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--out="): _out = a.substr(6)
 		if a.begins_with("--yaw="): _yaw = float(a.substr(6))
-		if a.begins_with("--heroes="): HEROES = Array(a.substr(9).split(",")).map(func(x): return int(x))
+		if a.begins_with("--heroes="): HEROES = Array(a.substr(9).split(",")).map(func(x): return x if x.contains("/") else int(x))
 		if a.begins_with("--cell="): _cell = int(a.substr(7))
 	get_window().size = Vector2i(HEROES.size() * _cell, ROWS.size() * _cell * 12 / 11)
 	var world = self
@@ -35,7 +36,8 @@ func _ready() -> void:
 	world.add_child(sun)
 	for c in HEROES.size():
 		for r in ROWS.size():
-			var spec: Dictionary = BattleView.HEROES[HEROES[c]].duplicate()
+			var who = HEROES[c]
+			var spec: Dictionary = (BattleView.DUNGEON_FOES[who.get_slice("/", 0)][who.get_slice("/", 1)] if who is String else BattleView.HEROES[who]).duplicate()
 			spec.merge({"name": "", "team": 0, "role": "melee", "hp": 1, "atk": Vector2i(1, 1), "init": 1})
 			var u = Unit.new()
 			world.add_child(u)
@@ -58,8 +60,8 @@ func _pose() -> void:
 	for e in _units:
 		var u: Unit = e.u
 		var what: String = e.row[0]
-		var clip: String = u._body.idle if what == "idle" else u._body.run if what == "run" else u._body.acts.get(what, u._body.acts.values()[0])
-		if not u._anim.has_animation(clip): clip = u._body.acts.values()[0]
+		var clip: String = u._body.idle if what == "idle" else u._body.run if what == "run" else u._one_of(u._body.acts.get(what, u._body.acts.values()[0]))
+		if not u._anim.has_animation(clip): clip = u._one_of(u._body.acts.values()[0])
 		u._anim.play(clip, 0.0)
 		u._anim.seek(u._anim.get_animation(clip).length * e.row[1], true)
 		u._idle_w = 1.0 if what == "idle" else Unit.RUN_STEADY if what == "run" else 0.0

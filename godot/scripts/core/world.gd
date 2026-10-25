@@ -81,14 +81,19 @@ const SIGHTS := {
 	"shrine": {"name": "Святилище у дороги", "icon": "church", "desc": "Помолиться (1 ч): усталость уходит, мораль растёт. Раз в день."},
 }
 ## The buildings of a walled town, around its square (the road runs through it).
+## Where each stands comes from the town's plan (World._town_plan).
 const TOWN_BUILDINGS := [
-	{"kind": "tavern", "at": Vector2(-7, -7), "name": "Таверна «Ржавый шлем»", "icon": "beer-stein"},
-	{"kind": "market", "at": Vector2(7, -7), "name": "Рыночная площадь", "icon": "storefront"},
-	{"kind": "smith", "at": Vector2(9, 7), "name": "Кузница", "icon": "hammer"},
-	{"kind": "board", "at": Vector2(-1, 6), "name": "Доска объявлений", "icon": "scroll"},
-	{"kind": "barracks", "at": Vector2(-10, 7), "name": "Казармы стражи", "icon": "sword"},
+	{"kind": "tavern", "name": "Таверна «Ржавый шлем»", "icon": "beer-stein"},
+	{"kind": "market", "name": "Рыночная площадь", "icon": "storefront"},
+	{"kind": "smith", "name": "Кузница", "icon": "hammer"},
+	{"kind": "board", "name": "Доска объявлений", "icon": "scroll"},
+	{"kind": "barracks", "name": "Казармы стражи", "icon": "sword"},
 ]
-const TOWN_RADIUS := 17.0
+const TOWN_RADIUS := 24.0
+const TOWN_SQUARE := 8.5   # the cobbled square round the well
+const TOWN_INNER := 14.0   # the ring of the town's buildings, facing the square
+const TOWN_OUTER := 19.8   # the ring of houses behind them, just inside the wall
+const TOWN_STREET := 1.4   # half the width of a street
 const SHARPEN_PRICE := 40
 const SHARPEN_FIGHTS := 3
 const DRILL_PRICE := 60
@@ -419,37 +424,96 @@ func layout(loc := "") -> Dictionary:
 		places.append({"id": "d:" + ds[i].id, "kind": "dungeon", "pos": p, "dungeon": ds[i].id})
 		stops.append(p)
 	var town = Vector2(-16 + rng.randf_range(-4, 4), rng.randf_range(-14, 14))
-	if THEMES[id].get("bigTown", false):
-		# A walled town: each building is a place of its own.
-		for b in TOWN_BUILDINGS:
-			places.append({"id": "town:" + b.kind, "kind": b.kind, "pos": town + b.at})
-	else:
-		places.append({"id": "town", "kind": "town", "pos": town})
+	var big: bool = THEMES[id].get("bigTown", false)
+	# A walled town is wide: it stands a little further west, midway between its dungeons.
+	if big: town.x -= 4.0
 	stops.append(town)
 	stops.append(east)
 	stops.sort_custom(func(a, b): return a.x < b.x)
+	var plan = {}
+	# Nothing else is put down inside the wall.
+	var guard = []
+	if big:
+		plan = _town_plan(town, stops)
+		# A walled town: each building is a place of its own.
+		for b in plan.buildings:
+			places.append({"id": "town:" + b.kind, "kind": b.kind, "pos": town + b.at, "turn": b.turn})
+		for a in 16: guard.append({"pos": town + Vector2.from_angle(a * TAU / 16) * 18.0})
+	else:
+		places.append({"id": "town", "kind": "town", "pos": town})
 	# The land's other sights, then chests and gathering spots in what's left.
 	for kind in THEMES[id].get("extras", []):
-		places.append({"id": kind, "kind": kind, "pos": _free_spot(rng, places, 16.0, half)})
+		places.append({"id": kind, "kind": kind, "pos": _free_spot(rng, places + guard, 16.0, half)})
 	# Side dungeons lie off the road, out in the wilds.
 	for d in region_dungeons(id):
 		if d.get("side", false):
-			places.append({"id": "d:" + d.id, "kind": "dungeon", "pos": _free_spot(rng, places + [{"pos": town}], 22.0, half), "dungeon": d.id, "side": true})
+			places.append({"id": "d:" + d.id, "kind": "dungeon", "pos": _free_spot(rng, places + guard + [{"pos": town}], 22.0, half), "dungeon": d.id, "side": true})
 	var extra = int(round((k - 1.0) * 6))
 	for i in 5 + extra:
-		places.append({"id": "chest%d" % i, "kind": "chest", "pos": _free_spot(rng, places, 9.0, half)})
+		places.append({"id": "chest%d" % i, "kind": "chest", "pos": _free_spot(rng, places + guard, 9.0, half)})
 	for i in 3 + extra / 2:
-		places.append({"id": "herb%d" % i, "kind": "herb", "pos": _free_spot(rng, places, 9.0, half)})
+		places.append({"id": "herb%d" % i, "kind": "herb", "pos": _free_spot(rng, places + guard, 9.0, half)})
 	# Band camps keep away from the places and from where the squad comes in.
 	var camps = []
-	var keep_off = places + [{"pos": west + Vector2(4, 0)}, {"pos": west + Vector2(14, 0)}]
+	var keep_off = places + guard + [{"pos": west + Vector2(4, 0)}, {"pos": west + Vector2(14, 0)}]
 	for i in 4 + extra / 3:
 		var c = _free_spot(rng, keep_off, 16.0, half)
 		camps.append(c)
 		keep_off.append({"pos": c})
-	var out = {"places": places, "road": stops, "camps": camps, "start": west + Vector2(4, 0), "town": town, "seed": rng.seed}
+	var out = {"places": places, "road": stops, "camps": camps, "start": west + Vector2(4, 0), "town": town, "town_plan": plan, "seed": rng.seed}
 	_layouts[id] = out
 	return out
+
+
+## How a walled town lies, round the town's centre: the gates where the road
+## meets the wall; the square; the town's buildings in a ring round it, each
+## facing it, two or three to each side of the street; the houses in a ring
+## behind them, spaced evenly, clear of the streets.
+func _town_plan(town: Vector2, stops: Array) -> Dictionary:
+	var gates = []
+	var i = stops.find(town)
+	if i > 0: gates.append((stops[i - 1] - town).angle())
+	if i < stops.size() - 1: gates.append((stops[i + 1] - town).angle())
+	gates.sort()
+	# The arcs between the streets, widest first: [start angle, width].
+	var arcs = []
+	for k in gates.size():
+		var b = gates[(k + 1) % gates.size()] + (TAU if k == gates.size() - 1 else 0.0)
+		arcs.append([gates[k], b - gates[k]])
+	arcs.sort_custom(func(x, y): return x[1] > y[1])
+	var face = func(at: Vector2) -> float: return atan2(-at.x, -at.y)
+	# The tavern, the board and the market on the wider side; the barracks and the forge across.
+	var sides = [[["tavern", 0.24], ["board", 0.5], ["market", 0.76]], [["barracks", 0.3], ["smith", 0.7]]]
+	if arcs.size() == 1: sides = [[["tavern", 0.15], ["board", 0.32], ["market", 0.5], ["barracks", 0.68], ["smith", 0.85]]]
+	var buildings = []
+	for s in sides.size():
+		for it in sides[s]:
+			# The board stands on the square; the market's stalls reach back, so it stands a little in.
+			var r = {"board": TOWN_SQUARE - 1.0, "market": TOWN_INNER - 1.5}.get(it[0], TOWN_INNER)
+			var at = Vector2.from_angle(arcs[s][0] + arcs[s][1] * it[1]) * r
+			buildings.append({"kind": it[0], "at": at, "turn": face.call(at)})
+	var houses = []
+	var trees = []
+	for arc in arcs:
+		var margin = asin((TOWN_STREET + 2.6) / TOWN_OUTER)
+		var span = arc[1] - margin * 2.0
+		var n = maxi(1, int(span * TOWN_OUTER / 6.4) + 1)
+		for k in n:
+			var a = arc[0] + margin + (span * (k + 0.5) / n)
+			var at = Vector2.from_angle(a) * (TOWN_OUTER + (0.5 if k % 2 == 0 else -0.4))
+			houses.append({"at": at, "turn": face.call(at) + (0.06 if k % 3 == 1 else 0.0)})
+	# The chapel behind the board and the town hall across the square, in place of the houses there.
+	var landmarks = []
+	if arcs.size() > 1:
+		landmarks.append({"kind": "chapel", "at": Vector2.from_angle(arcs[0][0] + arcs[0][1] * 0.5) * 17.5})
+		landmarks.append({"kind": "hall", "at": Vector2.from_angle(arcs[1][0] + arcs[1][1] * 0.5) * 18.0})
+		for l in landmarks: l.turn = face.call(l.at)
+		houses = houses.filter(func(h): return landmarks.all(func(l): return l.at.distance_to(h.at) > 7.5))
+	# Shade trees either side of the board, and a yard for the hens across the square.
+	var wide = arcs[0]
+	for f in [0.42, 0.58]: trees.append(Vector2.from_angle(wide[0] + wide[1] * f) * (TOWN_INNER - 1.0))
+	var yard = Vector2.from_angle(arcs[-1][0] + arcs[-1][1] * 0.5) * (TOWN_INNER + 1.5)
+	return {"gates": gates, "buildings": buildings, "houses": houses, "landmarks": landmarks, "trees": trees, "yard": yard}
 
 
 func _free_spot(rng: RandomNumberGenerator, places: Array, gap := 9.0, half := SIZE) -> Vector2:

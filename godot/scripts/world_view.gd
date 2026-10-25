@@ -291,9 +291,19 @@ func _paint_ground_mask() -> void:
 				var i = (y * w + x) * 3 + ch
 				data[i] = maxi(data[i], int((1.0 - d * d) * 255))
 	var road = _road_points()
+	var lay = Game.w.layout()
+	var walled = Game.w.has_big_town()
 	for i in road.size() - 1:
 		var steps = maxi(1, int(road[i].distance_to(road[i + 1]) / 0.7))
-		for k in steps: stamp.call(road[i].lerp(road[i + 1], float(k) / steps), 2.4, 0)
+		for k in steps:
+			var p = road[i].lerp(road[i + 1], float(k) / steps)
+			# Inside the wall the road is the town's paved streets, worn at their edges.
+			if walled and p.distance_to(lay.town) < World.TOWN_RADIUS: continue
+			stamp.call(p, 2.4, 0)
+	if walled:
+		for g in lay.town_plan.gates:
+			for d in range(int(World.TOWN_SQUARE), int(World.TOWN_RADIUS) + 3): stamp.call(lay.town + Vector2.from_angle(g) * d, World.TOWN_STREET + 1.4, 0)
+		for k in 48: stamp.call(lay.town + Vector2.from_angle(k * TAU / 48) * World.TOWN_SQUARE, 2.0, 0)
 	for t in _tree_spots: stamp.call(t, 3.2, 1)
 	for p in _dense(land.river, 0.7): stamp.call(p, Land.RIVER_HALF + 2.2, 2)
 	_ground.set_shader_parameter("mask", ImageTexture.create_from_image(Image.create_from_data(w, w, false, Image.FORMAT_RGB8, data)))
@@ -525,9 +535,10 @@ func _build_woods(th: Dictionary) -> void:
 	var main_tree = _model_mesh("world-tree-fir", 4.6) if th.get("textured", false) else null
 	if main_tree:
 		# [mesh, share, trees, tint]; a kind without a model falls back to the main one.
-		var mix = [[main_tree, 0.42, [], Color(0.82, 0.86, 0.74)], [_model_mesh("world-linden", 4.0), 0.25, [], Color(0.86, 0.9, 0.76)],
+		var mix = [[main_tree, 0.32, [], Color(0.82, 0.86, 0.74)], [_model_mesh("world-linden", 4.0), 0.2, [], Color(0.86, 0.9, 0.76)],
 			[_model_mesh("world-tree-oldoak", 6.0), 0.08, [], Color(0.86, 0.9, 0.76)]]
-		for k in [["nature-commontree-3", 5.5, 0.05], ["nature-commontree-4", 5.0, 0.05], ["nature-commontree-5", 4.5, 0.05], ["nature-pine-4", 5.5, 0.06], ["nature-pine-5", 4.2, 0.04]]:
+		for k in [["nature-commontree-3", 5.5, 0.05], ["nature-commontree-4", 5.0, 0.05], ["nature-commontree-5", 4.5, 0.05], ["nature-pine-4", 5.5, 0.06], ["nature-pine-5", 4.2, 0.04],
+				["nature-commontree-1", 4.6, 0.03], ["nature-commontree-2", 4.8, 0.03], ["nature-pine-1", 4.4, 0.03], ["nature-pine-2", 4.2, 0.03], ["nature-pine-3", 4.6, 0.03]]:
 			mix.append([_plant(k[0], k[1], 0.02, Color(0.78, 0.84, 0.68)), k[2], [], null])
 		for p in trees:
 			var roll = rng.randf()
@@ -573,7 +584,17 @@ func _build_woods(th: Dictionary) -> void:
 		if Game.w.has_big_town() and Game.w.layout().town.distance_to(p) < World.TOWN_RADIUS: continue
 		if land.river_gap(p) < Land.RIVER_HALF + 0.3: continue
 		if not _near_road(p, 2.0) and not places.any(func(q): return q.kind in ["lake", "farm", "town"] and (q.pos + (Vector2(0, -10) if q.kind == "lake" else Vector2.ZERO)).distance_to(p) < _clear_of(q.kind) * (0.6 if q.kind == "lake" else 1.0)): tufts.append(p)
-	_scatter(_tuft_mesh(th), tufts, rng, 0.6, 1.3, wind_material(_vc_material(0.9), 0.45, 0.18))
+	# A third of the tufts are the kit's grass clumps, short and tall, kept few for the phone.
+	var grass = [[_plant("nature-grass-common-short", 0.42, 0.18, Color(0.8, 0.84, 0.66)), []], [_plant("nature-grass-common-tall", 0.6, 0.2, Color(0.8, 0.84, 0.66)), []],
+		[_plant("nature-grass-wispy-short", 0.4, 0.2, Color(0.84, 0.86, 0.68)), []]] if main_tree else []
+	var own = []
+	for p in tufts:
+		var roll = rng.randf()
+		if grass.size() and grass[0][0] and roll < 0.35: grass[0 if roll < 0.2 else 1 if roll < 0.28 else 2][1].append(p)
+		else: own.append(p)
+	for g in grass:
+		if g[0]: _scatter(g[0], g[1], rng, 0.7, 1.3)
+	_scatter(_tuft_mesh(th), own, rng, 0.6, 1.3, wind_material(_vc_material(0.9), 0.45, 0.18))
 
 
 ## Ferns and plants at the trees' feet, mushrooms in their shade, flower
@@ -581,22 +602,36 @@ func _build_woods(th: Dictionary) -> void:
 func _undergrowth(rng: RandomNumberGenerator, spots: Array, places: Array) -> void:
 	var shade = [[_plant("nature-fern-1", 0.6, 0.08), []], [_plant("nature-plant-1-big", 0.7, 0.1), []], [_plant("nature-plant-7-big", 1.0, 0.1, Color(0.84, 0.88, 0.74), true), []],
 		[_plant("nature-clover-2", 0.35, 0.05), []], [_plant("nature-mushroom-common", 0.35, 0.0, Color.WHITE), []]]
+	# Shelf fungus on a few old trunks: heavier, so only a handful.
+	var shelf = [_plant("nature-mushroom-laetiporus", 0.4, 0.0, Color.WHITE), []]
 	for p in spots:
 		if rng.randf() < 0.45:
 			shade[rng.randi() % shade.size()][1].append(p + Vector2(rng.randf_range(-1.8, 1.8), rng.randf_range(-1.8, 1.8)))
+		elif rng.randf() < 0.04 and shelf[1].size() < 24:
+			shelf[1].append(p + Vector2(rng.randf_range(-0.6, 0.6), rng.randf_range(-0.6, 0.6)))
+	shade.append(shelf)
 	for s in shade:
 		if s[0]: _scatter(s[0], s[1], rng, 0.7, 1.3)
-	var flowers = [[_plant("nature-flower-3-group", 0.6, 0.15, Color(0.9, 0.9, 0.85)), []], [_plant("nature-flower-4-group", 0.6, 0.15, Color(0.9, 0.9, 0.85)), []]]
+	var flowers = [[_plant("nature-flower-3-group", 0.6, 0.15, Color(0.9, 0.9, 0.85)), []], [_plant("nature-flower-4-group", 0.6, 0.15, Color(0.9, 0.9, 0.85)), []],
+		[_plant("nature-flower-3-single", 0.55, 0.15, Color(0.9, 0.9, 0.85)), []], [_plant("nature-flower-4-single", 0.55, 0.15, Color(0.9, 0.9, 0.85)), []]]
+	# Fallen petals on the ground round each patch.
+	var petals = [[_model_mesh("nature-petal-1", 0.22, true), []], [_model_mesh("nature-petal-3", 0.26, true), []]]
 	for _i in 70:
 		var c = Vector2(rng.randf_range(-Game.w.size(), Game.w.size()), rng.randf_range(-Game.w.size(), Game.w.size()))
 		if _near_road(c, 3.0) or land.river_gap(c) < Land.RIVER_HALF + 1.0: continue
 		if places.any(func(q): return q.pos.distance_to(c) < _clear_of(q.kind)): continue
 		if Game.w.has_big_town() and Game.w.layout().town.distance_to(c) < World.TOWN_RADIUS + 2.0: continue
-		var pick = flowers[rng.randi() % 2]
-		for _k in 3: pick[1].append(c + Vector2(rng.randf_range(-1.5, 1.5), rng.randf_range(-1.5, 1.5)))
+		var kind = rng.randi() % 2
+		for _k in 3: flowers[kind][1].append(c + Vector2(rng.randf_range(-1.5, 1.5), rng.randf_range(-1.5, 1.5)))
+		for _k in 2: flowers[kind + 2][1].append(c + Vector2(rng.randf_range(-2.2, 2.2), rng.randf_range(-2.2, 2.2)))
+		for _k in 4: petals[rng.randi() % 2][1].append(c + Vector2(rng.randf_range(-1.8, 1.8), rng.randf_range(-1.8, 1.8)))
 	for f in flowers:
 		if f[0]: _scatter(f[0], f[1], rng, 0.8, 1.2)
-	var pebbles = [[_model_mesh("nature-pebble-round-2", 0.18, true), []], [_model_mesh("nature-pebble-square-3", 0.2, true), []]]
+	for pt in petals:
+		if pt[0]: _scatter(pt[0], pt[1], rng, 0.7, 1.3, pt[0].surface_get_material(0))
+	var pebbles = [[_model_mesh("nature-pebble-round-2", 0.18, true), []], [_model_mesh("nature-pebble-square-3", 0.2, true), []],
+		[_model_mesh("nature-pebble-round-1", 0.2, true), []], [_model_mesh("nature-pebble-round-4", 0.17, true), []],
+		[_model_mesh("nature-pebble-square-1", 0.2, true), []], [_model_mesh("nature-pebble-square-5", 0.18, true), []]]
 	if pebbles[0] == null: return
 	var road: Array = Game.w.layout().road
 	for i in road.size() - 1:
@@ -607,7 +642,7 @@ func _undergrowth(rng: RandomNumberGenerator, spots: Array, places: Array) -> vo
 			var side = (b - a).orthogonal().normalized() * rng.randf_range(1.6, 2.6) * (1 if rng.randf() < 0.5 else -1)
 			var p = a.lerp(b, t) + side
 			if land.river_gap(p) < Land.RIVER_HALF + 0.5: continue
-			pebbles[rng.randi() % 2][1].append(p)
+			pebbles[rng.randi() % pebbles.size()][1].append(p)
 	for pb in pebbles:
 		if pb[0]: _scatter(pb[0], pb[1], rng, 0.6, 1.6, pb[0].surface_get_material(0))
 
@@ -886,6 +921,7 @@ func _build_places(th: Dictionary) -> void:
 	for p in Game.w.layout().places:
 		var root = Node3D.new()
 		root.position = _on_ground(p.pos)
+		root.rotation.y = p.get("turn", 0.0)
 		add_child(root)
 		place_nodes[p.id] = root
 		match p.kind:
@@ -938,7 +974,7 @@ func _house(root: Node3D, at: Vector3, w: float, d: float, turn: float, wall: Co
 	# On a land with house models, a house built from the village kit (or a
 	# Meshy cottage) of about the same size, its eaves a little wider.
 	if _tex.has("wall"):
-		var kinds = ["kit-cottage", "kit-cottage-stone", "kit-house", "kit-townhouse"]
+		var kinds = ["kit-cottage", "kit-cottage-stone", "kit-house", "kit-townhouse", "kit-cottage-round", "kit-longhouse", "kit-house-round"]
 		var model = _model_mesh(kinds[absi(hash(at)) % kinds.size()], w + 0.9, true)
 		if model == null: model = _model_mesh("world-house-a" if hash(at) % 2 == 0 else "world-house-b", w + 0.3, true)
 		if model:
@@ -1318,6 +1354,8 @@ func _graveyard(root: Node3D, th: Dictionary) -> void:
 	# Bare dead trees from the nature kit at the yard's edge.
 	_prop(root, "nature-deadtree-1", 5.0, Vector3(-9.0, 0, -0.5), 0.6)
 	_prop(root, "nature-deadtree-3", 4.2, Vector3(9.2, 0, 0.6), 2.4)
+	_prop(root, "nature-deadtree-2", 4.6, Vector3(-1.5, 0, -8.6), 1.1)
+	_prop(root, "nature-twistedtree-3", 5.5, Vector3(1.0, 0, 8.8), 2.9)
 	for i in 8:
 		var at = Vector3(-4.5 + (i % 4) * 3.0, 0, -2 + (i / 4) * 3.5)
 		_model(root, "decor-grave", 0.42, at + Vector3(0, 0.38, 0), randf() * 0.4 - 0.2)
@@ -1383,6 +1421,8 @@ func _ruins(root: Node3D, th: Dictionary) -> void:
 	for t in [["", Vector3(-5.0, 0, 5.2), 1.0], ["-twigs", Vector3(8.4, 0, -3.6), 3.3], ["-snag", Vector3(1.5, 0, 5.5), 0.2]]:
 		_cursed_tree(root, t[0], t[1], t[2])
 	_prop(root, "nature-deadtree-3", 4.6, Vector3(2.2, 0, -5.8), 1.2)
+	_prop(root, "nature-deadtree-4", 4.4, Vector3(-7.4, 0, -4.4), 0.4)
+	_prop(root, "nature-deadtree-5", 5.2, Vector3(-8.2, 0, 3.2), 2.2)
 
 
 func _shrine(root: Node3D, th: Dictionary) -> void:
@@ -1392,6 +1432,7 @@ func _shrine(root: Node3D, th: Dictionary) -> void:
 	var saint = _prop(root, "world-statue", 2.9, Vector3(0, 0.3, -0.8), 0.0)
 	# An old twisted tree shades it; stepping stones lead up.
 	_prop(root, "nature-twistedtree-1", 6.0, Vector3(4.2, 0, -2.6), 0.8)
+	_prop(root, "nature-twistedtree-%d" % [2, 4, 5][absi(hash(root.position)) % 3], 5.0, Vector3(-4.6, 0, -2.2), 2.3)
 	_prop(root, "nature-rockpath-round-wide", 1.8, Vector3(0, 0.02, 2.6), 0.0, true)
 	_prop(root, "nature-rockpath-round-small-1", 1.2, Vector3(0.3, 0.02, 4.4), 0.7, true)
 	if not saint: _box(root, Vector3(1.4, 1.0, 0.9), Vector3(0, 0.8, 0), stone)
@@ -1421,13 +1462,8 @@ func _walled_town(th: Dictionary) -> void:
 	var root = Node3D.new()
 	root.position = Vector3(town.x, 0, town.y)
 	add_child(root)
-	# Where the road meets the wall.
-	var road: Array = lay.road
-	var gates = []
-	for i in road.size():
-		if road[i] == town:
-			if i > 0: gates.append((road[i - 1] - town).angle())
-			if i < road.size() - 1: gates.append((road[i + 1] - town).angle())
+	var plan: Dictionary = lay.town_plan
+	var gates: Array = plan.gates
 	var logs = []
 	var r = World.TOWN_RADIUS
 	var n = int(TAU * r / 0.55)
@@ -1463,14 +1499,25 @@ func _walled_town(th: Dictionary) -> void:
 			root.add_child(top)
 		var beam = _box(root, Vector3(5.6, 0.5, 0.5), Vector3(at.x, 4.6, at.y), wood)
 		beam.rotation.y = -gang + PI * 0.5
-		_folk_unit(root, {"body": "human", "right": "longsword", "left": "roundShield", "set": "knight"}, at + side * 1.4 - dir * 1.2, gang, true)
-	# The square and its well.
+		_folk_unit(root, {"body": "man", "right": "longsword", "left": "roundShield", "set": "ranger", "look": {"hair": ["buzzed", "beard"], "colouring": 2}}, at + side * 1.4 - dir * 1.2, gang, true)
+	# The square and its well, and a paved street from it to each gate.
+	var paving = _tex_material("cobblestone", 1.0, 0.35, Color(0.85, 0.85, 0.85), true) if _tex.has("cobblestone") else _solid(th.road.darkened(0.1))
 	var sq = MeshInstance3D.new()
-	var sqm = CylinderMesh.new(); sqm.top_radius = 7.0; sqm.bottom_radius = 7.0; sqm.height = 0.04; sqm.radial_segments = 24
+	var sqm = CylinderMesh.new(); sqm.top_radius = World.TOWN_SQUARE; sqm.bottom_radius = World.TOWN_SQUARE; sqm.height = 0.04; sqm.radial_segments = 32
 	sq.mesh = sqm
-	sq.material_override = _tex_material("cobblestone", 1.0, 0.35, Color(0.85, 0.85, 0.85), true) if _tex.has("cobblestone") else _solid(th.road.darkened(0.1))
+	sq.material_override = paving
 	sq.position.y = 0.035
 	root.add_child(sq)
+	for gang in gates:
+		var length = r - World.TOWN_SQUARE + 1.0
+		var mid = Vector2.from_angle(gang) * (World.TOWN_SQUARE - 0.5 + length * 0.5)
+		var street = MeshInstance3D.new()
+		var stm = BoxMesh.new(); stm.size = Vector3(World.TOWN_STREET * 2.0, 0.04, length)
+		street.mesh = stm
+		street.material_override = paving
+		street.position = Vector3(mid.x, 0.03, mid.y)
+		street.rotation.y = atan2(cos(gang), sin(gang))
+		root.add_child(street)
 	if not _prop(root, "world-well", 2.6, Vector3.ZERO):
 		_cyl(root, 0.8, 0.9, 0.8, Vector3(0, 0.4, 0), th.rock.darkened(0.1), 10)
 		_box(root, Vector3(0.1, 1.6, 0.1), Vector3(-0.7, 1.3, 0), wood)
@@ -1484,13 +1531,20 @@ func _walled_town(th: Dictionary) -> void:
 	lamp.light_color = Color(1.0, 0.65, 0.3); lamp.light_energy = 1.2; lamp.omni_range = 12.0
 	lamp.position = Vector3(0, 3.0, 0)
 	root.add_child(lamp)
-	# Houses between the buildings.
-	for h in [[Vector2(0, -12), 0.0], [Vector2(12, 0), 1.57], [Vector2(-13, -1), -1.57], [Vector2(4, 12), 3.14], [Vector2(-5, 13), 3.0]]:
-		_house(root, Vector3(h[0].x, 0, h[0].y), 2.6, 2.2, h[1], Color(0.64, 0.56, 0.45), Color(0.45, 0.22, 0.15))
+	# Houses in a ring behind the buildings, each facing the square.
+	for h in plan.houses:
+		_house(root, Vector3(h.at.x, 0, h.at.y), 2.8, 2.4, h.turn, Color(0.64, 0.56, 0.45), Color(0.45, 0.22, 0.15))
+	# The chapel with its bell tower and the three-storey town hall.
+	for l in plan.get("landmarks", []):
+		_prop(root, "kit-" + l.kind, {"chapel": 9.0, "hall": 6.2}[l.kind], Vector3(l.at.x, 0, l.at.y), l.turn, true)
+	for t in plan.trees:
+		_prop(root, "nature-commontree-%d" % (3 + absi(hash(t)) % 3), 5.5, Vector3(t.x, 0, t.y), hash(t) % 6)
 	# Townsfolk walk between the buildings.
-	for k in 5:
-		var start: Vector2 = w.TOWN_BUILDINGS[k % w.TOWN_BUILDINGS.size()].at * 0.6
-		_folk_unit(root, {"body": ["human", "dwarf", "elf"][k % 3], "set": ["leather", "arcane"][k % 2]}, start, randf() * TAU, false)
+	for k in 7:
+		var start: Vector2 = plan.buildings[k % plan.buildings.size()].at * 0.6
+		var v = _villager({"outfit": Villager.OUTFITS[k % 4]})
+		v.position = root.position + Vector3(start.x, 0, start.y)
+		_folk.append({"unit": v, "to": v.position, "wait": randf() * 3.0, "center": root.position})
 
 
 func _folk_unit(root: Node3D, spec: Dictionary, at: Vector2, turn: float, guard: bool) -> void:
@@ -1503,20 +1557,22 @@ func _folk_unit(root: Node3D, spec: Dictionary, at: Vector2, turn: float, guard:
 
 func _sync_folk(dt: float) -> void:
 	for f in _folk:
-		var u: Unit = f.unit
+		var u = f.unit
 		var d: Vector3 = f.to - u.position
 		if d.length() < 0.2:
 			f.wait -= dt
 			if u.get_meta("moving", false):
 				u.play_idle(); u.set_meta("moving", false)
 			if f.wait <= 0:
-				var b: Dictionary = World.TOWN_BUILDINGS.pick_random()
-				f.to = f.center + Vector3(b.at.x * 0.75 + randf_range(-1.5, 1.5), 0, b.at.y * 0.75 + randf_range(-1.5, 1.5))
+				# To the door of one of the town's buildings, or across the square.
+				var b: Dictionary = Game.w.layout().town_plan.buildings.pick_random()
+				var to: Vector2 = b.at.normalized() * randf_range(2.0, b.at.length() - 3.0)
+				f.to = f.center + Vector3(to.x + randf_range(-1.0, 1.0), 0, to.y + randf_range(-1.0, 1.0))
 				f.wait = 2.0 + randf() * 5.0
 		else:
 			if not u.get_meta("moving", false):
 				u.play_run(); u.set_meta("moving", true)
-			u.position += d.normalized() * minf(d.length(), dt * 1.8)
+			u.position += d.normalized() * minf(d.length(), dt * u.get_meta("pace", 1.8))
 			u.face(u.position + d)
 
 
@@ -1707,9 +1763,17 @@ func _unit(spec: Dictionary, team: int, name: String) -> Unit:
 	return u
 
 
+## A villager in a random outfit and hairstyle (see Villager.setup for `look`).
+func _villager(look := {}) -> Villager:
+	var v = Villager.new()
+	add_child(v)
+	v.setup(look)
+	return v
+
+
 ## How a hero looks on the map: body, weapons and the armour they wear.
 static func hero_spec(c: Dictionary) -> Dictionary:
-	var spec: Dictionary = BattleView.HEROES.get(c.id, {"body": "human"}).duplicate()
+	var spec: Dictionary = BattleView.HEROES.get(c.id, {"body": "man"}).duplicate()
 	var m = DB.armour_of(c.equipment.get("chest", "none"))
 	var set_id = m.set.id if m else DB.armour.STARTING_OUTFITS.get(str(c.id))
 	if set_id: spec.set = set_id

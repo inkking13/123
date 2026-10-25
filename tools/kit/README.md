@@ -7,6 +7,9 @@ The owner's two free Quaternius packs (CC0), from `C:\gg1` on their PC:
 - **Medieval Village MegaKit** (`C:\gg1\Medieval Village MegaKit[Standard]\glTF`):
   wall, roof, door and window pieces, a wagon, crates, fences.
 
+The raw glTF sources (CC0) are on the `kits-raw` branch, under
+`models/raw/village` and `models/raw/nature`.
+
 ## How the models were made
 
 1. `gltf2glb.py` packs each kit `.gltf` into one `.glb`: colour textures
@@ -18,7 +21,11 @@ The owner's two free Quaternius packs (CC0), from `C:\gg1` on their PC:
    a 2 m grid, storeys of 3 m, roof, gables, chimney, door, windows) and
    saves each as one mesh with one surface per material:
    `kit-cottage`, `kit-cottage-stone`, `kit-house`, `kit-townhouse`,
-   `kit-tavern`, `kit-barracks`. Edit the `HOUSES` table to add one.
+   `kit-tavern`, `kit-barracks`, and since then `kit-cottage-round`,
+   `kit-longhouse`, `kit-house-round` (more ring houses) and `kit-chapel`
+   (with a bell tower) and `kit-hall` (the town hall), the town's landmarks.
+   Edit the `HOUSES` table to add one; extra names after the out dir build
+   only those.
 3. `preview.gd` lays a few `.glb` files in a row and saves a picture.
 
 ```

@@ -11,21 +11,29 @@ const GOLD := Color(0.94, 0.82, 0.55)
 const FONT := preload("res://fonts/Alegreya_800ExtraBold.ttf")
 
 ## How each hero is drawn: body, armour set, what they hold, and their clips.
+## The heroes, all people on Quaternius bodies. `look`: hair and beard, their colour
+## (Villager.HAIR_COLOURS), the outfit's colouring; `stand`: the ready stance in a fight.
 const HEROES := {
-	0: {"body": "human", "right": "mace", "left": "roundShield", "acts": {"melee": "Sword_Slash", "ability": "Shield_Push"}},
-	1: {"body": "dwarf", "right": "runeAxe", "acts": {"melee": "Hammer_Swing", "ability": "Shield_Push"}},
-	2: {"body": "elfMale", "right": "staff", "glow": Color(0.55, 1.0, 0.6)},
-	3: {"body": "human", "right": "flask", "left": "flask", "glow": Color(0.42, 1.0, 0.6), "acts": {"ability": "cast2", "melee": "cast3"}},
-	4: {"body": "human", "right": "dagger", "left": "dagger", "acts": {"melee": "Double_Combo_Attack", "ability": "Triple_Combo_Attack"}},
-	5: {"body": "orc", "right": "greatAxe"},
-	6: {"body": "elf", "right": "bow", "acts": {"melee": "Archery_Shot", "ranged": "Archery_Shot", "ability": "Archery_Shot"}},
-	7: {"body": "elf", "right": "orb", "glow": Color(0.5, 1.0, 0.45), "acts": {"ability": "cast2", "heal": "cast1", "ranged": "cast6", "rally": "cast4"}},
-	8: {"body": "human", "right": "longsword", "left": "roundShield", "acts": {"melee": "Thrust_Slash", "ability": "Shield_Push"}},
-	9: {"body": "dwarf", "right": "warhammer", "acts": {"melee": "Hammer_Swing", "ability": "Charged_Slash"}},
-	10: {"body": "elf", "right": "flask", "glow": Color(0.6, 0.9, 1.0), "acts": {"ability": "cast2", "heal": "cast1", "rally": "cast4"}},
-	11: {"body": "dwarf", "right": "flask", "glow": Color(1.0, 0.7, 0.4)},
-	12: {"body": "human", "right": "handAxe", "acts": {"melee": "Sword_Slash", "ability": "Charged_Slash"}},
-	13: {"body": "elf", "right": "orb", "glow": Color(0.7, 0.45, 1.0), "acts": {"ability": "Ground_Slam", "ranged": "cast6", "heal": "cast1", "rally": "cast4"}},
+	0: {"body": "man", "right": "mace", "left": "roundShield", "stand": "Idle_Shield",
+		"look": {"hair": ["buzzed", "beard"], "colour": Color(0.32, 0.2, 0.12)}, "acts": {"melee": ["Sword_Attack", "Sword_Regular_C"], "ability": "Shield_OneShot"}},
+	3: {"body": "man", "right": "flask", "left": "flask", "glow": Color(0.42, 1.0, 0.6),
+		"look": {"hair": ["long", "beard"], "colour": Color(0.75, 0.73, 0.7)}, "acts": {"melee": "OverhandThrow", "ability": "OverhandThrow"}},
+	4: {"body": "man", "right": "dagger", "left": "dagger", "stand": "Sword_Idle",
+		"look": {"hair": ["simpleparted"], "colour": Color(0.09, 0.08, 0.07), "colouring": 2}, "acts": {"melee": ["Sword_Regular_A", "Sword_Regular_C"], "ability": "Sword_Regular_Combo"}},
+	7: {"body": "woman", "right": "orb", "glow": Color(0.5, 1.0, 0.45),
+		"look": {"hair": ["long"], "colour": Color(0.09, 0.08, 0.07)}, "acts": {"melee": "Spell_Simple_Shoot", "ability": "Spell_Simple_Shoot"}},
+	8: {"body": "man", "right": "longsword", "left": "roundShield", "stand": "Idle_Shield",
+		"look": {"hair": ["simpleparted"], "colour": Color(0.8, 0.65, 0.4)}, "acts": {"melee": ["Sword_Regular_B", "Sword_Regular_C"], "ability": "Shield_Dash"}},
+	9: {"body": "man", "right": "warhammer", "left": "roundShield", "stand": "Idle_Shield",
+		"look": {"hair": ["simpleparted", "beard"], "colour": Color(0.5, 0.24, 0.12), "colouring": 2}, "acts": {"melee": ["Sword_Attack", "Sword_Regular_C"], "ability": "Shield_OneShot"}},
+	10: {"body": "woman", "right": "flask", "glow": Color(0.6, 0.9, 1.0),
+		"look": {"hair": ["buns"], "colour": Color(0.32, 0.2, 0.12), "colouring": 2}, "acts": {"melee": "Punch_Jab", "ability": "Consume"}},
+	11: {"body": "man", "right": "dagger", "stand": "Sword_Idle",
+		"look": {"hair": ["long"], "colour": Color(0.55, 0.38, 0.2), "colouring": 2}, "acts": {"melee": "OverhandThrow", "ranged": "OverhandThrow", "ability": "OverhandThrow"}},
+	12: {"body": "man", "right": "handAxe", "stand": "Sword_Idle",
+		"look": {"hair": ["buzzed"], "colour": Color(0.16, 0.11, 0.08)}, "acts": {"melee": ["Sword_Attack", "Sword_Regular_C"], "ability": "Sword_Heavy_Combo"}},
+	13: {"body": "woman", "right": "orb", "glow": Color(0.7, 0.45, 1.0),
+		"look": {"hair": ["buzzedfemale"], "colour": Color(0.5, 0.24, 0.12), "colouring": 2}, "acts": {"melee": "Spell_Simple_Shoot", "ability": "Spell_Simple_Shoot"}},
 }
 const FOES := {
 	"brute": {"body": "skeleton", "right": "boneSword", "left": "skullShield", "scale": 1.15},
@@ -33,6 +41,23 @@ const FOES := {
 	"shaman": {"body": "skeleton", "right": "staff", "acts": {"melee": "Charged_Spell_Cast"}, "glow": Color(0.7, 0.45, 1.0)},
 	"minion": {"body": "skeleton", "right": "boneSword", "scale": 0.9},
 	"boss": {"body": "orc", "right": "greatAxe", "scale": 2.0, "acts": {"melee": "Heavy_Hammer_Swing"}},
+}
+## Dungeons whose rooms are kept by Bestiary monsters instead of the skeletons.
+const DUNGEON_FOES := {
+	# The rotten mill: puglins with their cudgels and stones, an imp egging them on.
+	# The Bestiary's monsters carry their own clubs.
+	"ratmill": {
+		"brute": {"body": "puglin", "scale": 1.3},
+		"archer": {"body": "puglin", "acts": {"melee": "OverhandThrow"}},
+		"shaman": {"body": "imp", "acts": {"melee": "Spell_Simple_Shoot"}, "glow": Color(1.0, 0.5, 0.2)},
+		"minion": {"body": "puglin", "scale": 0.9},
+	},
+	# The nameless crypt: imps serve whoever holds the night mass.
+	"cultcrypt": {
+		"archer": {"body": "imp", "acts": {"melee": "Spell_Simple_Shoot"}, "glow": Color(0.7, 0.45, 1.0)},
+		"shaman": {"body": "imp", "scale": 1.15, "acts": {"melee": "Spell_Simple_Shoot"}, "glow": Color(0.7, 0.45, 1.0)},
+		"minion": {"body": "imp", "scale": 0.85},
+	},
 }
 
 var units = {}
@@ -73,6 +98,9 @@ var _dragged = false
 
 
 func _ready() -> void:
+	# A wide window looks across the field as Battlesmiths does: the squad on
+	# the left, the foe on the right, the grid nearly square to the screen.
+	if App.wide: yaw = PI * 0.5 + 0.1
 	_build_world()
 	_build_arena()
 	_build_tiles()
@@ -113,7 +141,7 @@ func _build_world() -> void:
 	env.ambient_light_energy = 0.8
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_exposure = 1.05
+	env.tonemap_exposure = 1.18
 	env.glow_intensity = 0.7
 	env.glow_bloom = 0.04
 	env.glow_hdr_threshold = 0.9
@@ -122,14 +150,14 @@ func _build_world() -> void:
 	env.fog_density = 0.016
 	env.fog_sky_affect = 0.0
 	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.06
-	env.adjustment_saturation = 0.92
+	env.adjustment_contrast = 1.08
+	env.adjustment_saturation = 1.06
 	var we = WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 	sun = DirectionalLight3D.new()
-	sun.light_color = Color(1.0, 0.87, 0.72)
-	sun.light_energy = 1.2
+	sun.light_color = Color(1.0, 0.84, 0.64)
+	sun.light_energy = 1.3
 	sun.rotation_degrees = Vector3(-38, 35, 0)
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	sun.directional_shadow_max_distance = 30.0
@@ -140,6 +168,17 @@ func _build_world() -> void:
 	fill.light_energy = 0.35
 	fill.rotation_degrees = Vector3(-50, -140, 0)
 	add_child(fill)
+	# Warm brown corners, under the HUD.
+	var veil = CanvasLayer.new()
+	veil.layer = -1
+	var vt = TextureRect.new()
+	vt.texture = Unit.radial(Color(0.12, 0.06, 0.03, 0.0), Color(0.12, 0.06, 0.03, 0.42))
+	vt.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vt.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	vt.stretch_mode = TextureRect.STRETCH_SCALE
+	vt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	veil.add_child(vt)
+	add_child(veil)
 
 
 func _place(file: String, scale: float, floor_y: float, at: Vector2, turn: float) -> Node3D:
@@ -163,6 +202,21 @@ func _place(file: String, scale: float, floor_y: float, at: Vector2, turn: float
 
 
 func _build_arena() -> void:
+	var before = get_child_count()
+	_dress_arena()
+	# The arena was dressed for the view from yaw 0.5; a camera turned to look
+	# across the field takes its walls and props round with it, so the open
+	# side still faces the camera.
+	var turn = yaw - 0.5
+	if absf(turn) > 0.001:
+		for i in range(before, get_child_count()):
+			var n = get_child(i)
+			if n is Node3D:
+				n.position = n.position.rotated(Vector3.UP, turn)
+				n.rotation.y += turn
+
+
+func _dress_arena() -> void:
 	var keep = _place("battlefield-mobile", 7.0, -0.39, Vector2.ZERO, 0.0)
 	keep.position.y -= 0.04
 	for b in [[Vector2(-4.6, 3.2), 0.0], [Vector2(4.6, 3.2), 1.0], [Vector2(-4.6, -3.3), 2.0], [Vector2(4.6, -3.3), 3.0]]:
@@ -235,7 +289,7 @@ func _build_tiles() -> void:
 		for col in Battle.GRID_COLS:
 			var mi = MeshInstance3D.new()
 			var q = QuadMesh.new()
-			q.size = Vector2(TILE * 0.92, TILE * 0.92)
+			q.size = Vector2(TILE, TILE)
 			q.orientation = PlaneMesh.FACE_Y
 			mi.mesh = q
 			var m = StandardMaterial3D.new()
@@ -253,15 +307,17 @@ func _build_tiles() -> void:
 			_tile_mat[key] = m
 
 
-## A tile: a soft rounded frame with a faint fill.
+## A tile, after Battlesmiths: a smoother, lighter patch of the floor with a
+## thin dark seam round it; highlights tint the patch, the seam stays dark.
 func _tile_texture() -> Texture2D:
 	var img = Image.create(64, 64, false, Image.FORMAT_RGBA8)
 	for y in 64:
 		for x in 64:
 			var d = mini(mini(x, 63 - x), mini(y, 63 - y))
-			var a = 0.18
-			if d < 6: a = 0.95 - d * 0.1
-			img.set_pixel(x, y, Color(1, 1, 1, a))
+			var c = Color(1, 0.97, 0.9, 1.0)
+			if d < 1: c = Color(0.2, 0.17, 0.14, 1.1)
+			elif d < 3: c = Color(0.75, 0.7, 0.62, 1.0)
+			img.set_pixel(x, y, Color(c.r, c.g, c.b, clampf(c.a * 0.45, 0, 1)))
 	return ImageTexture.create_from_image(img)
 
 
@@ -276,11 +332,11 @@ func _color_tiles(s: Dictionary) -> void:
 	var cur = Game.b.current_raider()
 	var t = Time.get_ticks_msec() / 1000.0
 	for key in _tiles:
-		var col = Color(1, 1, 1, 0.07)
+		var col = Color(1, 0.94, 0.82, 0.32)
 		if lava.has(key): col = Color(1.0, 0.45, 0.15, 0.55)
 		if danger.has(key): col = Color(1.0, 0.25, 0.18, 0.45 + 0.2 * sin(t * 6.0))
-		elif reach.has(key) and not Game.settings.auto: col = Color(0.62, 0.7, 1.0, 0.55)
-		if cur and key == "%d,%d" % [cur.row, cur.col]: col = Color(GOLD, 0.7)
+		elif reach.has(key) and not Game.settings.auto: col = Color(0.55, 0.9, 0.35, 0.75)
+		if cur and key == "%d,%d" % [cur.row, cur.col]: col = Color(GOLD, 1.0)
 		_tile_mat[key].albedo_color = col
 
 
@@ -319,25 +375,29 @@ func _boss_pos(s: Dictionary) -> Vector3:
 	return cell_pos(s.bossPos.row + (Battle.BOSS_H - 1) / 2.0, s.bossPos.col + (Battle.BOSS_W - 1) / 2.0)
 
 
+func _foe(role: String) -> Dictionary:
+	return DUNGEON_FOES.get(Game.dungeon_id, {}).get(role, FOES[role])
+
+
 ## Makes sure every fighter in the battle has a figure, and where it should stand.
 func _wanted(s: Dictionary) -> Dictionary:
 	var out = {}
 	for r in s.raiders:
 		var key = "r%d" % r.id
 		if not units.has(key):
-			var spec: Dictionary = HEROES.get(r.candidateId, {"body": "human"}).duplicate()
+			var spec: Dictionary = HEROES.get(r.candidateId, {"body": "man"}).duplicate()
 			var hero = Game.find_hero(r.candidateId)
 			var set_id = _armour_set(hero) if hero else null
 			if set_id: spec.set = set_id
 			_spawn(key, spec, 0, r.name)
-		out[key] = {"pos": cell_pos(r.row, r.col), "ratio": r.hp / r.maxHp, "alive": r.alive}
+		out[key] = {"pos": cell_pos(r.row, r.col), "ratio": r.hp / r.maxHp, "alive": r.alive, "res": r.res.val / maxf(1.0, r.res.max)}
 	for e in s.enemies:
 		var key = "e%d" % e.id
-		if not units.has(key): _spawn(key, FOES[e.role], 1, e.name)
+		if not units.has(key): _spawn(key, _foe(e.role), 1, e.name)
 		out[key] = {"pos": _foe_pos(e), "ratio": e.hp / e.maxHp, "alive": e.alive}
 	for m in s.minions:
 		var key = "m%d" % m.id
-		if not units.has(key): _spawn(key, FOES.minion, 1, m.name)
+		if not units.has(key): _spawn(key, _foe("minion"), 1, m.name)
 		out[key] = {"pos": _foe_pos(m), "ratio": m.hp / m.maxHp, "alive": m.alive}
 	if s.bossPos:
 		if not units.has("boss"): _spawn("boss", FOES.boss, 1, s.boss.name)
@@ -359,12 +419,14 @@ func _sync(delta: float, snap := false) -> void:
 		if not snap and absf(prev - w.ratio) > 0.001 and u.alive:
 			var amount = int(round((prev - w.ratio) * _max_of(key, s)))
 			if amount > 0:
-				_number(u, str(amount), Color(1.0, 0.42, 0.32))
+				_number(u, "-%d" % amount, Color("#e2483a"))
+				_flash(u.chest())
 				if w.alive and not _moving.has(key): u.play_hit()
 			elif amount < 0:
-				_number(u, "+%d" % -amount, Color(0.55, 1.0, 0.55))
+				_number(u, "+%d" % -amount, Color("#b6e36a"))
 		_hp[key] = w.ratio
 		u.set_ratio(w.ratio)
+		if w.has("res"): u.set_res(w.res)
 		if not w.alive and u.alive:
 			u.play_death()
 			continue
@@ -493,19 +555,50 @@ func _number(u: Unit, text: String, color: Color) -> void:
 	var l = Label3D.new()
 	l.text = text
 	l.font = FONT
-	l.font_size = 80
-	l.outline_size = 20
+	l.font_size = 96
+	l.outline_size = 18
 	l.modulate = color
-	l.outline_modulate = Color(0, 0, 0, 0.85)
+	l.outline_modulate = Color(0.12, 0.05, 0.03, 0.95)
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test = true
-	l.pixel_size = 0.0045
-	l.position = u.chest() + Vector3(randf_range(-0.2, 0.2), 0.8, 0)
+	l.pixel_size = 0.0055
+	# Numbers that land together pile up in a column over the head.
+	var now = Time.get_ticks_msec()
+	var stack: Array = u.get_meta("numbers", []).filter(func(t): return now - t < 600)
+	stack.append(now)
+	u.set_meta("numbers", stack)
+	l.position = u.chest() + Vector3(0, 0.9 + 0.42 * (stack.size() - 1), 0)
+	l.scale = Vector3.ONE * 0.4
+	create_tween().tween_property(l, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	add_child(l)
 	var tw = create_tween().set_parallel()
 	tw.tween_property(l, "position:y", l.position.y + 0.9, 1.0).set_ease(Tween.EASE_OUT)
 	tw.tween_property(l, "modulate:a", 0.0, 1.0).set_delay(0.4)
 	tw.chain().tween_callback(l.queue_free)
+
+
+## The flash of a blow landing: a hot orange-yellow bloom about a tile across.
+func _flash(at: Vector3) -> void:
+	var mi = MeshInstance3D.new()
+	var q = QuadMesh.new(); q.size = Vector2(1.3, 1.3)
+	mi.mesh = q
+	var m = StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.no_depth_test = true
+	m.albedo_texture = Unit.radial(Color("#ffd36a"), Color(1.0, 0.42, 0.1, 0.0))
+	m.albedo_color = Color(1.4, 1.2, 1.0, 1.0)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = at
+	mi.scale = Vector3.ONE * 0.3
+	add_child(mi)
+	var tw = create_tween().set_parallel()
+	tw.tween_property(mi, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT)
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.28).set_delay(0.08)
+	tw.chain().tween_callback(mi.queue_free)
 
 
 func _projectile(from: Vector3, to: Vector3, color: Color, delay: float) -> void:
@@ -568,8 +661,8 @@ func _process(delta: float) -> void:
 	yaw_user = lerp_angle(yaw_user, _yaw_target, 1.0 - exp(-delta * 12.0))
 	pitch_user = lerpf(pitch_user, _pitch_target, 1.0 - exp(-delta * 12.0))
 	var heading = yaw + yaw_user
-	var pitch = deg_to_rad(54.0 + pitch_user)
-	var dist = 13.2 * zoom
+	var pitch = deg_to_rad(52.0 + pitch_user)
+	var dist = (12.0 if App.wide else 13.2) * zoom
 	cam.position = _target + Vector3(sin(heading) * cos(pitch), sin(pitch), cos(heading) * cos(pitch)) * dist
 	cam.look_at(_target)
 	# Put the board in the middle of the strip of screen the HUD leaves free.

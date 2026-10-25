@@ -1,5 +1,10 @@
 # Wardrobe: fitting a Meshy outfit onto the game's bodies
 
+On 2026-10-25 the seven Meshy sets (leather, knight, arcane, templar, gambeson, chainmail,
+wanderer) were taken out of the game; only the Quaternius peasant and ranger remain. Their
+textures are hundreds of tiny UV islands packed edge to edge and bled at the seams on the
+phone. The tools below still work for new outfits.
+
 An outfit starts as a Meshy character (Text to 3D, then auto-rig at 1.7 m) wearing
 the clothes. The raw files live on the `armour-raw` branch in `models/raw/armour/`.
 

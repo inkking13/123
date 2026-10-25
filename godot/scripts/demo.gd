@@ -6,7 +6,7 @@ class_name Demo
 static func setup() -> void:
 	var g = Game
 	g.reset_progress()
-	g.finish_draft([0, 3, 8, 1, 6])
+	g.finish_draft([0, 3, 8, 4, 7])
 	g.stats_room_wins = 40
 	for d in ["wastes", "road", "groblot", "frostpass", "ratmill"]: g.defeated[d] = true
 	for f in DB.features.FEATURE_ORDER: g.seen_unlocks[f] = true
@@ -101,6 +101,10 @@ static func open(what: String) -> void:
 			g.open_char(g.squad()[0].id)
 			g.go("talents")
 		"dungeon": g.quick_raid()
+		"combat-ratmill", "combat-cultcrypt":
+			g.select_dungeon(what.substr(7))
+			g.go_dungeon()
+			g.b.start_encounter()
 		"combat", "combat-act":
 			g.quick_raid()
 			g.b.start_encounter()

@@ -9,8 +9,8 @@ func _initialize() -> void:
 func _run() -> void:
 	var game = root.get_node("Game")
 	game.reset_progress()
-	print("draft problem: ", game.draft_problem([0, 3, 8, 1, 6]))
-	game.finish_draft([0, 3, 8, 1, 6])
+	print("draft problem: ", game.draft_problem([0, 3, 8, 4, 7]))
+	game.finish_draft([0, 3, 8, 4, 7])
 	print("gold after draft: ", game.gold, " squad ", game.squad().map(func(c): return c.name))
 	game.settings.auto = true
 	game.settings.speed = 2

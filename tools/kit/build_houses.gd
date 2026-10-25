@@ -18,7 +18,9 @@ func _initialize() -> void:
 	var args = OS.get_cmdline_user_args()
 	src = args[0]
 	var out: String = args[1]
+	var only = args.slice(2)
 	for h in HOUSES:
+		if not only.is_empty() and not h.name in only: continue
 		var parts: Array = []
 		_house(parts, h)
 		_save(parts, out.path_join("kit-%s.glb" % h.name))
@@ -34,16 +36,43 @@ var HOUSES = [
 	{"name": "townhouse", "w": 3, "d": 3, "floors": ["plaster_base", "timber"], "roof": "Roof_RoundTiles_6x6", "gable": "Roof_Front_Brick6", "chimney": Vector3(4.6, 0, 1.0), "door": "Door_1_Round", "shutters": true, "balcony": true},
 	{"name": "tavern", "w": 4, "d": 4, "floors": ["stone", "timber"], "roof": "Roof_RoundTiles_8x8", "gable": "Roof_Front_Brick8", "chimney": Vector3(6.8, 0, 1.0), "door": "Door_1_Round", "shutters": false, "balcony": true},
 	{"name": "barracks", "w": 3, "d": 5, "floors": ["stone"], "roof": "Roof_RoundTiles_6x10", "gable": "Roof_Front_Brick6", "chimney": Vector3(1.0, 0, 3.0), "door": "Door_1_Round", "shutters": true},
+	# More of the town: round-windowed and long houses with ivy, a chapel with a bell tower, a town hall.
+	{"name": "cottage-round", "w": 2, "d": 2, "floors": ["plaster_round"], "roof": "Roof_RoundTiles_4x4", "gable": "Roof_Front_Brick4", "chimney": Vector3(1.0, 0, 3.0), "door": "Door_1_Round", "shutters": true,
+		"vines": [["Prop_Vine1", Vector3(3.2, 2.9, 4.05), 0.0], ["Prop_Vine4", Vector3(0.6, 2.7, 4.05), 0.0]]},
+	{"name": "longhouse", "w": 2, "d": 4, "floors": ["stone"], "roof": "Roof_RoundTiles_4x8", "gable": "Roof_Front_Brick4", "chimney": Vector3(2.9, 0, 6.0), "door": "Door_1_Round", "shutters": true,
+		"vines": [["Prop_Vine1", Vector3(0.7, 2.9, 8.05), 0.0]]},
+	{"name": "house-round", "w": 2, "d": 3, "floors": ["stone", "plaster_round"], "roof": "Roof_RoundTiles_4x6", "gable": "Roof_Front_Brick4", "chimney": Vector3(1.0, 0, 1.0), "door": "Door_1_Round", "shutters": true},
+	{"name": "chapel", "w": 3, "d": 5, "floors": ["stone_thin"], "roof": "Roof_RoundTiles_6x10", "gable": "Roof_Front_Brick6", "door": "Door_2_Round", "shutters": false,
+		"tower": {"w": 2, "d": 2, "floors": ["stone_thin", "stone_thin", "stone_thin"], "at": Vector3(-4.0, 0, 6.0), "door": "", "shutters": false},
+		"vines": [["Prop_Vine9", Vector3(3.0, 0.6, 10.3), 0.0]]},
+	{"name": "hall", "w": 3, "d": 4, "floors": ["stone", "plaster_round", "timber"], "roof": "Roof_RoundTiles_6x8", "gable": "Roof_Front_Brick6", "chimney": Vector3(4.6, 0, 1.0), "door": "Door_2_Round", "shutters": true, "balcony": true,
+		"vines": [["Prop_Vine1", Vector3(0.6, 2.9, 8.05), 0.0], ["Prop_Vine1", Vector3(5.4, 2.9, 8.05), 0.0]]},
 ]
 
 const WALLS = {
 	"plaster_base": {"plain": "Wall_Plaster_Straight_Base", "window": "Wall_Plaster_Window_Wide_Flat", "win": "Window_Wide_Flat1", "door": "Wall_Plaster_Door_Round", "shut": "WindowShutters_Wide_Flat_Open"},
 	"stone": {"plain": "Wall_UnevenBrick_Straight", "window": "Wall_UnevenBrick_Window_Wide_Flat", "win": "Window_Wide_Flat1", "door": "Wall_UnevenBrick_Door_Round", "shut": "WindowShutters_Wide_Flat_Closed"},
+	"plaster_round": {"plain": "Wall_Plaster_Straight_Base", "window": "Wall_Plaster_Window_Wide_Round", "win": "Window_Wide_Round1", "door": "Wall_Plaster_Door_Round", "shut": "WindowShutters_Wide_Round_Open"},
+	"stone_thin": {"plain": "Wall_UnevenBrick_Straight", "window": "Wall_UnevenBrick_Window_Thin_Round", "win": "Window_Thin_Round1", "door": "Wall_UnevenBrick_Door_Round", "shut": "WindowShutters_Thin_Round_Closed"},
 	"timber": {"plain": "Wall_Plaster_WoodGrid", "window": "Wall_Plaster_Window_Wide_Flat", "win": "Window_Wide_Flat1", "door": "Wall_Plaster_Door_Flat", "shut": "WindowShutters_Wide_Flat_Open"},
 }
 
 
-func _house(parts: Array, h: Dictionary) -> void:
+func _house(parts: Array, h: Dictionary, base := Vector3.ZERO) -> void:
+	var from = parts.size()
+	_body(parts, h)
+	# A tower beside the house: its own walls and a pointed roof.
+	if h.has("tower"):
+		var t: Dictionary = h.tower
+		var tp = []
+		_body(tp, t)
+		tp.append(["Roof_Tower_RoundTiles", Vector3(t.w, t.floors.size() * STOREY, t.d), 0.0])
+		for p in tp: parts.append([p[0], p[1] + t.at, p[2]])
+	for v in h.get("vines", []): parts.append(v)
+	for i in range(from, parts.size()): parts[i][1] += base
+
+
+func _body(parts: Array, h: Dictionary) -> void:
 	var w: int = h.w
 	var d: int = h.d
 	var top = h.floors.size() * STOREY
@@ -62,7 +91,7 @@ func _house(parts: Array, h: Dictionary) -> void:
 			for i in side[0]:
 				var at: Vector3 = side[1] + side[2] * i
 				var mid = i == side[0] / 2 if side[0] % 2 == 1 else i == side[0] / 2 - 1
-				if s == 0 and f == 0 and mid:
+				if s == 0 and f == 0 and mid and h.door != "":
 					parts.append([kind.door, at, side[3]])
 					parts.append([h.door, at + _turn(Vector3(-0.53, 0, -0.1), side[3]), side[3]])
 				elif (i + s + f) % 2 == 0 or (s == 0 and f > 0):
@@ -73,6 +102,7 @@ func _house(parts: Array, h: Dictionary) -> void:
 					parts.append([kind.plain, at, side[3]])
 		for c in [[Vector3(0, y, 0), 0.0], [Vector3(w * 2, y, 0), 0.0], [Vector3(0, y, d * 2), 0.0], [Vector3(w * 2, y, d * 2), 0.0]]:
 			parts.append(["Corner_Exterior_Wood", c[0], c[1]])
+	if not h.has("roof"): return
 	if h.get("balcony", false) and h.floors.size() > 1:
 		for i in w:
 			parts.append(["Balcony_Cross_Straight", Vector3(1 + i * 2, STOREY, d * 2 - 1), 0.0])
