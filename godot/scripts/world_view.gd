@@ -17,6 +17,7 @@ const GROUND := preload("res://shaders/ground.gdshader")
 const WIND := preload("res://shaders/wind.gdshader")
 const WATER := preload("res://shaders/water.gdshader")
 const FOG_OF_WAR := preload("res://shaders/fog_of_war.gdshader")
+const RAIN := preload("res://shaders/rain.gdshader")
 
 signal place_tapped(id: String)
 
@@ -44,7 +45,7 @@ var _life: WorldLife     # farm beasts, birds, smoke and folk, on a lively land
 var land: Land           # the heights, the road as walked, the river and its bridge
 var _water: ShaderMaterial
 var _sky_mat: ProceduralSkyMaterial
-var _rain: CPUParticles3D
+var _rain: MultiMeshInstance3D
 var _wet = 0.0           # 0 dry .. 1 soaked, eases toward the weather
 var _mist = 0.0          # 0 clear .. 1 thick morning fog
 var _fog_war: ShaderMaterial  # the haze over what the squad has not seen, on a lively land
@@ -182,28 +183,28 @@ func _build_env(th: Dictionary) -> void:
 
 
 ## Rain: streaks falling round the camera's focus, only while it rains.
+## The fall runs in the shader (rain.gdshader); CPU particles that left
+## their emitter behind drew white sheets over the squad on some cards.
 func _build_rain() -> void:
-	_rain = CPUParticles3D.new()
 	var streak = BoxMesh.new()
 	streak.size = Vector3(0.025, 0.55, 0.025)
-	var m = StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.albedo_color = Color(0.75, 0.8, 0.88, 0.35)
+	var m = ShaderMaterial.new()
+	m.shader = RAIN
 	streak.material = m
-	_rain.mesh = streak
-	_rain.amount = 420
-	_rain.lifetime = 0.9
-	_rain.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	_rain.emission_box_extents = Vector3(16, 0.5, 16)
-	_rain.direction = Vector3(0.12, -1, 0.05)
-	_rain.spread = 2.0
-	_rain.initial_velocity_min = 17.0
-	_rain.initial_velocity_max = 21.0
-	_rain.gravity = Vector3.ZERO
-	_rain.local_coords = false
-	_rain.emitting = false
-	_rain.visibility_aabb = AABB(Vector3(-20, -25, -20), Vector3(40, 30, 40))
+	var mm = MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.mesh = streak
+	mm.instance_count = 420
+	var rng = RandomNumberGenerator.new()
+	for i in mm.instance_count:
+		mm.set_instance_transform(i, Transform3D(Basis(), Vector3(rng.randf_range(-16, 16), 0, rng.randf_range(-16, 16))))
+		mm.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), 0, 0))
+	_rain = MultiMeshInstance3D.new()
+	_rain.multimesh = mm
+	_rain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_rain.custom_aabb = AABB(Vector3(-20, -18, -20), Vector3(40, 20, 40))
+	_rain.visible = false
 	add_child(_rain)
 
 
@@ -1735,7 +1736,8 @@ func _sync_sky() -> void:
 	if _water: _water.set_shader_parameter("rain", _wet)
 	set_gust(1.0 + _wet * 1.2 - _mist * 0.6)
 	if _rain:
-		_rain.emitting = _wet > 0.3
+		_rain.visible = _wet > 0.05
+		_rain.multimesh.mesh.material.set_shader_parameter("amount", _wet)
 		_rain.position = _focus + Vector3(0, 14, 0)
 
 
