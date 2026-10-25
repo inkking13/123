@@ -125,10 +125,9 @@ func _stop(at: Vector2, dir: Vector2, kind: String, rng: RandomNumberGenerator) 
 			view._fire(root, Vector3(1.0, 0.3, 0.6))
 			_smoke(root, Vector3(1.0, 0.9, 0.6), 0.6)
 			view._box(root, Vector3(1.4, 0.35, 0.35), Vector3(2.4, 0.18, 1.4), wood, 0.9)
-			var u = view._unit({"body": "human", "set": "leather"}, 0, "")
+			var u = view._villager({"outfit": ["ranger1", "ranger2"].pick_random(), "idle": "Idle_FoldArms"})
 			u.position = root.global_position + root.global_basis * Vector3(2.1, 0, 0.0)
 			u.face(root.global_position + root.global_basis * Vector3(1.0, 0, 0.6))
-			u.play_idle()
 		"hay":
 			# A hay rick by a bit of fence, a pitchfork leant on it.
 			view._prop(root, "world-haystack", 2.2, Vector3(0, 0, -0.4), rng.randf() * TAU)
@@ -418,6 +417,11 @@ func _farm_life(farm: Dictionary, rng: RandomNumberGenerator) -> void:
 	_smoke(self, at + Vector3(1.9, 3.4, -4.3), 0.8)
 	view._prop(self, "world-cart", 2.4, at + Vector3(4.8, 0, -5.6), 2.2, true)
 	view._prop(self, "world-barrels", 1.1, at + Vector3(3.6, 0, -2.6), 0.5)
+	# Two at work in the fields, one cutting, one watering.
+	for f in [[Vector3(4.2, 0, 4.85), "Farm_Harvest", "peasant1"], [Vector3(11.0, 0, 5.75), "Farm_Watering", "peasant2"]]:
+		var u = view._villager({"outfit": f[2], "idle": f[1]})
+		u.position = at + f[0]
+		u.face(u.position + Vector3(1, 0, 0))
 
 
 func _lake_life(lake: Dictionary, rng: RandomNumberGenerator) -> void:
@@ -438,10 +442,9 @@ func _lake_life(lake: Dictionary, rng: RandomNumberGenerator) -> void:
 		n.add_child(mi)
 		add_child(n)
 		_ducks.append({"node": n, "center": water + Vector3(rng.randf_range(-3, 3), 0, rng.randf_range(-2, 2)), "radius": rng.randf_range(1.5, 3.5), "angle": rng.randf() * TAU, "speed": rng.randf_range(0.12, 0.22) * (1 if k % 2 == 0 else -1)})
-	var u = view._unit({"body": "dwarf", "set": "leather"}, 0, "")
+	var u = view._villager({"sex": "male", "outfit": "peasant2", "idle": "Idle_FoldArms"})
 	u.position = at + Vector3(0.2, 0.24, -5.2)
 	u.face(at + Vector3(0.2, 0.24, -10))
-	u.play_idle()
 	var rod = view._cyl(self, 0.01, 0.02, 2.6, at + Vector3(0.45, 1.3, -6.3), Color(0.45, 0.34, 0.2), 4, "")
 	rod.rotation.x = -1.0
 	var line = view._cyl(self, 0.004, 0.004, 1.3, at + Vector3(0.45, 1.25, -7.45), Color(0.8, 0.8, 0.75), 3, "")
@@ -546,13 +549,11 @@ func _town_life(rng: RandomNumberGenerator) -> void:
 			"smith": _smoke(self, _v3(p.pos, 4.6) + Vector3(-1.2, 0, -1.2), 1.1)
 			"market":
 				# Buyers at the counters (the awnings would hide the stallholders).
-				var bodies = ["human", "dwarf", "elf"]
 				var spots = [Vector3(-3.3, 0, 1.5), Vector3(0.3, 0, 0.1), Vector3(2.7, 0, 1.5)]
 				for k in 3:
-					var u = view._unit({"body": bodies[k], "set": ["leather", "arcane", "leather"][k]}, 0, "")
+					var u = view._villager({"outfit": Villager.OUTFITS[(k + 1) % 4], "idle": ["Idle_Talking", "Idle", "Yes"][k]})
 					u.position = _v3(p.pos) + spots[k]
 					u.face(u.position + Vector3(0, 0, -1))
-					u.play_idle()
 	# Crates and barrels about the square.
 	view._prop(self, "world-barrels", 1.2, town + Vector3(-4.5, 0, -10.5), 0.8)
 	view._prop(self, "world-barrels", 1.1, town + Vector3(10.5, 0, 3.5), 2.0)
@@ -563,9 +564,8 @@ func _town_life(rng: RandomNumberGenerator) -> void:
 # ── folk on the road ───────────────────────────────────────────────────────
 func _road_walkers(rng: RandomNumberGenerator) -> void:
 	var road: Array = view._road_points()
-	var specs = [{"body": "human", "set": "leather", "right": "staff"}, {"body": "dwarf", "set": "leather"}, {"body": "elf", "set": "arcane"}]
-	for k in specs.size():
-		var u = view._unit(specs[k], 0, "")
+	for k in 3:
+		var u = view._villager({"outfit": ["ranger1", "peasant1", "ranger2"][k]})
 		var i = int(road.size() * (0.15 + 0.3 * k))
 		# Each keeps to one side of the road, as travellers do.
 		var dir = 1 if k % 2 == 0 else -1
@@ -577,7 +577,7 @@ func _road_walkers(rng: RandomNumberGenerator) -> void:
 func _sync_walkers(dt: float) -> void:
 	var road: Array = view._road_points()
 	for w in _walkers:
-		var u: Unit = w.unit
+		var u = w.unit
 		if w.wait > 0:
 			w.wait -= dt
 			if w.moving:
@@ -599,7 +599,7 @@ func _sync_walkers(dt: float) -> void:
 			continue
 		if not w.moving:
 			u.play_run(); w.moving = true
-		u.position += d.normalized() * minf(d.length(), dt * 1.8)
+		u.position += d.normalized() * minf(d.length(), dt * u.get_meta("pace", 1.8))
 		u.position.y = view.ground_y(Vector2(u.position.x, u.position.z))
 		u.face(u.position + d)
 

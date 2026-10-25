@@ -1490,7 +1490,9 @@ func _walled_town(th: Dictionary) -> void:
 	# Townsfolk walk between the buildings.
 	for k in 5:
 		var start: Vector2 = w.TOWN_BUILDINGS[k % w.TOWN_BUILDINGS.size()].at * 0.6
-		_folk_unit(root, {"body": ["human", "dwarf", "elf"][k % 3], "set": ["leather", "arcane"][k % 2]}, start, randf() * TAU, false)
+		var v = _villager({"outfit": Villager.OUTFITS[k % 4]})
+		v.position = root.position + Vector3(start.x, 0, start.y)
+		_folk.append({"unit": v, "to": v.position, "wait": randf() * 3.0, "center": root.position})
 
 
 func _folk_unit(root: Node3D, spec: Dictionary, at: Vector2, turn: float, guard: bool) -> void:
@@ -1503,7 +1505,7 @@ func _folk_unit(root: Node3D, spec: Dictionary, at: Vector2, turn: float, guard:
 
 func _sync_folk(dt: float) -> void:
 	for f in _folk:
-		var u: Unit = f.unit
+		var u = f.unit
 		var d: Vector3 = f.to - u.position
 		if d.length() < 0.2:
 			f.wait -= dt
@@ -1516,7 +1518,7 @@ func _sync_folk(dt: float) -> void:
 		else:
 			if not u.get_meta("moving", false):
 				u.play_run(); u.set_meta("moving", true)
-			u.position += d.normalized() * minf(d.length(), dt * 1.8)
+			u.position += d.normalized() * minf(d.length(), dt * u.get_meta("pace", 1.8))
 			u.face(u.position + d)
 
 
@@ -1705,6 +1707,14 @@ func _unit(spec: Dictionary, team: int, name: String) -> Unit:
 	u.setup(sp)
 	u.set_bar_visible(false)
 	return u
+
+
+## A villager in a random outfit and hairstyle (see Villager.setup for `look`).
+func _villager(look := {}) -> Villager:
+	var v = Villager.new()
+	add_child(v)
+	v.setup(look)
+	return v
 
 
 ## How a hero looks on the map: body, weapons and the armour they wear.
