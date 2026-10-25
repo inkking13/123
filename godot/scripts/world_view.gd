@@ -1871,6 +1871,37 @@ func _roadside(th: Dictionary) -> void:
 
 
 ## Chests opened, spots picked, dungeons locked or cleared: the look of each place.
+var _marks: Array[Label3D] = []
+var _marks_key = ""
+var _marks_t = 0.0
+
+## A gold sign bobbing over each spot an errand sends the squad to.
+func _sync_marks(delta: float) -> void:
+	_marks_t += delta
+	for i in _marks.size(): _marks[i].position.y = _marks[i].get_meta("y") + sin(_marks_t * 2.4 + i) * 0.25
+	var at: Array = Game.w.task_marks()
+	var key = str(at.map(func(v): return v.snapped(Vector2(4, 4))))
+	if key == _marks_key: return
+	_marks_key = key
+	for m in _marks: m.queue_free()
+	_marks.clear()
+	for p in at:
+		var l = Label3D.new()
+		l.text = "!"
+		l.font = FONT
+		l.font_size = 120
+		l.pixel_size = 0.014
+		l.modulate = Color(1.0, 0.8, 0.25)
+		l.outline_size = 22
+		l.outline_modulate = Color(0.2, 0.1, 0.02, 0.95)
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		l.no_depth_test = true
+		l.position = _on_ground(p, 7.5)
+		l.set_meta("y", l.position.y)
+		add_child(l)
+		_marks.append(l)
+
+
 func refresh_places() -> void:
 	var w = Game.w
 	for p in w.layout().places:
@@ -2090,6 +2121,7 @@ func _process(delta: float) -> void:
 	_sync_folk(delta)
 	_sync_party(delta)
 	_sync_bands()
+	_sync_marks(delta)
 	_sync_sky()
 	_sync_fog_of_war()
 	if _fog_war: _fog_war.set_shader_parameter("night", 1.0 - clampf(sin((Game.w.hours - 6.0) / 12.0 * PI) * 1.6 + 0.25, 0.0, 1.0))

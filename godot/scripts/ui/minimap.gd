@@ -83,6 +83,13 @@ func _draw() -> void:
 		if ro.kind == "wolves" and not w.wolves_out(): continue
 		if not w.is_explored(ro.pos): continue
 		draw_circle(_to_map(ro.pos), dot * 0.9, {"caravan": Color(0.95, 0.85, 0.5), "patrol": Color(0.55, 0.7, 0.95), "wolves": Color(0.75, 0.75, 0.78)}[ro.kind])
+	# Where the squad's errands send it: gold diamonds, seen through the fog.
+	for m in w.task_marks():
+		var q = _to_map(m)
+		if q.distance_to(c) > r - dot * 2.0: continue
+		var k = dot * 1.5
+		draw_colored_polygon(PackedVector2Array([q + Vector2(0, -k), q + Vector2(k, 0), q + Vector2(0, k), q + Vector2(-k, 0)]), Color(1.0, 0.8, 0.25))
+		draw_polyline(PackedVector2Array([q + Vector2(0, -k), q + Vector2(k, 0), q + Vector2(0, k), q + Vector2(-k, 0), q + Vector2(0, -k)]), Color(0.2, 0.12, 0.05), 1.0)
 	if w.target != null:
 		draw_arc(_to_map(w.target), dot * 1.3, 0, TAU, 16, Color(1, 0.85, 0.5, 0.9), 1.5)
 	# The squad: an arrow pointing ahead, which on this map is always up.
