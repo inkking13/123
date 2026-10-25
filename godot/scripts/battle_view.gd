@@ -42,6 +42,22 @@ const FOES := {
 	"minion": {"body": "skeleton", "right": "boneSword", "scale": 0.9},
 	"boss": {"body": "orc", "right": "greatAxe", "scale": 2.0, "acts": {"melee": "Heavy_Hammer_Swing"}},
 }
+## Dungeons whose rooms are kept by Bestiary monsters instead of the skeletons.
+const DUNGEON_FOES := {
+	# The rotten mill: puglins with cudgels and stones, an imp egging them on.
+	"ratmill": {
+		"brute": {"body": "puglin", "right": "mace", "scale": 1.25},
+		"archer": {"body": "puglin", "acts": {"melee": "OverhandThrow"}},
+		"shaman": {"body": "imp", "acts": {"melee": "Spell_Simple_Shoot"}, "glow": Color(1.0, 0.5, 0.2)},
+		"minion": {"body": "puglin", "right": "mace", "scale": 0.9},
+	},
+	# The nameless crypt: imps serve whoever holds the night mass.
+	"cultcrypt": {
+		"archer": {"body": "imp", "acts": {"melee": "Spell_Simple_Shoot"}, "glow": Color(0.7, 0.45, 1.0)},
+		"shaman": {"body": "imp", "scale": 1.15, "acts": {"melee": "Spell_Simple_Shoot"}, "glow": Color(0.7, 0.45, 1.0)},
+		"minion": {"body": "imp", "scale": 0.85},
+	},
+}
 
 var units = {}
 var _hp = {}
@@ -327,6 +343,10 @@ func _boss_pos(s: Dictionary) -> Vector3:
 	return cell_pos(s.bossPos.row + (Battle.BOSS_H - 1) / 2.0, s.bossPos.col + (Battle.BOSS_W - 1) / 2.0)
 
 
+func _foe(role: String) -> Dictionary:
+	return DUNGEON_FOES.get(Game.dungeon_id, {}).get(role, FOES[role])
+
+
 ## Makes sure every fighter in the battle has a figure, and where it should stand.
 func _wanted(s: Dictionary) -> Dictionary:
 	var out = {}
@@ -341,11 +361,11 @@ func _wanted(s: Dictionary) -> Dictionary:
 		out[key] = {"pos": cell_pos(r.row, r.col), "ratio": r.hp / r.maxHp, "alive": r.alive}
 	for e in s.enemies:
 		var key = "e%d" % e.id
-		if not units.has(key): _spawn(key, FOES[e.role], 1, e.name)
+		if not units.has(key): _spawn(key, _foe(e.role), 1, e.name)
 		out[key] = {"pos": _foe_pos(e), "ratio": e.hp / e.maxHp, "alive": e.alive}
 	for m in s.minions:
 		var key = "m%d" % m.id
-		if not units.has(key): _spawn(key, FOES.minion, 1, m.name)
+		if not units.has(key): _spawn(key, _foe("minion"), 1, m.name)
 		out[key] = {"pos": _foe_pos(m), "ratio": m.hp / m.maxHp, "alive": m.alive}
 	if s.bossPos:
 		if not units.has("boss"): _spawn("boss", FOES.boss, 1, s.boss.name)

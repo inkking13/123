@@ -28,6 +28,16 @@ const BODIES := {
 		"death": "Death01", "dodge": "Roll", "hits": [["Hit_Chest", 3], ["Hit_Head", 1]],
 		"acts": {"melee": "Sword_Attack", "ability": "Sword_Regular_Combo", "ranged": "Spell_Simple_Shoot",
 			"heal": "Spell_Simple_Shoot", "rally": "Jump"}, "speed": {"Sword_Regular_Combo": 1.3, "Sword_Heavy_Combo": 1.3}},
+	# Quaternius Bestiary monsters: the same Unreal skeleton without clips of their own, so
+	# they move with the Universal Animation Library's, fitted to their size (_monster_lib).
+	"imp": {"monster": true, "file": "monsters/imp", "height": 1.0, "model_h": 1.68, "idle": "Idle", "run": "Jog_Fwd", "hit": "Hit_Chest",
+		"death": "Death01", "dodge": "Roll", "hits": [["Hit_Chest", 3], ["Hit_Head", 1]],
+		"acts": {"melee": "Punch_Cross", "ability": "Melee_Hook", "ranged": "Spell_Simple_Shoot", "magic": "Spell_Simple_Shoot",
+			"heal": "Spell_Simple_Shoot", "rally": "Jump"}, "speed": {"Punch_Cross": 1.2, "Melee_Hook": 1.2}},
+	"puglin": {"monster": true, "file": "monsters/puglin", "height": 0.62, "model_h": 0.93, "idle": "Idle", "run": "Jog_Fwd", "hit": "Hit_Chest",
+		"death": "Death01", "dodge": "Roll", "hits": [["Hit_Chest", 3], ["Hit_Head", 1]],
+		"acts": {"melee": "Sword_Attack", "ability": "Sword_Regular_Combo", "ranged": "OverhandThrow", "magic": "Spell_Simple_Shoot",
+			"heal": "Spell_Simple_Shoot", "rally": "Jump"}, "speed": {"Sword_Regular_Combo": 1.3}},
 	"orc": {"file": "orc", "height": 1.3, "model_h": 2.0, "fist": 0.11, "idle": "Idle", "run": "RunFast", "hit": "Hit_Reaction", "death": "Dead",
 		"acts": {"melee": "Heavy_Hammer_Swing", "ability": "Triple_Combo_Attack", "rally": "Chest_Pound_Taunt", "heal": "Chest_Pound_Taunt"},
 		"wardrobe": "orc", "speed": {"Heavy_Hammer_Swing": 1.4, "Chest_Pound_Taunt": 1.6}},
@@ -47,6 +57,8 @@ const TURN_RATE := 9.0
 const RUN_ANIM := Vector2(0.55, 1.5)
 ## How fast the run clip moves its planted foot, in model units a second, by body file.
 static var _pace_cache := {}
+## The Universal Animation Library refitted to each monster's body, by file.
+static var _monster_libs := {}
 
 # ── held props ──────────────────────────────────────────────────────────────
 # Baked in metres, grip at the origin, head or blade up +Y; shields face -X.
@@ -145,6 +157,12 @@ func setup(spec: Dictionary) -> void:
 		model = Villager.assemble(_body.q, [outfit] + hair, look.get("colour", Villager.HAIR_COLOURS[0]))
 	else:
 		model = load("res://assets/models/%s.glb" % _body.file).instantiate()
+		if _body.get("monster", false):
+			var player = AnimationPlayer.new()
+			player.name = "AnimationPlayer"
+			model.add_child(player)
+			player.root_node = NodePath("..")
+			player.add_animation_library("", _monster_lib(_body.file, model))
 	_visual.add_child(model)
 	_skel = model.find_child("Skeleton3D", true, false)
 	_anim = model.find_child("AnimationPlayer", true, false)
@@ -158,6 +176,8 @@ func setup(spec: Dictionary) -> void:
 		for m in _skel.get_children():
 			if m is MeshInstance3D and m.material_override == null:  # tinted hair keeps its own
 				_finish(m, "skin" if ["Superhero", "Regular", "Eye"].any(func(k): return m.name.contains(k)) else "cloth")
+	elif _body.get("monster", false):
+		pass  # the Bestiary's own roughness and metal maps
 	else:
 		_finish(body_mesh, "skin")
 
@@ -186,7 +206,7 @@ func setup(spec: Dictionary) -> void:
 	if right == "bow":
 		left = "bow"
 		right = ""
-	var hold = _hold_q if _body.has("q") else _hold
+	var hold = _hold_q if _ue() else _hold
 	if right != "": hold.call(right, hand_r, body_mesh, false, spec.get("glow", Color.WHITE))
 	if left != "": hold.call(left, hand_l, body_mesh, true, spec.get("glow", Color.WHITE))
 
@@ -256,6 +276,38 @@ func _dress(body_mesh: MeshInstance3D, set_id: String) -> void:
 	_cut_body(body_mesh, hidden, open_hood, hood_back, hood_top)
 
 
+## The villagers' clips for a monster on the same skeleton but of another build:
+## bones keep only their turns (their lengths are the monster's own), and the
+## pelvis moves as far as the monster's hips are high next to a man's.
+static func _monster_lib(file: String, model: Node3D) -> AnimationLibrary:
+	if _monster_libs.has(file): return _monster_libs[file]
+	var src: AnimationLibrary = load(Villager.DIR + "anims.res")
+	var man: Node3D = load(Villager.DIR + "head-male.glb").instantiate()
+	var hips = func(root: Node3D) -> float:
+		var sk: Skeleton3D = root.find_child("Skeleton3D", true, false)
+		return sk.get_bone_global_rest(sk.find_bone("pelvis")).origin.y
+	var k: float = hips.call(model) / hips.call(man)
+	man.free()
+	# Tracks are addressed from the man's root; the monster's skeleton may sit elsewhere.
+	var skel_path := String(model.get_path_to(model.find_child("Skeleton3D", true, false)))
+	var lib = AnimationLibrary.new()
+	for clip in src.get_animation_list():
+		var a: Animation = src.get_animation(clip).duplicate(true)
+		for t in range(a.get_track_count() - 1, -1, -1):
+			var path := String(a.track_get_path(t))
+			var bone := path.get_slice(":", 1)
+			a.track_set_path(t, NodePath(skel_path + ":" + bone))
+			if a.track_get_type(t) == Animation.TYPE_SCALE_3D: a.remove_track(t)
+			elif a.track_get_type(t) == Animation.TYPE_POSITION_3D:
+				if bone != "pelvis":
+					a.remove_track(t)
+					continue
+				for i in a.track_get_key_count(t): a.track_set_key_value(t, i, a.track_get_key_value(t, i) * k)
+		lib.add_animation(clip, a)
+	_monster_libs[file] = lib
+	return lib
+
+
 static func _part_of(bone: String) -> String:
 	if bone.contains("Head") or bone.contains("Neck") or bone.contains("neck"): return "head"
 	if bone.contains("Hand"): return "hand"
@@ -313,9 +365,14 @@ func _cut_body(mi: MeshInstance3D, hidden: Dictionary, open_hood: bool, hood_bac
 const Q_BONES := {"Hips": "pelvis", "RightHand": "hand_r", "LeftHand": "hand_l", "Head": "Head", "LeftFoot": "foot_l", "RightFoot": "foot_r"}
 
 
+## Quaternius people and monsters share the Unreal skeleton.
+func _ue() -> bool:
+	return _body.has("q") or _body.get("monster", false)
+
+
 ## A Mixamo bone by its plain name; the orc's rig has no mixamorig_ prefix.
 func _bone(name: String) -> int:
-	if _body.has("q"): return _skel.find_bone(Q_BONES.get(name, name))
+	if _ue(): return _skel.find_bone(Q_BONES.get(name, name))
 	var i = _skel.find_bone("mixamorig_" + name)
 	return i if i >= 0 else _skel.find_bone(name)
 
@@ -450,7 +507,7 @@ func _measure_pace(model: Node3D) -> float:
 	if _pace_cache.has(_body.file): return _pace_cache[_body.file]
 	var a = _anim.get_animation(_body.run)
 	var bone = func(tail: String) -> int:
-		if _body.has("q"): return _skel.find_bone(Q_BONES[tail])
+		if _ue(): return _skel.find_bone(Q_BONES[tail])
 		for i in _skel.get_bone_count():
 			if _skel.get_bone_name(i).ends_with(tail): return i
 		return -1

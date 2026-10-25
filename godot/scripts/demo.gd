@@ -101,6 +101,10 @@ static func open(what: String) -> void:
 			g.open_char(g.squad()[0].id)
 			g.go("talents")
 		"dungeon": g.quick_raid()
+		"combat-ratmill", "combat-cultcrypt":
+			g.select_dungeon(what.substr(7))
+			g.go_dungeon()
+			g.b.start_encounter()
 		"combat", "combat-act":
 			g.quick_raid()
 			g.b.start_encounter()
