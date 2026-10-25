@@ -103,6 +103,8 @@ func _top_block(s: Dictionary) -> Control:
 		if art != "": name_row.add_child(UI.picture(art, 30, 30, 15))
 	var title = UI.shadowed(UI.label(s.name + (" · фаза %d" % s.phase if s.encounterType == "boss" else ""), 18, Color("#f1e4c6"), "title"))
 	name_row.add_child(title)
+	for d in s.dots.filter(func(x): return x.enemyId == null):
+		name_row.add_child(UI.center(_status_badge("drop", str(int(d.rounds)), UI.WARN, "%s: %d урона в ход, ещё %d." % [d.name, int(d.dmg), int(d.rounds)])))
 	col.add_child(name_row)
 	var pct: float = maxf(0, 100.0 * s.boss.hp / s.boss.maxHp)
 	var bar_row = UI.hbox(8)
@@ -135,6 +137,7 @@ func _timeline(s: Dictionary) -> Control:
 		var size = big if active else small
 		var cell = UI.vbox(3)
 		cell.alignment = BoxContainer.ALIGNMENT_END
+		if active: cell.add_child(_turn_marker(UI.DANGER if entry.kind == "boss" else UI.GOLD))
 		if entry.kind == "boss":
 			var disc = PanelContainer.new()
 			var dsb = StyleBoxFlat.new(); dsb.set_corner_radius_all(UI.px(6))
@@ -173,6 +176,18 @@ func _timeline(s: Dictionary) -> Control:
 	var clock = UI.shadowed(UI.label(("Ярость ×%.2f" % Game.b.enrage_mult()) if enraged else ("Раунд %d\nярость через %d" % [s.round, s.enrageAt - s.round]), 11.5, UI.DANGER if enraged else UI.TEXT_DIM, "semibold" if enraged else "regular"))
 	row.add_child(UI.center(clock))
 	return row
+
+
+## A small triangle over the face whose turn it is.
+func _turn_marker(color: Color) -> Control:
+	var c = Control.new()
+	c.custom_minimum_size = Vector2(UI.px(12), UI.px(7))
+	c.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func():
+		var w = c.size.x; var h = c.size.y
+		c.draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w * 0.5, h)]), color))
+	return c
 
 
 func _meter(label: String, pct: float, color: Color, value: String) -> Control:
@@ -335,13 +350,59 @@ func _hero_card(s: Dictionary, r: Dictionary) -> Control:
 	rr.tooltip_text = "%s: %d из %d. %s" % [rd.name, int(res.val), int(res.max), ("+%d в начале хода." % int(res.regen)) if res.regen > 0 else "Копится от ударов и полученного урона."]
 	rr.mouse_filter = Control.MOUSE_FILTER_PASS
 	v.add_child(rr)
+	var foot = UI.hbox(8)
 	var pips = UI.hbox(5)
 	for i in Battle.VALOR_MAX: pips.add_child(UI.valor_pip(i < s.valor, 8))
 	pips.tooltip_text = "Доблесть: %d из %d. Копится в бою, тратится на приёмы класса." % [s.valor, Battle.VALOR_MAX]
 	pips.mouse_filter = Control.MOUSE_FILTER_PASS
-	v.add_child(pips)
+	foot.add_child(UI.center(pips))
+	for st in _statuses(s, r): foot.add_child(st)
+	v.add_child(foot)
 	row.add_child(UI.expand(v))
 	pn.add_child(row)
+	return pn
+
+
+## What is on the hero now: own buffs, the party's, healing over time, a shield.
+func _statuses(s: Dictionary, r: Dictionary) -> Array:
+	var out = []
+	var n_own: int = r.buffs.size()
+	var all: Array = r.buffs + s.partyBuffs
+	for i in all.size():
+		var b: Dictionary = all[i]
+		var party: bool = i >= n_own
+		var what = []
+		if b.has("dmg"): what.append("урон %+d%%" % roundi((float(b.dmg) - 1.0) * 100))
+		if b.has("crit"): what.append("крит +%d%%" % roundi(float(b.crit) * 100))
+		if b.has("taken"): what.append("получаемый урон %+d%%" % roundi((float(b.taken) - 1.0) * 100))
+		var icon = "sword" if b.has("dmg") else ("target" if b.has("crit") else ("shield" if b.has("taken") else "sparkle"))
+		var tip = "%s%s: %s. Осталось ходов: %d." % [b.get("name", "Усиление"), " (на отряд)" if party else "", ", ".join(what), int(b.rounds)]
+		out.append(_status_badge(icon, str(int(b.rounds)), UI.ACCENT_SOFT if party else UI.GOOD, tip))
+	if not r.hots.is_empty():
+		var left = 0
+		var amt = 0.0
+		for h in r.hots:
+			left = maxi(left, int(h.rounds))
+			amt += float(h.amt)
+		out.append(_status_badge("heart", str(left), UI.GOOD, "Лечение со временем: +%d в начале хода, ещё %d." % [int(amt), left]))
+	if r.absorb > 0:
+		out.append(_status_badge("shield-check", str(int(r.absorb)), UI.ACCENT, "Щит поглотит %d урона." % int(r.absorb)))
+	return out
+
+
+func _status_badge(icon: String, text: String, color: Color, tip: String) -> Control:
+	var pn = PanelContainer.new()
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = Color(color, 0.14); sb.border_color = Color(color, 0.55)
+	sb.set_border_width_all(1); sb.set_corner_radius_all(UI.px(5))
+	sb.content_margin_left = UI.px(4); sb.content_margin_right = UI.px(5); sb.content_margin_top = UI.px(1); sb.content_margin_bottom = UI.px(1)
+	pn.add_theme_stylebox_override("panel", sb)
+	var h = UI.hbox(3)
+	h.add_child(UI.center(UI.icon(icon, 11, color, "fill")))
+	h.add_child(UI.label(text, 10.5, color, "semibold"))
+	pn.add_child(h)
+	pn.tooltip_text = tip
+	pn.mouse_filter = Control.MOUSE_FILTER_PASS
 	return pn
 
 
@@ -402,7 +463,7 @@ func _center_bar(s: Dictionary, cur, auto: bool) -> Control:
 		var sc = ScrollContainer.new()
 		sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-		sc.custom_minimum_size.y = UI.px(SLOT + 40)
+		sc.custom_minimum_size.y = UI.px(SLOT + 52)
 		sc.add_child(row)
 		return sc
 	for a in Game.b.turn_actions(): bar.add_child(_action_slot(a))
@@ -410,7 +471,7 @@ func _center_bar(s: Dictionary, cur, auto: bool) -> Control:
 
 
 ## One square of the bar: a picture, the key that presses it, a name under it.
-func _slot(content: Control, name: String, tip: String, fn: Callable, disabled: bool, border: Color, hp_pct := -1.0, counts := true) -> Control:
+func _slot(content: Control, name: String, tip: String, fn: Callable, disabled: bool, border: Color, hp_pct := -1.0, counts := true, note := "", corner := "", corner_col := Color.WHITE) -> Control:
 	var v = UI.vbox(3)
 	v.custom_minimum_size.x = UI.px(SLOT + 22)
 	var pn = PanelContainer.new()
@@ -435,12 +496,30 @@ func _slot(content: Control, name: String, tip: String, fn: Callable, disabled: 
 		k.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		k.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		pn.add_child(UI.margin(k, 5, 2, 0, 0))
+	# The price, bottom right, in the colour of what it costs.
+	if corner != "":
+		var cp = PanelContainer.new()
+		var csb = StyleBoxFlat.new()
+		csb.bg_color = Color(0.03, 0.02, 0.015, 0.9); csb.border_color = Color(corner_col, 0.7)
+		csb.set_border_width_all(1); csb.set_corner_radius_all(UI.px(4))
+		csb.content_margin_left = UI.px(3); csb.content_margin_right = UI.px(3)
+		cp.add_theme_stylebox_override("panel", csb)
+		cp.add_child(UI.label(corner, 9.5, corner_col, "semibold"))
+		cp.size_flags_horizontal = Control.SIZE_SHRINK_END
+		cp.size_flags_vertical = Control.SIZE_SHRINK_END
+		cp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pn.add_child(UI.margin(cp, 0, 0, 2, 2))
 	v.add_child(pn)
 	var l = UI.shadowed(UI.label(name, 10.5, UI.TEXT_FAINT if disabled else UI.TEXT_MUTED, "medium", true))
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.custom_minimum_size.x = UI.px(SLOT + 22)
 	v.add_child(l)
+	# Why it can't be pressed, so a phone without tooltips still knows.
+	if note != "":
+		var nl = UI.shadowed(UI.label(note, 9.5, Color(UI.DANGER, 0.9), "medium"))
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(nl)
 	if not disabled: UI.tap(pn, fn)
 	return v
 
@@ -487,7 +566,19 @@ func _action_slot(a: Dictionary) -> Control:
 	var border = UI.VALOR if valor else GOLD_LINE
 	if a.key.begins_with("spell:"): border = Color(_res_color(), 0.75)
 	if a.key == "defend": border = UI.BORDER_HOVER
-	return _slot(box, a.label, _action_tip(a), fn, a.disabled, border)
+	var cost: int = int(a.get("cost", 0)) if a.get("cost") != null else 0
+	return _slot(box, a.label, _action_tip(a), fn, a.disabled, border, -1.0, true, _why_not(a), str(cost) if cost > 0 else "", _res_color())
+
+
+## A word on why an action is greyed out; empty when it can be pressed or a
+## cooldown number already says it.
+func _why_not(a: Dictionary) -> String:
+	if not a.disabled or (a.sub != null and str(a.sub).begins_with("КД")): return ""
+	if a.get("short", false):
+		var cur = Game.b.current_raider()
+		return "мало: " + DB.specs.RESOURCES[cur.res.kind].name.to_lower() if cur else "не хватает"
+	if a.key == "valor" and Game.b.sim.valor < int(a.valorCost): return "мало доблести"
+	return "нужно вплотную"
 
 
 # ── who's standing ─────────────────────────────────────────────────────────
@@ -517,6 +608,8 @@ func _foe_list(s: Dictionary) -> Control:
 		var top = UI.hbox(6)
 		if on: top.add_child(UI.center(UI.icon("crosshair", 13, UI.DANGER, "fill")))
 		top.add_child(UI.expand(UI.label(e.name, 13, UI.TEXT if on else UI.TEXT_MUTED, "medium")))
+		for d in s.dots.filter(func(x): return x.enemyId == id):
+			top.add_child(_status_badge("drop", str(int(d.rounds)), UI.WARN, "%s: %d урона в ход, ещё %d." % [d.name, int(d.dmg), int(d.rounds)]))
 		top.add_child(UI.label("%d/%d" % [maxi(0, int(e.hp)), e.maxHp], 11, UI.TEXT_DIM))
 		cv.add_child(top)
 		cv.add_child(UI.progress(100.0 * e.hp / e.maxHp, UI.DANGER, 5))
