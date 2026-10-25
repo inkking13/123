@@ -1,0 +1,97 @@
+{
+  "human-death-back.glb": {
+    "action_id": 183,
+    "action_name": "Shot and Fall Backward",
+    "task_id": "01a16f90-96ef-7367-868e-d57f51844621",
+    "duration_s": 3.53,
+    "clips": 1,
+    "hips_xz_range_cm": "31/106",
+    "size_bytes": 2003652
+  },
+  "human-hit-head.glb": {
+    "action_id": 174,
+    "action_name": "Face Punch Reaction",
+    "task_id": "01a16f90-95dd-77ee-a165-8ffa05837d8d",
+    "duration_s": 2.87,
+    "clips": 1,
+    "hips_xz_range_cm": "15/23",
+    "size_bytes": 1985904
+  },
+  "human-hit-light.glb": {
+    "action_id": 179,
+    "action_name": "Hit Reaction 1",
+    "duration_s": 1.23,
+    "hips_xz_range_cm": "1/8",
+    "size_bytes": 1942500
+  },
+  "human-hit-slide.glb": {
+    "action_id": 178,
+    "action_name": "Hit Reaction",
+    "task_id": "01a16f90-921f-7178-a756-5939c32d68fb",
+    "duration_s": 1.67,
+    "clips": 1,
+    "note": "NOT in place: hips slide ~0.87 m sideways; kept as spare",
+    "hips_xz_range_cm": "88/11",
+    "size_bytes": 1953996
+  },
+  "human-hit-waist.glb": {
+    "action_id": 171,
+    "action_name": "Hit Reaction to Waist",
+    "duration_s": 1.67,
+    "hips_xz_range_cm": "17/10",
+    "size_bytes": 1954000
+  },
+  "human-idle-ready.glb": {
+    "action_id": 89,
+    "action_name": "Combat Idel",
+    "task_id": "01a16f90-94bb-707b-9b1c-099795ae31e6",
+    "duration_s": 1.7,
+    "clips": 1,
+    "hips_xz_range_cm": "1/1",
+    "size_bytes": 1954872
+  },
+  "human-parry.glb": {
+    "action_id": 147,
+    "action_name": "Sword Parry",
+    "task_id": "01a16f90-9936-7097-8db6-363ee7d39098",
+    "duration_s": 1.87,
+    "clips": 1,
+    "hips_xz_range_cm": "0/2",
+    "size_bytes": 1959296
+  },
+  "human-walk-fight.glb": {
+    "action_id": 21,
+    "action_name": "Walk Fight Forward",
+    "task_id": "01a16f90-9806-7650-bc46-8b4b07bd5635",
+    "duration_s": 1.73,
+    "clips": 1,
+    "hips_xz_range_cm": "4/3",
+    "size_bytes": 1955760
+  },
+  "orc-hit-light.glb": {
+    "action_id": 179,
+    "action_name": "Hit Reaction 1",
+    "duration_s": 1.23,
+    "hips_xz_range_cm": "1/8",
+    "size_bytes": 1378248
+  },
+  "orc-hit-slide.glb": {
+    "action_id": 178,
+    "action_name": "Hit Reaction",
+    "task_id": "01a16f90-9a4c-75a5-9573-923ff0df6255",
+    "duration_s": 1.67,
+    "clips": 1,
+    "note": "NOT in place: hips slide ~0.87 m sideways; kept as spare",
+    "hips_xz_range_cm": "86/10",
+    "size_bytes": 1389736
+  },
+  "orc-idle-ready.glb": {
+    "action_id": 89,
+    "action_name": "Combat Idel",
+    "task_id": "01a16f90-9b4e-730b-a2d2-73c2e7bb72e4",
+    "duration_s": 1.7,
+    "clips": 1,
+    "hips_xz_range_cm": "1/1",
+    "size_bytes": 1390636
+  }
+}

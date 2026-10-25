@@ -136,6 +136,124 @@
      "hpMult": 1.07
     }
    }
+  },
+  {
+   "id": "gambeson",
+   "closedHelm": false,
+   "names": {
+    "hood": "Стёганый капюшон",
+    "jacket": "Стёганка",
+    "gloves": "Кожаные рукавицы",
+    "pants": "Стёганые штаны и сапоги"
+   },
+   "stats": {
+    "hood": {
+     "hpMult": 1.03
+    },
+    "jacket": {
+     "hpMult": 1.08,
+     "wardMult": 0.98
+    },
+    "gloves": {
+     "mult": 1.02
+    },
+    "pants": {
+     "hpMult": 1.04
+    }
+   }
+  },
+  {
+   "id": "chainmail",
+   "closedHelm": false,
+   "names": {
+    "hood": "Шлем с кольчужным капюшоном",
+    "jacket": "Кольчуга",
+    "gloves": "Кольчужные перчатки",
+    "pants": "Кольчужный подол и сапоги"
+   },
+   "stats": {
+    "hood": {
+     "hpMult": 1.04
+    },
+    "jacket": {
+     "hpMult": 1.12,
+     "wardMult": 0.97
+    },
+    "gloves": {
+     "hpMult": 1.02
+    },
+    "pants": {
+     "hpMult": 1.05,
+     "wardMult": 0.99
+    }
+   }
+  },
+  {
+   "id": "wanderer",
+   "closedHelm": false,
+   "names": {
+    "hood": "Капюшон странника",
+    "jacket": "Куртка странника",
+    "gloves": "Нарукавья странника",
+    "pants": "Штаны и сапоги странника"
+   },
+   "stats": {
+    "hood": {
+     "mult": 1.02
+    },
+    "jacket": {
+     "mult": 1.05,
+     "cdMult": 0.96
+    },
+    "gloves": {
+     "mult": 1.03
+    },
+    "pants": {
+     "cdMult": 0.97
+    }
+   }
+  },
+  {
+   "id": "peasant",
+   "closedHelm": false,
+   "names": {
+    "jacket": "Рубаха крестьянина",
+    "pants": "Штаны и сапоги крестьянина"
+   },
+   "stats": {
+    "jacket": {
+     "hpMult": 1.04
+    },
+    "pants": {
+     "cdMult": 0.98
+    }
+   }
+  },
+  {
+   "id": "ranger",
+   "closedHelm": false,
+   "names": {
+    "hood": "Капюшон следопыта",
+    "jacket": "Куртка следопыта",
+    "gloves": "Наручи следопыта",
+    "pants": "Штаны и сапоги следопыта"
+   },
+   "stats": {
+    "hood": {
+     "mult": 1.03
+    },
+    "jacket": {
+     "mult": 1.05,
+     "cdMult": 0.97
+    },
+    "gloves": {
+     "mult": 1.03
+    },
+    "pants": {
+     "hpMult": 1.02,
+     "cdMult": 0.97
+    }
+   }
   }
  ],
  "armourId": null,
@@ -205,6 +323,60 @@
   },
   "a-templar-pants": {
    "asset": "items/armour/a-templar-pants.jpg"
+  },
+  "a-gambeson-hood": {
+   "asset": "items/armour/a-gambeson-hood.jpg"
+  },
+  "a-gambeson-jacket": {
+   "asset": "items/armour/a-gambeson-jacket.jpg"
+  },
+  "a-gambeson-gloves": {
+   "asset": "items/armour/a-gambeson-gloves.jpg"
+  },
+  "a-gambeson-pants": {
+   "asset": "items/armour/a-gambeson-pants.jpg"
+  },
+  "a-chainmail-hood": {
+   "asset": "items/armour/a-chainmail-hood.jpg"
+  },
+  "a-chainmail-jacket": {
+   "asset": "items/armour/a-chainmail-jacket.jpg"
+  },
+  "a-chainmail-gloves": {
+   "asset": "items/armour/a-chainmail-gloves.jpg"
+  },
+  "a-chainmail-pants": {
+   "asset": "items/armour/a-chainmail-pants.jpg"
+  },
+  "a-wanderer-hood": {
+   "asset": "items/armour/a-wanderer-hood.jpg"
+  },
+  "a-wanderer-jacket": {
+   "asset": "items/armour/a-wanderer-jacket.jpg"
+  },
+  "a-wanderer-gloves": {
+   "asset": "items/armour/a-wanderer-gloves.jpg"
+  },
+  "a-wanderer-pants": {
+   "asset": "items/armour/a-wanderer-pants.jpg"
+  },
+  "a-peasant-jacket": {
+   "asset": "items/armour/a-peasant-jacket.jpg"
+  },
+  "a-peasant-pants": {
+   "asset": "items/armour/a-peasant-pants.jpg"
+  },
+  "a-ranger-hood": {
+   "asset": "items/armour/a-ranger-hood.jpg"
+  },
+  "a-ranger-jacket": {
+   "asset": "items/armour/a-ranger-jacket.jpg"
+  },
+  "a-ranger-gloves": {
+   "asset": "items/armour/a-ranger-gloves.jpg"
+  },
+  "a-ranger-pants": {
+   "asset": "items/armour/a-ranger-pants.jpg"
   }
  },
  "ARMOUR_GEAR": {
@@ -238,6 +410,34 @@
     "mult": 1.01,
     "desc": "+1% к урону/лечению, +4% к HP.",
     "icon": "a-templar-hood"
+   },
+   {
+    "id": "set-gambeson-hood",
+    "name": "Стёганый капюшон",
+    "hpMult": 1.03,
+    "desc": "+3% к HP.",
+    "icon": "a-gambeson-hood"
+   },
+   {
+    "id": "set-chainmail-hood",
+    "name": "Шлем с кольчужным капюшоном",
+    "hpMult": 1.04,
+    "desc": "+4% к HP.",
+    "icon": "a-chainmail-hood"
+   },
+   {
+    "id": "set-wanderer-hood",
+    "name": "Капюшон странника",
+    "mult": 1.02,
+    "desc": "+2% к урону/лечению.",
+    "icon": "a-wanderer-hood"
+   },
+   {
+    "id": "set-ranger-hood",
+    "name": "Капюшон следопыта",
+    "mult": 1.03,
+    "desc": "+3% к урону/лечению.",
+    "icon": "a-ranger-hood"
    }
   ],
   "chest": [
@@ -274,6 +474,45 @@
     "wardMult": 0.98,
     "desc": "+4% к урону/лечению, +11% к HP, −2% к получаемому урону.",
     "icon": "a-templar-jacket"
+   },
+   {
+    "id": "set-gambeson-jacket",
+    "name": "Стёганка",
+    "hpMult": 1.08,
+    "wardMult": 0.98,
+    "desc": "+8% к HP, −2% к получаемому урону.",
+    "icon": "a-gambeson-jacket"
+   },
+   {
+    "id": "set-chainmail-jacket",
+    "name": "Кольчуга",
+    "hpMult": 1.12,
+    "wardMult": 0.97,
+    "desc": "+12% к HP, −3% к получаемому урону.",
+    "icon": "a-chainmail-jacket"
+   },
+   {
+    "id": "set-wanderer-jacket",
+    "name": "Куртка странника",
+    "mult": 1.05,
+    "cdMult": 0.96,
+    "desc": "+5% к урону/лечению, −4% к перезарядке способности.",
+    "icon": "a-wanderer-jacket"
+   },
+   {
+    "id": "set-peasant-jacket",
+    "name": "Рубаха крестьянина",
+    "hpMult": 1.04,
+    "desc": "+4% к HP.",
+    "icon": "a-peasant-jacket"
+   },
+   {
+    "id": "set-ranger-jacket",
+    "name": "Куртка следопыта",
+    "mult": 1.05,
+    "cdMult": 0.97,
+    "desc": "+5% к урону/лечению, −3% к перезарядке способности.",
+    "icon": "a-ranger-jacket"
    }
   ],
   "gloves": [
@@ -304,6 +543,34 @@
     "mult": 1.03,
     "desc": "+3% к урону/лечению.",
     "icon": "a-templar-gloves"
+   },
+   {
+    "id": "set-gambeson-gloves",
+    "name": "Кожаные рукавицы",
+    "mult": 1.02,
+    "desc": "+2% к урону/лечению.",
+    "icon": "a-gambeson-gloves"
+   },
+   {
+    "id": "set-chainmail-gloves",
+    "name": "Кольчужные перчатки",
+    "hpMult": 1.02,
+    "desc": "+2% к HP.",
+    "icon": "a-chainmail-gloves"
+   },
+   {
+    "id": "set-wanderer-gloves",
+    "name": "Нарукавья странника",
+    "mult": 1.03,
+    "desc": "+3% к урону/лечению.",
+    "icon": "a-wanderer-gloves"
+   },
+   {
+    "id": "set-ranger-gloves",
+    "name": "Наручи следопыта",
+    "mult": 1.03,
+    "desc": "+3% к урону/лечению.",
+    "icon": "a-ranger-gloves"
    }
   ],
   "pants": [
@@ -337,6 +604,43 @@
     "hpMult": 1.07,
     "desc": "+7% к HP.",
     "icon": "a-templar-pants"
+   },
+   {
+    "id": "set-gambeson-pants",
+    "name": "Стёганые штаны и сапоги",
+    "hpMult": 1.04,
+    "desc": "+4% к HP.",
+    "icon": "a-gambeson-pants"
+   },
+   {
+    "id": "set-chainmail-pants",
+    "name": "Кольчужный подол и сапоги",
+    "hpMult": 1.05,
+    "wardMult": 0.99,
+    "desc": "+5% к HP, −1% к получаемому урону.",
+    "icon": "a-chainmail-pants"
+   },
+   {
+    "id": "set-wanderer-pants",
+    "name": "Штаны и сапоги странника",
+    "cdMult": 0.97,
+    "desc": "−3% к перезарядке способности.",
+    "icon": "a-wanderer-pants"
+   },
+   {
+    "id": "set-peasant-pants",
+    "name": "Штаны и сапоги крестьянина",
+    "cdMult": 0.98,
+    "desc": "−2% к перезарядке способности.",
+    "icon": "a-peasant-pants"
+   },
+   {
+    "id": "set-ranger-pants",
+    "name": "Штаны и сапоги следопыта",
+    "hpMult": 1.02,
+    "cdMult": 0.97,
+    "desc": "+2% к HP, −3% к перезарядке способности.",
+    "icon": "a-ranger-pants"
    }
   ]
  },
@@ -356,7 +660,25 @@
   "set-templar-hood",
   "set-templar-jacket",
   "set-templar-gloves",
-  "set-templar-pants"
+  "set-templar-pants",
+  "set-gambeson-hood",
+  "set-gambeson-jacket",
+  "set-gambeson-gloves",
+  "set-gambeson-pants",
+  "set-chainmail-hood",
+  "set-chainmail-jacket",
+  "set-chainmail-gloves",
+  "set-chainmail-pants",
+  "set-wanderer-hood",
+  "set-wanderer-jacket",
+  "set-wanderer-gloves",
+  "set-wanderer-pants",
+  "set-peasant-jacket",
+  "set-peasant-pants",
+  "set-ranger-hood",
+  "set-ranger-jacket",
+  "set-ranger-gloves",
+  "set-ranger-pants"
  ],
  "STARTING_OUTFITS": {
   "0": "knight",
@@ -367,7 +689,11 @@
   "5": "templar",
   "6": "leather",
   "7": "arcane",
-  "8": "knight"
+  "8": "knight",
+  "9": "peasant",
+  "10": "peasant",
+  "11": "ranger",
+  "12": "ranger"
  },
  "armourOf": null,
  "dressInStartingSet": null
