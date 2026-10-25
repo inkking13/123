@@ -205,6 +205,11 @@ static func play(v: Node3D, id: String, caster: Unit, target: Unit, healed: Unit
 			sparks(v, _feet(v, caster) + Vector3(0, 0.15, 0), BONE, 22, 0.14, 0.8, 3.0, -2.0, hit, 0.6)
 			for f in foes: flash(v, _chest(v, f), STEEL, 1.1, 0.35, hit + 0.3, false)
 			shake(v, 0.45, hit)
+		# ── mage ─────────────────────────────────────────────────────────────
+		"fireball":
+			if tg:
+				var fb = FireballVFX.spawn_and_launch(v, caster.hand(), tg.chest(), go)
+				fb.impact_reached.connect(func(_at): shake(v, 0.22))
 		_:
 			return false
 	return true
@@ -218,11 +223,14 @@ static func warm(v: Node3D, at: Vector3) -> void:
 	var p = _particles(v, at, Color.BLACK, 1, 0.01, 0.1)
 	p.emitting = true
 	v.get_tree().create_timer(0.3).timeout.connect(p.queue_free)
+	var s = Game.b.sim
+	if s and s.raiders.any(func(r): return r.heroClass == "mage"): FireballVFX.warm(v, v.to_global(at))
 
 
-## Drops the cached particle meshes when the field goes.
+## Drops the cached particle meshes and the fireball's shared pieces when the field goes.
 static func forget() -> void:
 	_meshes.clear()
+	FireballVFX.forget()
 
 
 # ── where things land ───────────────────────────────────────────────────────
