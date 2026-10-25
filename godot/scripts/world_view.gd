@@ -15,6 +15,7 @@ const SCATTER_CELL := 32.0
 const GRADE := preload("res://shaders/grade.gdshader")
 const GROUND := preload("res://shaders/ground.gdshader")
 const WIND := preload("res://shaders/wind.gdshader")
+const WIND_CUT := preload("res://shaders/wind_cut.gdshader")
 const WATER := preload("res://shaders/water.gdshader")
 const FOG_OF_WAR := preload("res://shaders/fog_of_war.gdshader")
 const RAIN := preload("res://shaders/rain.gdshader")
@@ -38,6 +39,7 @@ var _tex = {}            # Meshy-painted surface textures, for lands that have t
 var _tex_mean = {}       # each texture's average colour, to tint it to a given one
 var _mats = {}           # textured materials, shared between props of one look
 var _models = {}         # Meshy models baked to one mesh, by file and height
+var _kit_mats = {}       # the village kit's materials, one of each by name
 var _ground: ShaderMaterial  # the blended ground, on a land with textures for it
 var _tree_spots = []
 var _winds = {}          # plants' wind materials, by source material and sway
@@ -517,13 +519,16 @@ func _build_woods(th: Dictionary) -> void:
 	_tree_spots = trees
 	var rocks = spots.slice(int(spots.size() * 0.8))
 	# A textured land grows the owner's trees: mostly firs, with lindens and
-	# an old mossy oak now and then; rocks become mossy boulders, and bushes
-	# grow among the grass.
+	# an old mossy oak now and then, and the kit's broadleaves and pines among
+	# them; rocks become mossy boulders and kit stones, and bushes, ferns,
+	# flowers and mushrooms grow among the grass.
 	var main_tree = _model_mesh("world-tree-fir", 4.6) if th.get("textured", false) else null
 	if main_tree:
 		# [mesh, share, trees, tint]; a kind without a model falls back to the main one.
-		var mix = [[main_tree, 0.55, [], Color(0.82, 0.86, 0.74)], [_model_mesh("world-linden", 4.0), 0.35, [], Color(0.86, 0.9, 0.76)],
-			[_model_mesh("world-tree-oldoak", 6.0), 0.1, [], Color(0.86, 0.9, 0.76)]]
+		var mix = [[main_tree, 0.42, [], Color(0.82, 0.86, 0.74)], [_model_mesh("world-linden", 4.0), 0.25, [], Color(0.86, 0.9, 0.76)],
+			[_model_mesh("world-tree-oldoak", 6.0), 0.08, [], Color(0.86, 0.9, 0.76)]]
+		for k in [["nature-commontree-3", 5.5, 0.05], ["nature-commontree-4", 5.0, 0.05], ["nature-commontree-5", 4.5, 0.05], ["nature-pine-4", 5.5, 0.06], ["nature-pine-5", 4.2, 0.04]]:
+			mix.append([_plant(k[0], k[1], 0.02, Color(0.78, 0.84, 0.68)), k[2], [], null])
 		for p in trees:
 			var roll = rng.randf()
 			var k = 0
@@ -533,16 +538,35 @@ func _build_woods(th: Dictionary) -> void:
 			mix[k if mix[k][0] else 0][2].append(p)
 		for m in mix:
 			if m[0] == null or m[2].is_empty(): continue
+			if m[3] == null:
+				_scatter(m[0], m[2], rng, 0.8, 1.2)
+				continue
 			# Calm each kind's bright green toward the land's muted one.
 			var leaves: BaseMaterial3D = m[0].surface_get_material(0).duplicate()
 			leaves.albedo_color = m[3]
 			_scatter(m[0], m[2], rng, 0.8, 1.3, wind_material(leaves, 5.0, 0.025))
 	else: _scatter(_tree_mesh(th), trees, rng, 0.8, 1.5)
 	var boulder = _model_mesh("world-boulder", 1.2) if main_tree else null
-	if boulder: _scatter(boulder, rocks, rng, 0.6, 1.6, boulder.surface_get_material(0))
+	if boulder:
+		var kinds = [boulder, _model_mesh("nature-rock-medium-1", 1.0), _model_mesh("nature-rock-medium-2", 0.8), _model_mesh("nature-rock-medium-3", 1.1)]
+		var piles = [[], [], [], []]
+		for p in rocks:
+			var k = rng.randi() % 4 if rng.randf() < 0.6 else 0
+			piles[k if kinds[k] else 0].append(p)
+		for k in 4:
+			if kinds[k]: _scatter(kinds[k], piles[k], rng, 0.6, 1.6, kinds[k].surface_get_material(0))
 	else: _scatter(_rock_mesh(th), rocks, rng, 0.6, 1.6, _tex_material("rock", 0.9, 0.7, Color.WHITE, true) if _tex.has("rock") else null)
 	var bush = _model_mesh("world-bush", 1.0) if main_tree else null
-	if bush: _scatter(bush, spots.filter(func(q): return rng.randf() < 0.5).map(func(q): return q + Vector2(1.6, -1.1)), rng, 0.7, 1.4, wind_material(bush.surface_get_material(0), 1.0, 0.05))
+	if bush:
+		var at = spots.filter(func(q): return rng.randf() < 0.5).map(func(q): return q + Vector2(1.6, -1.1))
+		# The kit's plain bush is bright red; its flowering one comes in two sizes.
+		var kit = [_plant("nature-bush-common-flowers", 1.0, 0.05), _plant("nature-bush-common-flowers", 1.4, 0.05)]
+		var mine = [[], [], []]
+		for p in at: mine[(1 + rng.randi() % 2) if rng.randf() < 0.25 and kit[0] else 0].append(p)
+		_scatter(bush, mine[0], rng, 0.7, 1.4, wind_material(bush.surface_get_material(0), 1.0, 0.05))
+		for k in 2:
+			if kit[k]: _scatter(kit[k], mine[k + 1], rng, 0.7, 1.2)
+		_undergrowth(rng, spots, places)
 	var tufts = []
 	for _i in 1600:
 		var p = Vector2(rng.randf_range(-Game.w.size(), Game.w.size()), rng.randf_range(-Game.w.size(), Game.w.size()))
@@ -550,6 +574,42 @@ func _build_woods(th: Dictionary) -> void:
 		if land.river_gap(p) < Land.RIVER_HALF + 0.3: continue
 		if not _near_road(p, 2.0) and not places.any(func(q): return q.kind in ["lake", "farm", "town"] and (q.pos + (Vector2(0, -10) if q.kind == "lake" else Vector2.ZERO)).distance_to(p) < _clear_of(q.kind) * (0.6 if q.kind == "lake" else 1.0)): tufts.append(p)
 	_scatter(_tuft_mesh(th), tufts, rng, 0.6, 1.3, wind_material(_vc_material(0.9), 0.45, 0.18))
+
+
+## Ferns and plants at the trees' feet, mushrooms in their shade, flower
+## patches out in the meadows and pebbles by the road: the nature kit.
+func _undergrowth(rng: RandomNumberGenerator, spots: Array, places: Array) -> void:
+	var shade = [[_plant("nature-fern-1", 0.6, 0.08), []], [_plant("nature-plant-1-big", 0.7, 0.1), []], [_plant("nature-plant-7-big", 1.0, 0.1, Color(0.84, 0.88, 0.74), true), []],
+		[_plant("nature-clover-2", 0.35, 0.05), []], [_plant("nature-mushroom-common", 0.35, 0.0, Color.WHITE), []]]
+	for p in spots:
+		if rng.randf() < 0.45:
+			shade[rng.randi() % shade.size()][1].append(p + Vector2(rng.randf_range(-1.8, 1.8), rng.randf_range(-1.8, 1.8)))
+	for s in shade:
+		if s[0]: _scatter(s[0], s[1], rng, 0.7, 1.3)
+	var flowers = [[_plant("nature-flower-3-group", 0.6, 0.15, Color(0.9, 0.9, 0.85)), []], [_plant("nature-flower-4-group", 0.6, 0.15, Color(0.9, 0.9, 0.85)), []]]
+	for _i in 70:
+		var c = Vector2(rng.randf_range(-Game.w.size(), Game.w.size()), rng.randf_range(-Game.w.size(), Game.w.size()))
+		if _near_road(c, 3.0) or land.river_gap(c) < Land.RIVER_HALF + 1.0: continue
+		if places.any(func(q): return q.pos.distance_to(c) < _clear_of(q.kind)): continue
+		if Game.w.has_big_town() and Game.w.layout().town.distance_to(c) < World.TOWN_RADIUS + 2.0: continue
+		var pick = flowers[rng.randi() % 2]
+		for _k in 3: pick[1].append(c + Vector2(rng.randf_range(-1.5, 1.5), rng.randf_range(-1.5, 1.5)))
+	for f in flowers:
+		if f[0]: _scatter(f[0], f[1], rng, 0.8, 1.2)
+	var pebbles = [[_model_mesh("nature-pebble-round-2", 0.18, true), []], [_model_mesh("nature-pebble-square-3", 0.2, true), []]]
+	if pebbles[0] == null: return
+	var road: Array = Game.w.layout().road
+	for i in road.size() - 1:
+		var a: Vector2 = road[i]
+		var b: Vector2 = road[i + 1]
+		for _k in int(a.distance_to(b) / 2.5):
+			var t = rng.randf()
+			var side = (b - a).orthogonal().normalized() * rng.randf_range(1.6, 2.6) * (1 if rng.randf() < 0.5 else -1)
+			var p = a.lerp(b, t) + side
+			if land.river_gap(p) < Land.RIVER_HALF + 0.5: continue
+			pebbles[rng.randi() % 2][1].append(p)
+	for pb in pebbles:
+		if pb[0]: _scatter(pb[0], pb[1], rng, 0.6, 1.6, pb[0].surface_get_material(0))
 
 
 ## How much room a place takes, kept clear of trees.
@@ -576,41 +636,88 @@ func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: 
 			mm.set_instance_transform(i, t)
 		var mmi = MultiMeshInstance3D.new()
 		mmi.multimesh = mm
-		mmi.material_override = mat if mat else _vc_material(0.9)
+		# A kit model with several materials keeps its own.
+		if mat or mesh.get_surface_count() == 1: mmi.material_override = mat if mat else _vc_material(0.9)
 		add_child(mmi)
 
 
 ## A Meshy model as one mesh, standing on its base at the origin and scaled
 ## to `size` metres tall (or wide, `by_width`), or null when the land has
-## none. Cached per file and size.
+## none. One surface per material (a kit tree: bark and leaves). Cached per
+## file and size.
 func _model_mesh(file: String, size: float, by_width := false) -> Mesh:
 	var key = "%s %s %s" % [file, size, by_width]
 	if _models.has(key): return _models[key]
 	var path = "res://assets/models/%s.glb" % file
 	if file == "" or not ResourceLoader.exists(path): return null
 	var scene: Node3D = load(path).instantiate()
-	var st = SurfaceTool.new()
-	var mat: Material = null
+	var tools = {}   # material -> SurfaceTool
 	var todo: Array = [[scene, Transform3D()]]
 	while not todo.is_empty():
 		var it = todo.pop_back()
 		var xf: Transform3D = it[1] * it[0].transform if it[0] != scene else Transform3D()
 		if it[0] is MeshInstance3D and it[0].mesh:
 			for k in it[0].mesh.get_surface_count():
-				st.append_from(it[0].mesh, k, xf)
-				if mat == null: mat = it[0].get_active_material(k)
+				var mat: Material = _shared(it[0].get_active_material(k))
+				if not tools.has(mat):
+					tools[mat] = SurfaceTool.new()
+					tools[mat].begin(Mesh.PRIMITIVE_TRIANGLES)
+				tools[mat].append_from(it[0].mesh, k, xf)
 		for c in it[0].get_children():
 			if c is Node3D: todo.append([c, xf])
 	scene.free()
-	var raw = st.commit()
-	if raw == null or raw.get_surface_count() == 0: return null
-	var box = raw.get_aabb()
+	if tools.is_empty(): return null
+	var box: AABB
+	var raws = []
+	for mat in tools:
+		var raw: ArrayMesh = tools[mat].commit()
+		box = raw.get_aabb() if raws.is_empty() else box.merge(raw.get_aabb())
+		raws.append([raw, mat])
 	var f = size / maxf(box.size.x if by_width else box.size.y, 0.01)
 	var mid = box.get_center()
-	st = SurfaceTool.new()
-	st.append_from(raw, 0, Transform3D(Basis().scaled(Vector3.ONE * f), Vector3(-mid.x * f, -box.position.y * f, -mid.z * f)))
-	var mesh = st.commit()
-	mesh.surface_set_material(0, mat)
+	var place = Transform3D(Basis().scaled(Vector3.ONE * f), Vector3(-mid.x * f, -box.position.y * f, -mid.z * f))
+	var mesh = ArrayMesh.new()
+	for r in raws:
+		var st = SurfaceTool.new()
+		st.append_from(r[0], 0, place)
+		st.commit(mesh)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, r[1])
+	_models[key] = mesh
+	return mesh
+
+
+const KIT_TINTS = {"MI_RoundTiles": Color(0.72, 0.6, 0.55), "Rocks": Color(0.58, 0.55, 0.5), "PathRocks": Color(0.52, 0.49, 0.44)}
+
+## The kit's houses each bring their own copy of the same few materials
+## (plaster, wood, tiles...); keep one of each, so the textures load once.
+func _shared(mat: Material) -> Material:
+	if mat == null or not (mat.resource_name.begins_with("MI_") or KIT_TINTS.has(mat.resource_name)): return mat
+	if not _kit_mats.has(mat.resource_name):
+		# The kit's red tiles and pale stones are loud beside the land's muted
+		# look; calm them.
+		if KIT_TINTS.has(mat.resource_name) and mat is BaseMaterial3D:
+			mat = mat.duplicate()
+			mat.albedo_color = KIT_TINTS[mat.resource_name]
+		_kit_mats[mat.resource_name] = mat
+	return _kit_mats[mat.resource_name]
+
+
+## A kit plant (Quaternius) swaying in the wind, bark and all, its leaves
+## tinted toward the land's muted green; null when the model is missing.
+## A flat one (a low leafy plant) is sized `by_width`.
+func _plant(file: String, size: float, sway: float, tint := Color(0.84, 0.88, 0.74), by_width := false) -> Mesh:
+	var src = _model_mesh(file, size, by_width)
+	if src == null: return null
+	var key = "plant %s %s %s %s %s" % [file, size, sway, tint, by_width]
+	if _models.has(key): return _models[key]
+	var mesh: ArrayMesh = src.duplicate()
+	for k in mesh.get_surface_count():
+		var m: BaseMaterial3D = mesh.surface_get_material(k)
+		if m == null: continue
+		if tint != Color.WHITE and not m.resource_name.begins_with("Bark"):
+			m = m.duplicate()
+			m.albedo_color = tint
+		mesh.surface_set_material(k, wind_material(m, size, sway))
 	_models[key] = mesh
 	return mesh
 
@@ -682,7 +789,8 @@ func wind_material(src: Material, height: float, sway: float) -> Material:
 	if _winds.has(key): return _winds[key]
 	var b: BaseMaterial3D = src
 	var m = ShaderMaterial.new()
-	m.shader = WIND
+	m.shader = WIND_CUT if b.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR else WIND
+	if m.shader == WIND_CUT: m.set_shader_parameter("alpha_cut", b.alpha_scissor_threshold)
 	m.set_shader_parameter("use_tex", b.albedo_texture != null)
 	if b.albedo_texture: m.set_shader_parameter("albedo_tex", b.albedo_texture)
 	m.set_shader_parameter("use_vertex_color", b.vertex_color_use_as_albedo)
@@ -827,9 +935,12 @@ func _house(root: Node3D, at: Vector3, w: float, d: float, turn: float, wall: Co
 	h.position = at
 	h.rotation.y = turn
 	root.add_child(h)
-	# On a land with house models, a Meshy cottage of about the same size.
+	# On a land with house models, a house built from the village kit (or a
+	# Meshy cottage) of about the same size, its eaves a little wider.
 	if _tex.has("wall"):
-		var model = _model_mesh("world-house-a" if hash(at) % 2 == 0 else "world-house-b", w + 0.3, true)
+		var kinds = ["kit-cottage", "kit-cottage-stone", "kit-house", "kit-townhouse"]
+		var model = _model_mesh(kinds[absi(hash(at)) % kinds.size()], w + 0.9, true)
+		if model == null: model = _model_mesh("world-house-a" if hash(at) % 2 == 0 else "world-house-b", w + 0.3, true)
 		if model:
 			var mi = MeshInstance3D.new()
 			mi.mesh = model
@@ -1083,6 +1194,13 @@ func _cursed_tree(root: Node3D, part: String, at: Vector3, turn: float) -> void:
 
 
 func _fence(root: Node3D, a: Vector3, b: Vector3, wood: Color) -> void:
+	# The village kit's rail fence, a 2 m piece at a time.
+	if not _tex.is_empty() and ResourceLoader.exists("res://assets/models/kit-fence.glb"):
+		var pieces = maxi(1, ceili(a.distance_to(b) / 2.0))
+		var turn = atan2(b.x - a.x, b.z - a.z) - PI * 0.5
+		for i in pieces:
+			_prop(root, "kit-fence", a.distance_to(b) / pieces, a.lerp(b, (i + 0.5) / pieces), turn, true)
+		return
 	var n = int(a.distance_to(b) / 1.5)
 	for i in n + 1:
 		var p = a.lerp(b, float(i) / maxf(1, n))
@@ -1137,6 +1255,7 @@ func _farm(root: Node3D, th: Dictionary) -> void:
 
 func _tower(root: Node3D, th: Dictionary) -> void:
 	if _prop(root, "world-stonetower", 8.0, Vector3.ZERO, 0.0):
+		_prop(root, "nature-rockpath-square-wide", 1.8, Vector3(0, 0.02, 3.6), 0.0, true)
 		var lamp = OmniLight3D.new()
 		lamp.light_color = Color(1.0, 0.6, 0.3); lamp.light_energy = 1.0; lamp.omni_range = 6.0
 		lamp.position = Vector3(0, 7.0, 1.0)
@@ -1196,6 +1315,9 @@ func _graveyard(root: Node3D, th: Dictionary) -> void:
 	var stone = Color(0.45, 0.44, 0.42)
 	for t in [["", Vector3(-6.5, 0, -4.8), 0.4], ["-snag", Vector3(6.6, 0, -3.8), 2.1], ["-trunk", Vector3(6.2, 0, 3.6), 4.0], ["-twigs", Vector3(-6.0, 0, 3.8), 1.3]]:
 		_cursed_tree(root, t[0], t[1], t[2])
+	# Bare dead trees from the nature kit at the yard's edge.
+	_prop(root, "nature-deadtree-1", 5.0, Vector3(-9.0, 0, -0.5), 0.6)
+	_prop(root, "nature-deadtree-3", 4.2, Vector3(9.2, 0, 0.6), 2.4)
 	for i in 8:
 		var at = Vector3(-4.5 + (i % 4) * 3.0, 0, -2 + (i / 4) * 3.5)
 		_model(root, "decor-grave", 0.42, at + Vector3(0, 0.38, 0), randf() * 0.4 - 0.2)
@@ -1260,6 +1382,7 @@ func _ruins(root: Node3D, th: Dictionary) -> void:
 	_model(root, "decor-bones", 0.45, Vector3(-3.0, 0.2, 0.8), 2.0)
 	for t in [["", Vector3(-5.0, 0, 5.2), 1.0], ["-twigs", Vector3(8.4, 0, -3.6), 3.3], ["-snag", Vector3(1.5, 0, 5.5), 0.2]]:
 		_cursed_tree(root, t[0], t[1], t[2])
+	_prop(root, "nature-deadtree-3", 4.6, Vector3(2.2, 0, -5.8), 1.2)
 
 
 func _shrine(root: Node3D, th: Dictionary) -> void:
@@ -1267,6 +1390,10 @@ func _shrine(root: Node3D, th: Dictionary) -> void:
 	_box(root, Vector3(4.0, 0.3, 3.0), Vector3(0, 0.15, 0), stone.darkened(0.15))
 	# The saint stands between the pillars; without a model, an altar does.
 	var saint = _prop(root, "world-statue", 2.9, Vector3(0, 0.3, -0.8), 0.0)
+	# An old twisted tree shades it; stepping stones lead up.
+	_prop(root, "nature-twistedtree-1", 6.0, Vector3(4.2, 0, -2.6), 0.8)
+	_prop(root, "nature-rockpath-round-wide", 1.8, Vector3(0, 0.02, 2.6), 0.0, true)
+	_prop(root, "nature-rockpath-round-small-1", 1.2, Vector3(0.3, 0.02, 4.4), 0.7, true)
 	if not saint: _box(root, Vector3(1.4, 1.0, 0.9), Vector3(0, 0.8, 0), stone)
 	for x in [-1.5, 1.5]:
 		_box(root, Vector3(0.5, 3.0, 0.5), Vector3(x, 1.8, -0.8), stone)
@@ -1396,20 +1523,22 @@ func _sync_folk(dt: float) -> void:
 func _tavern(root: Node3D) -> void:
 	var plaster = Color(0.72, 0.64, 0.5)
 	var beam = Color(0.28, 0.18, 0.1)
-	_box(root, Vector3(6.0, 3.8, 4.4), Vector3(0, 1.9, 0), plaster, 0.0, 0.9, "wall")
-	for x in [-2.9, -1.0, 1.0, 2.9]: _box(root, Vector3(0.18, 3.8, 4.5), Vector3(x, 1.9, 0), beam)
-	_box(root, Vector3(6.1, 0.2, 4.5), Vector3(0, 1.9, 0), beam)
-	var roof = MeshInstance3D.new()
-	var pr = PrismMesh.new(); pr.size = Vector3(6.8, 2.2, 5.0)
-	roof.mesh = pr; roof.material_override = _solid(Color(0.4, 0.2, 0.13), 0.9, Color.BLACK, "roof")
-	roof.position.y = 4.9
-	root.add_child(roof)
-	_box(root, Vector3(1.0, 1.6, 0.1), Vector3(0, 0.8, 2.25), Color(0.2, 0.12, 0.07))
-	for x in [-2.0, 2.0]:
-		_box(root, Vector3(0.8, 0.6, 0.06), Vector3(x, 1.0, 2.23), Color(1, 0.75, 0.4), 0.0, 0.5)
-		_box(root, Vector3(0.8, 0.6, 0.06), Vector3(x, 2.9, 2.23), Color(1, 0.75, 0.4), 0.0, 0.5)
-	_box(root, Vector3(0.1, 0.1, 1.2), Vector3(1.2, 2.6, 2.8), beam)
-	_box(root, Vector3(0.9, 0.6, 0.08), Vector3(1.2, 2.2, 3.3), Color(0.55, 0.38, 0.2))
+	# The village kit's two-storey inn; without it, a plastered box.
+	if not _prop(root, "kit-tavern", 7.2, Vector3(0, 0, -1.0), 0.0, true):
+		_box(root, Vector3(6.0, 3.8, 4.4), Vector3(0, 1.9, 0), plaster, 0.0, 0.9, "wall")
+		for x in [-2.9, -1.0, 1.0, 2.9]: _box(root, Vector3(0.18, 3.8, 4.5), Vector3(x, 1.9, 0), beam)
+		_box(root, Vector3(6.1, 0.2, 4.5), Vector3(0, 1.9, 0), beam)
+		var roof = MeshInstance3D.new()
+		var pr = PrismMesh.new(); pr.size = Vector3(6.8, 2.2, 5.0)
+		roof.mesh = pr; roof.material_override = _solid(Color(0.4, 0.2, 0.13), 0.9, Color.BLACK, "roof")
+		roof.position.y = 4.9
+		root.add_child(roof)
+		_box(root, Vector3(1.0, 1.6, 0.1), Vector3(0, 0.8, 2.25), Color(0.2, 0.12, 0.07))
+		for x in [-2.0, 2.0]:
+			_box(root, Vector3(0.8, 0.6, 0.06), Vector3(x, 1.0, 2.23), Color(1, 0.75, 0.4), 0.0, 0.5)
+			_box(root, Vector3(0.8, 0.6, 0.06), Vector3(x, 2.9, 2.23), Color(1, 0.75, 0.4), 0.0, 0.5)
+		_box(root, Vector3(0.1, 0.1, 1.2), Vector3(1.2, 2.6, 2.8), beam)
+		_box(root, Vector3(0.9, 0.6, 0.08), Vector3(1.2, 2.2, 3.3), Color(0.55, 0.38, 0.2))
 	var l = OmniLight3D.new()
 	l.light_color = Color(1.0, 0.65, 0.3); l.light_energy = 1.6; l.omni_range = 7.0
 	l.position = Vector3(0, 2.0, 3.0)
@@ -1484,13 +1613,14 @@ func _board(root: Node3D) -> void:
 
 
 func _barracks(root: Node3D) -> void:
-	_box(root, Vector3(8.0, 2.6, 3.6), Vector3(0, 1.3, -1.6), Color(0.5, 0.42, 0.33), 0.0, 0.9, "wall")
-	var roof = MeshInstance3D.new()
-	var pr = PrismMesh.new(); pr.size = Vector3(8.6, 1.4, 4.2)
-	roof.mesh = pr; roof.material_override = _solid(Color(0.36, 0.2, 0.14), 0.9, Color.BLACK, "roof")
-	roof.position = Vector3(0, 3.3, -1.6)
-	root.add_child(roof)
-	_box(root, Vector3(1.0, 1.7, 0.1), Vector3(0, 0.85, 0.22), Color(0.2, 0.12, 0.07))
+	if not _prop(root, "kit-barracks", 5.2, Vector3(0, 0, -2.2), 0.0, true):
+		_box(root, Vector3(8.0, 2.6, 3.6), Vector3(0, 1.3, -1.6), Color(0.5, 0.42, 0.33), 0.0, 0.9, "wall")
+		var roof = MeshInstance3D.new()
+		var pr = PrismMesh.new(); pr.size = Vector3(8.6, 1.4, 4.2)
+		roof.mesh = pr; roof.material_override = _solid(Color(0.36, 0.2, 0.14), 0.9, Color.BLACK, "roof")
+		roof.position = Vector3(0, 3.3, -1.6)
+		root.add_child(roof)
+		_box(root, Vector3(1.0, 1.7, 0.1), Vector3(0, 0.85, 0.22), Color(0.2, 0.12, 0.07))
 	for x in [-2.5, 0.0, 2.5]:
 		_cyl(root, 0.12, 0.12, 1.8, Vector3(x, 0.9, 2.8), Color(0.4, 0.28, 0.16), 6)
 		_box(root, Vector3(1.0, 0.14, 0.14), Vector3(x, 1.4, 2.8), Color(0.4, 0.28, 0.16))
@@ -1528,7 +1658,9 @@ func _roadside(th: Dictionary) -> void:
 	for k in 5:
 		_cyl(by, 0.32, 0.32, 0.8, Vector3(6.5 + (k % 2) * 0.7, 0.4, -1 + k * 0.6), Color(0.42, 0.28, 0.15), 8)
 	for k in 3:
-		_box(by, Vector3(0.7, 0.7, 0.7), Vector3(-6.5, 0.35 + (k / 2) * 0.7, 1 + (k % 2) * 0.75), Color(0.5, 0.36, 0.2), 0.2 * k)
+		var at = Vector3(-6.5, (k / 2) * 0.7, 1 + (k % 2) * 0.75 - (k / 2) * 0.37)
+		if not _prop(by, "kit-crate", 0.7, at, 0.2 * k): _box(by, Vector3(0.7, 0.7, 0.7), at + Vector3(0, 0.35, 0), Color(0.5, 0.36, 0.2), 0.2 * k)
+	if _prop(by, "kit-wagon", 2.0, Vector3(5.5, 0, 5.5), 0.6, true): return
 	var cart = Node3D.new()
 	cart.position = Vector3(5.5, 0, 5.5)
 	cart.rotation.y = 0.6
