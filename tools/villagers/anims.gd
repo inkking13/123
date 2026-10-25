@@ -10,10 +10,13 @@ const CLIPS := ["Idle", "Walk", "Idle_Talking", "Idle_FoldArms", "Farm_Harvest",
 	"Sword_Idle", "Idle_Shield", "Spell_Simple_Idle", "Jog_Fwd", "Sword_Attack", "Sword_Regular_A", "Sword_Regular_B",
 	"Sword_Regular_Combo", "Sword_Heavy_Combo", "Sword_Dash", "Shield_OneShot", "Shield_Dash", "Spell_Simple_Shoot",
 	"OverhandThrow", "Punch_Jab", "Punch_Cross", "Melee_Hook", "Consume", "Jump", "Hit_Chest", "Hit_Head", "Roll",
-	"Death01"]
+	"Death01", "Sword_Regular_C", "Sword_Block", "Hit_Knockback",
+	# More of the map's everyday life: mending, dancing, sitting and talking, sowing, picking things up.
+	"Fixing_Kneeling", "Dance", "Sitting_Talking", "Farm_PlantSeed", "PickUp_Table", "Interact"]
 ## The importer drops the clips' "_Loop" suffix; these all loop.
 const LOOPS := ["Idle", "Walk", "Idle_Talking", "Idle_FoldArms", "Farm_Harvest", "Farm_Watering", "Sitting_Idle",
-	"TreeChopping", "Walk_Carry", "Yes", "Sword_Idle", "Idle_Shield", "Spell_Simple_Idle", "Jog_Fwd"]
+	"TreeChopping", "Walk_Carry", "Yes", "Sword_Idle", "Idle_Shield", "Spell_Simple_Idle", "Jog_Fwd",
+	"Fixing_Kneeling", "Dance", "Sitting_Talking", "Farm_PlantSeed", "PickUp_Table"]
 
 func _initialize() -> void:
 	var lib = AnimationLibrary.new()

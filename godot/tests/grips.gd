@@ -60,8 +60,8 @@ func _pose() -> void:
 	for e in _units:
 		var u: Unit = e.u
 		var what: String = e.row[0]
-		var clip: String = u._body.idle if what == "idle" else u._body.run if what == "run" else u._body.acts.get(what, u._body.acts.values()[0])
-		if not u._anim.has_animation(clip): clip = u._body.acts.values()[0]
+		var clip: String = u._body.idle if what == "idle" else u._body.run if what == "run" else u._one_of(u._body.acts.get(what, u._body.acts.values()[0]))
+		if not u._anim.has_animation(clip): clip = u._one_of(u._body.acts.values()[0])
 		u._anim.play(clip, 0.0)
 		u._anim.seek(u._anim.get_animation(clip).length * e.row[1], true)
 		u._idle_w = 1.0 if what == "idle" else Unit.RUN_STEADY if what == "run" else 0.0

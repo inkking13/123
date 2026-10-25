@@ -105,6 +105,10 @@ func _stop(at: Vector2, dir: Vector2, kind: String, rng: RandomNumberGenerator) 
 			view._box(root, Vector3(0.6, 0.5, 0.6), Vector3(-1.5, 0.85, 0.85), Color(0.48, 0.34, 0.19), 0.7)
 			var wheel = view._cyl(root, 0.5, 0.5, 0.1, Vector3(0.3, 0.06, 1.6), Color(0.3, 0.2, 0.12), 10)
 			wheel.rotation.x = PI * 0.5
+			# Its carter on one knee, mending the wheel.
+			var u = view._villager({"sex": "male", "outfit": "peasant1", "idle": "Fixing_Kneeling"})
+			u.position = root.global_position + root.global_basis * Vector3(1.1, 0, 1.9)
+			u.face(root.global_position + root.global_basis * Vector3(0.3, 0, 1.6))
 		"woodpile":
 			# Logs stacked against two stakes, a chopping block with an axe.
 			for row in 3:
@@ -125,6 +129,11 @@ func _stop(at: Vector2, dir: Vector2, kind: String, rng: RandomNumberGenerator) 
 			view._fire(root, Vector3(1.0, 0.3, 0.6))
 			_smoke(root, Vector3(1.0, 0.9, 0.6), 0.6)
 			view._box(root, Vector3(1.4, 0.35, 0.35), Vector3(2.4, 0.18, 1.4), wood, 0.9)
+			# A second traveller sits on a stump by the fire, talking.
+			view._cyl(root, 0.24, 0.26, 0.42, Vector3(0.2, 0.21, 1.5), Color(0.42, 0.3, 0.18), 8, "wood")
+			var sit = view._villager({"outfit": "peasant2", "idle": "Sitting_Talking"})
+			sit.position = root.global_position + root.global_basis * Vector3(0.2, 0, 1.5)
+			sit.face(root.global_position + root.global_basis * Vector3(1.0, 0, 0.6))
 			var u = view._villager({"outfit": ["ranger1", "ranger2"].pick_random(), "idle": "Idle_FoldArms"})
 			u.position = root.global_position + root.global_basis * Vector3(2.1, 0, 0.0)
 			u.face(root.global_position + root.global_basis * Vector3(1.0, 0, 0.6))
@@ -417,8 +426,8 @@ func _farm_life(farm: Dictionary, rng: RandomNumberGenerator) -> void:
 	_smoke(self, at + Vector3(1.9, 3.4, -4.3), 0.8)
 	view._prop(self, "world-cart", 2.4, at + Vector3(4.8, 0, -5.6), 2.2, true)
 	view._prop(self, "world-barrels", 1.1, at + Vector3(3.6, 0, -2.6), 0.5)
-	# Two at work in the fields, one cutting, one watering.
-	for f in [[Vector3(4.2, 0, 4.85), "Farm_Harvest", "peasant1"], [Vector3(11.0, 0, 5.75), "Farm_Watering", "peasant2"]]:
+	# Three at work in the fields: cutting, sowing, watering.
+	for f in [[Vector3(4.2, 0, 4.85), "Farm_Harvest", "peasant1"], [Vector3(7.6, 0, 5.3), "Farm_PlantSeed", "ranger2"], [Vector3(11.0, 0, 5.75), "Farm_Watering", "peasant2"]]:
 		var u = view._villager({"outfit": f[2], "idle": f[1]})
 		u.position = at + f[0]
 		u.face(u.position + Vector3(1, 0, 0))
@@ -552,12 +561,27 @@ func _town_life(rng: RandomNumberGenerator) -> void:
 			"tavern":
 				_smoke(self, on.call(Vector3(1.8, 6.2, -0.8)), 0.9)
 				view._prop(self, "world-barrels", 1.2, on.call(Vector3(4.4, 0, 1.2)), p.turn + 0.8)
-			"smith": _smoke(self, on.call(Vector3(-1.2, 4.6, -1.2)), 1.1)
+				# Merry by the door: one dances, one watches from a bench.
+				var dancer = view._villager({"outfit": "peasant1", "idle": "Dance"})
+				dancer.position = on.call(Vector3(-2.6, 0, 5.4))
+				dancer.face(on.call(Vector3(-3.4, 0, 8.0)))
+				view._box(self, Vector3(1.4, 0.42, 0.4), on.call(Vector3(-4.6, 0.21, 5.0)), Color(0.38, 0.26, 0.15), p.turn)
+				var watcher = view._villager({"outfit": "ranger1", "idle": "Sitting_Talking"})
+				watcher.position = on.call(Vector3(-4.6, 0, 5.0))
+				watcher.face(on.call(Vector3(-4.6, 0, 7.0)))
+			"smith":
+				_smoke(self, on.call(Vector3(-1.2, 4.6, -1.2)), 1.1)
+				# The smith's lad on one knee, mending a cartwheel by the forge.
+				var lad = view._villager({"sex": "male", "outfit": "peasant2", "idle": "Fixing_Kneeling"})
+				lad.position = on.call(Vector3(3.4, 0, 3.2))
+				lad.face(on.call(Vector3(3.4, 0, 4.4)))
+				var rim = view._cyl(self, 0.45, 0.45, 0.08, on.call(Vector3(3.4, 0.05, 4.0)), Color(0.3, 0.2, 0.12), 10)
+				rim.rotation.y = p.turn
 			"market":
 				# Buyers at the counters (the awnings would hide the stallholders).
 				var spots = [Vector3(-3.3, 0, 1.5), Vector3(0.3, 0, 0.1), Vector3(2.7, 0, 1.5)]
 				for k in 3:
-					var u = view._villager({"outfit": Villager.OUTFITS[(k + 1) % 4], "idle": ["Idle_Talking", "Idle", "Yes"][k]})
+					var u = view._villager({"outfit": Villager.OUTFITS[(k + 1) % 4], "idle": ["Idle_Talking", "PickUp_Table", "Yes"][k]})
 					u.position = on.call(spots[k])
 					u.face(u.position + Vector3(0, 0, -1).rotated(Vector3.UP, p.turn))
 				# Crates stacked beside the stalls.

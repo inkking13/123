@@ -502,11 +502,18 @@ func _town_plan(town: Vector2, stops: Array) -> Dictionary:
 			var a = arc[0] + margin + (span * (k + 0.5) / n)
 			var at = Vector2.from_angle(a) * (TOWN_OUTER + (0.5 if k % 2 == 0 else -0.4))
 			houses.append({"at": at, "turn": face.call(at) + (0.06 if k % 3 == 1 else 0.0)})
+	# The chapel behind the board and the town hall across the square, in place of the houses there.
+	var landmarks = []
+	if arcs.size() > 1:
+		landmarks.append({"kind": "chapel", "at": Vector2.from_angle(arcs[0][0] + arcs[0][1] * 0.5) * 17.5})
+		landmarks.append({"kind": "hall", "at": Vector2.from_angle(arcs[1][0] + arcs[1][1] * 0.5) * 18.0})
+		for l in landmarks: l.turn = face.call(l.at)
+		houses = houses.filter(func(h): return landmarks.all(func(l): return l.at.distance_to(h.at) > 7.5))
 	# Shade trees either side of the board, and a yard for the hens across the square.
 	var wide = arcs[0]
 	for f in [0.42, 0.58]: trees.append(Vector2.from_angle(wide[0] + wide[1] * f) * (TOWN_INNER - 1.0))
 	var yard = Vector2.from_angle(arcs[-1][0] + arcs[-1][1] * 0.5) * (TOWN_INNER + 1.5)
-	return {"gates": gates, "buildings": buildings, "houses": houses, "trees": trees, "yard": yard}
+	return {"gates": gates, "buildings": buildings, "houses": houses, "landmarks": landmarks, "trees": trees, "yard": yard}
 
 
 func _free_spot(rng: RandomNumberGenerator, places: Array, gap := 9.0, half := SIZE) -> Vector2:

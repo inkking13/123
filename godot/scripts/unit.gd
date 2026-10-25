@@ -21,12 +21,12 @@ const BODIES := {
 	# Quaternius bodies (see Villager.assemble): fingers, an Unreal skeleton and the
 	# Universal Animation Library's clips. `look` in the spec picks hair and outfit colouring.
 	"man": {"q": "male", "file": "q-male", "height": 1.12, "model_h": 1.8, "idle": "Idle", "run": "Jog_Fwd", "hit": "Hit_Chest",
-		"death": "Death01", "dodge": "Roll", "hits": [["Hit_Chest", 3], ["Hit_Head", 1]],
-		"acts": {"melee": "Sword_Attack", "ability": "Sword_Regular_Combo", "ranged": "Spell_Simple_Shoot",
+		"death": "Death01", "dodge": ["Roll", "Sword_Block"], "hits": [["Hit_Chest", 3], ["Hit_Head", 1], ["Hit_Knockback", 1]],
+		"acts": {"melee": ["Sword_Attack", "Sword_Regular_C"], "ability": "Sword_Regular_Combo", "ranged": "Spell_Simple_Shoot",
 			"heal": "Spell_Simple_Shoot", "rally": "Jump"}, "speed": {"Sword_Regular_Combo": 1.3, "Sword_Heavy_Combo": 1.3}},
 	"woman": {"q": "female", "file": "q-female", "height": 1.08, "model_h": 1.8, "idle": "Idle", "run": "Jog_Fwd", "hit": "Hit_Chest",
-		"death": "Death01", "dodge": "Roll", "hits": [["Hit_Chest", 3], ["Hit_Head", 1]],
-		"acts": {"melee": "Sword_Attack", "ability": "Sword_Regular_Combo", "ranged": "Spell_Simple_Shoot",
+		"death": "Death01", "dodge": ["Roll", "Sword_Block"], "hits": [["Hit_Chest", 3], ["Hit_Head", 1], ["Hit_Knockback", 1]],
+		"acts": {"melee": ["Sword_Attack", "Sword_Regular_C"], "ability": "Sword_Regular_Combo", "ranged": "Spell_Simple_Shoot",
 			"heal": "Spell_Simple_Shoot", "rally": "Jump"}, "speed": {"Sword_Regular_Combo": 1.3, "Sword_Heavy_Combo": 1.3}},
 	# Quaternius Bestiary monsters: the same Unreal skeleton without clips of their own, so
 	# they move with the Universal Animation Library's, fitted to their size (_monster_lib).
@@ -605,14 +605,22 @@ func _speed_of(clip: String) -> float:
 
 ## Plays an action clip once; returns how long it runs.
 func play_action(kind: String) -> float:
-	var clip: String = _body.acts.get(kind, _body.acts.values()[0])
+	var clip = _one_of(_body.acts.get(kind, _body.acts.values()[0]))
 	if not _anim.has_animation(clip):
-		clip = _body.acts.values()[0]
+		clip = _one_of(_body.acts.values()[0])
 		if not _anim.has_animation(clip): return 0.5
 	var sp = _speed_of(clip)
 	_act_seq += 1
 	_play(clip, 0.2, sp)
 	return _anim.get_animation(clip).length / sp
+
+
+## A clip, or one of a list of them at random (so blows and dodges vary).
+func _one_of(v) -> String:
+	if v is Array:
+		var have = v.filter(func(c): return _anim.has_animation(c))
+		return have.pick_random() if not have.is_empty() else v[0]
+	return v
 
 
 ## Which action is playing now: a later one makes an earlier one's "back to idle" moot.
@@ -711,7 +719,7 @@ func _pick_hit() -> String:
 
 ## Side-steps a blow that lands next to it.
 func dodge() -> void:
-	var clip = _body.get("dodge", "Stand_Dodge" if _anim.has_animation("Stand_Dodge") else "Parry")
+	var clip = _one_of(_body.get("dodge", "Stand_Dodge" if _anim.has_animation("Stand_Dodge") else "Parry"))
 	if not alive or not _anim.has_animation(clip) or moving(): return
 	var sp = _speed_of(clip)
 	_act_seq += 1
