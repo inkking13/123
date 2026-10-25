@@ -8,3 +8,4 @@
 # Except the map textures: these need mipmaps, set by hand
 !/assets/textures/world/*.import
 !/assets/textures/trees/*.import
+/tmp_ual/
