@@ -4,10 +4,14 @@ extends Node
 ## once; music cross-fades between camp, battle and boss. The fight is heard
 ## by watching the battle's state change, like the 3D view does: who acts,
 ## blows landing, deaths, the wind-up, the stun, the end. Off in settings,
-## off here.
+## off here. Under it all lie the beds: wind and birds by day, crickets by
+## night, rain when it rains, the town's bustle near its walls, the fire at
+## the halt, each fading in and out on its own.
 
 const SFX := ["swing", "hit", "crit", "bow", "arrowHit", "cast", "boom", "heal", "rally", "enemySwing", "windup",
-	"boneDeath", "heroDown", "dodge", "step", "stun", "victory", "defeat", "levelUp", "click", "coin", "page"]
+	"boneDeath", "heroDown", "dodge", "step", "stun", "victory", "defeat", "levelUp", "click", "coin", "page", "clang", "bowDraw", "thud"]
+const BEDS := {"wind": -16.0, "birds": -17.0, "night": -15.0, "rain": -12.0, "town": -14.0, "fire": -11.0}
+const BED_FADE := 1.2         # dB a frame step, scaled by dt*60
 const MUSIC := {"camp": "music-camp", "battle": "music-battle", "boss": "music-boss"}
 const SFX_DB := -2.0
 const MUSIC_DB := -11.0
@@ -28,6 +32,7 @@ var _gold = -1
 var _levels = -1
 var _screen = ""
 var _step_t = 0.0
+var _beds = {}
 
 
 func _ready() -> void:
@@ -40,6 +45,16 @@ func _ready() -> void:
 	_music_old = AudioStreamPlayer.new()
 	add_child(_music)
 	add_child(_music_old)
+	for b in BEDS:
+		var path = "res://assets/audio/amb-%s.ogg" % b
+		if not ResourceLoader.exists(path): continue
+		var st = load(path)
+		if st is AudioStreamOggVorbis: st.loop = true
+		var p = AudioStreamPlayer.new()
+		p.stream = st
+		p.volume_db = -60.0
+		add_child(p)
+		_beds[b] = p
 
 
 func _stream(name: String) -> AudioStream:
@@ -129,6 +144,41 @@ func _process(dt: float) -> void:
 			_step_t = 0.42
 			sfx("step", 0.35, 1.0, 0.0, 0.15)
 	_combat(scr)
+	_ambience(scr, dt)
+
+
+## How loud each bed should be now, 0..1.
+func _bed_mix(scr: String) -> Dictionary:
+	var m = {}
+	if not Game.settings.get("sound", true) or Game.w == null: return m
+	var outdoors: bool = scr in ["world", "bivouac", "combat", "town"]
+	if not outdoors: return m
+	var night: bool = Game.w.is_night()
+	var wet: bool = Game.w.weather() == "rain"
+	m.wind = 0.8 if wet else 0.6
+	if night: m.night = 0.7
+	elif not wet: m.birds = 0.8
+	if wet: m.rain = 1.0
+	if scr == "town": m.town = 1.0
+	elif scr == "world":
+		var lay: Dictionary = Game.w.layout()
+		if lay.has("town"):
+			var d: float = (Game.w.pos - lay.town).length()
+			if d < 50.0: m.town = clampf((50.0 - d) / 26.0, 0.0, 1.0)
+	if scr == "bivouac": m.fire = 1.0
+	if scr == "combat":
+		for k in m: m[k] *= 0.5
+	return m
+
+
+func _ambience(scr: String, dt: float) -> void:
+	var mix = _bed_mix(scr)
+	for b in _beds:
+		var p: AudioStreamPlayer = _beds[b]
+		var want: float = BEDS[b] + linear_to_db(mix[b]) if mix.get(b, 0.0) > 0.01 else -60.0
+		p.volume_db = move_toward(p.volume_db, want, BED_FADE * dt * 60.0)
+		if p.volume_db > -59.0 and not p.playing: p.play(randf() * 8.0)
+		elif p.volume_db <= -59.0 and p.playing: p.stop()
 
 
 func _combat_snap(s: Dictionary) -> Dictionary:
@@ -169,7 +219,11 @@ func _combat(scr: String) -> void:
 	if now.fx != was.fx:
 		match f.kind:
 			"melee": sfx("swing")
-			"ranged": sfx("bow") if archer else sfx("cast", 0.6, 1.5)
+			"ranged":
+				if archer:
+					sfx("bowDraw", 0.8)
+					sfx("bow", 1.0, 1.0, 380.0)
+				else: sfx("cast", 0.6, 1.5)
 			"ability": sfx("cast")
 			"heal": sfx("heal", 1.0, 1.0, delay)
 			"rally": sfx("rally")
@@ -178,11 +232,19 @@ func _combat(scr: String) -> void:
 		if f.crit and f.actor is int: sfx("crit", 1.0, 1.0, delay)
 		elif f.kind == "ability": sfx("boom", 0.8, 1.0, delay)
 		elif archer: sfx("arrowHit", 1.0, 1.0, delay)
-		else: sfx("hit", 1.0, 1.0, delay)
+		else:
+			sfx("hit", 1.0, 1.0, delay)
+			if randf() < 0.5: sfx("thud", 0.6, 1.0, delay + 30.0)
 	var hurt = 0
-	for id in now.heroHp:
-		if now.heroHp[id] < was.heroHp.get(id, now.heroHp[id]): hurt += 1
-	if hurt > 0: sfx("hit", minf(1.0, 0.6 + hurt * 0.15), 0.8, 160.0 if f.kind == "enemy" and now.fx != was.fx else 0.0)
+	var shield = false
+	for r in s.raiders:
+		var id = r.id
+		if now.heroHp[id] < was.heroHp.get(id, now.heroHp[id]):
+			hurt += 1
+			if BattleView.HEROES.get(r.candidateId, {}).get("left", "").to_lower().contains("shield"): shield = true
+	var at = 160.0 if f.kind == "enemy" and now.fx != was.fx else 0.0
+	if hurt > 0: sfx("hit", minf(1.0, 0.6 + hurt * 0.15), 0.8, at)
+	if shield: sfx("clang", 0.7, 1.0, at)
 	if now.impact != was.impact and not s.impact.cells.is_empty(): sfx("boom")
 	if now.dodge != was.dodge: sfx("dodge")
 	if now.move != was.move:

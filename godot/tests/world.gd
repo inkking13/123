@@ -27,7 +27,7 @@ func _fight(game) -> void:
 func _run() -> void:
 	var game = root.get_node("Game")
 	game.reset_progress()
-	game.finish_draft([0, 3, 8, 4, 7])
+	game.finish_draft([0, 9, 10, 4, 7])
 	for c in game.pool: c.level = 8
 	game.stats_room_wins = 1
 	game.settings.auto = true

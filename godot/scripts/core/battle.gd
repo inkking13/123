@@ -1555,6 +1555,7 @@ func _do_ability(r: Dictionary) -> void:
 	var s: Dictionary = sim
 	var a: Dictionary = r.ability
 	if a.cd > 0: return
+	var an: String = DB.ability(r.id).get("name", "") if DB.abilities.has(str(r.id)) else ""
 	if r.trait == "clicker" and randf() < 0.2:
 		a.cd = a.cdMax
 		log_line("%s тыкает не туда — способность прогорела впустую." % r.name, "warn")
@@ -1566,7 +1567,7 @@ func _do_ability(r: Dictionary) -> void:
 		"selfShield":
 			s.fx.targetEnemy = null
 			a.active = true; a.activeRounds = a.activeMax; a.cd = a.cdMax
-			log_line("%s раскрывает Librum Tenebris — урон по нему снижен." % r.name, "ok")
+			log_line("%s: %s — урон по нему снижен." % [r.name, an], "ok")
 		"partyShield":
 			s.fx.targetEnemy = null
 			a.active = true; a.activeRounds = a.activeMax; a.cd = a.cdMax
@@ -1579,7 +1580,7 @@ func _do_ability(r: Dictionary) -> void:
 			s.fx.targetEnemy = null; s.fx.targetRaider = t.id
 			t.hp = minf(t.maxHp, t.hp + 90)
 			r.hp = maxf(1, r.hp - 15)
-			log_line("%s платит собственной кровью за исцеление: %s" % [r.name, t.name], "ok")
+			log_line("%s: %s — исцеляет %s ценой своих сил." % [r.name, an, t.name], "ok")
 		"volatileHeal":
 			a.cd = a.cdMax
 			var t = heal_target(r)
@@ -1596,26 +1597,26 @@ func _do_ability(r: Dictionary) -> void:
 			a.cd = a.cdMax
 			var fe = focus_enemy() if not s.enemies.is_empty() else null
 			s.bossPoison = {"roundsLeft": 3, "dmgPerTick": round(9 * out_mult(r) * ATTACK_TURN_SCALE * 0.5), "enemyId": fe.id if fe else null}
-			log_line("%s смазывает клинки ядом василиска." % r.name, "ok")
+			log_line("%s: %s — враг отравлен." % [r.name, an], "ok")
 		"berserk":
 			s.fx.targetEnemy = null
 			a.active = true; a.activeRounds = a.activeMax + 1; a.cd = a.cdMax
-			log_line("%s впадает в кровавую ярость — урон удвоен, но и сам он уязвим." % r.name, "ok")
+			log_line("%s: %s — урон удвоен, но и сам он уязвимее." % [r.name, an], "ok")
 		"nukeSelfDamage":
 			a.cd = a.cdMax
 			var h = hit_boss(r, r.dps * out_mult(r) * dps_mult() * ATTACK_TURN_SCALE * 0.9, STAGGER_NUKE)
 			hurt(r, 10)
-			log_line("%s бьёт зелёной стрелой (-%d%s) — яд ранит и её саму." % [r.name, h.dmg, h.note], "ok")
+			log_line("%s: %s (-%d%s) — отдача ранит и заклинателя." % [r.name, an, h.dmg, h.note], "ok")
 		"nukeHeal":
 			a.cd = a.cdMax
 			var h = hit_boss(r, r.dps * out_mult(r) * dps_mult() * ATTACK_TURN_SCALE * 0.9, STAGGER_NUKE)
 			for x in alive(): x.hp = minf(x.maxHp, x.hp + 20)
-			log_line("%s выпускает Огонь Душ (-%d%s) — обжигает врага и лечит отряд." % [r.name, h.dmg, h.note], "ok")
+			log_line("%s: %s (-%d%s) — обжигает врага и лечит отряд." % [r.name, an, h.dmg, h.note], "ok")
 		"nukeTilt":
 			a.cd = a.cdMax
 			var h = hit_boss(r, r.dps * out_mult(r) * dps_mult() * ATTACK_TURN_SCALE * 1.3, STAGGER_NUKE)
 			add_tilt(6)
-			log_line("%s карает врага именем бога (-%d%s), в которого уже не верит." % [r.name, h.dmg, h.note], "warn")
+			log_line("%s: %s (-%d%s) — сильно, но отряд на нервах." % [r.name, an, h.dmg, h.note], "warn")
 	_check_phase()
 
 

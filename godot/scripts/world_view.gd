@@ -276,7 +276,8 @@ func _build_ground(th: Dictionary) -> void:
 ## green, each stamped as soft discs along the road and around the trees.
 func _paint_ground_mask() -> void:
 	var half: float = _ground.get_shader_parameter("half_size")
-	var w = 256
+	# About a texel a metre, kept to 512 on a big land.
+	var w = 256 if half <= 130.0 else 384
 	var px = w / (2.0 * half)
 	var data = PackedByteArray()
 	data.resize(w * w * 3)
@@ -304,6 +305,10 @@ func _paint_ground_mask() -> void:
 		for g in lay.town_plan.gates:
 			for d in range(int(World.TOWN_SQUARE), int(World.TOWN_RADIUS) + 3): stamp.call(lay.town + Vector2.from_angle(g) * d, World.TOWN_STREET + 1.4, 0)
 		for k in 48: stamp.call(lay.town + Vector2.from_angle(k * TAU / 48) * World.TOWN_SQUARE, 2.0, 0)
+	# The footpaths: narrower and fainter than the road, gone where they ford the river.
+	for line in _trails():
+		for p in _dense(line, 0.8):
+			if land.river_gap(p) > Land.RIVER_HALF + 0.5: stamp.call(p, 1.5, 0)
 	for t in _tree_spots: stamp.call(t, 3.2, 1)
 	for p in _dense(land.river, 0.7): stamp.call(p, Land.RIVER_HALF + 2.2, 2)
 	_ground.set_shader_parameter("mask", ImageTexture.create_from_image(Image.create_from_data(w, w, false, Image.FORMAT_RGB8, data)))
@@ -514,13 +519,17 @@ func _near_road(p: Vector2, gap: float) -> bool:
 func _build_woods(th: Dictionary) -> void:
 	var rng = RandomNumberGenerator.new()
 	rng.seed = hash(Game.w.region) + 3
-	var places: Array = Game.w.layout().places
+	var places: Array = Game.w.layout().places + Game.w.layout().decor
 	var spots = []
-	for _i in 1100:
+	var trails = _trails()
+	# A big land keeps the first map's density: more of everything, not sparser woods.
+	var many = _many()
+	for _i in int(1100 * many):
 		var p = Vector2(rng.randf_range(-Game.w.size() - 20, Game.w.size() + 20), rng.randf_range(-Game.w.size() - 20, Game.w.size() + 20))
 		var inside = absf(p.x) < Game.w.size() and absf(p.y) < Game.w.size()
 		if inside and rng.randf() < 0.3: continue
 		if _near_road(p, 4.0) or places.any(func(q): return q.pos.distance_to(p) < _clear_of(q.kind)): continue
+		if trails.any(func(t): return _near_line(p, t, 3.0)): continue
 		if Game.w.has_big_town() and Game.w.layout().town.distance_to(p) < World.TOWN_RADIUS + 5.0: continue
 		if _life and _life.stops().any(func(s): return s.distance_to(p) < 4.5): continue
 		if land.river_gap(p) < Land.RIVER_HALF + 2.5: continue
@@ -579,7 +588,7 @@ func _build_woods(th: Dictionary) -> void:
 			if kit[k]: _scatter(kit[k], mine[k + 1], rng, 0.7, 1.2)
 		_undergrowth(rng, spots, places)
 	var tufts = []
-	for _i in 1600:
+	for _i in int(1600 * many):
 		var p = Vector2(rng.randf_range(-Game.w.size(), Game.w.size()), rng.randf_range(-Game.w.size(), Game.w.size()))
 		if Game.w.has_big_town() and Game.w.layout().town.distance_to(p) < World.TOWN_RADIUS: continue
 		if land.river_gap(p) < Land.RIVER_HALF + 0.3: continue
@@ -616,7 +625,7 @@ func _undergrowth(rng: RandomNumberGenerator, spots: Array, places: Array) -> vo
 		[_plant("nature-flower-3-single", 0.55, 0.15, Color(0.9, 0.9, 0.85)), []], [_plant("nature-flower-4-single", 0.55, 0.15, Color(0.9, 0.9, 0.85)), []]]
 	# Fallen petals on the ground round each patch.
 	var petals = [[_model_mesh("nature-petal-1", 0.22, true), []], [_model_mesh("nature-petal-3", 0.26, true), []]]
-	for _i in 70:
+	for _i in int(70 * _many()):
 		var c = Vector2(rng.randf_range(-Game.w.size(), Game.w.size()), rng.randf_range(-Game.w.size(), Game.w.size()))
 		if _near_road(c, 3.0) or land.river_gap(c) < Land.RIVER_HALF + 1.0: continue
 		if places.any(func(q): return q.pos.distance_to(c) < _clear_of(q.kind)): continue
@@ -647,9 +656,46 @@ func _undergrowth(rng: RandomNumberGenerator, spots: Array, places: Array) -> vo
 		if pb[0]: _scatter(pb[0], pb[1], rng, 0.6, 1.6, pb[0].surface_get_material(0))
 
 
+## How many more trees, tufts and flowers a land past the first map's size
+## gets, so it is as thick.
+func _many() -> float:
+	return maxf(1.0, pow(Game.w.size() / 100.0, 2.0))
+
+
+func _near_line(p: Vector2, line: Array, gap: float) -> bool:
+	for i in line.size() - 1:
+		if Geometry2D.get_closest_point_to_segment(p, line[i], line[i + 1]).distance_to(p) < gap: return true
+	return false
+
+
+var _trail_cache = null
+
+## Footpaths off the road to each dungeon out at the edge: from the
+## nearest bit of road, wandering a little, stopping short of the gate.
+func _trails() -> Array:
+	if _trail_cache != null: return _trail_cache
+	_trail_cache = []
+	var road: Array = _dense(_road_points(), 3.0)
+	if road.is_empty(): return _trail_cache
+	for q in Game.w.layout().places:
+		if q.kind != "dungeon": continue
+		var from: Vector2 = road[0]
+		for r in road:
+			if r.distance_to(q.pos) < from.distance_to(q.pos): from = r
+		var to: Vector2 = q.pos.move_toward(from, 3.0)
+		var side = (to - from).orthogonal().normalized()
+		var n = maxi(2, int(from.distance_to(to) / 4.0))
+		var line = []
+		for i in n + 1:
+			var t = float(i) / n
+			line.append(from.lerp(to, t) + side * sin(t * PI * 2.0 + float(hash(q.id) % 7)) * 4.0 * sin(t * PI))
+		_trail_cache.append(line)
+	return _trail_cache
+
+
 ## How much room a place takes, kept clear of trees.
 func _clear_of(kind: String) -> float:
-	return {"farm": 19.0, "lake": 24.0, "town": 11.0, "graveyard": 11.0, "ruins": 10.0, "tower": 9.0}.get(kind, 7.0)
+	return Land.clear_of(kind)
 
 
 func _scatter(mesh: Mesh, at: Array, rng: RandomNumberGenerator, lo: float, hi: float, mat: Material = null) -> void:
@@ -945,6 +991,12 @@ func _build_places(th: Dictionary) -> void:
 		if World.SIGHTS.has(p.kind): _label(root, World.SIGHTS[p.kind].name, _sight_height(p.kind), Color(0.88, 0.82, 0.66), 46)
 		var bdef = Game.w.building(p.kind)
 		if not bdef.is_empty(): _label(root, bdef.name, 5.6, Color(0.95, 0.86, 0.62), 40)
+	for d in Game.w.layout().decor:
+		var root = Node3D.new()
+		root.position = _on_ground(d.pos)
+		root.rotation.y = d.turn
+		add_child(root)
+		_decor(root, d.kind, th)
 	if Game.w.has_big_town(): _walled_town(th)
 	_roadside(th)
 	refresh_places()
@@ -1376,6 +1428,97 @@ func _graveyard(root: Node3D, th: Dictionary) -> void:
 	root.add_child(glow)
 
 
+## The land's lesser sights, for looking at only: a hamlet of three houses
+## round a well, a woodcutter's yard, a ring of old standing stones, a wagon
+## wrecked and picked over, a watch post with its fire, an orchard.
+func _decor(root: Node3D, kind: String, th: Dictionary) -> void:
+	var wood = Color(0.4, 0.28, 0.16)
+	var at = func(v: Vector3) -> Vector3: return root.global_position + root.global_basis * v
+	match kind:
+		"hamlet":
+			var homes = [[Vector3(-5.5, 0, -3.5), 0.5], [Vector3(4.5, 0, -5.0), -0.4], [Vector3(6.0, 0, 3.5), -1.9]]
+			for h in homes: _house(root, h[0], 3.2, 2.6, h[1], Color(0.62, 0.55, 0.44), Color(0.46, 0.32, 0.18))
+			_prop(root, "world-well", 1.8, Vector3(0, 0, 0), 0.3)
+			_fence(root, Vector3(-8.5, 0, 2.0), Vector3(-3.0, 0, 6.5), wood)
+			_fence(root, Vector3(-3.0, 0, 6.5), Vector3(2.5, 0, 7.5), wood)
+			_prop(root, "world-haystack", 1.8, Vector3(-6.0, 0, 4.2), 1.0)
+			_prop(root, "kit-wagon", 2.6, Vector3(1.8, 0, 3.8), 2.4, true)
+			_prop(root, "kit-crate", 0.7, Vector3(-1.6, 0, -1.8), 0.4)
+			if _life:
+				for h in homes: _life._smoke(root, h[0] + Vector3(0, 4.2, 0), 0.5)
+			var u = _villager({"outfit": "peasant1", "idle": "Farm_PlantSeed"})
+			u.position = at.call(Vector3(-4.6, 0, 3.0))
+			u.face(at.call(Vector3(-6.0, 0, 4.2)))
+			var v = _villager({"sex": "female", "outfit": "peasant2", "idle": "Interact"})
+			v.position = at.call(Vector3(1.1, 0, 0.6))
+			v.face(at.call(Vector3.ZERO))
+		"lumber":
+			_house(root, Vector3(-3.5, 0, -3.0), 3.4, 2.4, 0.2, Color(0.55, 0.45, 0.32), Color(0.42, 0.3, 0.17))
+			for pile in [Vector3(2.5, 0, -1.5), Vector3(3.0, 0, 2.2)]:
+				for row in 3:
+					for k in 4 - row:
+						var log = _cyl(root, 0.2, 0.2, 3.0, pile + Vector3(-0.6 + k * 0.42 + row * 0.21, 0.2 + row * 0.36, 0), Color(0.42, 0.3, 0.18), 7, "wood")
+						log.rotation.x = PI * 0.5
+			for k in 5:
+				var a = k * 1.3 + 0.4
+				_cyl(root, 0.32, 0.38, 0.45, Vector3(cos(a) * 6.5, 0.22, sin(a) * 6.0 + 1.0), Color(0.45, 0.33, 0.2), 9, "wood")
+			_cyl(root, 0.36, 0.4, 0.55, Vector3(-0.8, 0.27, 1.6), Color(0.45, 0.32, 0.2), 9, "wood")
+			_prop(root, "world-cart", 2.4, Vector3(-1.0, 0, 4.5), 1.4, true)
+			var u = _villager({"sex": "male", "outfit": "peasant1", "idle": "PickUp_Table"})
+			u.position = at.call(Vector3(-0.8, 0, 2.5))
+			u.face(at.call(Vector3(-0.8, 0, 1.6)))
+		"stones":
+			var stone = th.rock.lerp(Color(0.5, 0.49, 0.46), 0.5)
+			for k in 9:
+				var a = k * TAU / 9.0
+				var h = 1.6 + float((k * 37) % 5) * 0.25
+				if k == 4: continue  # one fallen long ago
+				var st = _box(root, Vector3(0.9, h, 0.55), Vector3(cos(a) * 5.0, h * 0.5 - 0.1, sin(a) * 5.0), stone.darkened(float(k % 3) * 0.06), -a, 0.9, "rock")
+				st.rotation.z = (float(k % 3) - 1.0) * 0.06
+			var fallen = _box(root, Vector3(0.9, 0.55, 2.0), Vector3(cos(4 * TAU / 9.0) * 6.0, 0.25, sin(4 * TAU / 9.0) * 6.0), stone.darkened(0.1), 0.3, 0.9, "rock")
+			fallen.rotation.x = 0.05
+			_box(root, Vector3(1.8, 0.5, 1.2), Vector3(0, 0.25, 0), stone.darkened(0.15), 0.2, 0.9, "rock")
+			_prop(root, "nature-twistedtree-3", 5.0, Vector3(7.5, 0, -2.0), 1.0)
+			_prop(root, "nature-deadtree-2", 4.0, Vector3(-7.0, 0, 3.5), 2.0)
+		"wreck":
+			var cart = Node3D.new()
+			cart.rotation = Vector3(0, 0.6, 1.25)
+			cart.position = Vector3(0, 0.5, 0)
+			root.add_child(cart)
+			if not _prop(cart, "kit-wagon", 2.8, Vector3.ZERO, 0.0, true): _box(cart, Vector3(1.4, 0.5, 2.4), Vector3(0, 0.75, 0), wood)
+			for c in [[Vector3(2.0, 0, 1.0), 0.7], [Vector3(2.6, 0, -0.4), 0.3], [Vector3(-1.8, 0, 1.8), 1.9]]:
+				_prop(root, "kit-crate", 0.7, c[0], c[1])
+			_prop(root, "world-barrels", 1.1, Vector3(-2.2, 0, -1.2), 0.8)
+			var wheel = _cyl(root, 0.5, 0.5, 0.1, Vector3(1.2, 0.06, 2.6), Color(0.3, 0.2, 0.12), 10)
+			wheel.rotation.x = PI * 0.5
+			_model(root, "decor-bones", 0.45, Vector3(0.8, 0.2, -1.8), 1.0)
+			_prop(root, "nature-deadtree-1", 4.0, Vector3(-4.0, 0, -3.5), 0.6)
+		"watch":
+			if not _prop(root, "world-watchtower", 7.0, Vector3(0, 0, -1.5), 0.2):
+				_cyl(root, 1.2, 1.5, 5.0, Vector3(0, 2.5, -1.5), Color(0.55, 0.5, 0.45), 8, "masonry")
+			_prop(root, "world-tent", 2.4, Vector3(3.6, 0, 1.6), -0.6, true)
+			var ring = Node3D.new()
+			ring.position = Vector3(-0.5, 0, 3.0)
+			root.add_child(ring)
+			_campfire_ring(ring)
+			_model(root, "decor-brazier", 0.6, Vector3(-2.4, 0.4, 0.8), 0.0)
+			var u = _villager({"sex": "male", "outfit": ["ranger1", "ranger2"].pick_random(), "idle": "Idle_FoldArms"})
+			u.position = at.call(Vector3(-1.6, 0, 2.2))
+			u.face(at.call(Vector3(-1.6, 0, 8.0)))
+		"orchard":
+			var trees = ["nature-commontree-1", "nature-commontree-2", "world-linden"]
+			for r in 3:
+				for c in 4:
+					var p = Vector3(-6.0 + c * 4.0, 0, -4.0 + r * 4.0) + Vector3(float((r * 3 + c) % 3) * 0.3, 0, 0)
+					_prop(root, trees[(r + c) % trees.size()], 3.4, p, float(r * 4 + c))
+			_fence(root, Vector3(-8.5, 0, -6.5), Vector3(8.5, 0, -6.5), wood)
+			_fence(root, Vector3(-8.5, 0, 6.5), Vector3(8.5, 0, 6.5), wood)
+			for b in 3: _box(root, Vector3(0.5, 0.6, 0.5), Vector3(9.5, 0.3, -2.0 + b * 1.4), Color(0.6, 0.48, 0.28), 0.1, 0.9, "wood")
+			var u = _villager({"sex": "female", "outfit": "peasant2", "idle": "PickUp_Table"})
+			u.position = at.call(Vector3(0.2, 0, 1.6))
+			u.face(at.call(Vector3(0.0, 0, 0.0)))
+
+
 func _campsite(root: Node3D) -> void:
 	if _prop(root, "world-tent", 2.8, Vector3(-2.4, 0, -1.8), 0.4, true):
 		_prop(root, "world-barrels", 1.3, Vector3(2.4, 0, -1.4), 1.1)
@@ -1728,6 +1871,37 @@ func _roadside(th: Dictionary) -> void:
 
 
 ## Chests opened, spots picked, dungeons locked or cleared: the look of each place.
+var _marks: Array[Label3D] = []
+var _marks_key = ""
+var _marks_t = 0.0
+
+## A gold sign bobbing over each spot an errand sends the squad to.
+func _sync_marks(delta: float) -> void:
+	_marks_t += delta
+	for i in _marks.size(): _marks[i].position.y = _marks[i].get_meta("y") + sin(_marks_t * 2.4 + i) * 0.25
+	var at: Array = Game.w.task_marks()
+	var key = str(at.map(func(v): return v.snapped(Vector2(4, 4))))
+	if key == _marks_key: return
+	_marks_key = key
+	for m in _marks: m.queue_free()
+	_marks.clear()
+	for p in at:
+		var l = Label3D.new()
+		l.text = "!"
+		l.font = FONT
+		l.font_size = 120
+		l.pixel_size = 0.014
+		l.modulate = Color(1.0, 0.8, 0.25)
+		l.outline_size = 22
+		l.outline_modulate = Color(0.2, 0.1, 0.02, 0.95)
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		l.no_depth_test = true
+		l.position = _on_ground(p, 7.5)
+		l.set_meta("y", l.position.y)
+		add_child(l)
+		_marks.append(l)
+
+
 func refresh_places() -> void:
 	var w = Game.w
 	for p in w.layout().places:
@@ -1947,6 +2121,7 @@ func _process(delta: float) -> void:
 	_sync_folk(delta)
 	_sync_party(delta)
 	_sync_bands()
+	_sync_marks(delta)
 	_sync_sky()
 	_sync_fog_of_war()
 	if _fog_war: _fog_war.set_shader_parameter("night", 1.0 - clampf(sin((Game.w.hours - 6.0) / 12.0 * PI) * 1.6 + 0.25, 0.0, 1.0))

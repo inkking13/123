@@ -27,6 +27,10 @@ var current: Screen
 var current_name = ""
 var _bg: TextureRect
 var _dirty = false
+## A finger held still on something with a tooltip shows it (a phone has no hover).
+const HOLD_S := 0.45
+var _hold = {"t": -1.0, "at": Vector2.ZERO, "shown": false}
+var _bubble: Control
 
 
 static func inset_top() -> float:
@@ -180,6 +184,53 @@ func _update() -> void:
 		current = load(SCREENS[current_name]).new()
 		add_child(current)
 	current.refresh()
+
+
+func _input(ev: InputEvent) -> void:
+	if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+		if ev.pressed:
+			_hide_bubble()
+			_hold = {"t": 0.0, "at": ev.position, "shown": false}
+		else:
+			# The finger that called up the tip doesn't also press what it was on.
+			if _hold.shown: get_viewport().set_input_as_handled()
+			_hold.t = -1.0
+	elif ev is InputEventMouseMotion and _hold.t >= 0.0 and ev.position.distance_to(_hold.at) > UI.px(10):
+		_hold.t = -1.0
+
+
+func _process(dt: float) -> void:
+	if _hold.t < 0.0 or _hold.shown: return
+	_hold.t += dt
+	if _hold.t < HOLD_S: return
+	var c = get_viewport().gui_get_hovered_control()
+	while c and c.tooltip_text == "": c = c.get_parent() as Control
+	if c == null: return
+	_hold.shown = true
+	_show_bubble(c.tooltip_text, _hold.at)
+
+
+func _show_bubble(text: String, at: Vector2) -> void:
+	var pn = PanelContainer.new()
+	pn.add_theme_stylebox_override("panel", theme.get_stylebox("panel", "TooltipPanel"))
+	var l = UI.label(text, 12.5, UI.TEXT_MUTED, "regular", true)
+	l.custom_minimum_size.x = UI.px(220)
+	pn.add_child(l)
+	pn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pn.z_index = 100
+	add_child(pn)
+	_bubble = pn
+	# Above the finger, kept on the screen.
+	await get_tree().process_frame
+	if not is_instance_valid(pn): return
+	var view = get_viewport_rect().size
+	pn.position = Vector2(clampf(at.x - pn.size.x * 0.5, 8, view.x - pn.size.x - 8), clampf(at.y - pn.size.y - UI.px(28), 8, view.y - pn.size.y - 8))
+	get_tree().create_timer(4.0).timeout.connect(func(): if _bubble == pn: _hide_bubble())
+
+
+func _hide_bubble() -> void:
+	if is_instance_valid(_bubble): _bubble.queue_free()
+	_bubble = null
 
 
 func _unhandled_input(ev: InputEvent) -> void:

@@ -7,7 +7,8 @@ extends RefCounted
 ## land's edge the ground rises into the hills that close it in.
 
 ## How much room a place takes, kept clear of trees and of hills.
-const CLEAR := {"farm": 19.0, "lake": 24.0, "town": 11.0, "graveyard": 11.0, "ruins": 10.0, "tower": 9.0}
+const CLEAR := {"farm": 19.0, "lake": 24.0, "town": 11.0, "graveyard": 11.0, "ruins": 10.0, "tower": 9.0,
+	"hamlet": 13.0, "lumber": 9.0, "stones": 8.0, "wreck": 6.0, "watch": 8.0, "orchard": 11.0}
 const HILL_HEIGHT := 5.0
 const RIVER_DEPTH := 1.3
 const RIVER_HALF := 2.6        # half the width of the water
@@ -37,7 +38,8 @@ func _init(w, loc: String) -> void:
 	road = _bend(lay.road)
 	hills = th.get("hills", false)
 	if th.get("river", false): _lay_river(lay, loc)
-	cell = 2.0 if hills or not river.is_empty() else 4.0
+	# A big land's grid is a little coarser, to keep its mesh light on the phone.
+	cell = (2.5 if size > 120.0 else 2.0) if hills or not river.is_empty() else 4.0
 	n = int(round(2.0 * half / cell)) + 1
 	_build(lay, loc, th)
 
@@ -78,7 +80,7 @@ func _lay_river(lay: Dictionary, loc: String) -> void:
 		for i in m:
 			var p = Vector2(-half + i * step, -half + j * step)
 			var solid = false
-			for q in lay.places:
+			for q in lay.places + lay.decor:
 				var room = 4.0 if q.kind in ["chest", "herb"] else clear_of(q.kind) + 2.0
 				if q.pos.distance_to(p) < room + RIVER_HALF: solid = true
 			if lay.camps.any(func(c): return c.distance_to(p) < 8.0): solid = true
@@ -141,7 +143,7 @@ func _build(lay: Dictionary, loc: String, th: Dictionary) -> void:
 	var flat = PackedFloat32Array(); flat.resize(n * n); flat.fill(1.0)
 	if hills:
 		_stamp_dist(to_road, _dense(road), 16.0)
-		for q in lay.places:
+		for q in lay.places + lay.decor:
 			var c = clear_of(q.kind)
 			_stamp_flat(flat, q.pos, c + 1.0, c + 10.0)
 		if th.get("bigTown", false):

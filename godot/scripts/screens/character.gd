@@ -17,8 +17,19 @@ func build() -> void:
 	pic.set_anchors_preset(Control.PRESET_FULL_RECT)
 	# The portrait is a wide banner: a wider window shows more of its height.
 	if App.wide: top.custom_minimum_size.y = UI.px(400)
-	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	pic.stretch_mode = TextureRect.STRETCH_SCALE
 	pic.material = null
+	# The portraits are tall: the banner shows their top, the face and shoulders.
+	var full: Texture2D = pic.texture
+	if full:
+		var crop = AtlasTexture.new()
+		crop.atlas = full
+		pic.texture = crop
+		pic.resized.connect(func():
+			if pic.size.x <= 0: return
+			var w = float(full.get_width())
+			var h = minf(float(full.get_height()), w * pic.size.y / pic.size.x)
+			crop.region = Rect2(0, minf(full.get_height() * 0.04, full.get_height() - h), w, h))
 	top.add_child(pic)
 	var shade = UI.fade(Color(0.063, 0.047, 0.035, 0.1), Color(0.063, 0.047, 0.035, 0.95), 300)
 	shade.set_anchors_preset(Control.PRESET_FULL_RECT)

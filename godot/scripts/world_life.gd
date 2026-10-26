@@ -26,8 +26,10 @@ var _roamers = {}       # kind -> {root, units, last, moving}: the caravan, the 
 ## Where the road's stops go; the woods keep clear of them.
 func plan() -> Array:
 	var road: Array = view._road_points()
-	var places: Array = Game.w.layout().places
+	var places: Array = Game.w.layout().places + Game.w.layout().decor
 	var kinds = ["cart", "woodpile", "camp", "hay", "cairn", "cart", "woodpile"]
+	# A longer road has more stops along it.
+	if Game.w.size() > 120.0: kinds += ["hay", "camp", "cairn", "cart", "woodpile"]
 	var walked = 0.0
 	var next = 14.0
 	var side = 1.0
@@ -204,10 +206,10 @@ func _append_b(st: SurfaceTool, m: PrimitiveMesh, t: Transform3D, col := Color.W
 
 ## Wildflowers in the open grass: pale yellow, white and a little lilac.
 func _wildflowers(rng: RandomNumberGenerator) -> void:
-	var places: Array = Game.w.layout().places
+	var places: Array = Game.w.layout().places + Game.w.layout().decor
 	var at = []
 	var half = Game.w.size()
-	for _i in 140:
+	for _i in int(140 * view._many()):
 		# In clumps of a few, so meadows show patches rather than a sprinkle.
 		var c = Vector2(rng.randf_range(-half, half), rng.randf_range(-half, half))
 		if view._near_road(c, 2.5) or places.any(func(q): return q.pos.distance_to(c) < 8.0): continue

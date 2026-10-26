@@ -30,7 +30,9 @@ const AMBUSH_CHANCE := 0.35
 
 const EVENT_EVERY_HOURS := 4.0
 const EVENT_CHANCE := 0.45
-const TASKS_MAX := 3
+const TASKS_MAX := 4
+const TASK_OFFERS := 4
+const VISIT_REACH := 7.0             # how near the squad must come to a spot an errand sends it to
 
 ## Meetings on the road: a picture in words and two or three ways to answer.
 ## Each option: what it costs (gold, food), and what it does (see _apply).
@@ -113,7 +115,7 @@ const ACTIVITIES := [
 
 ## How each land looks: ground, grass and rock tints, trees, sky and fog.
 const THEMES := {
-	"outskirts": {"size": 100.0, "textured": true, "lively": true, "hills": true, "river": true, "grade": {"saturation": 0.8, "contrast": 1.08, "brightness": 0.93, "tint": Vector3(1.04, 1.0, 0.92)}, "bigTown": true, "extras": ["farm", "tower", "lake", "graveyard", "camp", "ruins", "shrine"], "ground": Color(0.27, 0.28, 0.17), "ground2": Color(0.22, 0.26, 0.14), "road": Color(0.42, 0.36, 0.27), "tree": "pine", "leaf": Color(0.2, 0.32, 0.17), "rock": Color(0.45, 0.43, 0.4), "sky": Color(0.55, 0.62, 0.72), "fog": Color(0.55, 0.58, 0.6), "town": "Пограничная Застава"},
+	"outskirts": {"size": 140.0, "textured": true, "lively": true, "hills": true, "river": true, "grade": {"saturation": 0.8, "contrast": 1.08, "brightness": 0.93, "tint": Vector3(1.04, 1.0, 0.92)}, "bigTown": true, "extras": ["farm", "tower", "lake", "graveyard", "camp", "ruins", "shrine"], "decor": ["hamlet", "lumber", "stones", "wreck", "watch", "orchard", "hamlet", "wreck", "lumber"], "ground": Color(0.27, 0.28, 0.17), "ground2": Color(0.22, 0.26, 0.14), "road": Color(0.42, 0.36, 0.27), "tree": "pine", "leaf": Color(0.2, 0.32, 0.17), "rock": Color(0.45, 0.43, 0.4), "sky": Color(0.55, 0.62, 0.72), "fog": Color(0.55, 0.58, 0.6), "town": "Пограничная Застава"},
 	"icefrontier": {"extras": ["tower", "camp", "shrine"], "ground": Color(0.78, 0.82, 0.86), "ground2": Color(0.62, 0.68, 0.74), "road": Color(0.5, 0.5, 0.52), "tree": "pine", "leaf": Color(0.25, 0.36, 0.33), "rock": Color(0.55, 0.6, 0.68), "sky": Color(0.7, 0.78, 0.88), "fog": Color(0.8, 0.85, 0.9), "town": "Зимовье Волчьей Тропы"},
 	"ashlands": {"extras": ["ruins", "graveyard", "camp"], "ground": Color(0.24, 0.22, 0.21), "ground2": Color(0.32, 0.25, 0.2), "road": Color(0.4, 0.33, 0.28), "tree": "dead", "leaf": Color(0.15, 0.13, 0.12), "rock": Color(0.3, 0.27, 0.26), "sky": Color(0.55, 0.42, 0.35), "fog": Color(0.45, 0.36, 0.32), "town": "Пепельный Приход"},
 	"debtprovince": {"extras": ["farm", "camp", "shrine"], "ground": Color(0.42, 0.4, 0.24), "ground2": Color(0.36, 0.38, 0.22), "road": Color(0.47, 0.4, 0.3), "tree": "round", "leaf": Color(0.33, 0.38, 0.17), "rock": Color(0.5, 0.47, 0.42), "sky": Color(0.65, 0.66, 0.6), "fog": Color(0.62, 0.62, 0.55), "town": "Долговой Посад"},
@@ -414,20 +416,20 @@ func layout(loc := "") -> Dictionary:
 	var east = Vector2(half - 6, rng.randf_range(-12, 12))
 	if idx > 0: places.append({"id": "west", "kind": "road", "pos": west, "to": DB.locations[idx - 1].id})
 	if idx < DB.locations.size() - 1: places.append({"id": "east", "kind": "road", "pos": east, "to": DB.locations[idx + 1].id})
-	# The road runs west to east through the dungeons and the town.
-	var ds = region_dungeons(id).filter(func(d): return not d.get("side", false))
+	# The road runs west to east through the town; the dungeons lie off it,
+	# out at the land's edges.
 	var stops = [west]
 	var k = half / SIZE
-	var xs = [-38.0 * k, 2.0 * k, 36.0 * k]
-	for i in ds.size():
-		var p = Vector2(xs[i] + rng.randf_range(-5, 5), rng.randf_range(-40, 40) * k)
-		places.append({"id": "d:" + ds[i].id, "kind": "dungeon", "pos": p, "dungeon": ds[i].id})
-		stops.append(p)
 	var town = Vector2(-16 + rng.randf_range(-4, 4), rng.randf_range(-14, 14))
 	var big: bool = THEMES[id].get("bigTown", false)
-	# A walled town is wide: it stands a little further west, midway between its dungeons.
+	# A walled town is wide: it stands a little further west.
 	if big: town.x -= 4.0
 	stops.append(town)
+	# A long road bends on its way: a turn or two between the town and the ends.
+	if k > 1.6:
+		stops.append(Vector2(lerpf(west.x, town.x, 0.5), rng.randf_range(-22, 22)))
+		stops.append(Vector2(lerpf(town.x, east.x, 0.4), rng.randf_range(-30, 30)))
+		stops.append(Vector2(lerpf(town.x, east.x, 0.75), rng.randf_range(-30, 30)))
 	stops.append(east)
 	stops.sort_custom(func(a, b): return a.x < b.x)
 	var plan = {}
@@ -444,23 +446,36 @@ func layout(loc := "") -> Dictionary:
 	# The land's other sights, then chests and gathering spots in what's left.
 	for kind in THEMES[id].get("extras", []):
 		places.append({"id": kind, "kind": kind, "pos": _free_spot(rng, places + guard, 16.0, half)})
-	# Side dungeons lie off the road, out in the wilds.
+	# Every dungeon lies out at the land's edge, far from the road's ends and each other.
+	var edge_off = places + guard + [{"pos": town}, {"pos": west}, {"pos": east}]
 	for d in region_dungeons(id):
-		if d.get("side", false):
-			places.append({"id": "d:" + d.id, "kind": "dungeon", "pos": _free_spot(rng, places + guard + [{"pos": town}], 22.0, half), "dungeon": d.id, "side": true})
+		var p = _edge_spot(rng, edge_off, half)
+		var at = {"id": "d:" + d.id, "kind": "dungeon", "pos": p, "dungeon": d.id}
+		if d.get("side", false): at.side = true
+		places.append(at)
+		edge_off.append(at)
+	# Things to look at between them: hamlets, woodcutters, old stones, wrecks.
+	var decor = []
+	var road_off = []
+	for i in stops.size() - 1:
+		for t in range(0, int(stops[i].distance_to(stops[i + 1]) / 6.0)):
+			road_off.append({"pos": stops[i].move_toward(stops[i + 1], t * 6.0)})
+	for kind in THEMES[id].get("decor", []):
+		var p = _free_spot(rng, places + guard + decor + road_off, 18.0, half)
+		decor.append({"kind": kind, "pos": p, "turn": rng.randf() * TAU})
 	var extra = int(round((k - 1.0) * 6))
 	for i in 5 + extra:
-		places.append({"id": "chest%d" % i, "kind": "chest", "pos": _free_spot(rng, places + guard, 9.0, half)})
+		places.append({"id": "chest%d" % i, "kind": "chest", "pos": _free_spot(rng, places + guard + decor, 9.0, half)})
 	for i in 3 + extra / 2:
-		places.append({"id": "herb%d" % i, "kind": "herb", "pos": _free_spot(rng, places + guard, 9.0, half)})
+		places.append({"id": "herb%d" % i, "kind": "herb", "pos": _free_spot(rng, places + guard + decor, 9.0, half)})
 	# Band camps keep away from the places and from where the squad comes in.
 	var camps = []
-	var keep_off = places + guard + [{"pos": west + Vector2(4, 0)}, {"pos": west + Vector2(14, 0)}]
+	var keep_off = places + guard + decor + [{"pos": west + Vector2(4, 0)}, {"pos": west + Vector2(14, 0)}]
 	for i in 4 + extra / 3:
 		var c = _free_spot(rng, keep_off, 16.0, half)
 		camps.append(c)
 		keep_off.append({"pos": c})
-	var out = {"places": places, "road": stops, "camps": camps, "start": west + Vector2(4, 0), "town": town, "town_plan": plan, "seed": rng.seed}
+	var out = {"places": places, "road": stops, "camps": camps, "start": west + Vector2(4, 0), "town": town, "town_plan": plan, "decor": decor, "seed": rng.seed}
 	_layouts[id] = out
 	return out
 
@@ -521,6 +536,23 @@ func _free_spot(rng: RandomNumberGenerator, places: Array, gap := 9.0, half := S
 		var p = Vector2(rng.randf_range(-half + 10, half - 10), rng.randf_range(-half + 10, half - 10))
 		if places.all(func(q): return q.pos.distance_to(p) > gap): return p
 	return Vector2(rng.randf_range(-half + 10, half - 10), rng.randf_range(-half + 10, half - 10))
+
+
+## A spot near the land's edge, `gap` clear of everything in `places` (or
+## the clearest of eighty tries).
+func _edge_spot(rng: RandomNumberGenerator, places: Array, half: float, gap := 40.0) -> Vector2:
+	var inset = 16.0
+	var best = Vector2.ZERO
+	var best_d = -1.0
+	for _try in 80:
+		var along = rng.randf_range(-half + inset, half - inset)
+		var p: Vector2 = [Vector2(along, -half + inset), Vector2(along, half - inset), Vector2(-half + inset, along), Vector2(half - inset, along)][rng.randi() % 4]
+		var d = places.reduce(func(m, q): return minf(m, q.pos.distance_to(p)), 1e9)
+		if d > gap: return p
+		if d > best_d:
+			best = p
+			best_d = d
+	return best
 
 
 ## Half the side of a land, in metres.
@@ -584,6 +616,7 @@ func step(dt: float):
 			target = null
 	if moved > 0:
 		explore(pos)
+		if not tasks.is_empty(): _task_visits()
 		_pass_hours(moved / METRES_PER_HOUR)
 		_event_clock += moved / METRES_PER_HOUR
 		if _event_clock >= EVENT_EVERY_HOURS:
@@ -820,6 +853,7 @@ func herb_ready(id: String) -> bool:
 func gather(id: String) -> void:
 	if not herb_ready(id): return
 	gathered[id] = day
+	task_event("herbs")
 	var rdef = DB.reagents.REAGENT_BY_LOCATION.get(region)
 	var n = 1 + randi() % 2
 	if rdef: g.reagent_counts[rdef.id] = g.reagent_owned(rdef.id) + n
@@ -911,6 +945,8 @@ func answer(i: int):
 	if o.has("scout"):
 		scouted_until = maxf(scouted_until, clock() + float(o.scout)); notes.append("стража рассказала, где банды")
 	if event.id == "wolves":
+		# Only beating them off counts for the shepherd's errand.
+		if o.has("tire") and o.has("reagent"): task_event("wolves")
 		# The pack is driven off, fed or left behind: it is gone till the next night.
 		for r in region_roamers():
 			if r.kind == "wolves": r.gone = clock() + 12.0
@@ -949,24 +985,55 @@ func _ambushers():
 
 
 # ── town errands ───────────────────────────────────────────────────────────
-## Two errands on the town's board, new each day.
+## Who in town asks, and for what. Each errand kind has its giver.
+const TASK_GIVERS := {
+	"bounty": "Капитан стражи Гарт", "patrol": "Капитан стражи Гарт", "gather": "Купец Тоббин", "chests": "Староста Ольгерд",
+	"dungeon": "Бард Лирен", "deliver": "Пекарша Марта", "graves": "Ведунья Морна", "ruins": "Кузнец Дорн",
+	"wolves": "Охотник Гхаш", "herbs": "Травница Элара", "fish": "Трактирщик Бруно"}
+## Each giver's face (assets/npc).
+const TASK_FACES := {"bounty": "captain", "patrol": "captain", "gather": "merchant", "chests": "elder", "dungeon": "bard",
+	"deliver": "baker", "graves": "witch", "ruins": "smith", "wolves": "hunter", "herbs": "herbalist", "fish": "keeper"}
+## The land's lesser sights by name, for errands that send the squad there.
+const DECOR_NAMES := {"hamlet": "хутор", "lumber": "лесопилка", "stones": "круг камней", "wreck": "разбитая повозка",
+	"watch": "дозорный пост", "orchard": "сад"}
+const DECOR_TO := {"hamlet": "на хутор", "lumber": "на лесопилку", "stones": "к кругу камней", "wreck": "к разбитой повозке",
+	"watch": "на дозорный пост", "orchard": "в сад"}
+const PARCELS := ["свёрток с лекарствами", "письмо от родни", "мешок соли", "новые подковы", "бочонок эля"]
+
+
+## Where a spot lies from the town, in words: "к северу от города".
+func from_town(p: Vector2) -> String:
+	var v: Vector2 = p - layout().town
+	var dir = ("к северу" if v.y < 0 else "к югу") if absf(v.y) > absf(v.x) else ("к востоку" if v.x > 0 else "к западу")
+	return dir + " от города"
+
+
+## The town's errands, new each day: four from different folk, each a different kind.
 func task_offers() -> Array:
 	var rng = RandomNumberGenerator.new()
 	rng.seed = hash("%s:%d" % [region, day])
 	var out = []
+	var lay = layout()
 	var kinds = ["bounty", "gather", "chests", "dungeon"]
+	if not lay.decor.is_empty(): kinds += ["deliver", "patrol"]
+	if place("graveyard") and not opened.has("graveyard"): kinds.append("graves")
+	if place("ruins") and not opened.has("ruins"): kinds.append("ruins")
+	if place("lake"): kinds.append("fish")
+	if lay.places.any(func(q): return q.kind == "herb"): kinds.append("herbs")
+	if region_roamers().any(func(r): return r.kind == "wolves"): kinds.append("wolves")
 	var rdef = DB.reagents.REAGENT_BY_LOCATION.get(region)
-	for i in 2:
-		var kind: String = kinds[rng.randi() % kinds.size()]
+	var lvl = location_index() + 1
+	for i in TASK_OFFERS:
+		if kinds.is_empty(): break
+		var kind: String = kinds.pop_at(rng.randi() % kinds.size())
 		var id = "%s:%d:%d" % [region, day, i]
 		if tasks.any(func(t): return t.id == id): continue
-		var t = {"id": id, "region": region, "kind": kind, "done": false, "have": 0}
-		var lvl = location_index() + 1
+		var t = {"id": id, "region": region, "kind": kind, "done": false, "have": 0, "target": "", "need": 1, "giver": TASK_GIVERS[kind]}
 		match kind:
 			"bounty":
 				var list: Array = bands.get(region, region_bands())
 				var b: Dictionary = list[rng.randi() % list.size()]
-				t.target = b.id; t.need = 1
+				t.target = b.id
 				t.title = "Голова за банду"; t.desc = "Разбейте отряд «%s» в окрестностях." % b.name
 				t.gold = 40 + 15 * lvl; t.xp = 30
 			"gather":
@@ -974,17 +1041,82 @@ func task_offers() -> Array:
 				t.title = "Заказ ремесленников"; t.desc = "Принесите %s ×%d." % [rdef.name if rdef else "сырьё", t.need]
 				t.gold = 30 + 12 * lvl; t.xp = 20
 			"chests":
-				t.target = ""; t.need = 2
+				t.need = 2
 				t.title = "Разведка округи"; t.desc = "Найдите и вскройте 2 сундука в этих землях."
 				t.gold = 30 + 10 * lvl; t.xp = 25
 			"dungeon":
 				var open = region_dungeons().filter(func(d): return g.is_dungeon_unlocked(d.id))
 				var d: Dictionary = open[rng.randi() % open.size()] if not open.is_empty() else region_dungeons()[0]
-				t.target = d.id; t.need = 1
-				t.title = "Зачистка"; t.desc = "Одолейте хозяина подземелья «%s»." % d.name
+				t.target = d.id
+				t.title = "Песнь о подвиге"; t.desc = "Барду нужна новая баллада: одолейте хозяина подземелья «%s»." % d.name
 				t.gold = 70 + 20 * lvl; t.xp = 45
+			"deliver":
+				var spot: Dictionary = lay.decor[rng.randi() % lay.decor.size()]
+				t.spots = [[spot.pos.x, spot.pos.y]]
+				t.title = "Посылка"; t.desc = "Отнесите %s %s %s." % [PARCELS[rng.randi() % PARCELS.size()], DECOR_TO.get(spot.kind, "на хутор"), from_town(spot.pos)]
+				t.gold = 25 + 10 * lvl; t.xp = 20
+			"patrol":
+				var picks = []
+				var pool = lay.decor.duplicate()
+				for _k in mini(3, pool.size()): picks.append(pool.pop_at(rng.randi() % pool.size()))
+				t.spots = picks.map(func(q): return [q.pos.x, q.pos.y])
+				t.need = picks.size()
+				t.title = "Дозор"; t.desc = "Обойдите округу: " + ", ".join(picks.map(func(q): return DECOR_NAMES.get(q.kind, "хутор"))) + "."
+				t.gold = 35 + 12 * lvl; t.xp = 35
+			"graves":
+				t.title = "Покой мёртвых"; t.desc = "Осмотрите склепы старого кладбища %s. Ночью туда лучше не ходить." % from_town(place("graveyard").pos)
+				t.gold = 45 + 12 * lvl; t.xp = 30
+			"ruins":
+				t.title = "Старое железо"; t.desc = "Обыщите руины форта %s: кузнецу нужен старый клинок на переплавку." % from_town(place("ruins").pos)
+				t.gold = 35 + 10 * lvl; t.xp = 25
+			"fish":
+				t.title = "Рыба к столу"; t.desc = "Порыбачьте на озере %s: Бруно к ужину нужна свежая рыба." % from_town(place("lake").pos)
+				t.gold = 20 + 8 * lvl; t.xp = 15
+			"herbs":
+				t.need = 2
+				t.title = "Травы для отваров"; t.desc = "Соберите травы в двух местах: Эларе не хватает на лекарства."
+				t.gold = 25 + 10 * lvl; t.xp = 20
+			"wolves":
+				t.title = "Волчья стая"; t.desc = "Ночью волки режут овец на хуторах. Гхаш просит встретить стаю и отбиться от неё."
+				t.gold = 40 + 14 * lvl; t.xp = 35
 		out.append(t)
 	return out
+
+
+## Where the squad's errands send it on this land, for the map and the minimap.
+func task_marks() -> Array:
+	var out = []
+	for t in tasks:
+		if t.done or t.region != region: continue
+		for sp in t.get("spots", []): out.append(Vector2(sp[0], sp[1]))
+		match t.kind:
+			"graves", "ruins", "fish":
+				var p = place({"graves": "graveyard", "ruins": "ruins", "fish": "lake"}[t.kind])
+				if p: out.append(p.pos)
+			"dungeon":
+				var p = place("d:" + t.target)
+				if p: out.append(p.pos)
+			"bounty":
+				for b in region_bands():
+					if b.id == t.target: out.append(b.pos)
+	return out
+
+
+## Errands done by coming to a spot: the parcel handed over, the patrol's posts.
+func _task_visits() -> void:
+	for t in tasks:
+		if t.done or t.region != region or not t.has("spots"): continue
+		var left = []
+		for sp in t.spots:
+			if pos.distance_to(Vector2(sp[0], sp[1])) > VISIT_REACH: left.append(sp)
+		if left.size() == t.spots.size(): continue
+		t.spots = left
+		t.have = mini(int(t.need), int(t.need) - left.size())
+		log_note = ("Свёрток передан." if t.kind == "deliver" else "Дозор: %d из %d." % [int(t.have), int(t.need)])
+		if left.is_empty():
+			t.done = true
+			log_note = "Поручение выполнено: %s — сдайте его в городе." % t.title
+		g.notify()
 
 
 func take_task(t: Dictionary) -> void:
@@ -1084,6 +1216,7 @@ func fish(id: String) -> void:
 	if used_today(id): return
 	_use(id)
 	_pass_hours(2.0)
+	task_event("fish")
 	food += 3
 	log_note = "Улов на ужин: +3 пайка."
 	g.notify()
@@ -1094,6 +1227,7 @@ func search_graves(id: String):
 	if opened.has(id): return null
 	opened[id] = true
 	_pass_hours(1.0)
+	task_event("graves")
 	if is_night() or randf() < 0.4:
 		log_note = "Земля шевельнулась — мертвецы встают из могил!"
 		g.notify()
@@ -1110,6 +1244,7 @@ func search_ruins(id: String) -> void:
 	if opened.has(id): return
 	opened[id] = true
 	_pass_hours(1.0)
+	task_event("ruins")
 	var gold = 25 + randi() % 21
 	g.gold += gold
 	var dr: Dictionary = DB.gear.TRASH_LOOT_TABLE.pick_random()
