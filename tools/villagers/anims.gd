@@ -3,6 +3,7 @@ extends SceneTree
 ## CC0) into one small AnimationLibrary. Copy UAL1_Standard.glb and
 ## UAL2_Standard.glb into godot/tmp_ual/, import, then run:
 ## godot --headless --path godot -s ../tools/villagers/anims.gd
+## then mixamo.gd, which adds the bow clips taken from Mixamo.
 
 const CLIPS := ["Idle", "Walk", "Idle_Talking", "Idle_FoldArms", "Farm_Harvest", "Farm_Watering", "Sitting_Idle",
 	"TreeChopping", "Walk_Carry", "Yes",
