@@ -11,7 +11,8 @@ signal picked(unit: Unit)
 # Meshy's combat set runs 2–4 s a clip; sped up so the blow lands inside a turn.
 const COMBAT_SPEED := {"Attack": 2.0, "Double_Combo_Attack": 2.1, "Charged_Slash": 1.6, "Charged_Spell_Cast": 1.8,
 	"Hit_Reaction": 1.4, "Dead": 1.3, "Thrust_Slash": 1.4, "Archery_Shot": 1.3,
-	"Hit_Light": 1.2, "Hit_Waist": 1.3, "Hit_Head": 1.6, "Death_Back": 1.3, "Stand_Dodge": 1.3, "Parry": 1.3}
+	"Hit_Light": 1.2, "Hit_Waist": 1.3, "Hit_Head": 1.6, "Death_Back": 1.3, "Stand_Dodge": 1.3, "Parry": 1.3,
+	"Spell_Cast_Forward": 1.3, "Spell_Cast_Sweep": 1.3, "Spell_Cast_Both": 1.3, "Spell_Cast_Ground": 1.3, "Dagger_Double_Stab": 1.3}
 ## Flinches on a hit, by weight: mostly the light one, now and then to the side or the head.
 const HITS := [["Hit_Light", 6], ["Hit_Waist", 3], ["Hit_Head", 2]]
 

@@ -11,6 +11,12 @@ const CLIPS := {
 	"bow-aim": ["Bow_Aim", true],             # Standing Aim Idle 01: holding the drawn bow on the mark
 	"bow-shoot": ["Bow_Shoot", false],        # Standing Aim Recoil: the loose
 	"bow-overdraw": ["Bow_Overdraw", false],  # Standing Aim Overdraw: a long draw for a power shot
+	# The casters' spells, so they do not all cast alike, and the daggers' own blow.
+	"spell-1h-forward": ["Spell_Cast_Forward", false],  # Standing 1H Magic Attack 01: one hand thrust out
+	"spell-1h-sweep": ["Spell_Cast_Sweep", false],      # Standing 1H Magic Attack 02: one hand swept across
+	"spell-2h-forward": ["Spell_Cast_Both", false],     # Standing 2H Magic Attack 01: both hands thrust out
+	"spell-2h-area": ["Spell_Cast_Ground", false],      # Standing 2H Magic Area Attack 01: both hands down at the ground
+	"dagger-stab": ["Dagger_Double_Stab", false],       # Double Dagger Stab
 }
 
 ## Mixamo bone (without "mixamorig_") -> ours. Mixamo's eyes, jaw, ends and
