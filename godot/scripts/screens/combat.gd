@@ -3,8 +3,6 @@ extends Screen
 ## the top the foe and the turn order, along the bottom the hero acting, the
 ## skill bar and the pace. Taps on the field between them reach it.
 
-## The top's width on a wide window (points).
-const TOP_W := 560.0
 const ACTION_ICON := {"attack": "sword", "heal": "first-aid-kit", "ability": "flame", "interrupt": "hand-palm", "breakChain": "shield-chevron",
 	"breakIce": "snowflake", "brace": "shield", "rally": "megaphone", "defend": "shield", "breakShell": "snowflake", "valor": "crown-simple"}
 const DANGER_TITLE := {"meteor": "Огненный дождь по колоннам %s", "cleave": "Сокрушающий взмах по клеткам вокруг врага",
@@ -22,6 +20,8 @@ var _hotkeys = []
 var SLOT = 58.0
 var _cam: Control
 var _top: Control
+## Wide window: the foes listed down the right, under the top strip.
+var _foes: Control
 var _bottom: Control
 
 
@@ -44,8 +44,8 @@ func build() -> void:
 	_top = _top_block(s)
 	add_child(_top)
 	if App.wide:
-		var foes = _foe_list(s)
-		if foes: add_child(foes)
+		_foes = _foe_list(s)
+		if _foes: add_child(_foes)
 	_bottom = _bottom_block(s, cur)
 	add_child(_bottom)
 	_cam = _camera_bar()
@@ -71,6 +71,10 @@ func _measure() -> void:
 		var vp = get_viewport_rect().size
 		var y = (vp.y - ch) * 0.5 if App.wide else _bottom.get_global_rect().position.y - ch
 		_cam.position = Vector2(vp.x - _cam.size.x - UI.px(12), y)
+	# The top root has no size of its own; let it span its plate, so the field and
+	# the foe list know where it ends.
+	_top.offset_bottom = _top.get_child(1).get_combined_minimum_size().y
+	if is_instance_valid(_foes): _foes.position.y = _top.get_global_rect().end.y - UI.px(4)
 	if App.wide:
 		# The skill bar sits low and narrow; only the top plate needs the board nudged down.
 		view.band_top = 0.0
@@ -113,24 +117,23 @@ func _top_block(s: Dictionary) -> Control:
 	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	shade.custom_minimum_size = Vector2.ZERO
 	root.add_child(shade)
-	var col = UI.vbox(7)
-	var w = TOP_W if App.wide else 0.0
-	var m = UI.margin(_plate(col, Vector4(14, 10, 14, 10) if App.wide else Vector4(10, 6, 10, 6), 0.8 if App.wide else 0.7), 10, 8 + App.inset_top() / UI.K, 10, 14)
-	if App.wide:
-		m.set_anchors_preset(Control.PRESET_CENTER_TOP)
-		m.offset_left = -UI.px(w * 0.5); m.offset_right = UI.px(w * 0.5)
-	else:
-		m.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	# One low strip across the whole screen: the sides' ribbons on the left,
+	# the turn order in the middle, onslaught and tilt on the right. A phone
+	# held upright is too narrow for that, so there the order drops below.
+	var col = UI.vbox(4)
+	var m = UI.margin(_plate(col, Vector4(12, 6, 12, 6) if App.wide else Vector4(10, 5, 10, 5), 0.8 if App.wide else 0.7), 8, 4 + App.inset_top() / UI.K, 8, 10)
+	m.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	root.add_child(m)
 	# Us against them, after Battlesmiths: the squad's health on a green
 	# ribbon, the foe's on a red one, crossed swords between; the name above.
-	var name_row = UI.hbox(8, BoxContainer.ALIGNMENT_CENTER)
+	var sides = UI.vbox(2)
+	var name_row = UI.hbox(6, BoxContainer.ALIGNMENT_CENTER)
 	if s.encounterType == "boss" and not Game.in_arena:
 		var art = DB.boss_art_path(Game.dungeon_id)
-		if art != "": name_row.add_child(UI.picture(art, 26, 26, 13))
-	var title = UI.shadowed(UI.label((s.name + (" · фаза %d" % s.phase if s.encounterType == "boss" else "")).to_upper(), 13, UI.GRIM_TITLE, "title"))
+		if art != "": name_row.add_child(UI.picture(art, 18, 18, 9))
+	var title = UI.shadowed(UI.label((s.name + (" · фаза %d" % s.phase if s.encounterType == "boss" else "")).to_upper(), 11.5, UI.GRIM_TITLE, "title"))
 	name_row.add_child(title)
-	col.add_child(name_row)
+	sides.add_child(name_row)
 	var ours = 0.0; var ours_max = 0.0
 	for r in s.raiders:
 		ours += maxf(0, r.hp); ours_max += r.maxHp
@@ -138,15 +141,43 @@ func _top_block(s: Dictionary) -> Control:
 	vs.add_child(UI.expand(_ribbon(ours, ours_max, Color("#6aa22a"), Color("#3d5f17"), false)))
 	vs.add_child(_crossed_swords())
 	vs.add_child(UI.expand(_ribbon(maxf(0, s.boss.hp), s.boss.maxHp, Color("#c0302f"), Color("#6d1416"), true)))
-	col.add_child(vs)
-	var meters = UI.hbox(14)
+	sides.add_child(vs)
+	var meters = UI.vbox(4)
+	meters.alignment = BoxContainer.ALIGNMENT_CENTER
+	meters.custom_minimum_size.x = UI.px(130 if App.wide else 110)
 	var stunned: bool = s.stunned or s.vulnerableRounds > 0
 	meters.add_child(_meter("Оглушён" if stunned else "Натиск", 100.0 if stunned else s.stagger, UI.WARN if stunned else UI.ACCENT, ""))
 	var tilt_col = UI.DANGER if s.tilt >= 70 else (UI.WARN if s.tilt >= 40 else UI.GOOD)
 	meters.add_child(_meter("Тилт", s.tilt, tilt_col, "%d%%" % round(s.tilt)))
-	col.add_child(meters)
-	col.add_child(_timeline(s))
-	for b in _banners(s): col.add_child(b)
+	var line = UI.hbox(14 if App.wide else 10)
+	if App.wide:
+		sides.custom_minimum_size.x = UI.px(300)
+		sides.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sides.size_flags_stretch_ratio = 0.8
+		line.add_child(sides)
+		line.add_child(_rule())
+		var order = _timeline(s)
+		order.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(order)
+		line.add_child(_rule())
+		line.add_child(meters)
+		col.add_child(line)
+	else:
+		line.add_child(UI.expand(sides))
+		line.add_child(meters)
+		col.add_child(line)
+		col.add_child(_timeline(s))
+	var banners = _banners(s)
+	if not banners.is_empty():
+		# Side by side under the strip rather than stacked down the field.
+		var flow = HFlowContainer.new()
+		flow.alignment = FlowContainer.ALIGNMENT_CENTER
+		flow.add_theme_constant_override("h_separation", UI.px(6))
+		flow.add_theme_constant_override("v_separation", UI.px(4))
+		for b in banners:
+			if App.wide: b.custom_minimum_size.x = UI.px(360)
+			flow.add_child(b if App.wide else UI.expand(b))
+		col.add_child(flow)
 	if not App.wide:
 		# The foes as chips just under the plate, over the field.
 		var foes = _foe_chips(s)
@@ -160,10 +191,17 @@ func _top_block(s: Dictionary) -> Control:
 	return root
 
 
+## A thin gilt divider between the strip's parts.
+func _rule() -> Control:
+	var sep = ColorRect.new(); sep.color = GOLD_LINE; sep.custom_minimum_size = Vector2(1, UI.px(34))
+	sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return UI.center(sep)
+
+
 ## One side's ribbon: a swallow-tailed banner filled as far as that side's
 ## health goes, the number on it in white; `right` mirrors it.
 func _ribbon(hp: float, max_hp: float, fill: Color, rim: Color, right: bool) -> Control:
-	var h = 30.0 if App.wide else 26.0
+	var h = 26.0 if App.wide else 24.0
 	var c = Control.new()
 	c.custom_minimum_size = Vector2(UI.px(120), UI.px(h))
 	c.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -204,7 +242,7 @@ func _ribbon(hp: float, max_hp: float, fill: Color, rim: Color, right: bool) -> 
 
 ## The diamond between the ribbons, with crossed swords on it.
 func _crossed_swords() -> Control:
-	var d = 40.0 if App.wide else 34.0
+	var d = 34.0 if App.wide else 30.0
 	var c = Control.new()
 	c.custom_minimum_size = Vector2(UI.px(d), UI.px(d))
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -227,8 +265,8 @@ func _crossed_swords() -> Control:
 ## is larger and framed; the round and the enrage clock close the line.
 func _timeline(s: Dictionary) -> Control:
 	var row = UI.hbox(6, BoxContainer.ALIGNMENT_CENTER)
-	var big = 40.0
-	var small = 30.0
+	var big = 36.0
+	var small = 28.0
 	for i in s.order.size():
 		var entry: Dictionary = s.order[i]
 		var active: bool = i == s.turnPos
