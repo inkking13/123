@@ -18,6 +18,7 @@ class_name FireballVFX
 @export var fire_color: Color = Color(1.0, 0.38, 0.05, 1.0)
 @export var dark_flame_color: Color = Color(0.55, 0.08, 0.02, 1.0)
 @export var smoke_color: Color = Color(0.12, 0.1, 0.1, 0.5)
+@export var burst_glow: float = 1.0 ## How bright the burst is; pale colours need less
 
 signal impact_reached(target_position: Vector3)
 signal vfx_finished()
@@ -111,10 +112,31 @@ var _flight_duration: float = 0.5
 var _time_alive: float = 0.0
 
 
+## Colours for the other spells built on this one.
+const PALETTES := {
+	"fire": [Color(1.0, 0.92, 0.65), Color(1.0, 0.38, 0.05), Color(0.55, 0.08, 0.02), Color(0.12, 0.1, 0.1, 0.5), 1.0],
+	"frost": [Color(0.55, 0.82, 1.0), Color(0.2, 0.5, 0.95), Color(0.05, 0.15, 0.45), Color(0.35, 0.5, 0.7, 0.15), 0.2],
+	"comet": [Color(1.0, 0.9, 1.0), Color(0.65, 0.35, 1.0), Color(0.2, 0.06, 0.45), Color(0.15, 0.1, 0.22, 0.45), 0.35],
+}
+
+
+## Sets the colours from PALETTES before it is added to the tree.
+func paint(palette: String) -> FireballVFX:
+	var c: Array = PALETTES[palette]
+	core_color = c[0]
+	fire_color = c[1]
+	dark_flame_color = c[2]
+	smoke_color = c[3]
+	burst_glow = c[4]
+	return self
+
+
 ## Plays one fireball from `from_pos` to `to_pos` (world space); `cast` is how long it gathers in the hand.
-static func spawn_and_launch(parent: Node, from_pos: Vector3, to_pos: Vector3, cast := 0.45, on_hit_callback: Callable = Callable()) -> FireballVFX:
-	var vfx := FireballVFX.new()
+static func spawn_and_launch(parent: Node, from_pos: Vector3, to_pos: Vector3, cast := 0.45, on_hit_callback: Callable = Callable(), palette := "fire", arc := 1.6, speed := 14.0) -> FireballVFX:
+	var vfx := FireballVFX.new().paint(palette)
 	vfx.cast_duration = cast
+	vfx.arc_height = arc
+	vfx.flight_speed = speed
 	parent.add_child(vfx)
 	if on_hit_callback.is_valid():
 		vfx.impact_reached.connect(on_hit_callback)
@@ -210,7 +232,7 @@ func _trigger_impact() -> void:
 	# A bright flash on the arena, fading.
 	_omni_light.global_position = _target_pos
 	_omni_light.omni_range = 9.5
-	_omni_light.set_meta("base_energy", 11.0)
+	_omni_light.set_meta("base_energy", 11.0 * burst_glow)
 	# The ring of fire and the scorch mark. The burst is at chest height; they lie on the floor.
 	var floor_y = _target_pos.y - get_parent().to_global(Vector3.ZERO).y
 	_shockwave_mesh.position.y = 0.05 - floor_y
@@ -226,7 +248,7 @@ func _trigger_impact() -> void:
 	impact_tween.tween_method(func(a: float): shock_mat.set_shader_parameter("alpha", a), 1.0, 0.0, 0.38)
 	impact_tween.tween_property(_scorch_decal_mesh, "scale", Vector3(2.8, 1.0, 2.8), 0.15).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	impact_tween.tween_property(scorch_mat, "albedo_color:a", 0.0, 2.2).set_delay(0.8)
-	impact_tween.tween_method(func(e: float): _omni_light.set_meta("base_energy", e), 11.0, 0.0, 0.65).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	impact_tween.tween_method(func(e: float): _omni_light.set_meta("base_energy", e), 11.0 * burst_glow, 0.0, 0.65).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
 	await get_tree().create_timer(3.1).timeout
 	vfx_finished.emit()
 	queue_free()
@@ -251,7 +273,7 @@ func _build_vfx_hierarchy() -> void:
 	_outer_corona_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_projectile_root.add_child(_outer_corona_mesh)
 	_omni_light = OmniLight3D.new()
-	_omni_light.light_color = Color(1.0, 0.52, 0.18)
+	_omni_light.light_color = fire_color.lerp(Color.WHITE, 0.2)
 	_omni_light.light_energy = 4.0
 	_omni_light.omni_range = 6.0
 	_omni_light.omni_attenuation = 1.4
@@ -282,7 +304,7 @@ func _build_vfx_hierarchy() -> void:
 	var ring := ShaderMaterial.new()
 	ring.shader = _shader("ring", RING_SHADER)
 	ring.set_shader_parameter("noise_tex", noise_tex)
-	ring.set_shader_parameter("ring_color", fire_color)
+	ring.set_shader_parameter("ring_color", Color(fire_color * burst_glow, 1.0))
 	ring.set_shader_parameter("alpha", 0.0)
 	_shockwave_mesh.material_override = ring
 	_shockwave_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -377,6 +399,19 @@ func _fireball_material(noise_tex: Texture2D, is_outer_corona: bool) -> ShaderMa
 
 static func _quad(tex: Texture2D, size: float, additive: bool) -> QuadMesh:
 	return _cached("quad:%s:%s" % [size, additive], func():
+		var quad := QuadMesh.new()
+		quad.size = Vector2(size, size)
+		if additive:
+			# Glowing bits share the spell shader: soft round sprites that keep their fade on every renderer.
+			var glow := ShaderMaterial.new()
+			glow.shader = SpellFx.SHADER
+			glow.set_shader_parameter("shape", SpellFx.GLOW)
+			glow.set_shader_parameter("billboard", true)
+			glow.set_shader_parameter("particle", true)
+			glow.set_shader_parameter("t", 0.2)
+			glow.set_shader_parameter("energy", 1.6)
+			quad.material = glow
+			return quad
 		var mat := StandardMaterial3D.new()
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if additive else BaseMaterial3D.BLEND_MODE_MIX
@@ -386,8 +421,6 @@ static func _quad(tex: Texture2D, size: float, additive: bool) -> QuadMesh:
 		mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 		mat.billboard_keep_scale = true
 		mat.disable_receive_shadows = true
-		var quad := QuadMesh.new()
-		quad.size = Vector2(size, size)
 		quad.material = mat
 		return quad)
 
@@ -427,8 +460,12 @@ func _particles(pname: String, amount: int, lifetime: float, quad: QuadMesh) -> 
 	return p
 
 
+func _palette() -> String:
+	return "%s/%s/%s/%s/%s" % [core_color.to_html(), fire_color.to_html(), dark_flame_color.to_html(), smoke_color.to_html(), burst_glow]
+
+
 func _process_material(key: String, make: Callable) -> ParticleProcessMaterial:
-	return _cached("pm:" + key + ":" + str(smoke_color), make)
+	return _cached("pm:%s:%s" % [key, _palette()], make)
 
 
 func _flame_trail_particles(tex: Texture2D) -> GPUParticles3D:
@@ -449,7 +486,7 @@ func _flame_trail_particles(tex: Texture2D) -> GPUParticles3D:
 		mat.angular_velocity_min = -90.0
 		mat.angular_velocity_max = 90.0
 		mat.scale_curve = _scale_curve(0.85, 1.15, 0.1)
-		mat.color_ramp = _ramp([Color(1.0, 0.92, 0.6, 0.95), Color(1.0, 0.42, 0.06, 0.85), Color(0.65, 0.08, 0.02, 0.45), Color(0.2, 0.02, 0.01, 0.0)], [0.0, 0.3, 0.7, 1.0])
+		mat.color_ramp = _ramp([Color(core_color, 0.95), Color(fire_color, 0.85), Color(dark_flame_color, 0.45), Color(dark_flame_color * 0.35, 0.0)], [0.0, 0.3, 0.7, 1.0])
 		return mat)
 	return p
 
@@ -466,7 +503,7 @@ func _smoke_trail_particles(tex: Texture2D) -> GPUParticles3D:
 		mat.initial_velocity_max = 0.9
 		mat.gravity = Vector3(0, 1.6, 0)
 		mat.scale_curve = _scale_curve(0.4, 1.0, 1.65)
-		mat.color_ramp = _ramp([Color(0.35, 0.12, 0.05, 0.0), smoke_color, Color(0.08, 0.07, 0.07, 0.25), Color(0.05, 0.05, 0.05, 0.0)], [0.0, 0.2, 0.65, 1.0])
+		mat.color_ramp = _ramp([Color(dark_flame_color, 0.0), smoke_color, Color(0.08, 0.07, 0.07, 0.25), Color(0.05, 0.05, 0.05, 0.0)], [0.0, 0.2, 0.65, 1.0])
 		return mat)
 	return p
 
@@ -485,7 +522,7 @@ func _ember_particles(tex: Texture2D) -> GPUParticles3D:
 		mat.damping_min = 0.5
 		mat.damping_max = 1.5
 		mat.scale_curve = _scale_curve(1.0, 0.8, 0.0)
-		mat.color_ramp = _ramp([Color(1.0, 0.95, 0.7, 1.0), Color(1.0, 0.45, 0.05, 1.0), Color(0.8, 0.1, 0.0, 0.0)], [0.0, 0.6, 1.0])
+		mat.color_ramp = _ramp([Color(core_color, 1.0), Color(fire_color, 1.0), Color(dark_flame_color, 0.0)], [0.0, 0.6, 1.0])
 		return mat)
 	return p
 
@@ -507,7 +544,7 @@ func _explosion_fire_particles(tex: Texture2D) -> GPUParticles3D:
 		mat.damping_min = 4.5
 		mat.damping_max = 7.5
 		mat.scale_curve = _scale_curve(0.5, 1.35, 0.2)
-		mat.color_ramp = _ramp([Color(1.0, 0.98, 0.8, 1.0), Color(1.0, 0.48, 0.08, 0.95), Color(0.65, 0.08, 0.02, 0.6), Color(0.15, 0.02, 0.01, 0.0)], [0.0, 0.25, 0.65, 1.0])
+		mat.color_ramp = _ramp([Color(core_color.lerp(Color.WHITE, 0.4), burst_glow), Color(fire_color, 0.95 * burst_glow), Color(dark_flame_color, 0.6 * burst_glow), Color(dark_flame_color * 0.25, 0.0)], [0.0, 0.25, 0.65, 1.0])
 		return mat)
 	return p
 
@@ -527,7 +564,7 @@ func _explosion_sparks_particles(tex: Texture2D) -> GPUParticles3D:
 		mat.damping_min = 1.0
 		mat.damping_max = 2.5
 		mat.scale_curve = _scale_curve(1.2, 0.9, 0.0)
-		mat.color_ramp = _ramp([Color(1.0, 0.95, 0.75, 1.0), Color(1.0, 0.4, 0.05, 1.0), Color(0.5, 0.05, 0.0, 0.0)], [0.0, 0.55, 1.0])
+		mat.color_ramp = _ramp([Color(core_color, 1.0), Color(fire_color, 1.0), Color(dark_flame_color, 0.0)], [0.0, 0.55, 1.0])
 		return mat)
 	return p
 
@@ -549,6 +586,6 @@ func _explosion_smoke_particles(tex: Texture2D) -> GPUParticles3D:
 		mat.damping_min = 2.0
 		mat.damping_max = 4.0
 		mat.scale_curve = _scale_curve(0.6, 1.2, 1.9)
-		mat.color_ramp = _ramp([Color(0.4, 0.15, 0.05, 0.0), Color(0.14, 0.11, 0.1, 0.45), Color(0.08, 0.07, 0.07, 0.25), Color(0.05, 0.05, 0.05, 0.0)], [0.0, 0.18, 0.65, 1.0])
+		mat.color_ramp = _ramp([Color(dark_flame_color, 0.0), Color(smoke_color, 0.45), Color(0.08, 0.07, 0.07, 0.25), Color(0.05, 0.05, 0.05, 0.0)], [0.0, 0.18, 0.65, 1.0])
 		return mat)
 	return p

@@ -210,6 +210,17 @@ static func play(v: Node3D, id: String, caster: Unit, target: Unit, healed: Unit
 			if tg:
 				var fb = FireballVFX.spawn_and_launch(v, caster.hand(), tg.chest(), go)
 				fb.impact_reached.connect(func(_at): shake(v, 0.22))
+		"frostbolt":
+			if tg:
+				var fb = FireballVFX.spawn_and_launch(v, caster.hand(), tg.chest(), go, Callable(), "frost", 0.5, 18.0)
+				fb.impact_reached.connect(func(_at):
+					if not is_instance_valid(tg): return
+					ring(v, _feet(v, tg), FROST, 1.0, 0.8)
+					sparks(v, _chest(v, tg), Color(0.85, 0.95, 1.0), 18, 0.08, 0.8, 2.4, -7.0))
+		"comet-storm":
+			charge(v, caster, SHADOW, go)
+			for i in foes.size():
+				_comet(v, foes[i], go + 0.1 + i * 0.22)
 		_:
 			return false
 	return true
@@ -661,6 +672,14 @@ static func _avengers_shield(v: Node3D, from: Unit, first: Unit, foes: Array, de
 		sparks(v, to, HOLY, 12, 0.1, 0.5, 2.4, -5.0)
 		at = to
 	if is_instance_valid(from): thrown(v, "roundShield", at, v.to_local(from.hand()), HOLY, 14.0)
+
+
+## A comet out of the sky onto a foe.
+static func _comet(v: Node3D, u: Unit, delay: float) -> void:
+	if not await _wait(v, delay) or not is_instance_valid(u): return
+	var to = u.chest()
+	var fb = FireballVFX.spawn_and_launch(v, to + Vector3(-1.4, 7.0, 0.9), to, 0.08, Callable(), "comet", 0.0, 16.0)
+	fb.impact_reached.connect(func(_at): shake(v, 0.18))
 
 
 static func _epidemic(v: Node3D, from: Unit, first: Unit, foes: Array, delay: float) -> void:
