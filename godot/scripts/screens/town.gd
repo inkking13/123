@@ -55,9 +55,16 @@ func _task_card(t: Dictionary, sub: String, action: Control, taken: bool) -> Con
 	var row = UI.hbox(12)
 	var icon = {"bounty": "sword", "gather": "hand-coins", "chests": "treasure-chest", "dungeon": "door-open", "deliver": "map-trifold",
 		"patrol": "footprints", "graves": "skull", "ruins": "hammer", "wolves": "paw-print", "herbs": "leaf", "fish": "waves"}.get(t.kind, "scroll")
-	row.add_child(UI.center(UI.icon(icon, 20, UI.ACCENT)))
+	# Whoever asks looks out of the card; the errand's kind sits by their name.
+	var face = World.TASK_FACES.get(t.kind, "")
+	if face != "":
+		row.add_child(UI.center(UI.picture("npc/%s.jpg" % face, 76, 76, 8)))
+	else: row.add_child(UI.center(UI.icon(icon, 20, UI.ACCENT)))
 	var v = UI.vbox(2)
-	if t.has("giver"): v.add_child(UI.label(t.giver, 11.5, Color("#b8935c"), "italic"))
+	var who = UI.hbox(5)
+	who.add_child(UI.center(UI.icon(icon, 13, Color("#b8935c"))))
+	who.add_child(UI.label(World.TASK_GIVERS.get(t.kind, t.get("giver", "")), 11.5, Color("#b8935c"), "italic"))
+	v.add_child(who)
 	v.add_child(UI.label(t.title, 15, UI.TEXT, "medium"))
 	v.add_child(UI.label(t.desc, 12.5, UI.TEXT_DIM, "regular", true))
 	v.add_child(UI.label(sub, 12, UI.GOOD if taken else UI.WARN, "italic", true))

@@ -987,9 +987,12 @@ func _ambushers():
 # ── town errands ───────────────────────────────────────────────────────────
 ## Who in town asks, and for what. Each errand kind has its giver.
 const TASK_GIVERS := {
-	"bounty": "Капитан стражи", "patrol": "Капитан стражи", "gather": "Цех ремесленников", "chests": "Староста",
-	"dungeon": "Доска объявлений", "deliver": "Трактирщица", "graves": "Отец Ансельм", "ruins": "Кузнец",
-	"wolves": "Пастух Ивор", "herbs": "Травница Мара", "fish": "Трактирщица"}
+	"bounty": "Капитан стражи Гарт", "patrol": "Капитан стражи Гарт", "gather": "Купец Тоббин", "chests": "Староста Ольгерд",
+	"dungeon": "Бард Лирен", "deliver": "Пекарша Марта", "graves": "Ведунья Морна", "ruins": "Кузнец Дорн",
+	"wolves": "Охотник Гхаш", "herbs": "Травница Элара", "fish": "Трактирщик Бруно"}
+## Each giver's face (assets/npc).
+const TASK_FACES := {"bounty": "captain", "patrol": "captain", "gather": "merchant", "chests": "elder", "dungeon": "bard",
+	"deliver": "baker", "graves": "witch", "ruins": "smith", "wolves": "hunter", "herbs": "herbalist", "fish": "keeper"}
 ## The land's lesser sights by name, for errands that send the squad there.
 const DECOR_NAMES := {"hamlet": "хутор", "lumber": "лесопилка", "stones": "круг камней", "wreck": "разбитая повозка",
 	"watch": "дозорный пост", "orchard": "сад"}
@@ -1045,7 +1048,7 @@ func task_offers() -> Array:
 				var open = region_dungeons().filter(func(d): return g.is_dungeon_unlocked(d.id))
 				var d: Dictionary = open[rng.randi() % open.size()] if not open.is_empty() else region_dungeons()[0]
 				t.target = d.id
-				t.title = "Зачистка"; t.desc = "Одолейте хозяина подземелья «%s»." % d.name
+				t.title = "Песнь о подвиге"; t.desc = "Барду нужна новая баллада: одолейте хозяина подземелья «%s»." % d.name
 				t.gold = 70 + 20 * lvl; t.xp = 45
 			"deliver":
 				var spot: Dictionary = lay.decor[rng.randi() % lay.decor.size()]
@@ -1067,14 +1070,14 @@ func task_offers() -> Array:
 				t.title = "Старое железо"; t.desc = "Обыщите руины форта %s: кузнецу нужен старый клинок на переплавку." % from_town(place("ruins").pos)
 				t.gold = 35 + 10 * lvl; t.xp = 25
 			"fish":
-				t.title = "Рыба к столу"; t.desc = "Порыбачьте на озере %s: таверне к ужину нужна свежая рыба." % from_town(place("lake").pos)
+				t.title = "Рыба к столу"; t.desc = "Порыбачьте на озере %s: Бруно к ужину нужна свежая рыба." % from_town(place("lake").pos)
 				t.gold = 20 + 8 * lvl; t.xp = 15
 			"herbs":
 				t.need = 2
-				t.title = "Травы для отваров"; t.desc = "Соберите травы в двух местах: травнице не хватает на лекарства."
+				t.title = "Травы для отваров"; t.desc = "Соберите травы в двух местах: Эларе не хватает на лекарства."
 				t.gold = 25 + 10 * lvl; t.xp = 20
 			"wolves":
-				t.title = "Волки у стада"; t.desc = "Ночью волки режут овец. Встретьте стаю и прогоните её."
+				t.title = "Волчья стая"; t.desc = "Ночью волки режут овец на хуторах. Гхаш просит встретить стаю и отбиться от неё."
 				t.gold = 40 + 14 * lvl; t.xp = 35
 		out.append(t)
 	return out
